@@ -1,0 +1,38 @@
+{
+  "summary": "STAAR Hub iteration 2 (Voice Guardian + Morning scenario + Judge walkthrough) PASSED end-to-end. Backend: 10/10 new pytest cases green in /app/backend/tests/test_iteration2_new.py — POST /api/demo/scenario 'morning' seeds wellbeing.slept_poorly=true, sleep_hours=4.5; GET /api/guardian/signals returns a poor_recovery signal (source=wellbeing, targets include work+style) ordered first; POST /api/guardian/coordinate-morning returns exactly 4 actions (wellbeing, work, style, home) and mutates wellbeing.gentle_start_active=true, style.planned_outfit.name='Low-effort confidence', home.lights='sunrise'; POST /api/guardian/speak returns {url:/api/tts/<32-char-key>.mp3}, first call generated audio in ~2.4s and cached call returned in <1s, GET of the url returns audio/mpeg content > 5KB, invalid coordination_id → 404, invalid tts key → 404; coordinate-evening still returns 6 actions and persists spoken_summary; /api/guardian/view returns both morning and evening coordinations. Frontend (390x844 mobile viewport) verified: on fresh localStorage the walkthrough overlay renders with 5 steps, NEXT button reads 'START THE DEMO' on step 5, walkthrough dismisses and does NOT reappear on hub revisit; SKIP also dismisses. Settings → 'ACT II — MORNING · ROUGH NIGHT' returns to hub; banner shows 'You slept 4.5 hours. Recovery is low ahead of your 9:30 AM presentation.' Wellbeing portal shows morning-intervention card → COORDINATE MY MORNING opens sheet with 4 action cards (wellbeing/work/style/home) + HEAR THE GUARDIAN button. Voice button transitioned to 'SPEAKING — TAP TO STOP' (cached path <1s; on cold path allow up to 20s) and back to idle on second tap. gentle-start-card visible after closing the sheet. Style portal shows 'Low-effort confidence' outfit. Regression: scenario-evening-btn restores work overload, Work portal → COORDINATE MY EVENING sheet has 6 action cards, hear-guardian-btn present on evening sheet, OPEN GUARDIAN VIEW shows BOTH morning and evening coordinations. Settings → REPLAY JUDGE WALKTHROUGH clears the AsyncStorage flag and returns to hub — walkthrough overlay reappears.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "CanvasKit / Skia web loader", "issue": "Console warning on first load: 'CanvasKit load failed TypeError: Failed to fetch' followed by 'wasm streaming compile failed... falling back to ArrayBuffer instantiation'. The fallback works and Skia intro/hub render correctly, but the CDN fetch path is unreliable on the preview host. Consider self-hosting canvaskit.wasm (see /app/frontend/index.js) or adding retry+timeout. Reference: /app/frontend/index.js"},
+    {"component": "react-native-web deprecations", "issue": "Repeated console warnings: '\"shadow*\" style props are deprecated. Use \"boxShadow\"' (many callsites e.g. hub.tsx primaryBtn line ~283, coordination-sheet.tsx cta line ~150) and 'props.pointerEvents is deprecated. Use style.pointerEvents' (hub.tsx line ~139). Non-blocking but should be migrated before production."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration2_new.py",
+    "/app/backend/tests/test_staar_hub.py",
+    "/app/test_reports/pytest/iteration2_results.xml"
+  ],
+  "action_items": [
+    "Optional: self-host canvaskit.wasm or add retry logic in /app/frontend/index.js — the transient CanvasKit fetch failure is intermittent and always falls back cleanly, but is noisy in the console.",
+    "Optional: migrate `shadow*` StyleSheet props → `boxShadow` and `pointerEvents` prop → `style.pointerEvents` across hub.tsx / coordination-sheet.tsx / other screens to silence RN-Web deprecation warnings.",
+    "Optional: add EXPO_BACKEND_URL alias in /app/frontend/.env for consistency (currently only EXPO_PUBLIC_BACKEND_URL is set — tests fall back to either)."
+  ],
+  "critical_code_review_comments": [
+    "server.py is now ~880 lines and adds two more feature domains (TTS + morning coordination). Splitting into routers (auth.py, portals.py, guardian.py, tts.py, chat.py) is becoming increasingly worthwhile.",
+    "voice.ts uses a single module-level `createAudioPlayer()` instance — good for reuse but note that in dev-fast-refresh on web the previous player instance is reused across reloads; consider guarding against stale players if adding more audio surfaces.",
+    "coordination-sheet.tsx: playbackStatusUpdate `sub2.remove()` is only called on `didJustFinish`. If the user closes the modal mid-playback the listener still exists on the shared player until next replace(). Not a leak in practice but worth cleaning up in an effect return.",
+    "Pydantic v2 deprecation persists: update_profile / update_privacy still call `.dict()` instead of `.model_dump()` (server.py lines 270, 281)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration2_new.py (created — 10 new tests for morning scenario, coordinate-morning, TTS speak/cache/404, evening regression, guardian-view merge)"
+  ],
+  "success_rate": {"backend": "100% (10/10 new + 21/21 regression from iter 1)", "frontend": "100% on all new flows exercised (walkthrough 5-step + skip + replay, morning scenario seed + banner, coordinate-morning 4 actions, voice idle↔SPEAKING↔idle, gentle-start-card, Style Low-effort confidence, evening 6 actions, guardian-view morning+evening merge)"},
+  "seed_data_creation": "No manual seed needed. POST /api/auth/demo seeds the evening overload state; POST /api/demo/scenario {scenario:'morning'} seeds the rough-night state; both switch back and forth cleanly.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend base: https://cross-life-ai.preview.emergentagent.com/api. To test walkthrough as a fresh user, run `await page.evaluate(\"() => localStorage.clear()\")` between navigations (AsyncStorage on web maps to localStorage, key 'staar_tour_done'). New testIDs added this iteration: walkthrough-overlay, walkthrough-next, walkthrough-skip, scenario-morning-btn, scenario-evening-btn, replay-walkthrough-btn, coordinate-morning-btn, coordinate-evening-btn, hear-guardian-btn, gentle-start-card, action-<portal> for each card in the coordination sheet. TTS: first-call latency is 2–15s depending on OpenAI response; subsequent calls hit db.tts_cache and return in <1s. Voice button on Web: `expo-audio` shared player is reused across morning/evening sheets — closing the modal calls stopVoice() which pauses the shared player. When testing voice state transitions, poll the button's innerText (idle='HEAR THE GUARDIAN', loading='PREPARING VOICE…', playing='SPEAKING — TAP TO STOP').",
+  "rca_of_issue": "No functional bugs found. Two non-blocking web-preview warnings persist from iteration 1: (1) CanvasKit CDN fetch occasionally fails and falls back to ArrayBuffer instantiation (Skia intro still renders); (2) RN-Web deprecation warnings for shadow*/pointerEvents. Neither affects the demo experience."
+}

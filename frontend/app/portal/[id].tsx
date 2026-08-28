@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect, Redirect } from 'expo-router';
 import { Image } from 'expo-image';
@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { useAuth } from '@/src/auth';
 import { theme, portalMeta } from '@/src/theme';
+import { CoordinationSheet } from '@/src/coordination-sheet';
 
 export default function PortalDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -62,7 +63,7 @@ export default function PortalDetail() {
         </View>
 
         <View style={{ paddingHorizontal: 24 }}>
-          {id === 'wellbeing' && <Wellbeing data={data} save={save} />}
+          {id === 'wellbeing' && <Wellbeing data={data} save={save} api={api} reload={load} />}
           {id === 'home' && <Home data={data} save={save} />}
           {id === 'community' && <Community data={data} save={save} events={events} />}
           {id === 'style' && <Style data={data} />}
@@ -85,13 +86,29 @@ function SectionH({ children }: { children: string }) {
   return <Text style={styles.sectionH}>{children}</Text>;
 }
 
-function Wellbeing({ data, save }: any) {
+function Wellbeing({ data, save, api, reload }: any) {
   const active = !!data?.decompression_active;
+  const [coord, setCoord] = useState<any | null>(null);
+  const [sheet, setSheet] = useState(false);
+  const [busy, setBusy] = useState(false);
   const breath = useSharedValue(1);
   useEffect(() => {
     if (active) breath.value = withRepeat(withTiming(1.35, { duration: 4000, easing: Easing.inOut(Easing.quad) }), -1, true);
   }, [active]);
   const breathStyle = useAnimatedStyle(() => ({ transform: [{ scale: breath.value }] }));
+
+  const coordinateMorning = async () => {
+    setBusy(true);
+    try {
+      const r = await api('/api/guardian/coordinate-morning', { method: 'POST', body: JSON.stringify({ approve: true }) });
+      if (r.ok) {
+        setCoord(await r.json());
+        setSheet(true);
+        if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch {}
+    setBusy(false);
+  };
 
   return (
     <View>
@@ -104,7 +121,47 @@ function Wellbeing({ data, save }: any) {
           <Text style={styles.metricLabel}>STRESS</Text>
           <Text style={[styles.metricValue, (data?.stress || 0) >= 6 && { color: '#8B0000' }]}>{data?.stress ?? '—'}/10</Text>
         </View>
+        {data?.sleep_hours != null && (
+          <View style={styles.metricCard}>
+            <Text style={styles.metricLabel}>SLEEP</Text>
+            <Text style={[styles.metricValue, data?.slept_poorly && { color: '#8B0000' }]}>{data.sleep_hours}h</Text>
+          </View>
+        )}
       </View>
+
+      {/* Act II: morning intervention */}
+      {data?.slept_poorly && !data?.gentle_start_active && (
+        <View style={styles.guardianCard} testID="morning-intervention">
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Ionicons name="flash" size={14} color="#0A0A0A" />
+            <Text style={styles.gKicker}>THE GUARDIAN NOTICED</Text>
+          </View>
+          <Text style={styles.gText}>
+            Rough night — {data?.sleep_hours ?? 4.5} hours of sleep, and you present at 9:30 AM.
+            Want me to soften your morning across Work, Style and Home?
+          </Text>
+          <Pressable style={styles.blackBtn} onPress={coordinateMorning} disabled={busy} testID="coordinate-morning-btn">
+            {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.blackBtnText}>COORDINATE MY MORNING</Text>}
+          </Pressable>
+        </View>
+      )}
+
+      {data?.gentle_start_active && (
+        <View style={styles.breathCard} testID="gentle-start-card">
+          <Text style={styles.gKicker}>GENTLE START ACTIVE</Text>
+          <Text style={[styles.breathSub, { textAlign: 'left', marginTop: 8 }]}>
+            The Guardian softened your morning: hydration first, 10 minutes of stretching, and non-urgent pings held until 10 AM.
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12, marginBottom: 14 }}>
+            {['Water • 500ml', 'Stretch • 10 min', 'Pings held → 10:00 AM'].map((it, i) => (
+              <View key={i} style={styles.chip}><Text style={styles.chipText}>{it}</Text></View>
+            ))}
+          </View>
+          <Pressable style={styles.outlineBtn} onPress={() => save({ ...data, gentle_start_active: false })} testID="end-gentle-start-btn">
+            <Text style={styles.outlineBtnText}>END GENTLE START</Text>
+          </Pressable>
+        </View>
+      )}
 
       {active ? (
         <View style={styles.breathCard} testID="decompression-card">
@@ -134,6 +191,14 @@ function Wellbeing({ data, save }: any) {
           <Text style={styles.blackBtnText}>START 20-MIN DECOMPRESSION</Text>
         </Pressable>
       )}
+
+      <CoordinationSheet
+        visible={sheet}
+        onClose={() => { setSheet(false); reload(); }}
+        coord={coord}
+        headline="Morning softened."
+        sub={`One signal in Wellbeing. ${coord?.actions?.length || 0} portals aligned before 9:30 AM.`}
+      />
     </View>
   );
 }
@@ -311,6 +376,11 @@ const styles = StyleSheet.create({
     marginTop: 16, padding: 20, borderRadius: 20, backgroundColor: '#F5F5F7',
     borderWidth: 1, borderColor: 'rgba(0,229,255,0.35)',
   },
+  guardianCard: {
+    marginTop: 16, padding: 20, borderRadius: 20, backgroundColor: '#F5F5F7',
+    borderWidth: 1, borderColor: 'rgba(0,229,255,0.35)',
+  },
+  gText: { marginTop: 10, fontSize: 15, lineHeight: 22, color: '#0A0A0A', fontWeight: '500' },
   gKicker: { fontSize: 10, letterSpacing: 2.5, fontWeight: '800', color: '#0A0A0A', opacity: 0.65 },
   breathCircle: {
     width: 90, height: 90, borderRadius: 999, backgroundColor: 'rgba(0,229,255,0.18)',

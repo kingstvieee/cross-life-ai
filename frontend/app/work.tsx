@@ -1,14 +1,14 @@
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Modal, ActivityIndicator, Platform } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '@/src/auth';
-import { theme, portalMeta } from '@/src/theme';
+import { portalMeta } from '@/src/theme';
+import { CoordinationSheet } from '@/src/coordination-sheet';
 
 const PRIORITY_STYLE: Record<string, { bg: string; fg: string }> = {
   urgent: { bg: '#FFF0F0', fg: '#8B0000' },
@@ -19,8 +19,7 @@ const PRIORITY_STYLE: Record<string, { bg: string; fg: string }> = {
 
 export default function Work() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { api, user } = useAuth();
+  const { api } = useAuth();
   const [data, setData] = useState<any | null>(null);
   const [busy, setBusy] = useState<null | 'coordinate' | 'simulate'>(null);
   const [coord, setCoord] = useState<any | null>(null);
@@ -156,49 +155,14 @@ export default function Work() {
         </View>
       </ScrollView>
 
-      {/* Coordination result modal */}
-      <Modal visible={modal} animationType="slide" transparent onRequestClose={() => setModal(false)}>
-        <View style={styles.modalScrim}>
-          <View style={[styles.sheet, { paddingBottom: insets.bottom + 20 }]}>
-            <View style={styles.grabber} />
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 560 }}>
-              <Text style={styles.sheetKicker}>CROSS-LIFE INTELLIGENCE</Text>
-              <Text style={styles.sheetH}>Evening coordinated.</Text>
-              <Text style={styles.sheetSub}>
-                One signal in Work. {coord?.actions?.length || 0} portals aligned in a single pass.
-              </Text>
-              {(coord?.actions || []).map((a: any, i: number) => {
-                const meta = portalMeta[a.portal];
-                return (
-                  <Animated.View key={i} entering={FadeInDown.delay(i * 120).duration(400)} style={styles.actionCard} testID={`action-${a.portal}`}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <View style={[styles.dot, { backgroundColor: meta?.accent || '#0A0A0A' }]} />
-                      <Text style={styles.actionPortal}>{meta?.name?.toUpperCase() || a.portal.toUpperCase()}</Text>
-                    </View>
-                    <Text style={styles.actionTitle}>{a.title}</Text>
-                    <Text style={styles.actionDetail}>{a.detail}</Text>
-                    <View style={styles.itemsRow}>
-                      {(a.items || []).map((it: string, j: number) => (
-                        <View key={j} style={styles.itemChip}><Text style={styles.itemChipText}>{it}</Text></View>
-                      ))}
-                    </View>
-                  </Animated.View>
-                );
-              })}
-            </ScrollView>
-            <Pressable
-              style={styles.gCta}
-              onPress={() => { setModal(false); router.push('/guardian-view'); }}
-              testID="open-guardian-view-btn"
-            >
-              <Text style={styles.gCtaText}>OPEN GUARDIAN VIEW</Text>
-            </Pressable>
-            <Pressable style={{ alignItems: 'center', paddingVertical: 14 }} onPress={() => setModal(false)} testID="close-modal-btn">
-              <Text style={{ fontWeight: '700', letterSpacing: 2, fontSize: 12, color: '#0A0A0A', opacity: 0.6 }}>CLOSE</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      {/* Coordination result sheet */}
+      <CoordinationSheet
+        visible={modal}
+        onClose={() => setModal(false)}
+        coord={coord}
+        headline="Evening coordinated."
+        sub={`One signal in Work. ${coord?.actions?.length || 0} portals aligned in a single pass.`}
+      />
     </View>
   );
 }
@@ -252,26 +216,4 @@ const styles = StyleSheet.create({
   needsYou: { fontSize: 9, letterSpacing: 1.5, fontWeight: '800', color: '#8A6D3B', marginTop: 3 },
   pill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   pillText: { fontSize: 9, fontWeight: '800', letterSpacing: 1 },
-  modalScrim: { flex: 1, backgroundColor: 'rgba(10,10,10,0.35)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 10,
-  },
-  grabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 999, backgroundColor: 'rgba(10,10,10,0.15)', marginBottom: 14 },
-  sheetKicker: { fontSize: 10, letterSpacing: 3, fontWeight: '800', color: '#0A0A0A', opacity: 0.55 },
-  sheetH: { fontSize: 26, fontWeight: '800', color: '#0A0A0A', marginTop: 6 },
-  sheetSub: { fontSize: 13.5, color: '#1D1D1F', opacity: 0.65, marginTop: 4, marginBottom: 14 },
-  actionCard: {
-    padding: 16, borderRadius: 18, backgroundColor: '#F5F5F7', marginBottom: 10,
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.06)',
-  },
-  dot: { width: 8, height: 8, borderRadius: 999 },
-  actionPortal: { fontSize: 10, letterSpacing: 2, fontWeight: '800', color: '#0A0A0A', opacity: 0.6 },
-  actionTitle: { fontSize: 16, fontWeight: '800', color: '#0A0A0A', marginTop: 6 },
-  actionDetail: { fontSize: 13, color: '#1D1D1F', opacity: 0.7, marginTop: 4, lineHeight: 19 },
-  itemsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
-  itemChip: {
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#FFFFFF',
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.1)',
-  },
-  itemChipText: { fontSize: 11, fontWeight: '600', color: '#0A0A0A' },
 });

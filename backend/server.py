@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Header, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
+import hashlib
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -15,6 +16,7 @@ import asyncio
 import json
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
+from emergentintegrations.llm.openai import OpenAITextToSpeech
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -101,6 +103,14 @@ class ChatIn(BaseModel):
 
 class CoordinateIn(BaseModel):
     approve: bool = True
+
+
+class ScenarioIn(BaseModel):
+    scenario: str = "evening"
+
+
+class SpeakIn(BaseModel):
+    coordination_id: str
 
 
 # ============================================================
@@ -358,7 +368,7 @@ async def _seed_demo_data(user_id: str):
             {"id": "t6", "title": "Book Q1 offsite venue", "priority": "low", "done": False, "needs_you": False},
         ],
     }
-    wellbeing = {"mood": 2, "stress": 8, "last_break": None, "breathing_streak": 0}
+    wellbeing = {"mood": 2, "stress": 8, "last_break": None, "breathing_streak": 0, "slept_poorly": False}
     home = {"routine_started": False, "lights": "auto", "temperature": 21, "reminders": [
         {"id": "r1", "text": "Package from Indigo at door"},
         {"id": "r2", "text": "Dishwasher cycle finished"},
@@ -386,11 +396,59 @@ async def _seed_demo_data(user_id: str):
         )
 
 
+async def _seed_morning_data(user_id: str):
+    """Act II: rough night ahead of a 9:30 AM presentation — Wellbeing triggers Work + Style."""
+    work = {
+        "workload": "normal",
+        "stress": 5,
+        "tasks": [
+            {"id": "m1", "title": "Board presentation — 9:30 AM", "priority": "urgent", "done": False, "needs_you": True},
+            {"id": "m2", "title": "Draft standup notes", "priority": "medium", "done": False, "needs_you": False},
+            {"id": "m3", "title": "Review sprint board", "priority": "medium", "done": False, "needs_you": False},
+            {"id": "m4", "title": "Clear overnight inbox", "priority": "low", "done": False, "needs_you": False},
+        ],
+    }
+    wellbeing = {"mood": 2, "stress": 6, "sleep_hours": 4.5, "slept_poorly": True, "last_break": None, "breathing_streak": 0}
+    home = {"routine_started": False, "lights": "auto", "temperature": 21, "reminders": [
+        {"id": "r1", "text": "Coffee beans running low — order today"},
+    ]}
+    community = {"interests": ["jazz", "art"], "rsvp": []}
+    style = {"favorites": [], "planned_outfit": None}
+    relationships = {"status": "in_relationship", "checkins": [
+        {"id": "c1", "name": "Amara", "note": "Wished you goodnight at 1 AM"}
+    ]}
+    creativity = {"ideas": [
+        {"id": "i1", "text": "Short film — Toronto at 4am"},
+        {"id": "i2", "text": "Album cover: silver + gold gradients"},
+    ], "projects": []}
+    seeds = {
+        "work": work, "wellbeing": wellbeing, "home": home,
+        "community": community, "style": style,
+        "relationships": relationships, "creativity": creativity,
+    }
+    for portal_id, data in seeds.items():
+        await db.portal_state.update_one(
+            {"user_id": user_id, "portal": portal_id},
+            {"$set": {"data": data, "updated_at": utcnow()}},
+            upsert=True,
+        )
+
+
 @api_router.post("/demo/reseed")
 async def reseed_demo(authorization: Optional[str] = Header(None)):
     user = await get_current_user(authorization)
     await _seed_demo_data(user["user_id"])
     return {"ok": True}
+
+
+@api_router.post("/demo/scenario")
+async def load_scenario(body: ScenarioIn, authorization: Optional[str] = Header(None)):
+    user = await get_current_user(authorization)
+    if body.scenario == "morning":
+        await _seed_morning_data(user["user_id"])
+    else:
+        await _seed_demo_data(user["user_id"])
+    return {"ok": True, "scenario": body.scenario}
 
 
 @api_router.get("/community/events")
@@ -438,7 +496,17 @@ async def _gather_signals(user_id: str) -> List[Dict[str, Any]]:
             })
 
     wellbeing = states.get("wellbeing", {})
-    if wellbeing.get("stress", 0) >= 6:
+    if wellbeing.get("slept_poorly"):
+        signals.insert(0, {
+            "sourcePortal": "wellbeing",
+            "type": "poor_recovery",
+            "severity": "high",
+            "confidence": 0.93,
+            "timestamp": utcnow().isoformat(),
+            "suggestedTargets": ["work", "style"],
+            "summary": f"You slept {wellbeing.get('sleep_hours', 4.5)} hours. Recovery is low ahead of your 9:30 AM presentation.",
+        })
+    elif wellbeing.get("stress", 0) >= 6:
         signals.append({
             "sourcePortal": "wellbeing",
             "type": "elevated_stress",
@@ -531,7 +599,14 @@ async def coordinate_evening(body: CoordinateIn, authorization: Optional[str] = 
         "approved": body.approve,
         "signals": signals,
         "actions": actions,
+        "scenario": "evening",
         "trigger": "work_overload_with_evening_commitment",
+        "spoken_summary": (
+            "Here's what I did. Work is re-sorted — only what truly needs you stays tonight, the rest waits until tomorrow. "
+            "I queued a twenty minute decompression and muted your notifications. Home is prepped, warm lights at seven. "
+            "Your eight PM with Amara at The Broadview is protected. Leave by seven twenty. Rain is likely, so I laid out the wool overcoat and waterproof boots. "
+            "Go finish that one task. I've got the rest of your evening."
+        ),
     }
     await db.guardian_activity.insert_one(coordination)
 
@@ -561,6 +636,134 @@ async def coordinate_evening(body: CoordinateIn, authorization: Optional[str] = 
         "actions": actions,
         "signals": signals,
     }
+
+
+@api_router.post("/guardian/coordinate-morning")
+async def coordinate_morning(body: CoordinateIn, authorization: Optional[str] = Header(None)):
+    user = await get_current_user(authorization)
+    user_id = user["user_id"]
+    signals = await _gather_signals(user_id)
+    now_iso = utcnow().isoformat()
+
+    wb_state = await db.portal_state.find_one({"user_id": user_id, "portal": "wellbeing"}, {"_id": 0}) or {}
+    sleep_hours = wb_state.get("data", {}).get("sleep_hours", 4.5)
+
+    actions = [
+        {
+            "portal": "wellbeing",
+            "title": "Gentle start",
+            "detail": f"You slept {sleep_hours} hours. Hydration first, then 10 minutes of light stretching. Non-urgent pings held until 10 AM.",
+            "items": ["Water • 500ml", "Stretch • 10 min", "Pings held → 10:00 AM"],
+        },
+        {
+            "portal": "work",
+            "title": "Morning re-shaped around your 9:30",
+            "detail": "Presentation protected. Standup notes auto-drafted. First meeting pushed 30 minutes, deep work deferred to afternoon.",
+            "items": ["Presentation • 9:30 AM", "Standup notes • drafted", "First meeting → 10:30 AM"],
+        },
+        {
+            "portal": "style",
+            "title": "Low-effort confidence",
+            "detail": "Comfort-first layered look that still reads sharp on camera.",
+            "items": ["Soft merino crew", "Dark tapered trousers", "White leather sneakers"],
+        },
+        {
+            "portal": "home",
+            "title": "Warm wakeup",
+            "detail": "Lights easing to sunrise tone. Coffee starts at 8:15. Thermostat up two degrees.",
+            "items": ["Lights → sunrise", "Coffee • 8:15 AM", "Thermostat → 22°C"],
+        },
+    ]
+
+    coordination = {
+        "id": f"coord_{uuid.uuid4().hex[:10]}",
+        "user_id": user_id,
+        "created_at": utcnow(),
+        "created_at_iso": now_iso,
+        "approved": body.approve,
+        "signals": signals,
+        "actions": actions,
+        "scenario": "morning",
+        "trigger": "poor_recovery_before_presentation",
+        "spoken_summary": (
+            "Good morning. You slept about four and a half hours, so I softened the day. "
+            "Your nine thirty presentation is safe — I drafted your standup notes and pushed your first meeting by thirty minutes. "
+            "Start with water and ten minutes of light stretching. I laid out a low effort outfit that still reads sharp. "
+            "Take it slow. I've got the rest."
+        ),
+    }
+    await db.guardian_activity.insert_one(coordination)
+
+    if body.approve:
+        await db.portal_state.update_one(
+            {"user_id": user_id, "portal": "wellbeing"},
+            {"$set": {"data.gentle_start_active": True}},
+            upsert=True,
+        )
+        await db.portal_state.update_one(
+            {"user_id": user_id, "portal": "style"},
+            {"$set": {"data.planned_outfit": {
+                "name": "Low-effort confidence",
+                "items": ["Soft merino crew", "Dark tapered trousers", "White leather sneakers"],
+            }}},
+            upsert=True,
+        )
+        await db.portal_state.update_one(
+            {"user_id": user_id, "portal": "home"},
+            {"$set": {"data.lights": "sunrise", "data.temperature": 22}},
+            upsert=True,
+        )
+
+    return {
+        "coordination_id": coordination["id"],
+        "actions": actions,
+        "signals": signals,
+    }
+
+
+# ============================================================
+# GUARDIAN VOICE (OpenAI TTS via Emergent key)
+# ============================================================
+_tts_client = None
+
+
+def _tts() -> OpenAITextToSpeech:
+    global _tts_client
+    if _tts_client is None:
+        _tts_client = OpenAITextToSpeech(api_key=EMERGENT_LLM_KEY)
+    return _tts_client
+
+
+@api_router.post("/guardian/speak")
+async def guardian_speak(body: SpeakIn, authorization: Optional[str] = Header(None)):
+    user = await get_current_user(authorization)
+    coord = await db.guardian_activity.find_one(
+        {"id": body.coordination_id, "user_id": user["user_id"]}, {"_id": 0}
+    )
+    if not coord:
+        raise HTTPException(status_code=404, detail="coordination_not_found")
+    text = coord.get("spoken_summary") or "Coordination complete. Everything is handled."
+    key = hashlib.sha256(f"{text}|onyx|1.0|tts-1|mp3".encode()).hexdigest()[:32]
+    cached = await db.tts_cache.find_one({"key": key}, {"_id": 0, "key": 1})
+    if not cached:
+        try:
+            audio = await _tts().generate_speech(text=text, model="tts-1", voice="onyx")
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"tts_failed: {e}")
+        await db.tts_cache.insert_one({"key": key, "audio": audio, "created_at": utcnow()})
+    return {"url": f"/api/tts/{key}.mp3"}
+
+
+@api_router.get("/tts/{key}.mp3")
+async def get_tts(key: str):
+    doc = await db.tts_cache.find_one({"key": key})
+    if not doc:
+        raise HTTPException(status_code=404, detail="not_found")
+    return Response(
+        content=bytes(doc["audio"]),
+        media_type="audio/mpeg",
+        headers={"Cache-Control": "public, max-age=31536000"},
+    )
 
 
 @api_router.get("/guardian/view")

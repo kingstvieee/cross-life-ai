@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView, Switch, ActivityIndicato
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/src/auth';
 import { PORTAL_IDS, portalMeta } from '@/src/theme';
 
@@ -37,10 +38,16 @@ export default function Settings() {
     await refresh();
   };
 
-  const reseed = async () => {
-    setBusy('reseed');
-    await api('/api/demo/reseed', { method: 'POST' });
+  const loadScenario = async (s: 'evening' | 'morning') => {
+    setBusy(s);
+    await api('/api/demo/scenario', { method: 'POST', body: JSON.stringify({ scenario: s }) });
     setBusy(null);
+    router.back();
+  };
+
+  const replayTour = async () => {
+    await AsyncStorage.removeItem('staar_tour_done');
+    router.back();
   };
 
   const doLogout = async () => {
@@ -136,9 +143,15 @@ export default function Settings() {
           );
         })}
 
-        <Text style={styles.sectionH}>DEMO</Text>
-        <Pressable style={styles.outlineBtn} onPress={reseed} disabled={!!busy} testID="reseed-btn">
-          {busy === 'reseed' ? <ActivityIndicator color="#0A0A0A" /> : <Text style={styles.outlineBtnText}>RESET DEMO SCENARIO</Text>}
+        <Text style={styles.sectionH}>DEMO SCENARIOS</Text>
+        <Pressable style={styles.outlineBtn} onPress={() => loadScenario('evening')} disabled={!!busy} testID="scenario-evening-btn">
+          {busy === 'evening' ? <ActivityIndicator color="#0A0A0A" /> : <Text style={styles.outlineBtnText}>ACT I — EVENING · WORK OVERLOAD</Text>}
+        </Pressable>
+        <Pressable style={[styles.outlineBtn, { marginTop: 12 }]} onPress={() => loadScenario('morning')} disabled={!!busy} testID="scenario-morning-btn">
+          {busy === 'morning' ? <ActivityIndicator color="#0A0A0A" /> : <Text style={styles.outlineBtnText}>ACT II — MORNING · ROUGH NIGHT</Text>}
+        </Pressable>
+        <Pressable style={[styles.outlineBtn, { marginTop: 12 }]} onPress={replayTour} disabled={!!busy} testID="replay-walkthrough-btn">
+          <Text style={styles.outlineBtnText}>REPLAY JUDGE WALKTHROUGH</Text>
         </Pressable>
 
         <Pressable style={[styles.outlineBtn, { borderColor: 'rgba(139,0,0,0.3)', marginTop: 12 }]} onPress={doLogout} disabled={!!busy} testID="logout-btn">

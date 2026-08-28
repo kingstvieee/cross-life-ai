@@ -7,8 +7,10 @@ import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Eas
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/src/auth';
 import { theme, PORTAL_IDS, portalMeta } from '@/src/theme';
+import { Walkthrough } from '@/src/walkthrough';
 
 const SW = Dimensions.get('window').width;
 const RADIAL_H = Math.min(SW * 1.02, 430);
@@ -43,6 +45,7 @@ export default function Hub() {
   const { user, loading, api, patchProfile } = useAuth();
   const [signals, setSignals] = useState<any[]>([]);
   const [paused, setPaused] = useState(false);
+  const [tour, setTour] = useState(false);
 
   const pulse = useSharedValue(1);
   const linePulse = useSharedValue(0.5);
@@ -55,6 +58,7 @@ export default function Hub() {
       }
       pulse.value = withRepeat(withTiming(1.06, { duration: 1600, easing: Easing.inOut(Easing.quad) }), -1, true);
       linePulse.value = withRepeat(withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.quad) }), -1, true);
+      if (user) AsyncStorage.getItem('staar_tour_done').then((v) => { if (!v) setTour(true); });
       (async () => {
         try {
           const r = await api('/api/guardian/signals');
@@ -223,6 +227,15 @@ export default function Hub() {
           </Pressable>
         </View>
       </ScrollView>
+
+      {tour && (
+        <Walkthrough
+          onDone={() => {
+            AsyncStorage.setItem('staar_tour_done', '1');
+            setTour(false);
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
