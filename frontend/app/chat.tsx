@@ -57,7 +57,7 @@ export default function Chat() {
     <SafeAreaView style={styles.root} edges={['top']} testID="chat-root">
       <View style={styles.header}>
         <Pressable style={styles.backBtn} onPress={() => router.back()} testID="back-btn">
-          <Ionicons name="chevron-back" size={20} color="#0A0A0A" />
+          <Ionicons name="chevron-back" size={20} color="#F3F4F6" />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={styles.h}>{companion}</Text>
@@ -99,8 +99,8 @@ export default function Chat() {
           ))}
           {busy && (
             <View style={[styles.bubble, styles.aiBubble, { flexDirection: 'row', gap: 8, alignItems: 'center' }]}>
-              <ActivityIndicator size="small" color="#0A0A0A" />
-              <Text style={[styles.bubbleText, { opacity: 0.5 }]}>{companion} is thinking…</Text>
+              <ActivityIndicator size="small" color="#00E5FF" />
+              <Text style={[styles.bubbleText, { opacity: 0.6 }]}>{companion} is thinking…</Text>
             </View>
           )}
         </ScrollView>
@@ -111,13 +111,13 @@ export default function Chat() {
             value={input}
             onChangeText={setInput}
             placeholder={`Message ${companion}…`}
-            placeholderTextColor="rgba(10,10,10,0.35)"
+            placeholderTextColor="rgba(255,255,255,0.35)"
             onSubmitEditing={() => send()}
             returnKeyType="send"
             testID="chat-input"
           />
           <Pressable style={[styles.sendBtn, (!input.trim() || busy) && { opacity: 0.4 }]} onPress={() => send()} disabled={!input.trim() || busy} testID="send-btn">
-            <Ionicons name="arrow-up" size={20} color="#FFFFFF" />
+            <Ionicons name="arrow-up" size={20} color="#000000" />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -126,38 +126,38 @@ export default function Chat() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FFFFFF' },
+  root: { flex: 1, backgroundColor: '#0A0B0E' },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: 'rgba(10,10,10,0.06)',
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)',
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.12)', backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#15171D',
   },
-  h: { fontSize: 19, fontWeight: '800', color: '#0A0A0A' },
-  sub: { fontSize: 9, letterSpacing: 2, color: '#0A0A0A', opacity: 0.5, fontWeight: '700', marginTop: 2 },
+  h: { fontSize: 19, fontWeight: '800', color: '#FFFFFF' },
+  sub: { fontSize: 9, letterSpacing: 2, color: '#00E5FF', fontWeight: '700', marginTop: 2 },
   liveDot: { width: 10, height: 10, borderRadius: 999, backgroundColor: theme.color.energy },
-  greeting: { fontSize: 17, fontWeight: '700', color: '#0A0A0A', lineHeight: 25 },
+  greeting: { fontSize: 17, fontWeight: '700', color: '#F3F4F6', lineHeight: 25 },
   suggestion: {
     paddingHorizontal: 16, paddingVertical: 13, borderRadius: 999, alignSelf: 'flex-start',
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.14)', backgroundColor: '#F5F5F7',
+    borderWidth: 1, borderColor: 'rgba(0,229,255,0.3)', backgroundColor: 'rgba(0,51,61,0.4)',
   },
-  suggestionText: { fontSize: 13.5, fontWeight: '600', color: '#0A0A0A' },
+  suggestionText: { fontSize: 13.5, fontWeight: '600', color: '#F3F4F6' },
   bubble: { maxWidth: '84%', padding: 14, borderRadius: 20, marginBottom: 10 },
-  userBubble: { alignSelf: 'flex-end', backgroundColor: '#0A0A0A', borderBottomRightRadius: 6 },
+  userBubble: { alignSelf: 'flex-end', backgroundColor: '#1F222B', borderBottomRightRadius: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   aiBubble: {
-    alignSelf: 'flex-start', backgroundColor: '#F5F5F7', borderBottomLeftRadius: 6,
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.06)',
+    alignSelf: 'flex-start', backgroundColor: 'rgba(0,51,61,0.45)', borderBottomLeftRadius: 6,
+    borderWidth: 1, borderColor: 'rgba(0,229,255,0.25)',
   },
-  bubbleText: { fontSize: 14.5, lineHeight: 21, color: '#0A0A0A' },
+  bubbleText: { fontSize: 14.5, lineHeight: 21, color: '#F3F4F6' },
   inputRow: {
     flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 10, alignItems: 'center',
-    borderTopWidth: 1, borderTopColor: 'rgba(10,10,10,0.06)', backgroundColor: '#FFFFFF',
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', backgroundColor: '#0A0B0E',
   },
   input: {
-    flex: 1, height: 48, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(10,10,10,0.12)',
-    paddingHorizontal: 18, fontSize: 14.5, color: '#0A0A0A', backgroundColor: '#F5F5F7',
+    flex: 1, height: 48, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
+    paddingHorizontal: 18, fontSize: 14.5, color: '#F3F4F6', backgroundColor: '#15171D',
   },
-  sendBtn: { width: 48, height: 48, borderRadius: 999, backgroundColor: '#0A0A0A', alignItems: 'center', justifyContent: 'center' },
+  sendBtn: { width: 48, height: 48, borderRadius: 999, backgroundColor: '#00E5FF', alignItems: 'center', justifyContent: 'center' },
 });

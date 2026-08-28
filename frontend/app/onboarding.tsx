@@ -72,10 +72,10 @@ export default function Onboarding() {
                 key={a.id}
                 testID={`autonomy-${a.id}`}
                 onPress={() => setAutonomy(a.id as any)}
-                style={[styles.card, autonomy === a.id && styles.cardOn]}
+                    style={[styles.card, autonomy === a.id && styles.cardOn]}
               >
-                <Text style={[styles.cardTitle, autonomy === a.id && { color: '#FFFFFF' }]}>{a.name}</Text>
-                <Text style={[styles.cardDesc, autonomy === a.id && { color: '#FFFFFF', opacity: 0.8 }]}>{a.desc}</Text>
+                <Text style={[styles.cardTitle, autonomy === a.id && { color: '#00E5FF' }]}>{a.name}</Text>
+                <Text style={[styles.cardDesc, autonomy === a.id && { color: '#D1D5DB' }]}>{a.desc}</Text>
               </Pressable>
             ))}
           </View>
@@ -90,8 +90,8 @@ export default function Onboarding() {
                 onPress={() => setCompanion(c.id as any)}
                 style={[styles.card, companion === c.id && styles.cardOn]}
               >
-                <Text style={[styles.cardTitle, companion === c.id && { color: '#FFFFFF' }]}>{c.name}</Text>
-                <Text style={[styles.cardDesc, companion === c.id && { color: '#FFFFFF', opacity: 0.8 }]}>{c.desc}</Text>
+                <Text style={[styles.cardTitle, companion === c.id && { color: '#00E5FF' }]}>{c.name}</Text>
+                <Text style={[styles.cardDesc, companion === c.id && { color: '#D1D5DB' }]}>{c.desc}</Text>
               </Pressable>
             ))}
           </View>
@@ -106,28 +106,28 @@ export default function Onboarding() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FFFFFF' },
-  kicker: { letterSpacing: 3, fontSize: 11, color: '#0A0A0A', opacity: 0.55, fontWeight: '700' },
-  h: { fontSize: 26, fontWeight: '800', color: '#0A0A0A', marginTop: 12, marginBottom: 12, letterSpacing: 0.4 },
-  p: { fontSize: 15, color: '#1D1D1F', opacity: 0.75, lineHeight: 22 },
+  root: { flex: 1, backgroundColor: '#0A0B0E' },
+  kicker: { letterSpacing: 3, fontSize: 11, color: '#00E5FF', fontWeight: '800' },
+  h: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', marginTop: 12, marginBottom: 12, letterSpacing: 0.4 },
+  p: { fontSize: 15, color: '#D1D5DB', opacity: 0.85, lineHeight: 22 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
   chip: {
     paddingHorizontal: 16, paddingVertical: 12, borderRadius: 999,
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.16)', backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', backgroundColor: '#15171D',
   },
-  chipOn: { backgroundColor: '#0A0A0A', borderColor: '#0A0A0A' },
-  chipText: { color: '#0A0A0A', fontWeight: '600' },
-  chipTextOn: { color: '#FFFFFF' },
+  chipOn: { backgroundColor: '#00E5FF', borderColor: '#00E5FF' },
+  chipText: { color: '#F3F4F6', fontWeight: '600' },
+  chipTextOn: { color: '#000000' },
   card: {
-    marginTop: 12, padding: 18, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(10,10,10,0.10)',
-    backgroundColor: '#F5F5F7',
+    marginTop: 12, padding: 18, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#15171D',
   },
-  cardOn: { backgroundColor: '#0A0A0A', borderColor: '#0A0A0A' },
-  cardTitle: { fontSize: 16, fontWeight: '800', color: '#0A0A0A', letterSpacing: 2 },
-  cardDesc: { fontSize: 13, color: '#1D1D1F', opacity: 0.7, marginTop: 4 },
+  cardOn: { backgroundColor: '#00333D', borderColor: 'rgba(0,229,255,0.6)' },
+  cardTitle: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', letterSpacing: 2 },
+  cardDesc: { fontSize: 13, color: '#9CA3AF', marginTop: 4 },
   cta: {
-    marginHorizontal: 24, marginBottom: 32, backgroundColor: '#0A0A0A', paddingVertical: 18, borderRadius: 999,
-    alignItems: 'center', shadowColor: '#D4AF37', shadowOpacity: 0.4, shadowRadius: 16,
+    marginHorizontal: 24, marginBottom: 32, backgroundColor: '#00E5FF', paddingVertical: 18, borderRadius: 999,
+    alignItems: 'center', shadowColor: '#00E5FF', shadowOpacity: 0.45, shadowRadius: 18, elevation: 8,
   },
-  ctaText: { color: '#FFFFFF', fontWeight: '700', letterSpacing: 3 },
+  ctaText: { color: '#000000', fontWeight: '800', letterSpacing: 3 },
 });

@@ -816,7 +816,7 @@ async def guardian_chat(body: ChatIn, authorization: Optional[str] = Header(None
         api_key=EMERGENT_LLM_KEY,
         session_id=session_id,
         system_message=system_msg + context_note,
-    ).with_model("openai", "gpt-5.4")
+    ).with_model("openai", "gpt-5.6-terra")
 
     async def event_stream():
         try:
@@ -850,7 +850,7 @@ async def guardian_chat_once(body: ChatIn, authorization: Optional[str] = Header
         api_key=EMERGENT_LLM_KEY,
         session_id=session_id,
         system_message=system_msg + context_note,
-    ).with_model("openai", "gpt-5.4")
+    ).with_model("openai", "gpt-5.6-terra")
 
     parts: List[str] = []
     async for ev in chat.stream_message(UserMessage(text=body.message)):

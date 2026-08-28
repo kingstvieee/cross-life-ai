@@ -1,0 +1,38 @@
+{
+  "summary": "STAAR Hub iteration 3 (Cinematic Luxe Dark restyle + GPT-5.6-terra model swap) PASSED end-to-end regression at 390x844 mobile viewport. Backend smoke (3/3): POST /api/auth/demo returns session_token, GET /api/guardian/signals returns valid paused/signals payload, POST /api/guardian/chat-once returns a substantive non-empty reply on GPT-5.6-terra (~5s, full multi-paragraph reply observed in chat UI as well). Frontend flows verified: (1) Intro dark scene → skip-intro-btn works → landing dark hero → experience-demo-btn → hub. (2) Walkthrough 1/5 overlay renders on fresh session and skip-btn dismisses. (3) Hub renders dark radial with 7 nodes + cyan signal lines + signal-banner. (4) Work flow: portal-node-work → dark hero + WORKLOAD HIGH badge + guardian intervention → coordinate-evening-btn → coordination sheet with exactly 6 action cards (work, wellbeing, home, relationships, style, community) → hear-guardian-btn transitioned to 'SPEAKING — TAP TO STOP' within ~1s (cached path) → open-guardian-view-btn → dark timeline renders coordination history without crash. (5) All 6 remaining portal detail screens render without crash: wellbeing shows 20-minute decompression card after evening coordination; home has lights + temp controls; style opens (outfit card wording present internally); community has 4 RSVP-toggleable events; relationships loads; creativity idea-input + add-idea-btn successfully appended a new idea to the list. (6) Chat: talk-guardian-btn opens dark chat, suggestion-0 tap produced a full GPT-5.6-terra multi-paragraph reply bubble ('Tonight: Rooftop Jazz Night... Work and stress are both running high...') within ~5s. (7) Settings dark rows all render, companion-kaia switch toggled (hub header changed to 'TALK TO KAIA' and orb label became 'KAIA'), pause-switch ON → hub banner shows CROSS-LIFE PAUSED (1 signal hidden), toggle OFF restores 3 signals; scenario-morning-btn navigates back to hub with 'You slept 4.5 hours. Recovery is low ahead of your 9:30 AM presentation.' banner; wellbeing → morning-intervention card → coordinate-morning-btn → 4-action sheet (wellbeing, work, style, home); scenario-evening-btn restores Act I. (8) work task-t1 toggle: 'NEEDS YOU' badge disappears after tap (done state applied). (9) replay-walkthrough-btn (invoked via natural navigation from hub → settings → replay) correctly clears staar_tour_done and returns to hub with walkthrough-overlay 1/5 visible. Two non-blocking console warnings persist from prior iterations: CanvasKit CDN fetch occasionally fails and falls back to ArrayBuffer (Skia intro still renders), and react-native-web shadow*/pointerEvents deprecation warnings.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "CanvasKit / Skia web loader", "issue": "Console warning on first load: 'CanvasKit load failed TypeError: Failed to fetch' followed by 'wasm streaming compile failed... falling back to ArrayBuffer instantiation'. The fallback works and Skia intro renders correctly. Reference: /app/frontend/index.js"},
+      {"component": "react-native-web deprecations", "issue": "Repeated console warnings: '\"shadow*\" style props are deprecated. Use \"boxShadow\"' (many callsites e.g. hub.tsx primaryBtn, coordination-sheet.tsx cta) and 'props.pointerEvents is deprecated. Use style.pointerEvents' (hub.tsx). Non-blocking but should be migrated before production. Reference: /app/frontend/app/hub.tsx, /app/frontend/src/coordination-sheet.tsx"}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration3_smoke.py",
+    "/app/backend/tests/test_iteration2_new.py",
+    "/app/backend/tests/test_staar_hub.py",
+    "/app/test_reports/pytest/iteration3_smoke.xml"
+  ],
+  "action_items": [
+    "Optional (non-blocking, carried over from iter 2): migrate `shadow*` StyleSheet props → `boxShadow` and `pointerEvents` prop → `style.pointerEvents` across hub.tsx / coordination-sheet.tsx to silence RN-Web deprecation warnings.",
+    "Optional: self-host canvaskit.wasm or add retry logic in /app/frontend/index.js — transient CanvasKit CDN fetch always falls back cleanly but is noisy in the console."
+  ],
+  "critical_code_review_comments": [
+    "Cinematic Luxe Dark restyle is applied consistently: obsidian #0A0B0E backgrounds, cyan #00E5FF CTAs/accents, glass-style cards, and moody photo heroes all render as intended across intro / landing / hub / work / portal detail / coordination sheet / guardian-view / chat / settings. No white-on-white or contrast regressions detected in mobile viewport.",
+    "settings.tsx was fully rewritten this iteration but all previously-tested testIDs are preserved (companion-kaia, pause-switch, scenario-morning-btn, scenario-evening-btn, replay-walkthrough-btn) and all functional flows verified.",
+    "Model swap to GPT-5.6-terra verified via /api/guardian/chat-once: substantive multi-paragraph reply produced in ~5s; UI chat suggestion flow renders the reply bubble correctly.",
+    "Carry-over from iter 2: server.py continues to grow (TTS + morning + evening + chat); consider splitting into routers before production."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration3_smoke.py (created — 3 smoke tests for iteration 3: auth demo, signals, chat-once on GPT-5.6-terra)"
+  ],
+  "success_rate": {"backend": "100% (3/3 smoke; 10/10 iter-2 + 21/21 iter-1 regression untouched)", "frontend": "100% on all iteration 3 flows exercised (intro, landing, hub walkthrough, 7 portals rendered, evening 6-action sheet + voice, morning 4-action sheet, chat GPT-5.6-terra reply, settings companion/pause/scenarios, work task-t1 toggle, replay-walkthrough)"},
+  "seed_data_creation": "No manual seed needed. POST /api/auth/demo seeds evening overload; POST /api/demo/scenario {scenario:'morning'} switches to rough-night state; scenario-evening-btn restores Act I.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend base: https://cross-life-ai.preview.emergentagent.com/api. AsyncStorage on web maps to localStorage; walkthrough dismissal key is 'staar_tour_done'. IMPORTANT test artifact: `router.back()` (used by replayTour, loadScenario, and back-btn in settings) requires a real navigation stack. When Playwright uses page.goto('/settings') directly, back() logs 'GO_BACK was not handled' and the redirect never happens — this looks like a bug but is a test-only issue. Always navigate settings via hub→settings-btn tap. Testing chat reply bubbles: DO NOT rely on selectors like [data-testid*='reply']; the reply renders as Text inside a styled View without a data-testid. Assert on document.body.innerText growth or count of message bubbles by class instead. Hub settings entry point testID is 'settings-btn' (gear icon top-right). Voice button on evening sheet transitions to SPEAKING in <2s on cached TTS path; allow up to 20s on cold path.",
+  "rca_of_issue": "No functional bugs found in iteration 3. During testing I initially observed replay-walkthrough failing to show the overlay — root cause was my Playwright script using page.goto('/settings') (direct URL) which leaves the Expo Router stack empty, so replayTour's router.back() call is a no-op (console: 'The action GO_BACK was not handled by any navigator'). Re-testing via natural navigation (hub → settings-btn → replay-walkthrough-btn) worked correctly and the walkthrough 1/5 overlay reappeared on the hub. This is expected behavior — no code change needed."
+}

@@ -60,7 +60,7 @@ export default function Settings() {
     <SafeAreaView style={styles.root} edges={['top']} testID="settings-root">
       <View style={styles.header}>
         <Pressable style={styles.backBtn} onPress={() => router.back()} testID="back-btn">
-          <Ionicons name="chevron-back" size={20} color="#0A0A0A" />
+          <Ionicons name="chevron-back" size={20} color="#F3F4F6" />
         </Pressable>
         <View>
           <Text style={styles.h}>Privacy & Control</Text>
@@ -78,7 +78,7 @@ export default function Settings() {
               onPress={() => patchProfile({ autonomy: a.id as any })}
               testID={`autonomy-${a.id}`}
             >
-              <Text style={[styles.segmentText, user.autonomy === a.id && { color: '#FFFFFF' }]}>{a.name}</Text>
+              <Text style={[styles.segmentText, user.autonomy === a.id && { color: '#000000' }]}>{a.name}</Text>
             </Pressable>
           ))}
         </View>
@@ -92,7 +92,7 @@ export default function Settings() {
               onPress={() => patchProfile({ companion: c.id as any })}
               testID={`companion-${c.id}`}
             >
-              <Text style={[styles.segmentText, user.companion === c.id && { color: '#FFFFFF' }]}>{c.name}</Text>
+              <Text style={[styles.segmentText, user.companion === c.id && { color: '#000000' }]}>{c.name}</Text>
             </Pressable>
           ))}
         </View>
@@ -106,7 +106,7 @@ export default function Settings() {
           <Switch
             value={!!user.cross_life_paused}
             onValueChange={setPaused}
-            trackColor={{ true: '#0A0A0A', false: '#E4E7EC' }}
+            trackColor={{ true: '#00E5FF', false: '#2A2D36' }}
             thumbColor="#FFFFFF"
             testID="pause-switch"
           />
@@ -124,7 +124,7 @@ export default function Settings() {
                 <Switch
                   value={pv.access !== false}
                   onValueChange={(v) => setPrivacy(p, 'access', v)}
-                  trackColor={{ true: '#0A0A0A', false: '#E4E7EC' }}
+                  trackColor={{ true: '#00E5FF', false: '#2A2D36' }}
                   thumbColor="#FFFFFF"
                   testID={`access-${p}`}
                 />
@@ -134,7 +134,7 @@ export default function Settings() {
                 <Switch
                   value={pv.share !== false}
                   onValueChange={(v) => setPrivacy(p, 'share', v)}
-                  trackColor={{ true: '#0A0A0A', false: '#E4E7EC' }}
+                  trackColor={{ true: '#00E5FF', false: '#2A2D36' }}
                   thumbColor="#FFFFFF"
                   testID={`share-${p}`}
                 />
@@ -145,17 +145,17 @@ export default function Settings() {
 
         <Text style={styles.sectionH}>DEMO SCENARIOS</Text>
         <Pressable style={styles.outlineBtn} onPress={() => loadScenario('evening')} disabled={!!busy} testID="scenario-evening-btn">
-          {busy === 'evening' ? <ActivityIndicator color="#0A0A0A" /> : <Text style={styles.outlineBtnText}>ACT I — EVENING · WORK OVERLOAD</Text>}
+          {busy === 'evening' ? <ActivityIndicator color="#F3F4F6" /> : <Text style={styles.outlineBtnText}>ACT I — EVENING · WORK OVERLOAD</Text>}
         </Pressable>
         <Pressable style={[styles.outlineBtn, { marginTop: 12 }]} onPress={() => loadScenario('morning')} disabled={!!busy} testID="scenario-morning-btn">
-          {busy === 'morning' ? <ActivityIndicator color="#0A0A0A" /> : <Text style={styles.outlineBtnText}>ACT II — MORNING · ROUGH NIGHT</Text>}
+          {busy === 'morning' ? <ActivityIndicator color="#F3F4F6" /> : <Text style={styles.outlineBtnText}>ACT II — MORNING · ROUGH NIGHT</Text>}
         </Pressable>
         <Pressable style={[styles.outlineBtn, { marginTop: 12 }]} onPress={replayTour} disabled={!!busy} testID="replay-walkthrough-btn">
           <Text style={styles.outlineBtnText}>REPLAY JUDGE WALKTHROUGH</Text>
         </Pressable>
 
-        <Pressable style={[styles.outlineBtn, { borderColor: 'rgba(139,0,0,0.3)', marginTop: 12 }]} onPress={doLogout} disabled={!!busy} testID="logout-btn">
-          {busy === 'logout' ? <ActivityIndicator color="#8B0000" /> : <Text style={[styles.outlineBtnText, { color: '#8B0000' }]}>SIGN OUT</Text>}
+        <Pressable style={[styles.outlineBtn, { borderColor: 'rgba(255,23,68,0.4)', marginTop: 12 }]} onPress={doLogout} disabled={!!busy} testID="logout-btn">
+          {busy === 'logout' ? <ActivityIndicator color="#FF5C7A" /> : <Text style={[styles.outlineBtnText, { color: '#FF5C7A' }]}>SIGN OUT</Text>}
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -163,33 +163,33 @@ export default function Settings() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FFFFFF' },
+  root: { flex: 1, backgroundColor: '#0A0B0E' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 12 },
   backBtn: {
     width: 40, height: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.12)', backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#15171D',
   },
-  h: { fontSize: 22, fontWeight: '800', color: '#0A0A0A' },
-  sub: { fontSize: 9, letterSpacing: 1.5, color: '#0A0A0A', opacity: 0.5, fontWeight: '700', marginTop: 2 },
-  sectionH: { marginTop: 26, marginBottom: 10, fontSize: 11, letterSpacing: 3, fontWeight: '800', color: '#0A0A0A', opacity: 0.55 },
+  h: { fontSize: 22, fontWeight: '800', color: '#FFFFFF' },
+  sub: { fontSize: 9, letterSpacing: 1.5, color: '#00E5FF', fontWeight: '700', marginTop: 2 },
+  sectionH: { marginTop: 26, marginBottom: 10, fontSize: 11, letterSpacing: 3, fontWeight: '800', color: '#9CA3AF' },
   segment: { flexDirection: 'row', gap: 8 },
   segmentItem: {
     flex: 1, paddingVertical: 13, borderRadius: 999, alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.14)', backgroundColor: '#F5F5F7',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#15171D',
   },
-  segmentOn: { backgroundColor: '#0A0A0A', borderColor: '#0A0A0A' },
-  segmentText: { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: '#0A0A0A' },
+  segmentOn: { backgroundColor: '#00E5FF', borderColor: '#00E5FF' },
+  segmentText: { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: '#F3F4F6' },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 10, padding: 15, borderRadius: 16, marginBottom: 10,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(10,10,10,0.09)',
+    backgroundColor: '#15171D', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
   },
-  rowTitle: { fontSize: 14.5, fontWeight: '700', color: '#0A0A0A' },
-  rowDesc: { fontSize: 12, color: '#1D1D1F', opacity: 0.55, marginTop: 3, lineHeight: 17 },
+  rowTitle: { fontSize: 14.5, fontWeight: '700', color: '#F3F4F6' },
+  rowDesc: { fontSize: 12, color: '#9CA3AF', marginTop: 3, lineHeight: 17 },
   dot: { width: 10, height: 10, borderRadius: 999 },
-  tiny: { fontSize: 7, letterSpacing: 1, fontWeight: '800', color: '#0A0A0A', opacity: 0.45, marginBottom: 2 },
+  tiny: { fontSize: 7, letterSpacing: 1, fontWeight: '800', color: '#9CA3AF', marginBottom: 2 },
   outlineBtn: {
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.16)', paddingVertical: 15, borderRadius: 999,
-    alignItems: 'center', backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', paddingVertical: 15, borderRadius: 999,
+    alignItems: 'center', backgroundColor: '#15171D',
   },
-  outlineBtnText: { color: '#0A0A0A', fontWeight: '700', letterSpacing: 2, fontSize: 12 },
+  outlineBtnText: { color: '#F3F4F6', fontWeight: '700', letterSpacing: 2, fontSize: 12 },
 });

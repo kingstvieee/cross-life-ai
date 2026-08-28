@@ -74,9 +74,9 @@ export function CoordinationSheet({ visible, onClose, coord, headline, sub }: Pr
               testID="hear-guardian-btn"
             >
               {voice === 'loading' ? (
-                <ActivityIndicator size="small" color="#0A0A0A" />
+                <ActivityIndicator size="small" color="#00E5FF" />
               ) : (
-                <Ionicons name={voice === 'playing' ? 'stop' : 'volume-high'} size={16} color="#0A0A0A" />
+                <Ionicons name={voice === 'playing' ? 'stop' : 'volume-high'} size={16} color="#00E5FF" />
               )}
               <Text style={styles.voiceText}>
                 {voice === 'loading' ? 'PREPARING VOICE…' : voice === 'playing' ? 'SPEAKING — TAP TO STOP' : 'HEAR THE GUARDIAN'}
@@ -119,37 +119,41 @@ export function CoordinationSheet({ visible, onClose, coord, headline, sub }: Pr
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: 'rgba(10,10,10,0.35)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 10 },
-  grabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 999, backgroundColor: 'rgba(10,10,10,0.15)', marginBottom: 14 },
-  kicker: { fontSize: 10, letterSpacing: 3, fontWeight: '800', color: '#0A0A0A', opacity: 0.55 },
-  h: { fontSize: 26, fontWeight: '800', color: '#0A0A0A', marginTop: 6 },
-  sub: { fontSize: 13.5, color: '#1D1D1F', opacity: 0.65, marginTop: 4, marginBottom: 12 },
+  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: '#101218', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 10,
+    borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  },
+  grabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.2)', marginBottom: 14 },
+  kicker: { fontSize: 10, letterSpacing: 3, fontWeight: '800', color: '#00E5FF' },
+  h: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', marginTop: 6 },
+  sub: { fontSize: 13.5, color: '#9CA3AF', marginTop: 4, marginBottom: 12 },
   voiceBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderWidth: 1, borderColor: 'rgba(212,175,55,0.5)', backgroundColor: '#FDF8EC',
+    borderWidth: 1, borderColor: 'rgba(0,229,255,0.45)', backgroundColor: 'rgba(0,51,61,0.5)',
     paddingVertical: 13, borderRadius: 999, marginBottom: 14,
   },
-  voiceBtnActive: { borderColor: 'rgba(0,229,255,0.6)', backgroundColor: '#EDFBFE' },
-  voiceText: { fontSize: 11, fontWeight: '800', letterSpacing: 2, color: '#0A0A0A' },
+  voiceBtnActive: { borderColor: 'rgba(29,233,182,0.7)', backgroundColor: 'rgba(0,80,60,0.35)' },
+  voiceText: { fontSize: 11, fontWeight: '800', letterSpacing: 2, color: '#F3F4F6' },
   actionCard: {
-    padding: 16, borderRadius: 18, backgroundColor: '#F5F5F7', marginBottom: 10,
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.06)',
+    padding: 16, borderRadius: 18, backgroundColor: '#1A1D24', marginBottom: 10,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
   },
   dot: { width: 8, height: 8, borderRadius: 999 },
-  actionPortal: { fontSize: 10, letterSpacing: 2, fontWeight: '800', color: '#0A0A0A', opacity: 0.6 },
-  actionTitle: { fontSize: 16, fontWeight: '800', color: '#0A0A0A', marginTop: 6 },
-  actionDetail: { fontSize: 13, color: '#1D1D1F', opacity: 0.7, marginTop: 4, lineHeight: 19 },
+  actionPortal: { fontSize: 10, letterSpacing: 2, fontWeight: '800', color: '#9CA3AF' },
+  actionTitle: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', marginTop: 6 },
+  actionDetail: { fontSize: 13, color: '#D1D5DB', opacity: 0.8, marginTop: 4, lineHeight: 19 },
   itemsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   itemChip: {
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#FFFFFF',
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.1)',
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#0F1116',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
-  itemChipText: { fontSize: 11, fontWeight: '600', color: '#0A0A0A' },
+  itemChipText: { fontSize: 11, fontWeight: '600', color: '#D1D5DB' },
   cta: {
-    backgroundColor: '#0A0A0A', paddingVertical: 16, borderRadius: 999, alignItems: 'center',
-    shadowColor: '#D4AF37', shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 5 },
+    backgroundColor: '#00E5FF', paddingVertical: 16, borderRadius: 999, alignItems: 'center',
+    shadowColor: '#00E5FF', shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 5 },
+    elevation: 8,
   },
-  ctaText: { color: '#FFFFFF', fontWeight: '700', letterSpacing: 2.5, fontSize: 12 },
-  closeText: { fontWeight: '700', letterSpacing: 2, fontSize: 12, color: '#0A0A0A', opacity: 0.6 },
+  ctaText: { color: '#000000', fontWeight: '800', letterSpacing: 2.5, fontSize: 12 },
+  closeText: { fontWeight: '700', letterSpacing: 2, fontSize: 12, color: '#9CA3AF' },
 });

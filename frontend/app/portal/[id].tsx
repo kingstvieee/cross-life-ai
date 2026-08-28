@@ -48,15 +48,15 @@ export default function PortalDetail() {
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         {/* Cinematic header */}
         <View style={styles.hero}>
-          <Image source={{ uri: meta.image }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.8)', '#FFFFFF']} style={StyleSheet.absoluteFill} />
+          <Image source={{ uri: meta.image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} />
+          <LinearGradient colors={['rgba(10,11,14,0.25)', 'rgba(10,11,14,0.6)', '#0A0B0E']} style={StyleSheet.absoluteFill} />
           <SafeAreaView edges={['top']} style={styles.heroInner}>
             <Pressable style={styles.backBtn} onPress={() => router.back()} testID="back-btn">
-              <Ionicons name="chevron-back" size={20} color="#0A0A0A" />
+              <Ionicons name="chevron-back" size={20} color="#F3F4F6" />
             </Pressable>
           </SafeAreaView>
           <View style={styles.heroBottom}>
-            <Text style={styles.kicker}>PORTAL</Text>
+            <Text style={[styles.kicker, { color: meta.accent }]}>PORTAL</Text>
             <Text style={styles.title}>{meta.name}</Text>
             <Text style={styles.tagline}>{meta.tagline}</Text>
           </View>
@@ -73,7 +73,7 @@ export default function PortalDetail() {
           )}
 
           <Pressable style={styles.askBtn} onPress={() => router.push({ pathname: '/chat', params: { portal: id } })} testID="ask-guardian-btn">
-            <Ionicons name="flash" size={14} color="#FFFFFF" />
+            <Ionicons name="flash" size={14} color="#000000" />
             <Text style={styles.askText}>ASK THE GUARDIAN</Text>
           </Pressable>
         </View>
@@ -119,12 +119,12 @@ function Wellbeing({ data, save, api, reload }: any) {
         </View>
         <View style={styles.metricCard}>
           <Text style={styles.metricLabel}>STRESS</Text>
-          <Text style={[styles.metricValue, (data?.stress || 0) >= 6 && { color: '#8B0000' }]}>{data?.stress ?? '—'}/10</Text>
+          <Text style={[styles.metricValue, (data?.stress || 0) >= 6 && { color: '#FF5C7A' }]}>{data?.stress ?? '—'}/10</Text>
         </View>
         {data?.sleep_hours != null && (
           <View style={styles.metricCard}>
             <Text style={styles.metricLabel}>SLEEP</Text>
-            <Text style={[styles.metricValue, data?.slept_poorly && { color: '#8B0000' }]}>{data.sleep_hours}h</Text>
+            <Text style={[styles.metricValue, data?.slept_poorly && { color: '#FF5C7A' }]}>{data.sleep_hours}h</Text>
           </View>
         )}
       </View>
@@ -133,7 +133,7 @@ function Wellbeing({ data, save, api, reload }: any) {
       {data?.slept_poorly && !data?.gentle_start_active && (
         <View style={styles.guardianCard} testID="morning-intervention">
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Ionicons name="flash" size={14} color="#0A0A0A" />
+            <Ionicons name="flash" size={14} color="#00E5FF" />
             <Text style={styles.gKicker}>THE GUARDIAN NOTICED</Text>
           </View>
           <Text style={styles.gText}>
@@ -141,7 +141,7 @@ function Wellbeing({ data, save, api, reload }: any) {
             Want me to soften your morning across Work, Style and Home?
           </Text>
           <Pressable style={styles.blackBtn} onPress={coordinateMorning} disabled={busy} testID="coordinate-morning-btn">
-            {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.blackBtnText}>COORDINATE MY MORNING</Text>}
+            {busy ? <ActivityIndicator color="#000000" /> : <Text style={styles.blackBtnText}>COORDINATE MY MORNING</Text>}
           </Pressable>
         </View>
       )}
@@ -238,9 +238,9 @@ function Home({ data, save }: any) {
       {reminders.length === 0 && <Text style={styles.empty}>Nothing pending at home.</Text>}
       {reminders.map((r: any) => (
         <View key={r.id} style={styles.rowCard}>
-          <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: '#0A0A0A' }}>{r.text}</Text>
+          <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: '#F3F4F6' }}>{r.text}</Text>
           <Pressable onPress={() => save({ ...data, reminders: reminders.filter((x: any) => x.id !== r.id) })} testID={`clear-${r.id}`}>
-            <Ionicons name="close" size={18} color="#0A0A0A" style={{ opacity: 0.5 }} />
+            <Ionicons name="close" size={18} color="#9CA3AF" />
           </Pressable>
         </View>
       ))}
@@ -263,11 +263,11 @@ function Community({ data, save, events }: any) {
               <Text style={styles.eventMeta}>Dress: {e.dress_code} · Weather: {e.weather}</Text>
             </View>
             <Pressable
-              style={[styles.rsvpBtn, going && { backgroundColor: '#0A0A0A' }]}
+              style={[styles.rsvpBtn, going && { backgroundColor: '#00E5FF', borderColor: '#00E5FF' }]}
               onPress={() => save({ ...data, rsvp: going ? rsvp.filter((x: string) => x !== e.id) : [...rsvp, e.id] })}
               testID={`rsvp-${e.id}`}
             >
-              <Text style={[styles.rsvpText, going && { color: '#FFFFFF' }]}>{going ? 'GOING' : 'RSVP'}</Text>
+              <Text style={[styles.rsvpText, going && { color: '#000000' }]}>{going ? 'GOING' : 'RSVP'}</Text>
             </Pressable>
           </View>
         );
@@ -306,10 +306,10 @@ function Relationships({ data }: any) {
       {checkins.length === 0 && <Text style={styles.empty}>No one on your mind logged yet.</Text>}
       {checkins.map((c: any) => (
         <View key={c.id} style={styles.rowCard}>
-          <View style={styles.avatar}><Text style={{ fontWeight: '800', color: '#0A0A0A' }}>{c.name?.[0]}</Text></View>
+          <View style={styles.avatar}><Text style={{ fontWeight: '800', color: '#F3F4F6' }}>{c.name?.[0]}</Text></View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#0A0A0A' }}>{c.name}</Text>
-            <Text style={{ fontSize: 12.5, color: '#1D1D1F', opacity: 0.6, marginTop: 2 }}>{c.note}</Text>
+            <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#F3F4F6' }}>{c.name}</Text>
+            <Text style={{ fontSize: 12.5, color: '#9CA3AF', marginTop: 2 }}>{c.note}</Text>
           </View>
         </View>
       ))}
@@ -333,17 +333,17 @@ function Creativity({ data, save, ideaText, setIdeaText }: any) {
           value={ideaText}
           onChangeText={setIdeaText}
           placeholder="Capture an idea…"
-          placeholderTextColor="rgba(10,10,10,0.35)"
+          placeholderTextColor="rgba(255,255,255,0.35)"
           testID="idea-input"
         />
         <Pressable style={styles.addBtn} onPress={addIdea} testID="add-idea-btn">
-          <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
+          <Ionicons name="arrow-up" size={18} color="#000000" />
         </Pressable>
       </View>
       {ideas.map((i: any) => (
         <View key={i.id} style={styles.rowCard}>
-          <Ionicons name="bulb-outline" size={16} color="#0A0A0A" style={{ opacity: 0.55 }} />
-          <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: '#0A0A0A' }}>{i.text}</Text>
+          <Ionicons name="bulb-outline" size={16} color="#FBBF24" />
+          <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: '#F3F4F6' }}>{i.text}</Text>
         </View>
       ))}
     </View>
@@ -351,92 +351,95 @@ function Creativity({ data, save, ideaText, setIdeaText }: any) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FFFFFF' },
-  hero: { height: 250 },
+  root: { flex: 1, backgroundColor: '#0A0B0E' },
+  hero: { height: 270 },
   heroInner: { paddingHorizontal: 20, paddingTop: 8 },
   backBtn: {
     width: 40, height: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.85)', borderWidth: 1, borderColor: 'rgba(10,10,10,0.1)',
+    backgroundColor: 'rgba(21,23,29,0.7)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
   },
   heroBottom: { position: 'absolute', bottom: 14, left: 24 },
-  kicker: { fontSize: 10, letterSpacing: 3, fontWeight: '800', color: '#0A0A0A', opacity: 0.55 },
-  title: { fontSize: 34, fontWeight: '800', color: '#0A0A0A', letterSpacing: 0.5 },
-  tagline: { fontSize: 13, color: '#1D1D1F', opacity: 0.65, marginTop: 2 },
-  sectionH: { marginTop: 24, marginBottom: 10, fontSize: 11, letterSpacing: 3, fontWeight: '800', color: '#0A0A0A', opacity: 0.55 },
-  empty: { fontSize: 14, color: '#1D1D1F', opacity: 0.55, lineHeight: 20 },
+  kicker: { fontSize: 10, letterSpacing: 3, fontWeight: '800' },
+  title: { fontSize: 34, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
+  tagline: { fontSize: 13, color: '#D1D5DB', opacity: 0.8, marginTop: 2 },
+  sectionH: { marginTop: 24, marginBottom: 10, fontSize: 11, letterSpacing: 3, fontWeight: '800', color: '#9CA3AF' },
+  empty: { fontSize: 14, color: '#9CA3AF', lineHeight: 20 },
   metricRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
   metricCard: {
-    flex: 1, padding: 16, borderRadius: 18, backgroundColor: '#FFFFFF',
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.1)',
+    flex: 1, padding: 16, borderRadius: 18, backgroundColor: '#15171D',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
   },
-  metricLabel: { fontSize: 9, letterSpacing: 2, fontWeight: '800', color: '#0A0A0A', opacity: 0.5 },
-  metricValue: { fontSize: 24, fontWeight: '800', color: '#0A0A0A', marginTop: 6 },
-  stepper: { fontSize: 22, fontWeight: '700', color: '#0A0A0A', paddingHorizontal: 4, marginTop: 6 },
+  metricLabel: { fontSize: 9, letterSpacing: 2, fontWeight: '800', color: '#9CA3AF' },
+  metricValue: { fontSize: 24, fontWeight: '800', color: '#FFFFFF', marginTop: 6 },
+  stepper: { fontSize: 22, fontWeight: '700', color: '#00E5FF', paddingHorizontal: 4, marginTop: 6 },
   breathCard: {
-    marginTop: 16, padding: 20, borderRadius: 20, backgroundColor: '#F5F5F7',
-    borderWidth: 1, borderColor: 'rgba(0,229,255,0.35)',
+    marginTop: 16, padding: 20, borderRadius: 20, backgroundColor: 'rgba(0,51,61,0.4)',
+    borderWidth: 1, borderColor: 'rgba(0,229,255,0.4)',
   },
   guardianCard: {
-    marginTop: 16, padding: 20, borderRadius: 20, backgroundColor: '#F5F5F7',
-    borderWidth: 1, borderColor: 'rgba(0,229,255,0.35)',
+    marginTop: 16, padding: 20, borderRadius: 20, backgroundColor: 'rgba(0,51,61,0.4)',
+    borderWidth: 1, borderColor: 'rgba(0,229,255,0.4)',
   },
-  gText: { marginTop: 10, fontSize: 15, lineHeight: 22, color: '#0A0A0A', fontWeight: '500' },
-  gKicker: { fontSize: 10, letterSpacing: 2.5, fontWeight: '800', color: '#0A0A0A', opacity: 0.65 },
+  gText: { marginTop: 10, fontSize: 15, lineHeight: 22, color: '#F3F4F6', fontWeight: '500' },
+  gKicker: { fontSize: 10, letterSpacing: 2.5, fontWeight: '800', color: '#7EDCF3' },
   breathCircle: {
-    width: 90, height: 90, borderRadius: 999, backgroundColor: 'rgba(0,229,255,0.18)',
+    width: 90, height: 90, borderRadius: 999, backgroundColor: 'rgba(0,229,255,0.14)',
     borderWidth: 1.5, borderColor: theme.color.energy, marginBottom: 18,
+    shadowColor: '#00E5FF', shadowOpacity: 0.5, shadowRadius: 20, shadowOffset: { width: 0, height: 0 },
   },
-  breathText: { fontSize: 16, fontWeight: '800', color: '#0A0A0A' },
-  breathSub: { fontSize: 12.5, color: '#1D1D1F', opacity: 0.6, textAlign: 'center', marginTop: 6, lineHeight: 18 },
+  breathText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
+  breathSub: { fontSize: 12.5, color: '#D1D5DB', opacity: 0.8, textAlign: 'center', marginTop: 6, lineHeight: 18 },
   blackBtn: {
-    marginTop: 16, backgroundColor: '#0A0A0A', paddingVertical: 16, borderRadius: 999, alignItems: 'center',
-    shadowColor: '#D4AF37', shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 5 },
+    marginTop: 16, backgroundColor: '#00E5FF', paddingVertical: 16, borderRadius: 999, alignItems: 'center',
+    shadowColor: '#00E5FF', shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 5 },
+    elevation: 8,
   },
-  blackBtnText: { color: '#FFFFFF', fontWeight: '700', letterSpacing: 2.5, fontSize: 12 },
+  blackBtnText: { color: '#000000', fontWeight: '800', letterSpacing: 2.5, fontSize: 12 },
   outlineBtn: {
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.16)', paddingVertical: 13, borderRadius: 999,
-    alignItems: 'center', backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', paddingVertical: 13, borderRadius: 999,
+    alignItems: 'center', backgroundColor: '#15171D',
   },
-  outlineBtnText: { color: '#0A0A0A', fontWeight: '700', letterSpacing: 2, fontSize: 11 },
+  outlineBtnText: { color: '#F3F4F6', fontWeight: '700', letterSpacing: 2, fontSize: 11 },
   infoCard: {
-    marginTop: 16, padding: 18, borderRadius: 20, backgroundColor: '#F5F5F7',
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.07)',
+    marginTop: 16, padding: 18, borderRadius: 20, backgroundColor: '#15171D',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
   },
-  infoText: { marginTop: 8, fontSize: 14, color: '#0A0A0A', fontWeight: '500', lineHeight: 20 },
+  infoText: { marginTop: 8, fontSize: 14, color: '#F3F4F6', fontWeight: '500', lineHeight: 20 },
   rowCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderRadius: 16, marginBottom: 10,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(10,10,10,0.09)',
+    backgroundColor: '#15171D', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
   },
   avatar: {
-    width: 38, height: 38, borderRadius: 999, backgroundColor: '#F5F5F7',
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(10,10,10,0.1)',
+    width: 38, height: 38, borderRadius: 999, backgroundColor: '#1F222B',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
   eventCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 18, marginBottom: 10,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(10,10,10,0.09)',
+    backgroundColor: '#15171D', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
   },
-  eventTitle: { fontSize: 15, fontWeight: '800', color: '#0A0A0A' },
-  eventMeta: { fontSize: 12, color: '#1D1D1F', opacity: 0.6, marginTop: 2 },
+  eventTitle: { fontSize: 15, fontWeight: '800', color: '#F3F4F6' },
+  eventMeta: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
   rsvpBtn: {
     paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.2)', backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', backgroundColor: '#1F222B',
   },
-  rsvpText: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: '#0A0A0A' },
+  rsvpText: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: '#F3F4F6' },
   chip: {
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#FFFFFF',
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.1)',
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#1F222B',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
-  chipText: { fontSize: 11, fontWeight: '600', color: '#0A0A0A' },
+  chipText: { fontSize: 11, fontWeight: '600', color: '#D1D5DB' },
   inputRow: { flexDirection: 'row', gap: 10, alignItems: 'center', marginBottom: 14 },
   input: {
-    flex: 1, height: 48, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(10,10,10,0.12)',
-    paddingHorizontal: 14, fontSize: 14, color: '#0A0A0A', backgroundColor: '#FFFFFF',
+    flex: 1, height: 48, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
+    paddingHorizontal: 14, fontSize: 14, color: '#F3F4F6', backgroundColor: '#15171D',
   },
-  addBtn: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#0A0A0A', alignItems: 'center', justifyContent: 'center' },
+  addBtn: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#00E5FF', alignItems: 'center', justifyContent: 'center' },
   askBtn: {
-    marginTop: 28, flexDirection: 'row', gap: 8, backgroundColor: '#0A0A0A', paddingVertical: 16,
+    marginTop: 28, flexDirection: 'row', gap: 8, backgroundColor: '#00E5FF', paddingVertical: 16,
     borderRadius: 999, alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#D4AF37', shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 5 },
+    shadowColor: '#00E5FF', shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 5 },
+    elevation: 8,
   },
-  askText: { color: '#FFFFFF', fontWeight: '700', letterSpacing: 2.5, fontSize: 12 },
+  askText: { color: '#000000', fontWeight: '800', letterSpacing: 2.5, fontSize: 12 },
 });

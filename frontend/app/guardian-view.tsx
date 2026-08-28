@@ -27,7 +27,7 @@ export default function GuardianView() {
     <SafeAreaView style={styles.root} edges={['top']} testID="guardian-view-root">
       <View style={styles.header}>
         <Pressable style={styles.backBtn} onPress={() => router.back()} testID="back-btn">
-          <Ionicons name="chevron-back" size={20} color="#0A0A0A" />
+          <Ionicons name="chevron-back" size={20} color="#F3F4F6" />
         </Pressable>
         <View>
           <Text style={styles.h}>Guardian View</Text>
@@ -37,12 +37,12 @@ export default function GuardianView() {
 
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 60 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0A0A0A" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00E5FF" />}
         showsVerticalScrollIndicator={false}
       >
         {items.length === 0 && (
           <View style={styles.emptyBox}>
-            <Ionicons name="flash-outline" size={28} color="#0A0A0A" style={{ opacity: 0.4 }} />
+            <Ionicons name="flash-outline" size={28} color="#00E5FF" style={{ opacity: 0.7 }} />
             <Text style={styles.emptyH}>No coordinations yet.</Text>
             <Text style={styles.emptyP}>Open the Work portal and let the Guardian coordinate your evening to see cross-life intelligence in action.</Text>
             <Pressable style={styles.cta} onPress={() => router.push('/work')} testID="go-work-btn">
@@ -62,8 +62,8 @@ export default function GuardianView() {
             {/* Signal flow visualization */}
             {(c.signals || []).map((s: any, i: number) => (
               <View key={i} style={styles.flowRow}>
-                <View style={[styles.flowPill, { backgroundColor: '#0A0A0A' }]}>
-                  <Text style={[styles.flowPillText, { color: '#FFFFFF' }]}>{portalMeta[s.sourcePortal]?.name || s.sourcePortal}</Text>
+                <View style={[styles.flowPill, { backgroundColor: '#00E5FF', borderColor: '#00E5FF' }]}>
+                  <Text style={[styles.flowPillText, { color: '#000000' }]}>{portalMeta[s.sourcePortal]?.name || s.sourcePortal}</Text>
                 </View>
                 <Ionicons name="arrow-forward" size={14} color={theme.color.energy} />
                 <View style={styles.flowTargets}>
@@ -101,40 +101,43 @@ export default function GuardianView() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FFFFFF' },
+  root: { flex: 1, backgroundColor: '#0A0B0E' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 12 },
   backBtn: {
     width: 40, height: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.12)', backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#15171D',
   },
-  h: { fontSize: 22, fontWeight: '800', color: '#0A0A0A' },
-  sub: { fontSize: 9, letterSpacing: 2, color: '#0A0A0A', opacity: 0.5, fontWeight: '700', marginTop: 2 },
+  h: { fontSize: 22, fontWeight: '800', color: '#FFFFFF' },
+  sub: { fontSize: 9, letterSpacing: 2, color: '#00E5FF', fontWeight: '700', marginTop: 2 },
   emptyBox: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 20 },
-  emptyH: { fontSize: 18, fontWeight: '800', color: '#0A0A0A', marginTop: 14 },
-  emptyP: { fontSize: 13.5, color: '#1D1D1F', opacity: 0.6, textAlign: 'center', marginTop: 8, lineHeight: 20 },
-  cta: { marginTop: 20, backgroundColor: '#0A0A0A', paddingVertical: 15, paddingHorizontal: 28, borderRadius: 999 },
-  ctaText: { color: '#FFFFFF', fontWeight: '700', letterSpacing: 2, fontSize: 12 },
+  emptyH: { fontSize: 18, fontWeight: '800', color: '#FFFFFF', marginTop: 14 },
+  emptyP: { fontSize: 13.5, color: '#9CA3AF', textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  cta: {
+    marginTop: 20, backgroundColor: '#00E5FF', paddingVertical: 15, paddingHorizontal: 28, borderRadius: 999,
+    shadowColor: '#00E5FF', shadowOpacity: 0.45, shadowRadius: 16, elevation: 8,
+  },
+  ctaText: { color: '#000000', fontWeight: '800', letterSpacing: 2, fontSize: 12 },
   card: {
-    marginTop: 14, padding: 18, borderRadius: 20, backgroundColor: '#F5F5F7',
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.07)',
+    marginTop: 14, padding: 18, borderRadius: 20, backgroundColor: '#15171D',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   liveDot: { width: 8, height: 8, borderRadius: 999, backgroundColor: theme.color.energy },
-  cardKicker: { fontSize: 10, letterSpacing: 2.5, fontWeight: '800', color: '#0A0A0A', opacity: 0.6, flex: 1 },
-  cardTime: { fontSize: 11, color: '#1D1D1F', opacity: 0.5, fontWeight: '600' },
+  cardKicker: { fontSize: 10, letterSpacing: 2.5, fontWeight: '800', color: '#9CA3AF', flex: 1 },
+  cardTime: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
   flowRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' },
   flowTargets: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, flex: 1 },
   flowPill: {
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#FFFFFF',
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.1)',
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#1F222B',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
-  flowPillText: { fontSize: 11, fontWeight: '700', color: '#0A0A0A' },
-  signalSummary: { marginTop: 10, fontSize: 13.5, color: '#0A0A0A', fontWeight: '600', lineHeight: 19 },
-  divider: { height: 1, backgroundColor: 'rgba(10,10,10,0.08)', marginVertical: 14 },
+  flowPillText: { fontSize: 11, fontWeight: '700', color: '#F3F4F6' },
+  signalSummary: { marginTop: 10, fontSize: 13.5, color: '#F3F4F6', fontWeight: '600', lineHeight: 19 },
+  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 14 },
   actionRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   dot: { width: 8, height: 8, borderRadius: 999, marginTop: 5 },
-  actionTitle: { fontSize: 14, fontWeight: '800', color: '#0A0A0A' },
-  actionDetail: { fontSize: 12.5, color: '#1D1D1F', opacity: 0.65, marginTop: 2, lineHeight: 18 },
+  actionTitle: { fontSize: 14, fontWeight: '800', color: '#F3F4F6' },
+  actionDetail: { fontSize: 12.5, color: '#9CA3AF', marginTop: 2, lineHeight: 18 },
   confRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
-  conf: { fontSize: 9, letterSpacing: 1.5, fontWeight: '800', color: '#0A0A0A', opacity: 0.45 },
+  conf: { fontSize: 9, letterSpacing: 1.5, fontWeight: '800', color: '#9CA3AF', opacity: 0.8 },
 });

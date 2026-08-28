@@ -44,7 +44,7 @@ export function Walkthrough({ onDone }: { onDone: () => void }) {
       <Animated.View key={step} entering={FadeInDown.duration(300)} style={[styles.card, { marginBottom: insets.bottom + 20 }]}>
         <View style={styles.topRow}>
           <View style={styles.iconWrap}>
-            <Ionicons name={s.icon} size={16} color="#0A0A0A" />
+            <Ionicons name={s.icon} size={16} color="#00E5FF" />
           </View>
           <Text style={styles.kicker}>JUDGE WALKTHROUGH · {step + 1}/{STEPS.length}</Text>
           <Pressable onPress={onDone} hitSlop={10} testID="walkthrough-skip">
@@ -70,25 +70,25 @@ export function Walkthrough({ onDone }: { onDone: () => void }) {
 
 const styles = StyleSheet.create({
   scrim: {
-    ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,10,10,0.45)', justifyContent: 'flex-end', zIndex: 50,
+    ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end', zIndex: 50,
   },
   card: {
-    marginHorizontal: 16, backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20,
-    borderWidth: 1, borderColor: 'rgba(10,10,10,0.08)',
-    shadowColor: '#0A0A0A', shadowOpacity: 0.2, shadowRadius: 24, shadowOffset: { width: 0, height: 10 },
+    marginHorizontal: 16, backgroundColor: '#15171D', borderRadius: 24, padding: 20,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    shadowColor: '#00E5FF', shadowOpacity: 0.15, shadowRadius: 30, shadowOffset: { width: 0, height: 0 },
   },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   iconWrap: {
-    width: 30, height: 30, borderRadius: 999, backgroundColor: '#F5F5F7',
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(10,10,10,0.1)',
+    width: 30, height: 30, borderRadius: 999, backgroundColor: 'rgba(0,51,61,0.6)',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(0,229,255,0.35)',
   },
-  kicker: { flex: 1, fontSize: 9, letterSpacing: 2, fontWeight: '800', color: '#0A0A0A', opacity: 0.55 },
-  skip: { fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: '#0A0A0A', opacity: 0.5 },
-  title: { fontSize: 20, fontWeight: '800', color: '#0A0A0A', marginTop: 12 },
-  desc: { fontSize: 13.5, color: '#1D1D1F', opacity: 0.7, lineHeight: 20, marginTop: 6 },
+  kicker: { flex: 1, fontSize: 9, letterSpacing: 2, fontWeight: '800', color: '#9CA3AF' },
+  skip: { fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: '#9CA3AF' },
+  title: { fontSize: 20, fontWeight: '800', color: '#FFFFFF', marginTop: 12 },
+  desc: { fontSize: 13.5, color: '#D1D5DB', opacity: 0.85, lineHeight: 20, marginTop: 6 },
   bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
-  dotStep: { width: 6, height: 6, borderRadius: 999, backgroundColor: 'rgba(10,10,10,0.15)' },
-  dotOn: { backgroundColor: '#0A0A0A', width: 16 },
-  next: { backgroundColor: '#0A0A0A', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999 },
-  nextText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800', letterSpacing: 2 },
+  dotStep: { width: 6, height: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.2)' },
+  dotOn: { backgroundColor: '#00E5FF', width: 16 },
+  next: { backgroundColor: '#00E5FF', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999 },
+  nextText: { color: '#000000', fontSize: 11, fontWeight: '800', letterSpacing: 2 },
 });

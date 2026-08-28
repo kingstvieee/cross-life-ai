@@ -1,37 +1,37 @@
 {
   "app_name": "STAAR Hub",
-  "personality": "6 Glass / Luxe (Luminous Light Mode)",
-  "personality_one_liner": "A cinematic, high-contrast premium AI ecosystem relying heavily on structural glass, polished silver surfaces, deep black typography for extreme clarity, and controlled blue-white/gold energy accents.",
+  "personality": "6 Glass / Luxe DARK (fused with 7 Dark-First Utility for AI tech structure)",
+  "personality_one_liner": "A cinematic, deeply atmospheric AI orchestrator built on obsidian glass and glowing cyan data streams.",
   "color": {
-    "surface": "#FFFFFF",
-    "onSurface": "#0A0A0A",
-    "surfaceSecondary": "#F5F5F7",
-    "onSurfaceSecondary": "#1D1D1F",
-    "surfaceTertiary": "#E4E7EC",
-    "onSurfaceTertiary": "#1D1D1F",
-    "surfaceInverse": "#0A0A0A",
-    "onSurfaceInverse": "#FFFFFF",
-    "brand": "#F5F5F7",
-    "brandPrimary": "#0A0A0A",
-    "onBrandPrimary": "#FFFFFF",
-    "brandSecondary": "#D4AF37",
-    "onBrandSecondary": "#0A0A0A",
-    "brandTertiary": "#00E5FF",
-    "onBrandTertiary": "#0A0A0A",
-    "success": "#E0F7FA",
-    "onSuccess": "#006064",
-    "warning": "#FDF5E6",
-    "onWarning": "#8A6D3B",
-    "error": "#FFF0F0",
-    "onError": "#8B0000",
-    "info": "#F5F5F7",
-    "onInfo": "#1D1D1F",
-    "border": "#E4E7EC",
-    "borderStrong": "#0A0A0A",
-    "divider": "#E4E7EC"
+    "surface": "#0a0b0e",
+    "onSurface": "#F3F4F6",
+    "surfaceSecondary": "#15171d",
+    "onSurfaceSecondary": "#D1D5DB",
+    "surfaceTertiary": "#1f222b",
+    "onSurfaceTertiary": "#9CA3AF",
+    "surfaceInverse": "#ffffff",
+    "onSurfaceInverse": "#000000",
+    "brand": "#00E5FF",
+    "brandPrimary": "#00E5FF",
+    "onBrandPrimary": "#000000",
+    "brandSecondary": "#1DE9B6",
+    "onBrandSecondary": "#000000",
+    "brandTertiary": "#00333D",
+    "onBrandTertiary": "#00E5FF",
+    "success": "#00C853",
+    "onSuccess": "#ffffff",
+    "warning": "#FFD600",
+    "onWarning": "#000000",
+    "error": "#FF1744",
+    "onError": "#ffffff",
+    "info": "#00B0FF",
+    "onInfo": "#000000",
+    "border": "#2a2d36",
+    "borderStrong": "#3f4451",
+    "divider": "#1f222b"
   },
   "typography": {
-    "displayFontFamily": "ClashDisplay",
+    "displayFontFamily": "Satoshi",
     "textFontFamily": "Satoshi",
     "scale": {
       "sm": 12,
@@ -42,7 +42,7 @@
     }
   },
   "spacing": {
-    "rule": "Generous, architectural spacing. Cinematic layouts require breathing room around central UI entities to emphasize scale and importance.",
+    "rule": "Generous cinematic spacing for hero areas; tighter utility spacing within data cards.",
     "xs": 4,
     "sm": 8,
     "md": 12,
@@ -58,18 +58,19 @@
     "pill": 999
   },
   "shadow_tier": "0",
-  "navigation": "expo_router_stack_for_intro_and_radial_hub",
-  "icon_set": "Phosphor",
+  "navigation": "bottom_tabs",
+  "icon_set": "Ionicons",
   "glassmorphism": {
-    "enabled": "true",
+    "enabled": true,
     "do's": [
-      "Use heavily on Portal entrance cards, Hub center nodes, and hovering status bars.",
-      "Pair with a ≥70% #FFFFFF base tint in light mode so underlying particles/images don't break typography readability.",
-      "Use glass headers fading into transparent for cinematic scroll experiences."
+      "Apply to Coordination bottom sheet headers and bodies.",
+      "Apply to feature cards that sit over photographic hero headers.",
+      "Apply to the pinned Guardian Chat suggestion chips.",
+      "Pair blur with surfaceSecondary tint at >=75% opacity to guarantee text readability."
     ],
     "dont's": [
-      "Don't stack glass on top of glass.",
-      "Don't use glass for standard form inputs or heavy text-reading sections."
+      "Do not blur standard form fields or deep data settings rows.",
+      "Do not use transparent glass without a dark tint underlying it."
     ]
   },
   "platform_libraries": {
@@ -82,103 +83,121 @@
     "blur": "expo-blur",
     "bottom_sheet": "@gorhom/bottom-sheet",
     "animation": "react-native-reanimated",
-    "gesture": "react-native-gesture-handler",
-    "graphics": "@shopify/react-native-skia"
+    "gesture": "react-native-gesture-handler"
   },
   "screens": [
     {
-      "name": "Cinematic Intro",
-      "purpose": "A cinematic opening sequence anchoring the AI to Toronto and revealing The Guardian.",
+      "name": "Landing Page & Cinematic Intro",
+      "purpose": "A breathtaking first impression showcasing the Toronto skyline and the arrival of the Guardian.",
       "states": {
-        "loading": "Skia-rendered Toronto skyline silhouette at golden hour, transitioning to cinematic night.",
+        "loading": "Centered glowing cyan Skia ring.",
+        "empty": "N/A",
+        "error": "Message 'Connection to Hub lost.' + Retry CTA."
+      },
+      "layout": "Full-bleed background image of the Toronto skyline. Dark gradient scrim from bottom (0% -> 90% surface at bottom). The Guardian orb (Skia glowing circle in brandPrimary) descends. Bottom area contains the 'Experience Demo' CTA (glassmorphic pill) and 'Sign in with Google'."
+    },
+    {
+      "name": "Hub (Radial)",
+      "purpose": "The central nerve center showing the Guardian orb connected to 7 life portals.",
+      "states": {
+        "loading": "Pulsing central orb.",
+        "empty": "N/A",
+        "error": "Error establishing signal lines. + Retry"
+      },
+      "layout": "Pure surface background (#0a0b0e). Central pulsing Guardian orb (Skia). 7 portal nodes arranged in a circle. Animated Skia cyan lines connect the center to the nodes. A bottom signal banner displays live orchestration text ('Guardian is optimizing Work & Wellbeing...'). Top right: companion switcher."
+    },
+    {
+      "name": "Portal Detail (6 variants: Work, Wellbeing, Home, Style, Community, Relationships)",
+      "purpose": "Deep dive into a specific life category orchestrated by the Guardian.",
+      "states": {
+        "loading": "Skeleton rows with a pulsing brandTertiary tint.",
+        "empty": "Glassmorphic card with 'No active signals' and a primary action.",
+        "error": "Text 'Portal out of sync' + Retry."
+      },
+      "layout": "Edge-to-edge photographic hero header (specific to the portal). Heavy vertical gradient scrim (transparent to surface). Back button is a glass FAB. Content scrolls up over the image. First card overlaps the image: a Glassmorphic 'Guardian Intervention' card (e.g., stress meter, breathing session). Below it, stacked solid surfaceSecondary cards for tasks, events, or controls."
+    },
+    {
+      "name": "Coordination Bottom Sheet",
+      "purpose": "A persistent overlay where cross-portal actions are summarized and voiced.",
+      "states": {
+        "loading": "Spinning cyan loader.",
+        "empty": "N/A",
+        "error": "Failed to load coordination. + Retry"
+      },
+      "layout": "Glassmorphic bottom sheet over the Hub. Includes a drag handle. Top right: Voice Playback FAB (brandPrimary tint). Content is a list of 'Action Cards' detailing cross-portal links (e.g., 'Work meeting moved -> Adjusted Home Thermostat')."
+    },
+    {
+      "name": "Guardian View & Chat",
+      "purpose": "Direct timeline of the AI's logic and conversational interface.",
+      "states": {
+        "loading": "Skeleton chat bubbles.",
+        "empty": "'How can I optimize your day?' + suggestion chips.",
+        "error": "Chat disconnected."
+      },
+      "layout": "Timeline view uses a vertical left-aligned rail (cyan line). 'Signal flow' pills (source -> target). Chat interface uses surfaceSecondary for user bubbles and a brandTertiary glass pill for Guardian bubbles. Sticky suggestion chips at the bottom above the input."
+    },
+    {
+      "name": "Settings",
+      "purpose": "Configure demo states and toggle Guardian permissions.",
+      "states": {
+        "loading": "Spinner.",
+        "empty": "N/A",
+        "error": "Failed to load preferences."
+      },
+      "layout": "Standard dark-utility layout. surface background. surfaceSecondary grouped rows. Ionicons in brandTertiary tinted squares. Segmented controls for switching modes."
+    },
+    {
+      "name": "Demo Walkthrough Overlay",
+      "purpose": "5-step judge walkthrough framing the experience.",
+      "states": {
+        "loading": "N/A",
         "empty": "N/A",
         "error": "N/A"
       },
-      "layout": "Full-bleed absolute Skia Canvas. Sequence: CN Tower skyline pan -> Boy silhouette looking up -> Superhero-scale Guardian energy arrival (lightning/cyan energy shaders) -> 7 dimensional portals open sequentially via Reanimated scale/opacity. Stack navigation pushes to Landing Page."
-    },
-    {
-      "name": "Landing Page",
-      "purpose": "First touchpoint post-intro offering Demo Mode, Auth, and brand hero messaging.",
-      "states": {
-        "loading": "Subtle shimmering silver gradient.",
-        "empty": "N/A",
-        "error": "Standard toast notification."
-      },
-      "layout": "Bottom-weighted cinematic layout. Top 60% is an abstract floating crystal/energy visual. Bottom 40% houses the primary CTAs ('Get Started', 'Experience Demo' inside a glass container). Deep black primary buttons with subtle gold glow on press."
-    },
-    {
-      "name": "Main Hub (Guardian View)",
-      "purpose": "The central nervous system of the Life House, visualizing Cross-Life Context Intelligence.",
-      "states": {
-        "loading": "Central Guardian orb pulsing smoothly.",
-        "empty": "N/A",
-        "error": "Orb turns soft red; displays fallback local intelligence."
-      },
-      "layout": "Radial Hub. Guardian orb resides at absolute center (Skia glowing orb with voice wave visualizer). The 7 portals (Work, Home, Wellbeing, etc.) orbit radially. Reanimated lines connect portals to visualize cross-context (e.g., Work -> Wellbeing). Companion AI (Kaia/Atlas) switcher toggle floating top-right."
-    },
-    {
-      "name": "Portal Detail (e.g., Wellbeing)",
-      "purpose": "Specific dashboard for a single life portal, retaining the premium glass aesthetic.",
-      "states": {
-        "loading": "Skeleton cards with soft glass shimmer.",
-        "empty": "Large atmospheric photo (e.g., wellness spa) + 'Awaiting data' message in deep black.",
-        "error": "Minimalist error state with elegant 'Retry' pill button."
-      },
-      "layout": "Cinematic header with a parallax background photo overlaid with top-to-bottom white-to-glass scrim. Content sits on frosted glass cards with 1pt silver borders. Metrics (mood, routines) use high-contrast black typography on white cards."
-    },
-    {
-      "name": "Privacy & Portal Access",
-      "purpose": "Settings controlling autonomy, AI access, and companion persona.",
-      "states": {
-        "loading": "List skeleton.",
-        "empty": "N/A",
-        "error": "Standard toast."
-      },
-      "layout": "List-based structural layout. Glass rows over a static luminous silver background. Toggles use deep black when active, silver when inactive. 'Companion Selector' is a segmented control or horizontal glass carousel (Guardian / Kaia / Atlas)."
+      "layout": "Absolute positioned overlay blocking touches outside the spotlight area. Glassmorphic tooltip box with 'Step X/5', bold title, and a 'Next' button."
     }
   ],
   "images": {
     "toronto_skyline_intro": {
-      "url": "https://images.unsplash.com/photo-1569982615761-66697da68502?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzV8MHwxfHNlYXJjaHwxfHx0b3JvbnRvJTIwc2t5bGluZSUyMGNuJTIwdG93ZXIlMjBjaW5lbWF0aWN8ZW58MHx8fHwxNzg3ODMzMTY0fDA&ixlib=rb-4.1.0&q=85",
-      "alt": "Cinematic Toronto skyline with CN Tower at twilight"
+      "url": "https://images.unsplash.com/photo-1486325212027-8081e485255e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHwxfHx0b3JvbnRvJTIwc2t5bGluZSUyMGNuJTIwdG93ZXIlMjBkYXJrJTIwbW9vZHl8ZW58MHx8fHwxNzg3OTIxMTMzfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "The CN Tower and illuminated skyscrapers in the Toronto skyline at dusk"
     },
-    "guardian_energy_abstract": {
-      "url": "https://images.unsplash.com/photo-1524168948265-8f79ad8d4e33?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA0MTJ8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGNvb2wlMjBibHVlJTIwd2hpdGUlMjBlbmVyZ3klMjBjcnlzdGFsJTIwZnV0dXJpc3RpY3xlbnwwfHx8fDE3ODc4MzMxNjR8MA&ixlib=rb-4.1.0&q=85",
-      "alt": "Abstract cool blue and white crystal energy representing The Guardian"
+    "work_portal_hero": {
+      "url": "https://images.unsplash.com/photo-1742046335792-060080d72460?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwxfHxjcmVhdGl2ZSUyMHdvcmtzcGFjZSUyMGRlc2slMjBkYXJrJTIwY2luZW1hdGljfGVufDB8fHx8MTc4NzkyMTEzM3ww&ixlib=rb-4.1.0&q=85",
+      "alt": "A dark office lit with ambient and desk lighting"
     },
-    "portal_wellbeing": {
-      "url": "https://images.unsplash.com/photo-1676302144341-10563603f99a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjB3ZWxsbmVzcyUyMHNhbmN0dWFyeSUyMHNwYSUyMGludGVyaW9yfGVufDB8fHx8MTc4NzgzMzE2NHww&ixlib=rb-4.1.0&q=85",
-      "alt": "Luxury wellness sanctuary pool"
+    "home_portal_hero": {
+      "url": "https://images.unsplash.com/photo-1640357897497-599b4fc84f51?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBzbWFydCUyMGhvbWUlMjBpbnRlcmlvciUyMGRhcmslMjBtb29keSUyMGxpZ2h0aW5nfGVufDB8fHx8MTc4NzkyMTEzM3ww&ixlib=rb-4.1.0&q=85",
+      "alt": "A modern smart home living room in cinematic dark lighting"
     },
-    "portal_home": {
-      "url": "https://images.unsplash.com/photo-1564078516393-cf04bd966897?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBzbWFydCUyMGhvbWUlMjBsaXZpbmclMjByb29tJTIwYWVzdGhldGljfGVufDB8fHx8MTc4NzgzMzE2NHww&ixlib=rb-4.1.0&q=85",
-      "alt": "Luxury modern living room with large glass windows"
+    "wellbeing_portal_hero": {
+      "url": "https://images.unsplash.com/photo-1532798442725-41036acc7489?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzR8MHwxfHNlYXJjaHwxfHxtZWRpdGF0aW9uJTIwYnJlYXRoaW5nJTIwd2VsbG5lc3MlMjBkYXJrJTIwYXRtb3NwaGVyaWN8ZW58MHx8fHwxNzg3OTIxMTMzfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Person meditating in a dark atmospheric room"
     },
-    "portal_work": {
-      "url": "https://images.unsplash.com/photo-1776482128008-2c9cf5bc0edc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODd8MHwxfHNlYXJjaHwxfHxwcmVtaXVtJTIwbW9kZXJuJTIwZXhlY3V0aXZlJTIwb2ZmaWNlJTIwZ2xhc3MlMjBhZXN0aGV0aWN8ZW58MHx8fHwxNzg3ODMzMTY0fDA&ixlib=rb-4.1.0&q=85",
-      "alt": "Premium minimal glass executive office"
+    "style_portal_hero": {
+      "url": "https://images.unsplash.com/photo-1580478491436-fd6a937acc9e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBmYXNoaW9uJTIwb3V0Zml0JTIwZWRpdG9yaWFsJTIwZGFya3xlbnwwfHx8fDE3ODc5MjExMzN8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Modern fashion outfit in a moody editorial shot"
     },
-    "portal_style": {
-      "url": "https://images.unsplash.com/photo-1662454419622-a41092ecd245?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTV8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBtaW5pbWFsJTIwZHJlc3NpbmclMjByb29tJTIwd2FyZHJvYmUlMjBhZXN0aGV0aWN8ZW58MHx8fHwxNzg3ODMzMTY0fDA&ixlib=rb-4.1.0&q=85",
-      "alt": "Minimal luxury dressing room"
+    "community_portal_hero": {
+      "url": "https://images.unsplash.com/photo-1765224747196-f4d8e34f5846?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxjb21tdW5pdHklMjBldmVudCUyMGNvbmNlcnQlMjBkYXJrJTIwYXRtb3NwaGVyaWN8ZW58MHx8fHwxNzg3OTIxMTMzfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Community concert event in atmospheric dark lighting"
     },
-    "portal_creativity": {
-      "url": "https://images.unsplash.com/photo-1567016376408-0226e4d0c1ea?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwxfHxwcmVtaXVtJTIwY3JlYXRpdmUlMjBhcnQlMjBzdHVkaW8lMjBtaW5pbWFsaXN0fGVufDB8fHx8MTc4NzgzMzE2NHww&ixlib=rb-4.1.0&q=85",
-      "alt": "Premium minimalist creative studio with architectural curves"
+    "relationships_portal_hero": {
+      "url": "https://images.unsplash.com/photo-1541679368093-5c967ac6de11?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzd8MHwxfHNlYXJjaHwxfHxjb3VwbGUlMjBob2xkaW5nJTIwaGFuZHMlMjBkYXJrJTIwY2luZW1hdGljJTIwbW9vZHl8ZW58MHx8fHwxNzg3OTIxMTQwfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Couple holding hands in a dark cinematic moody setting"
     }
   },
   "haptics": {
-    "portal_enter": "impactMedium",
-    "companion_switch": "impactLight",
-    "toggle_privacy": "selection",
-    "guardian_orb_press": "impactHeavy"
+    "portal_node_tap": "impactMedium",
+    "coordination_sheet_drag": "selection",
+    "cta_press": "impactLight",
+    "switch_toggle": "selection"
   },
   "instructions_to_main_agent": [
-    "Strictly follow the custom '6 Glass / Luxe (Luminous Light Mode)' aesthetic. DO NOT default to a dark/cyberpunk UI. The app is bright, silver, luminous, and luxurious. Rely on extreme contrast (pure white backgrounds with deep black #0A0A0A text).",
-    "For the Cinematic Intro, use @shopify/react-native-skia. Render the Toronto Skyline silhouette at the bottom, and use Skia shaders/particles to generate the blue-white/cyan energy for the Guardian's arrival.",
-    "For the Main Hub, orchestrate a radial UI. Center the Guardian (an animated glowing Skia element or blurred orb). Place the 7 portals radially. Use Reanimated to draw glowing dashed lines between portals to visualize Cross-Life Context (e.g., Work -> Wellbeing).",
-    "Fonts: Implement 'ClashDisplay' for headers (premium display sans) and 'Satoshi' for body text. Load these manually rather than using @expo-google-fonts as requested.",
-    "Component Styling: Primary CTAs should be deep black (#0A0A0A) with white text, triggering a very subtle gold/champagne glow on press. Portal cards must use expo-blur over a light silver base with a 0.5pt silver border.",
-    "All imagery (Toronto, Work, Wellbeing, etc.) MUST utilize the top-to-bottom white-to-glass gradient scrim pattern (detailed in <Imagery_and_Texture>) so the black typography remains perfectly legible against high-end photography."
+    "REJECT 'too white/empty' and 'flat/cheap'. The app must be in pure Dark mode (#0a0b0e) to allow the glowing Skia cyan lines and glassmorphism to pop, creating a premium 'Luxe / Cinematic' feel.",
+    "The intro animation should use the 'toronto_skyline_intro' image as a full-bleed backdrop. Apply a heavy dark gradient scrim over it so the Skia Guardian orb (brandPrimary glow) pops beautifully.",
+    "For the Hub screen, replace the 'plain circle of portals' with a highly dynamic Skia-driven canvas: a central pulsing orb with animated cyan lines actively flowing to the 7 surrounding portal nodes. The nodes should look like premium glass glassmorphic chips, not flat buttons.",
+    "Use expo-blur heavily over photographic headers (like the Guardian Intervention card overlapping the Work/Wellbeing hero photos) and ensure the background image has a vertical gradient scrim under the text to guarantee contrast.",
+    "Stick strictly to Satoshi font. The combination of clean geometry, deep obsidian background, and cyan accents achieves the 'Cross-Life Context Intelligence' tech-luxe vibe without resorting to standard Web3 neon overload."
   ]
 }
