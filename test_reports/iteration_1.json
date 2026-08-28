@@ -1,0 +1,40 @@
+{
+  "summary": "STAAR Hub end-to-end testing PASSED. Backend: 21/21 pytest tests green covering demo auth, portal state (all 7 portals, work seeded with high workload + 6 tasks), guardian signals (workload, upcoming_event, elevated_stress), cross_life_paused honored, coordinate-evening produces 6 actions and mutates wellbeing/home/style state, guardian-view returns history, community events (4), demo reseed, user profile update, chat-once GPT-5.4 returned non-empty AI reply, and logout invalidates the session. Frontend (390x844 mobile viewport): cinematic Skia intro renders and Skip Intro → landing → EXPERIENCE DEMO → hub with 7 radial portal nodes, Guardian orb, 'THE GUARDIAN NOTICED' banner and 'DEMO MODE · 3 CROSS-LIFE SIGNALS' header all work. Work portal shows WORKLOAD HIGH + stress bars + Guardian card, COORDINATE MY EVENING opens a sheet with 6 action cards (Priorities re-sorted, decompression, Evening routine, 8 PM commitment, Outfit prepared, Departure orchestrated). OPEN GUARDIAN VIEW navigates to guardian-view with Work→Wellbeing/Home/Style/Community/Relationships flow pills. Wellbeing decompression-card, Home routine-card, Style outfit-card all render post-coordination. TALK TO GUARDIAN → chat → suggestion-0 chip → AI reply bubble appeared within ~30s. Settings companion switch to Kaia works (hub center orb + 'TALK TO KAIA' updates), pause-switch toggles CROSS-LIFE PAUSED banner on hub. Task-t1 toggle in Work persists after navigating away and returning. One non-blocking console warning observed: 'CanvasKit load failed: Failed to fetch' on first web load — app still renders the Skia intro via fallback, so demo experience is intact but the CanvasKit CDN warning is worth investigating.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "CanvasKit / Skia web", "issue": "Console warning on first load: 'CanvasKit load failed TypeError: Failed to fetch'. Intro still renders via fallback but the CanvasKit script (loaded from CDN in /app/frontend/index.js) intermittently fails to fetch on the web preview. Consider self-hosting canvaskit.wasm from /assets or adding a retry."},
+      {"component": "React Native Web deprecations", "issue": "Console warnings: '\"shadow*\" style props are deprecated. Use \"boxShadow\"' and 'props.pointerEvents is deprecated. Use style.pointerEvents'. Non-blocking but should migrate before production."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_staar_hub.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Investigate intermittent 'CanvasKit load failed: Failed to fetch' warning on web preview (network/CDN retry or self-host canvaskit.wasm).",
+    "Migrate deprecated shadow* and pointerEvents props to style.boxShadow / style.pointerEvents to silence RN-Web warnings.",
+    "Optional: add EXPO_BACKEND_URL alias in frontend/.env for consistency with system docs (currently only EXPO_PUBLIC_BACKEND_URL is present — tests handled both)."
+  ],
+  "critical_code_review_comments": [
+    "server.py is ~680 lines — consider splitting into routers/ (auth.py, portals.py, guardian.py, chat.py) before it grows further.",
+    "auth_me signature has unused 'user' parameter (line 245) — cosmetic.",
+    "Pydantic v2: .dict() is deprecated in favor of .model_dump() (used in update_profile / update_privacy) — non-blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_staar_hub.py (created)",
+    "/app/backend/tests/__init__.py (created)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Demo users are created ephemerally via POST /api/auth/demo which seeds portal_state for all 7 portals (work overload scenario). No manual seed required.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend base = https://cross-life-ai.preview.emergentagent.com/api. Use POST /api/auth/demo to get a Bearer session_token (no Google needed). Frontend requires Skip Intro → EXPERIENCE DEMO to reach hub. All interactive elements expose testID (skip-intro-btn, experience-demo-btn, hub-root, portal-node-{id}, coordinate-evening-btn, open-guardian-view-btn, decompression-card, routine-card, outfit-card, talk-guardian-btn, suggestion-0, settings-btn, companion-kaia, pause-switch, task-t1). Use mobile viewport 390x844. Chat AI reply latency ~15-30s.",
+  "rca_of_issue": "No functional bugs found. CanvasKit web warning appears to be a transient CDN fetch (bundled fallback keeps intro working)."
+}
