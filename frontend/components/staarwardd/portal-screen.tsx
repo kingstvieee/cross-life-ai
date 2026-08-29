@@ -50,10 +50,7 @@ export function PortalScreen({ portalId }: { portalId: PortalId }) {
     setGuardianInteraction(interaction);
     record(interaction.policy.receipt);
   };
-  const exit = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace("/");
-  };
+  const exit = () => router.replace("/hub");
   const handleTask = (task: TaskPreview) => {
     if (task.sensitive) {
       setApprovalTask(task);
