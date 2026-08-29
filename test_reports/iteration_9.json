@@ -1,0 +1,64 @@
+{
+  "summary": "Focused frontend retest of iteration_8 check #8 (horizontal overflow at 390x844) plus visual + interaction sanity on /hub. Fix verified: adding overflow:'hidden' to styles.root in /app/frontend/components/staarwardd/cinematic-hub.tsx eliminates the 102px overflow. All 4 requested checks PASS. No files were modified in this iteration.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "checks": [
+    {
+      "id": 1,
+      "description": "390x844 overflow measurement with staarwardd.launch-seen=1",
+      "measured": {"scrollWidth": 390, "clientWidth": 390, "bodyScrollWidth": 390, "innerWidth": 390, "overflow_px": 0},
+      "expected": "scrollWidth <= clientWidth (overflow <= 0)",
+      "result": "PASS (previously 102px overflow → now 0px)"
+    },
+    {
+      "id": 2,
+      "description": "1280x720 overflow measurement",
+      "measured": {"scrollWidth": 1280, "clientWidth": 1280, "innerWidth": 1280, "overflow_px": 0},
+      "expected": "overflow <= 0",
+      "result": "PASS"
+    },
+    {
+      "id": 3,
+      "description": "Visual sanity at 390: title, header cluster, AWAKEN CTA, orbit ring clipped",
+      "measured": {
+        "title_STAAR_COMMAND_ENVIRONMENT_visible": true,
+        "header_glyphs_present": {"◈": 1, "≡": 1, "i": 1, "⟲": 1, "♫": 0},
+        "note_on_music_glyph": "Header shows ◌ instead of ♫ (state-driven glyph swap; not a regression — same behaviour in iterations 5–8 which passed). 5 header icons render correctly.",
+        "awaken_the_gateways_button_visible": true,
+        "orbit_ring_clipped_no_horizontal_scroll": true
+      },
+      "screenshot": "/tmp/hub_390.png",
+      "result": "PASS"
+    },
+    {
+      "id": 4,
+      "description": "Interaction sanity — AWAKEN THE GATEWAYS reveals portals; judge-reset-btn opens modal then cancels",
+      "measured": {
+        "awaken_click_ok": true,
+        "portals_revealed": ["Creativity", "Work", "Home", "Wellbeing", "Relationships", "Events", "Style"],
+        "post_awaken_overflow_390_px": 0,
+        "judge_reset_btn_testID_found": true,
+        "judge_reset_modal_opened": true,
+        "modal_dismissed_via_outside_tap": true
+      },
+      "result": "PASS"
+    }
+  ],
+  "test_report_links": ["/app/test_reports/iteration_9.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "styles.root now includes overflow:'hidden' — the minimal one-line fix; recommend keeping it in place. The 590px absolute orbitLine (line 191) still exceeds the 390px viewport, so removing the clip would reintroduce the regression."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% (4/4 checks passed)"},
+  "seed_data_creation": "None — only localStorage 'staarwardd.launch-seen'='1' set to skip launch screen.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 8's single failing check (horizontal overflow at 390x844 on /hub) is now resolved. overflow:'hidden' on styles.root in /app/frontend/components/staarwardd/cinematic-hub.tsx (line 191) is the fix. Both mobile (390) and desktop (1280) viewports report 0px overflow. AWAKEN THE GATEWAYS flow and judge-reset-btn modal both work. Portal preview modes remain by-design simulations (mocked).",
+  "rca_of_issue": "RCA: the absolute orbitLine element (width:590 in styles) is larger than the 390px mobile viewport, so without a clip on the ancestor it pushed document.documentElement.scrollWidth to ~492px. Fix: adding overflow:'hidden' to the root View clips the oversized decorative ring at the viewport edges (as originally intended visually) and restores scrollWidth == clientWidth. Verified at 390x844 (0px overflow) and 1280x720 (0px overflow)."
+}
