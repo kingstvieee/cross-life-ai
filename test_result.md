@@ -136,3 +136,15 @@ agent_communication:
       - working: true
         agent: "main"
         comment: "User regression: reset left judge on Hub because index.tsx held sessionEntered=true in mounted state; router.replace('/') re-showed the stale screen. Fix: web uses window.location.assign('/') for a guaranteed clean page load; native passes a reset=Date.now() param that index.tsx watches to drop session state. Verified via screenshot both paths: direct /hub -> reset -> video playing (t=3.4s advancing, url=/), and session Hub (after skip) -> reset -> entrance replays (t=3.5s). Direct /hub fast path untouched."
+
+  - task: "Judge Reset one-tap (modal removed)"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/staarwardd/judge-reset.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "User repro: single click on the visible hub button did nothing because the button only OPENED a confirmation modal (prior 'pass' was a false positive — the test also clicked the modal confirm). Fix: removed the modal entirely; the visible accessible button (role=button, name='Judge reset — replay the full opening for a new judge') now directly clears all seen flags/provider memory and hard-reloads to clean '/' via window.location.assign on web (reset param on native). Verified by clicking the REAL button via accessibility role+name: (1) fresh /hub -> 1 click -> URL '/', body 'Guardian video entrance', traverse webm t=3.9s advancing; (2) /?flow_reset=1 -> SKIP -> 1 click -> clean '/' with traverse entrance t=3.8s advancing."
