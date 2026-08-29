@@ -19,6 +19,7 @@ import { usePreferenceMemory } from "@/lib/staarwardd/preference-memory";
 import { getRoutineBriefing } from "@/lib/staarwardd/routine-briefing";
 import { createGuardianInteraction } from "@/lib/staarwardd/guardian-interaction";
 import { useGuardianActivity } from "@/lib/staarwardd/guardian-activity";
+import { JudgeReset } from "@/components/staarwardd/judge-reset";
 import type { PortalId } from "@/lib/staarwardd/types";
 
 export function CinematicHub() {
@@ -109,6 +110,7 @@ export function CinematicHub() {
               <Pressable accessibilityRole="button" accessibilityLabel="Open audio controls" onPress={() => setAudioOpen(true)} style={styles.round}><Text style={styles.roundText}>{audio.master ? "♫" : "◌"}</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Open Guardian activity history" onPress={() => setActivityOpen(true)} style={styles.round}><Text style={styles.roundText}>≡</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="About this build" onPress={() => setAboutOpen(true)} style={styles.round}><Text style={styles.roundText}>i</Text></Pressable>
+              <JudgeReset />
             </View>
           </View>
 
