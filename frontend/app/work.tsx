@@ -78,7 +78,7 @@ export default function Work() {
           <Image source={{ uri: portalMeta.work.image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} />
           <LinearGradient colors={['rgba(10,11,14,0.25)', 'rgba(10,11,14,0.6)', '#0A0B0E']} style={StyleSheet.absoluteFill} />
           <SafeAreaView edges={['top']} style={styles.heroInner}>
-            <Pressable style={styles.backBtn} onPress={() => router.back()} testID="back-btn">
+            <Pressable accessibilityRole="button" accessibilityLabel="Go back" style={styles.backBtn} onPress={() => router.back()} testID="back-btn">
               <Ionicons name="chevron-back" size={20} color="#F3F4F6" />
             </Pressable>
           </SafeAreaView>
@@ -89,7 +89,7 @@ export default function Work() {
           </View>
         </View>
 
-        <View style={{ paddingHorizontal: 24 }}>
+        <View style={{ paddingHorizontal: 24, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
           {/* Status row */}
           <View style={styles.statusRow}>
             <View style={[styles.badge, { backgroundColor: isHigh ? 'rgba(255,23,68,0.14)' : 'rgba(0,229,255,0.12)' }]}>
@@ -118,14 +118,14 @@ export default function Work() {
                 Work has been unusually heavy — urgent items unresolved, your stress signal is elevated, and you're meeting Amara at 8 PM.
                 Want me to coordinate your evening across Wellbeing, Home, Style and Relationships?
               </Text>
-              <Pressable style={styles.gCta} onPress={coordinate} disabled={!!busy} testID="coordinate-evening-btn">
+              <Pressable accessibilityRole="button" style={styles.gCta} onPress={coordinate} disabled={!!busy} testID="coordinate-evening-btn">
                 {busy === 'coordinate'
                   ? <ActivityIndicator color="#000000" />
                   : <Text style={styles.gCtaText}>COORDINATE MY EVENING</Text>}
               </Pressable>
             </View>
           ) : (
-            <Pressable style={styles.simulateBtn} onPress={simulate} disabled={!!busy} testID="simulate-btn">
+            <Pressable accessibilityRole="button" style={styles.simulateBtn} onPress={simulate} disabled={!!busy} testID="simulate-btn">
               {busy === 'simulate'
                 ? <ActivityIndicator color="#F3F4F6" />
                 : <Text style={styles.simulateText}>SIMULATE HIGH-WORKLOAD DAY</Text>}
@@ -138,7 +138,7 @@ export default function Work() {
           {tasks.map((t: any) => {
             const ps = PRIORITY_STYLE[t.priority] || PRIORITY_STYLE.medium;
             return (
-              <Pressable key={t.id} style={styles.task} onPress={() => toggleTask(t.id)} testID={`task-${t.id}`}>
+              <Pressable accessibilityRole="button" key={t.id} style={styles.task} onPress={() => toggleTask(t.id)} testID={`task-${t.id}`}>
                 <View style={[styles.check, t.done && styles.checkOn]}>
                   {t.done && <Ionicons name="checkmark" size={14} color="#000000" />}
                 </View>

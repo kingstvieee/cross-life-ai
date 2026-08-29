@@ -28,26 +28,32 @@ const STEPS = [
   {
     icon: 'eye' as const,
     title: 'Guardian View',
-    desc: 'Every coordination is explained transparently in Guardian View — what was noticed, what was done, and why. Enjoy.',
+    desc: 'Every coordination is explained transparently in Guardian View — what was noticed, what was done, and why. Press START THE DEMO and we’ll take you straight to the Work signal.',
   },
 ];
 
-export function Walkthrough({ onDone }: { onDone: () => void }) {
+export function Walkthrough({ onDone, onFinish }: { onDone: () => void; onFinish?: () => void }) {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
   const s = STEPS[step];
   const last = step === STEPS.length - 1;
+  const advance = () => (last ? (onFinish ?? onDone)() : setStep(step + 1));
 
   return (
     <Animated.View entering={FadeIn.duration(300)} style={styles.scrim} testID="walkthrough-overlay">
-      <Pressable style={{ flex: 1 }} onPress={() => (last ? onDone() : setStep(step + 1))} />
-      <Animated.View key={step} entering={FadeInDown.duration(300)} style={[styles.card, { marginBottom: insets.bottom + 20 }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Next walkthrough step" style={{ flex: 1 }} onPress={advance} />
+      <Animated.View
+        key={step}
+        entering={FadeInDown.duration(300)}
+        style={[styles.card, { marginBottom: insets.bottom + 16, maxWidth: 560, width: '92%', alignSelf: 'center', marginHorizontal: 0 }]}
+        accessibilityLabel={`Walkthrough step ${step + 1} of ${STEPS.length}: ${s.title}`}
+      >
         <View style={styles.topRow}>
           <View style={styles.iconWrap}>
             <Ionicons name={s.icon} size={16} color="#00E5FF" />
           </View>
           <Text style={styles.kicker}>JUDGE WALKTHROUGH · {step + 1}/{STEPS.length}</Text>
-          <Pressable onPress={onDone} hitSlop={10} testID="walkthrough-skip">
+          <Pressable accessibilityRole="button" onPress={onDone} hitSlop={10} testID="walkthrough-skip">
             <Text style={styles.skip}>SKIP</Text>
           </Pressable>
         </View>
@@ -59,7 +65,7 @@ export function Walkthrough({ onDone }: { onDone: () => void }) {
               <View key={i} style={[styles.dotStep, i === step && styles.dotOn]} />
             ))}
           </View>
-          <Pressable style={styles.next} onPress={() => (last ? onDone() : setStep(step + 1))} testID="walkthrough-next">
+          <Pressable accessibilityRole="button" style={styles.next} onPress={advance} testID="walkthrough-next">
             <Text style={styles.nextText}>{last ? 'START THE DEMO' : 'NEXT'}</Text>
           </Pressable>
         </View>

@@ -36,10 +36,17 @@ Mobile-first AI app "STAAR Hub" for the STAARWAARDD competition. Core concept: *
 ## Demo Flow (judge path)
 Landing → Experience Demo → Hub (work signal active, cyan lines) → Work → Coordinate My Evening → 6-portal coordination sheet → Guardian View → Wellbeing shows active decompression, Home shows routine running, Style shows prepared outfit.
 
-## Status
-- Backend: complete — 21/21 pytest passed (/app/backend/tests/test_staar_hub.py)
-- Frontend: all screens built and verified; testing_agent iteration_1 passed all flows (demo → hub → work → coordinate → guardian view → wellbeing/home/style → chat GPT-5.4 → settings)
-- Fixed this session: Skia web crash (custom entry), intro hooks-in-map crash, canvaskit self-hosting
+## Canonical STAARWAARDD Integration (iteration 5 — CURRENT STATE)
+- Canonical source from checkpoint f68171a is the approved experience: components/staarwardd/* (CinematicHub, LaunchSequence, GuardianArrival, Guardian character media) + lib/staarwardd/* (StaarAudioProvider, PreferenceMemoryProvider, GuardianActivityProvider, HomeSafetyProvider). DO NOT redesign/replace these.
+- Route wiring: / = LaunchSequence (Toronto Response Flight cinematic, sound/skip) → GuardianArrival → CinematicHub; /hub = CinematicHub; /landing and /intro = Redirect to /; canonical Work opens at /portal/work ("Executive Command Workspace"). Legacy routes /chat, /guardian-view, /settings, /portal/[id], onboarding preserved.
+- _layout.tsx wraps Stack with all four staarwardd providers + AuthProvider; fonts/splash/gesture/safe-area/StatusBar intact.
+- Dead template files (trpc, nativewind, themed-view, use-colors, etc.) moved to /app/backups/unused-template-lib; canonical archives in /app/backups. `npx tsc --noEmit` passes clean.
+- Verified by testing_agent iteration_5: all 9 acceptance checks pass (mobile 390 + desktop 1280). Known non-blockers: web audio cue sources unsupported on web (silent), CanvasKit ArrayBuffer fallback.
+
+## Status (previous iterations)
+- Backend: complete — pytest suites passing (iterations 1-3)
+- Frontend: Cinematic Luxe Dark design; GPT-5.6-terra chat; OpenAI TTS voice
+- Refinement pass (iteration 4): branded boot loader injected from index.js (dev+prod), title/meta/favicon set, intro shortened to ~6s + persisted via 'staar_intro_seen' + replayable from Settings, reduced-motion support (intro/hub), a11y (all Pressables role=button + labels), responsive hub via useWindowDimensions (resize-safe), 360px header fixes, desktop maxWidth constraints (640-720) on hub/landing/settings/guardian-view/sheets/chat, walkthrough START THE DEMO → routes to /work, SIMULATED labels on coordination actions + disclaimers in sheet/guardian-view/settings, settings helper texts
 
 ## Notes
 - Demo login creates ephemeral user + seeded scenario; no persistent test creds needed (Google auth is Emergent-managed)

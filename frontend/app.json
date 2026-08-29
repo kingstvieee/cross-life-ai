@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "STAAR Hub",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -23,7 +23,9 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "themeColor": "#0A0B0E",
+      "backgroundColor": "#0A0B0E"
     },
     "plugins": [
       "expo-router",
@@ -36,7 +38,8 @@
           "backgroundColor": "#000000"
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true

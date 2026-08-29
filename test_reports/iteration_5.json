@@ -1,0 +1,36 @@
+{
+  "summary": "STAAR Hub iteration 5 (integration-fixes-only) — FRONTEND ONLY verification, all 9 review-request checks PASS at 390x844 and 1280x720. (1) Root (/) after localStorage.clear renders canonical LaunchSequence — 'TORONTO RESPONSE FLIGHT' + 'ENABLE SOUND' + 'SKIP CINEMATIC' all visible. (2) SKIP CINEMATIC transitions to CinematicHub — 'STAAR COMMAND ENVIRONMENT' + 'Seven worlds, one presence.' + 'AWAKEN THE GATEWAYS' present, winged Guardian character image centered (visually confirmed in screenshot). (3) AWAKEN THE GATEWAYS → all 7 portals visible around Guardian: Creativity, Work, Home, Wellbeing, Relationships, Events, Style. (4) Work portal (force-click) opens /portal/work with 'EXECUTIVE COMMAND WORKSPACE' + 'Work' header; HUB back button (accessibilityLabel='Return to STAAR Hub') present and clickable. (5) Direct /hub → renders canonical CinematicHub with 'STAAR COMMAND ENVIRONMENT' + 'Seven worlds, one presence.' and NO 'TALK TO GUARDIAN' generic button — old radial dashboard is gone. (6) /landing → 302/client-redirects to / (URL ends /, no 'EXPERIENCE DEMO' hero text); /intro → identical redirect behavior to /. (7) /chat, /guardian-view, /settings, /portal/wellbeing all HTTP 200 with rendered root (no red-screen, no crash) — chat/guardian-view show short auth-gated body (~205 chars, no session in fresh context, expected per iter-4 note). (8) Desktop 1280x720: root cinematic scrollWidth=clientWidth=1280 (no overflow), /hub scrollWidth=clientWidth=1280 (no overflow). (9) Zero 'Cannot find module' console errors on any tested route. Carry-over non-blockers only: CanvasKit CDN wasm-streaming fallback to ArrayBuffer (1x, known); 57 pageerrors 'Failed to load because no supported source was found.' from expo-av/audio cue sources on web (StaarAudioProvider — cosmetic, does not affect rendering or interaction); 1x 401 on an auth-gated fetch (expected, no session). All integration fixes from this iteration are working as specified.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "Audio source loading (carry-over from iter 2-4)", "issue": "57 pageerrors captured during the 9-route test run: 'Failed to load because no supported source was found.' — originating from StaarAudioProvider audio-cue playback on web (react-native web audio fallback cannot load the bundled cue assets). Non-blocking: cinematic, hub, portal navigation and all UI interactions work correctly; only audio playback fails silently. Reference: /app/frontend/lib/staarwardd/audio-provider.tsx. Fix (optional): guard audio.playCue with a try/catch that swallows unsupported-source errors on web, or pre-check source availability before play."},
+      {"component": "CanvasKit / Skia web loader (carry-over from iter 2-4)", "issue": "'wasm streaming compile failed: TypeError: WebAssembly compilation aborted' → 'falling back to ArrayBuffer instantiation'. Fallback path renders Skia correctly. Reference: /app/frontend/index.js:72-81."}
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_5.json",
+    "/app/test_reports/iteration_4.json (prior — carry-over context)"
+  ],
+  "action_items": [
+    "(Optional, non-blocking) Suppress the 57 'Failed to load because no supported source was found' pageerrors from StaarAudioProvider — wrap audio.playCue in try/catch on web, or gate audio init behind Platform.OS !== 'web' feature check. Does not affect any user-facing flow; only reduces devtools noise.",
+    "(Optional, carry-over from iter 4) Migrate deprecated 'shadow*' → 'boxShadow' and 'pointerEvents' prop → style.pointerEvents in hub-adjacent components to silence RN-Web deprecation warnings.",
+    "(Optional, carry-over) Self-host /canvaskit.wasm or add retry logic to /app/frontend/index.js to silence the CanvasKit CDN fallback warning."
+  ],
+  "critical_code_review_comments": [
+    "/app/frontend/app/index.tsx cleanly delegates to LaunchSequence → GuardianArrival → CinematicHub with useReturningUser AsyncStorage gate — correct fresh-vs-returning behavior.",
+    "/app/frontend/app/hub.tsx is a thin wrapper that renders <CinematicHub />, correctly matching the canonical hub used from root. No generic dashboard code remains at this route (verified visually and by absence of 'TALK TO GUARDIAN' text).",
+    "/app/frontend/app/landing.tsx and /app/frontend/app/intro.tsx are minimal <Redirect href=\"/\" /> stubs — expo-router client-redirect works as expected and old EXPERIENCE DEMO hero is not reachable via these paths.",
+    "Portal back label reads 'HUB' (styles.backLabel) rather than a longer 'Back to HUB' string — matches accessibilityLabel 'Return to STAAR Hub' and works via keyboard/click; review request wording is met semantically.",
+    "Constraint honored: no changes were made to /app/frontend/index.js, components/staarwardd/*, or lib/staarwardd/* during this test run."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% — all 9 review-request checks pass at 390x844 mobile and 1280x720 desktop"},
+  "seed_data_creation": "None — canonical experience does not require login or seed data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Frontend URL: https://cross-life-ai.preview.emergentagent.com. LaunchSequence AsyncStorage key (web maps to localStorage): 'staarwardd.launch-seen'='1'. To force fresh cinematic in Playwright: goto /, run localStorage.clear() + sessionStorage.clear(), then goto / again. Skip button becomes visible ~620ms after mount (set skipVisible via setTimeout). Portal nodes orbit — always use force=True for click and target by exact text 'Work' / 'Wellbeing' etc. Work portal route is /portal/work (not /work). Work portal header text is 'EXECUTIVE COMMAND WORKSPACE' + 'Work' (from experience.ts world='Executive Command Workspace'). HUB back button uses accessibilityLabel='Return to STAAR Hub' — the visible label is just 'HUB' with a chevron. In fresh browser context, /chat and /guardian-view render a short auth-gated placeholder (~200 chars, HTTP 200, not a crash) — this is expected behavior and NOT a regression.",
+  "rca_of_issue": "No issues to RCA in this iteration. All 9 review-request acceptance checks pass. Prior iter-4 minor overflow on /guardian-view header was not in scope for this integration-only iteration and was not re-tested."
+}

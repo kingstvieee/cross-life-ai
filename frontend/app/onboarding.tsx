@@ -52,6 +52,7 @@ export default function Onboarding() {
                 const meta = portalMeta[p];
                 return (
                   <Pressable
+          accessibilityRole="button"
                     key={p}
                     testID={`portal-toggle-${p}`}
                     onPress={() => setPortals((cur) => (on ? cur.filter((x) => x !== p) : [...cur, p]))}
@@ -69,6 +70,7 @@ export default function Onboarding() {
             <Text style={styles.h}>How proactive should your Guardian be?</Text>
             {AUTONOMY.map((a) => (
               <Pressable
+          accessibilityRole="button"
                 key={a.id}
                 testID={`autonomy-${a.id}`}
                 onPress={() => setAutonomy(a.id as any)}
@@ -85,6 +87,7 @@ export default function Onboarding() {
             <Text style={styles.h}>Choose your companion.</Text>
             {COMPANIONS.map((c) => (
               <Pressable
+          accessibilityRole="button"
                 key={c.id}
                 testID={`companion-${c.id}`}
                 onPress={() => setCompanion(c.id as any)}
@@ -98,7 +101,7 @@ export default function Onboarding() {
         )}
       </ScrollView>
 
-      <Pressable style={styles.cta} onPress={next} testID="onboarding-next-btn">
+      <Pressable accessibilityRole="button" style={styles.cta} onPress={next} testID="onboarding-next-btn">
         <Text style={styles.ctaText}>{step === 3 ? 'ENTER HUB' : 'CONTINUE'}</Text>
       </Pressable>
     </SafeAreaView>

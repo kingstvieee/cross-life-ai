@@ -1,0 +1,147 @@
+# Project TODO
+
+- [x] Initialize a native Expo mobile application project with Android and iOS build configuration.
+- [x] Extract the STAARWARDD migration brief and record the portrait-first mobile design contract.
+- [x] Audit the selected STAARWARDD repository for routes, assets, server boundaries, tests, authentication, database, entitlements, approvals, audit logic, and device architecture.
+- [x] Reconcile the source audit against the requested backend, database, account, and authorization preservation requirements.
+- [x] Resolve the canonical seventh-dimension conflict: the supplied migration brief specifies Events while the existing source uses Community; Events is authoritative for native migration.
+- [x] Map relevant Community portal behavior to the authoritative Events portal without silently retaining the obsolete portal identity.
+- [x] Apply the specified mobile-native Hub layout, portal structure, safe-area handling, native Back behavior, cinematic handoff, and accessibility QA acceptance criteria.
+- [ ] Obtain the separate production source or service access required to preserve any claimed backend, database, accounts, authorization, entitlement, memory, approval, audit, or ESP32 protocol state that is absent from the selected repository.
+- [x] Create an explicit source-to-native migration map that avoids duplicate routes, services, databases, and product implementations.
+- [x] Preserve or map the STAAR Hub, seven canonical portal dimensions, Guardian visual assets, dimensional launch sequence, and Toronto/CN Tower visual concept.
+- [x] Configure STAARWARDD v1.2.0 branding, native release metadata, and the app icon assets without changing the immutable app slug unnecessarily.
+- [x] Implement the native hub, portal navigation, dimensional profiles, safe quick capture, approval states, and companion-device simulator only after the source compatibility gate passes.
+- [ ] Integrate existing backend, database, authentication, and authorization contracts only when they are present and compatible; do not create replacements.
+- [x] Migrate or adapt existing tests and add deterministic coverage for portals, task horizons, approvals, entitlements, device states, and launch policy.
+- [x] Run tests, TypeScript checks, linting, route validation, configuration validation, and non-mutating backend health checks.
+- [x] Confirm the managed mobile release path exposes Android APK limited-distribution and future store-build options, then checkpoint the completed project.
+- [x] Add Guardian-to-Hub loading animation, delayed-state messaging, error recovery, retry, and direct-Hub fallback behavior.
+- [x] Add organized Events discovery data with filter controls, sort controls, empty-state handling, and a clear preview-data boundary.
+- [x] Add deterministic tests for handoff state policy and Events filter/sort behavior.
+- [x] Validate the new handoff and Events features, then save an updated checkpoint.
+- [x] Diagnose why the managed Personal Use & Limited Distribution flow reports version 1.0.0 instead of STAARWARDD v1.2.0; package-level metadata remained at 1.0.0.
+- [x] Align the effective release metadata to STAARWARDD v1.2.0 with Android versionCode 3 and validate the resolved configuration.
+- [x] Diagnose why the managed distribution result presents as web rather than a native Android APK; the project was an Expo mobile template, but its resolved configuration did not explicitly restrict release platforms to native targets.
+- [x] Correct the native Android release-target configuration and validate the resolved app platforms and build readiness.
+- [x] Restore the STAARWARDD Android package identity from com.app.extractedproductmobileapp to com.app.staarwarddhub without changing the app version, code, native platforms, assets, or feature state.
+- [x] Revalidate the resolved Expo configuration for the authoritative Android package identity, v1.2.0, versionCode 3, and Android/iOS-only platforms.
+- [x] Extract every explicit requirement from Pasted_content_09.txt and record its authorized, compatible STAARWARDD update boundary.
+- [x] Add original Guardian-led opening, shield arrival, portal summoning, and reduced-motion cinematic fallbacks without changing approved portal covers.
+- [x] Add shared optional sound controls, contextual Guardian text-to-speech, and clear unavailable states for unsupported voice input or audio playback failures.
+- [x] Rebuild the Hub atmosphere, Guardian portal transitions, and companion presentation without claiming unavailable companion hardware or using unapproved Kaia, Atlas, or watch imagery.
+- [x] Rebuild the seven portal interiors as distinctive Guardian-led worlds while preserving routes, data structures, preview boundaries, and approved cover images.
+- [x] Add Events interests, local preview status actions, reminder preparation, and transparent live-data-unavailable states.
+- [x] Replace the app icon with a Guardian-derived identity based only on approved project Guardian artwork.
+- [x] Add deterministic tests for cinematic state policy, per-portal experience profiles, audio settings, and truthfulness boundaries.
+- [x] Validate the v1.3 changes against the directive, then save a reviewable checkpoint.
+- [x] Extract every explicit requirement from pasted_content.txt and record the rejected static-hero and explanatory-transition patterns that must be removed.
+- [x] Build a reusable Guardian character system with the directive’s required motion states, moods, portal modes, and context selection.
+- [x] Rebuild first launch as visible depth flight, independent shield travel and lock, hand/energy summoning, individual portal formation, spatial selection, and Guardian-led portal entry.
+- [x] Rebuild the dimensional Hub as a spatial destination environment with Guardian-centered portal gateways while retaining approved cover art.
+- [x] Replace static Guardian-character cards and explanatory portal-transition prose with 0.8–1.8 second visible action sequences for every portal.
+- [x] Rebuild Creativity as a non-task-management living arts world with animated spark opening, material cues, and immediate supported voice response behavior.
+- [x] Make every portal’s Guardian continuously present, mood-appropriate, movable, reactive, and capable of optional spoken output without changing routes or backend boundaries.
+- [x] Implement actual controlled opening, flight, shield, portal, transition, and dimension audio playback with failure and mute states.
+- [x] Keep the Guardian-derived launcher icon and approved Hub cover images; do not introduce unrelated replacements.
+- [ ] Create the next Android QA checkpoint and obtain physical Android recording coverage for all twelve required user journeys before marking the revision accepted.
+- [x] Refine the Guardian’s portal opening into an original visible two-handed energy sequence: separate arcs, central convergence, outward portal release, and user-following entry flight.
+- [x] Replace the first-launch face/static reveal with a visible original Toronto flight sequence that reaches the center before shield delivery and portal summoning begin.
+- [x] Extend the Toronto flight with cinematic camera passes, a glowing particle trail, original circular energy sparks, and a smooth visual handoff into the Hub.
+- [x] Extract every exact requirement from Pasted_content.txt and reject the current static-hero, explanatory-copy, portal-grid, and repeated-template presentation patterns.
+- [x] Audit every Guardian state, launch stage, Hub composition, portal transition, audio path, and per-world composition against the corrective acceptance criteria.
+- [x] Implement genuine reusable Guardian action states rather than a static primary portrait treatment.
+- [x] Rebuild the opening into the required eight-stage action sequence with no pre-existing portals and no descriptive-animation copy.
+- [x] Rebuild the Hub as a Guardian-centered spatial command environment using the approved covers as dimensional gateways.
+- [x] Replace all full-screen static Guardian interstitials with action-led 0.8–1.8 second portal transitions.
+- [x] Rebuild Creativity and differentiate every portal interior so none read as recolored dashboard templates.
+- [x] Verify bundled user-controlled opening, flight, shield, portal, transition, and per-dimension audio paths at code and asset-integrity level; physical Android playback remains required.
+- [x] Preserve or replace the launcher icon only if it is not visibly Guardian-based at Android launcher size.
+- [ ] Create an Android QA checkpoint and obtain the requested physical-device recording for all 12 journeys before claiming acceptance.
+- [x] Create a clearly labeled storyboard breakdown of the current Toronto flight and portal-opening sequence for chat review; do not represent it as native device footage.
+- [x] Replace the Guardian’s pose-based treatment with original full-body animated flight, hover, and portal-summoning media integrated into the launch and portal flows.
+- [x] Generate validated original full-body Guardian flight, hover, and two-handed portal-summoning clips with approved-identity continuity and no embedded dialogue or music.
+- [ ] Validate video playback and graceful image-based fallbacks on native Android before claiming lifelike motion acceptance.
+- [x] Replace the rejected stationary Guardian clips with a visible Toronto flight traversal, center approach, constructed/opened portal, and Guardian portal entry.
+- [x] Add optional original portal-whoosh and Toronto ambience layers with mute, volume, and playback-failure fallbacks.
+- [x] Show a corrected continuous video preview before accepting another cinematic checkpoint.
+- [x] Confirm the three-clip production brief: silent 9:16 full-body Toronto flight (6 seconds), hovering idle (4 seconds), and two-handed portal summoning (5 seconds), with existing optional app cues kept separate.
+- [x] Regenerate the full-body Guardian animation media with more lifelike movement, a more distinctive premium suit, restrained fire-and-spark wing energy, and a more cinematic realistic Toronto environment.
+- [x] Show revised step-by-step visuals from the upgraded animation clips before saving an Android QA-ready checkpoint.
+- [ ] Analyze the user-provided reference video and translate only broad system-level interaction, spatial-depth, energy, and dimension-behavior principles into original STAARWARDD improvements; do not modify the entrance sequence or copy protected character-specific expression.
+- [ ] Analyze the reference for observable guest detection, room-to-room movement, connected-TV behavior, device orchestration, and consent boundaries before proposing any STAARWARDD home-system implementation.
+- [x] Analyze the reference for observable guest detection, room-to-room movement, connected-TV behavior, device orchestration, and consent boundaries; distinguish demonstrated routines from actual guest identity recognition.
+- [ ] Obtain approval for a truthful STAARWARDD Home preview that uses explicit room selection and simulated routines, or provide an authorized smart-home integration and consent model for real device control.
+- [x] Inspect available smart-home connectors and select the real device platform, account authorization route, supported entities, consent boundary, and approved fallback behavior before connecting STAARWARDD to any home device; no smart-home connector is currently authorized.
+- [x] Research the current supported Google Home and Alexa connection paths for STAARWARDD, including device control, TV/media support, presence events, scenes, authorization, webhook availability, and user-consent boundaries.
+- [x] Add consent-controlled local preference memory for recurring room, scene, audio, Guardian, and routine choices, with review, opt-out, and erase controls.
+- [x] Apply only user-authorized, low-risk remembered scene preferences; never auto-run security, lock, camera, alarm, purchase, or external-account actions.
+- [x] Add a consent-gated Home Safety Guardian foundation that can surface clearly simulated future device/sensor concerns such as open doors/windows, cooking appliance state, smoke/CO, water leaks, and unexpected motion.
+- [x] Implement severity levels, quiet hours, alert review, manual override, escalation preferences, and high-impact action approval rules; never silently control locks, cameras, alarms, gas, or appliances.
+- [ ] Connect real Google Home/Alexa safety events only after authorized platform access, device capability discovery, and explicit user consent are available.
+- [x] Add a concise Guardian arrival greeting with a user-editable name, voluntary mood check-in, and a truthful home-summary fallback before normal Hub startup.
+- [x] Keep the Hub focused on Guardian startup and portal reveal; move Home Safety Guardian review and deeper household detail into the Home portal.
+- [x] Replace the too-fast Toronto traversal with a slower original heroic action-flight sequence that clearly changes pose, direction, and power state without copying protected character-specific choreography.
+- [x] Illuminate the Guardian wings progressively during the portal ritual, with visible ember-and-spark power buildup before the portal opens.
+- [x] Show the slower revised cinematic preview before a checkpoint or publish decision.
+- [x] Replace the aerial-only opening with an immediate street-level Toronto flight that begins at the Guardian’s boots, rises to full body, and visibly passes traffic and pedestrians.
+- [x] Add an original visible shield-recall arrival at the Toronto center, followed by an in-air power escalation, portal passage, fiery return, and seven-world opening sequence.
+- [x] Show the rebuilt street-flight cinematic preview before a checkpoint or publish decision.
+- [x] Extend the loading cinematic into a clearly traveling multi-block Toronto flight with circle, climb, and aerial point-of-view camera moments before the center arrival.
+- [x] Make the Guardian unmistakably luminous and high-presence during flight, with a shining suit, sustained aura, bright wings, and distant pedestrian reaction beats.
+- [x] Rebuild the portal as a larger original spectacle with dense sparks, layered energy depth, and visible flair before passage.
+- [x] Replace the rejected audio cue with an original upbeat cinematic orchestral-electronic score that supports the extended loading sequence without imitating named works or artists.
+- [x] Show the extended movie-style loading preview before a checkpoint or publish decision.
+- [x] Replace the current city traversal with an original visual search path including high and low passes, building weaves, direction-check point-of-view shots, and varied safe flight maneuvers.
+- [x] Replace ring-only world effects with seven actual portals that materialize one by one in the canonical circular Hub layout around the floating Guardian.
+- [x] Show the refined search-flight and sequential-portal cinematic preview before a checkpoint or publish decision.
+- [x] Replace the rejected jump-and-flip search motion with an original sustained high-speed Toronto pursuit flight using continuous propulsion, low street sweeps, tower-corridor passes, controlled banks, and a final center climb.
+- [x] Remove decorative flip/jump motion and use original dramatic camera tracking, urban scale, suit reflections, aura, and environmental speed cues to create a theatrical futuristic sequence.
+- [x] Show the replacement high-speed cinematic preview before a checkpoint or publish decision.
+- [x] Preserve the established Guardian identity, face, suit, wings, colors, and character silhouette unchanged in all future cinematic generation; alter only flight motion, camera path, Toronto environment, and portal staging.
+- [x] Remove and prohibit the incorrect white Guardian variation; use only the existing approved non-white Guardian visual identity in regenerated clips and previews.
+- [x] Superseded: the temporary silver-and-gold white-reference request was clarified as incorrect and is not used in any integrated clip.
+- [x] Revoke the mistaken white-Guardian reference path and restore the established original Black Guardian as the sole permitted cinematic identity before generating another preview.
+- [x] Preserve the fixed original Guardian identity while restoring lifelike facial detail, anatomy, suit materials, feather motion, aura lighting, and physically credible flight movement in the cinematic.
+- [x] Replace the remaining unrealistic flight with an original emergency-response pursuit: continuous low urban pass, controlled climb and dive, motivated camera tracking, and distant bystander-reaction beats.
+- [x] Superseded: generated sequential portal rings were rejected in favor of returning directly to the original user-created layout.
+- [x] Superseded: preserve the established optional Toronto-and-portal cue rather than replace it with an unapproved action-score change.
+- [x] Show the emergency-response review video before app integration, checkpoint, or publish.
+- [x] Remove generated portal rings from the cinematic closing beat and preserve only the existing approved STAARWARDD portal covers and canonical spatial layout.
+- [x] Attempted and rejected: glass-layout reveal was not integrated; the original user-created layout remains unchanged.
+- [x] Show the approved-layout handoff preview before app integration, checkpoint, or publish.
+- [x] Restore the prior approved close-up and established cinematic layout unchanged; discard the unapproved glass-layout handoff treatment.
+- [x] Limit the next cinematic revision to exactly two additions: a longer physically believable flight before the preserved close-up, and a portal entry/return beat that lands back in the existing layout without redesigning it.
+- [x] Show the minimal-delta preview before app integration, checkpoint, or publish.
+- [x] Preserve the approved close-up and longer flight unchanged; replace only the summoning beat with a grand high-altitude aerial power build, enlarged aura and wing ignition, layered portal construction, and forward entry.
+- [x] Show the isolated high-altitude summoning replacement before app integration, checkpoint, or publish.
+- [x] Ensure the Guardian exits the summoning portal directly into the existing original user-created STAARWARDD layout; do not introduce generated rings, glass replacement layouts, altered portal covers, IDs, or routes.
+- [x] Integrate the approved grand high-altitude summoning beat and maintain the original user-created STAARWARDD layout as the direct post-portal destination.
+- [x] Apply a restrained godlike cinematic treatment across existing scenes through lighting, aura, wing-energy, spatial depth, and transitions without changing the Guardian identity, approved cover art, portal IDs, or routes.
+- [x] Show the integrated godlike treatment preview before checkpoint or publish.
+- [x] Replace only seconds 15–21 of the integrated launch: remove the rejected indecisive hover and insert a purposeful objective-lock, controlled ascent, and strong high-altitude portal-ready pose.
+- [x] Show the isolated 15–21 second replacement before splicing it into the app launch media.
+- [x] Replace only the 15–21 second bridge with an original one-hand skyward thrust through a lightning storm, including visible wing-driven wind pressure, feather flex, aura streaming, and cloud response.
+- [x] Show the isolated storm-thrust bridge before splicing it into the app launch media.
+- [x] Intensify only the approved storm-thrust bridge with deeper layered storm atmosphere, stronger camera rise, richer lightning reflections, denser aura wake, and a longer dramatic high-altitude hold.
+- [x] Show the intensified storm-thrust bridge before splicing it into the app launch media.
+- [x] Refine only the approved storm response with thicker cloud layers, an uncanny charged sky, and a visible lightning strike into the upper storm field responding to the Guardian’s upward call.
+- [x] Show the thicker-cloud and call-responsive lightning refinement before splicing it into the app launch media.
+- [x] Refine only the storm response with brighter lightning striking lower in the visible storm field near the Guardian’s upward call, and remove all rain sound from the bridge and optional launch audio mix.
+- [x] Show the brighter lower-strike, no-rain-audio bridge before splicing it into the app launch media.
+- [x] Add a restrained original deep cloud-rumble sound layer synchronized only to the lower-lightning storm-thrust bridge, with no rain sound and optional audio playback disabled by default.
+- [x] Show the synchronized cloud-rumble sound preview before app integration.
+- [x] Add a sharp original lightning crack and brief branching electrical shock snaps at the lower-strike moment, retaining the no-rain boundary and optional off-by-default playback.
+- [x] Show the synchronized lightning-shock sound preview before app integration.
+- [x] Replace the subtle lightning shocks with an unmistakable original primary discharge, rapid branching electrical snaps, and stronger low thunder impact synchronized to the lower strike, with no rain sound.
+- [x] Show the prominent lightning-discharge sound preview before app integration.
+- [x] Obtain final user confirmation that the prominent lightning-discharge preview is audible and accepted before saving the locked cinematic checkpoint.
+- [x] Refine the original Hub’s first interactive moment after Guardian arrival with a Guardian-led high-impact interaction and clear native feedback, preserving the locked cinematic, seven approved covers, portal IDs, and routes.
+- [x] Show the refined Hub interaction before a new checkpoint or publish decision.
+- [x] Add a concise accessible Guardian greeting immediately after Awakening that invites the user to choose a world without changing the original Hub layout, covers, IDs, or routes.
+- [x] Show the post-Awakening greeting before a new checkpoint or publish decision.
+- [ ] Add a consent-controlled app-open Guardian routine that can narrate the existing portals and ask routine-specific questions only when the user enables voice and local preference memory.
+- [ ] Add transparent arrival and guest readiness states that explicitly require a real authorized Google Home, Alexa, or compatible device connection; never infer or fabricate presence, guest identity, or household conditions.
+- [ ] Show the routine flow and present viable authorized integration paths before a checkpoint or publish decision.
+- [x] Verify and document the authoritative managed STAARWARDD workspace path and revision; do not overwrite it from `/home/ubuntu/staarwardd` or any non-authoritative remote clone.
+- [ ] Verify current Git and resolved Expo state, then provide a non-destructive archive handoff for the connected computer without overwriting the authoritative workspace or its uncheckpointed routine files.

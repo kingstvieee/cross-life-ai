@@ -26,17 +26,17 @@ export default function GuardianView() {
   return (
     <SafeAreaView style={styles.root} edges={['top']} testID="guardian-view-root">
       <View style={styles.header}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()} testID="back-btn">
+        <Pressable accessibilityRole="button" accessibilityLabel="Go back" style={styles.backBtn} onPress={() => router.back()} testID="back-btn">
           <Ionicons name="chevron-back" size={20} color="#F3F4F6" />
         </Pressable>
-        <View>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.h}>Guardian View</Text>
-          <Text style={styles.sub}>HOW INTELLIGENCE CONNECTS ACROSS YOUR LIFE</Text>
+          <Text style={styles.sub} numberOfLines={1}>HOW INTELLIGENCE CONNECTS ACROSS YOUR LIFE</Text>
         </View>
       </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 60 }}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 60, width: '100%', maxWidth: 720, alignSelf: 'center' }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00E5FF" />}
         showsVerticalScrollIndicator={false}
       >
@@ -45,7 +45,7 @@ export default function GuardianView() {
             <Ionicons name="flash-outline" size={28} color="#00E5FF" style={{ opacity: 0.7 }} />
             <Text style={styles.emptyH}>No coordinations yet.</Text>
             <Text style={styles.emptyP}>Open the Work portal and let the Guardian coordinate your evening to see cross-life intelligence in action.</Text>
-            <Pressable style={styles.cta} onPress={() => router.push('/work')} testID="go-work-btn">
+            <Pressable accessibilityRole="button" style={styles.cta} onPress={() => router.push('/work')} testID="go-work-btn">
               <Text style={styles.ctaText}>OPEN WORK PORTAL</Text>
             </Pressable>
           </View>
@@ -95,6 +95,11 @@ export default function GuardianView() {
             </View>
           </View>
         ))}
+        {items.length > 0 && (
+          <Text style={styles.simNote}>
+            Demo mode: coordinated actions are simulated previews of future device & service integrations — nothing external was triggered.
+          </Text>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -140,4 +145,5 @@ const styles = StyleSheet.create({
   actionDetail: { fontSize: 12.5, color: '#9CA3AF', marginTop: 2, lineHeight: 18 },
   confRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   conf: { fontSize: 9, letterSpacing: 1.5, fontWeight: '800', color: '#9CA3AF', opacity: 0.8 },
+  simNote: { marginTop: 16, fontSize: 11, color: '#8A93A3', lineHeight: 16, textAlign: 'center' },
 });

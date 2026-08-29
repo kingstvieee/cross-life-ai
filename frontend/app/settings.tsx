@@ -28,7 +28,8 @@ export default function Settings() {
   const privacy = user.portal_privacy || {};
 
   const setPrivacy = async (portal: string, key: 'access' | 'share', value: boolean) => {
-    const next = { ...privacy, [portal]: { access: true, share: true, confirm: false, ...(privacy[portal] || {}), [key]: value } };
+    const defaults = { access: true, share: true, confirm: false };
+    const next = { ...privacy, [portal]: { ...defaults, ...(privacy[portal] || {}), [key]: value } };
     await api('/api/user/privacy', { method: 'POST', body: JSON.stringify({ portal_privacy: next }) });
     await refresh();
   };
@@ -50,6 +51,11 @@ export default function Settings() {
     router.back();
   };
 
+  const replayIntro = async () => {
+    await AsyncStorage.removeItem('staar_intro_seen');
+    router.push('/intro');
+  };
+
   const doLogout = async () => {
     setBusy('logout');
     await logout();
@@ -59,7 +65,7 @@ export default function Settings() {
   return (
     <SafeAreaView style={styles.root} edges={['top']} testID="settings-root">
       <View style={styles.header}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()} testID="back-btn">
+        <Pressable accessibilityRole="button" accessibilityLabel="Go back" style={styles.backBtn} onPress={() => router.back()} testID="back-btn">
           <Ionicons name="chevron-back" size={20} color="#F3F4F6" />
         </Pressable>
         <View>
@@ -68,11 +74,13 @@ export default function Settings() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 60, width: '100%', maxWidth: 640, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionH}>GUARDIAN AUTONOMY</Text>
+        <Text style={styles.helper}>Suggest — asks before acting · Assist — handles small things · Proactive — coordinates ahead of you.</Text>
         <View style={styles.segment}>
           {AUTONOMY.map((a) => (
             <Pressable
+          accessibilityRole="button"
               key={a.id}
               style={[styles.segmentItem, user.autonomy === a.id && styles.segmentOn]}
               onPress={() => patchProfile({ autonomy: a.id as any })}
@@ -87,6 +95,7 @@ export default function Settings() {
         <View style={styles.segment}>
           {COMPANIONS.map((c) => (
             <Pressable
+          accessibilityRole="button"
               key={c.id}
               style={[styles.segmentItem, user.companion === c.id && styles.segmentOn]}
               onPress={() => patchProfile({ companion: c.id as any })}
@@ -113,6 +122,7 @@ export default function Settings() {
         </View>
 
         <Text style={styles.sectionH}>PORTAL ACCESS</Text>
+        <Text style={styles.helper}>Access — the Guardian can read this portal. Share — its context can inform other portals.</Text>
         {PORTAL_IDS.map((p) => {
           const pv = privacy[p] || { access: true, share: true };
           return (
@@ -144,17 +154,21 @@ export default function Settings() {
         })}
 
         <Text style={styles.sectionH}>DEMO SCENARIOS</Text>
-        <Pressable style={styles.outlineBtn} onPress={() => loadScenario('evening')} disabled={!!busy} testID="scenario-evening-btn">
+        <Pressable accessibilityRole="button" style={styles.outlineBtn} onPress={() => loadScenario('evening')} disabled={!!busy} testID="scenario-evening-btn">
           {busy === 'evening' ? <ActivityIndicator color="#F3F4F6" /> : <Text style={styles.outlineBtnText}>ACT I — EVENING · WORK OVERLOAD</Text>}
         </Pressable>
-        <Pressable style={[styles.outlineBtn, { marginTop: 12 }]} onPress={() => loadScenario('morning')} disabled={!!busy} testID="scenario-morning-btn">
+        <Pressable accessibilityRole="button" style={[styles.outlineBtn, { marginTop: 12 }]} onPress={() => loadScenario('morning')} disabled={!!busy} testID="scenario-morning-btn">
           {busy === 'morning' ? <ActivityIndicator color="#F3F4F6" /> : <Text style={styles.outlineBtnText}>ACT II — MORNING · ROUGH NIGHT</Text>}
         </Pressable>
-        <Pressable style={[styles.outlineBtn, { marginTop: 12 }]} onPress={replayTour} disabled={!!busy} testID="replay-walkthrough-btn">
+        <Pressable accessibilityRole="button" style={[styles.outlineBtn, { marginTop: 12 }]} onPress={replayTour} disabled={!!busy} testID="replay-walkthrough-btn">
           <Text style={styles.outlineBtnText}>REPLAY JUDGE WALKTHROUGH</Text>
         </Pressable>
+        <Pressable accessibilityRole="button" style={[styles.outlineBtn, { marginTop: 12 }]} onPress={replayIntro} disabled={!!busy} testID="replay-intro-btn">
+          <Text style={styles.outlineBtnText}>REPLAY CINEMATIC INTRO</Text>
+        </Pressable>
+        <Text style={styles.helper}>Scenario and portal actions in this demo are simulated — no external services are triggered.</Text>
 
-        <Pressable style={[styles.outlineBtn, { borderColor: 'rgba(255,23,68,0.4)', marginTop: 12 }]} onPress={doLogout} disabled={!!busy} testID="logout-btn">
+        <Pressable accessibilityRole="button" style={[styles.outlineBtn, { borderColor: 'rgba(255,23,68,0.4)', marginTop: 12 }]} onPress={doLogout} disabled={!!busy} testID="logout-btn">
           {busy === 'logout' ? <ActivityIndicator color="#FF5C7A" /> : <Text style={[styles.outlineBtnText, { color: '#FF5C7A' }]}>SIGN OUT</Text>}
         </Pressable>
       </ScrollView>
@@ -172,6 +186,7 @@ const styles = StyleSheet.create({
   h: { fontSize: 22, fontWeight: '800', color: '#FFFFFF' },
   sub: { fontSize: 9, letterSpacing: 1.5, color: '#00E5FF', fontWeight: '700', marginTop: 2 },
   sectionH: { marginTop: 26, marginBottom: 10, fontSize: 11, letterSpacing: 3, fontWeight: '800', color: '#9CA3AF' },
+  helper: { fontSize: 12, color: '#8A93A3', lineHeight: 17, marginBottom: 10, marginTop: -4 },
   segment: { flexDirection: 'row', gap: 8 },
   segmentItem: {
     flex: 1, paddingVertical: 13, borderRadius: 999, alignItems: 'center',

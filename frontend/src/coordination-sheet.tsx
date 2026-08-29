@@ -68,7 +68,10 @@ export function CoordinationSheet({ visible, onClose, coord, headline, sub }: Pr
             <Text style={styles.h}>{headline}</Text>
             <Text style={styles.sub}>{sub}</Text>
 
+            <Text style={styles.sheetNote} testID="simulated-note">DEMO · SIMULATED — no external services, devices or bookings were actually triggered.</Text>
+
             <Pressable
+          accessibilityRole="button"
               style={[styles.voiceBtn, voice === 'playing' && styles.voiceBtnActive]}
               onPress={speak}
               testID="hear-guardian-btn"
@@ -89,7 +92,8 @@ export function CoordinationSheet({ visible, onClose, coord, headline, sub }: Pr
                 <Animated.View key={i} entering={FadeInDown.delay(i * 120).duration(400)} style={styles.actionCard} testID={`action-${a.portal}`}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View style={[styles.dot, { backgroundColor: meta?.accent || '#0A0A0A' }]} />
-                    <Text style={styles.actionPortal}>{meta?.name?.toUpperCase() || a.portal.toUpperCase()}</Text>
+                    <Text style={[styles.actionPortal, { flex: 1 }]}>{meta?.name?.toUpperCase() || a.portal.toUpperCase()}</Text>
+                    <View style={styles.simPill}><Text style={styles.simPillText}>SIMULATED</Text></View>
                   </View>
                   <Text style={styles.actionTitle}>{a.title}</Text>
                   <Text style={styles.actionDetail}>{a.detail}</Text>
@@ -103,13 +107,14 @@ export function CoordinationSheet({ visible, onClose, coord, headline, sub }: Pr
             })}
           </ScrollView>
           <Pressable
+          accessibilityRole="button"
             style={styles.cta}
             onPress={() => { close(); router.push('/guardian-view'); }}
             testID="open-guardian-view-btn"
           >
             <Text style={styles.ctaText}>OPEN GUARDIAN VIEW</Text>
           </Pressable>
-          <Pressable style={{ alignItems: 'center', paddingVertical: 14 }} onPress={close} testID="close-modal-btn">
+          <Pressable accessibilityRole="button" style={{ alignItems: 'center', paddingVertical: 14 }} onPress={close} testID="close-modal-btn">
             <Text style={styles.closeText}>CLOSE</Text>
           </Pressable>
         </View>
@@ -123,11 +128,15 @@ const styles = StyleSheet.create({
   sheet: {
     backgroundColor: '#101218', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 10,
     borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    width: '100%', maxWidth: 640, alignSelf: 'center',
   },
   grabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.2)', marginBottom: 14 },
   kicker: { fontSize: 10, letterSpacing: 3, fontWeight: '800', color: '#00E5FF' },
   h: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', marginTop: 6 },
-  sub: { fontSize: 13.5, color: '#9CA3AF', marginTop: 4, marginBottom: 12 },
+  sub: { fontSize: 13.5, color: '#9CA3AF', marginTop: 4, marginBottom: 8 },
+  sheetNote: { fontSize: 10, letterSpacing: 1, color: '#8A93A3', marginBottom: 12, lineHeight: 15, fontWeight: '600' },
+  simPill: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: 'rgba(255,214,0,0.1)', borderWidth: 1, borderColor: 'rgba(255,214,0,0.3)' },
+  simPillText: { fontSize: 7.5, letterSpacing: 1, fontWeight: '800', color: '#FFD600' },
   voiceBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     borderWidth: 1, borderColor: 'rgba(0,229,255,0.45)', backgroundColor: 'rgba(0,51,61,0.5)',

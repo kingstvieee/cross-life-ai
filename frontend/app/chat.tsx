@@ -56,7 +56,7 @@ export default function Chat() {
   return (
     <SafeAreaView style={styles.root} edges={['top']} testID="chat-root">
       <View style={styles.header}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()} testID="back-btn">
+        <Pressable accessibilityRole="button" accessibilityLabel="Go back" style={styles.backBtn} onPress={() => router.back()} testID="back-btn">
           <Ionicons name="chevron-back" size={20} color="#F3F4F6" />
         </Pressable>
         <View style={{ flex: 1 }}>
@@ -73,7 +73,7 @@ export default function Chat() {
       >
         <ScrollView
           ref={scrollRef}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 16, flexGrow: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 16, flexGrow: 1, width: '100%', maxWidth: 680, alignSelf: 'center' }}
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
           {msgs.length === 0 && (
@@ -85,7 +85,7 @@ export default function Chat() {
               </Text>
               <View style={{ gap: 8, marginTop: 16 }}>
                 {suggestions.map((s, i) => (
-                  <Pressable key={i} style={styles.suggestion} onPress={() => send(s)} testID={`suggestion-${i}`}>
+                  <Pressable accessibilityRole="button" key={i} style={styles.suggestion} onPress={() => send(s)} testID={`suggestion-${i}`}>
                     <Text style={styles.suggestionText}>{s}</Text>
                   </Pressable>
                 ))}
@@ -116,7 +116,7 @@ export default function Chat() {
             returnKeyType="send"
             testID="chat-input"
           />
-          <Pressable style={[styles.sendBtn, (!input.trim() || busy) && { opacity: 0.4 }]} onPress={() => send()} disabled={!input.trim() || busy} testID="send-btn">
+          <Pressable accessibilityRole="button" style={[styles.sendBtn, (!input.trim() || busy) && { opacity: 0.4 }]} onPress={() => send()} disabled={!input.trim() || busy} accessibilityLabel="Send message" testID="send-btn">
             <Ionicons name="arrow-up" size={20} color="#000000" />
           </Pressable>
         </View>
