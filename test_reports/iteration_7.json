@@ -1,0 +1,32 @@
+{
+  "summary": "STAAR Hub iteration 7 — FRONTEND ONLY web-audio-fix verification (round 2) at 390x844. FIX FULLY VERIFIED. Fresh-session run (localStorage.clear + reload) exercised full audio surface: ENABLE SOUND → cinematic ~15s → SKIP CINEMATIC → hub → PLAY/STOP HUB AMBIENCE → 3 additional toggles → AWAKEN THE GATEWAYS → Work portal → direct /hub. PASS CRITERIA A: 6 distinct /audio/*.mp3 files streamed with HTTP 206 audio/mpeg — toronto-portal.mp3, transition.mp3, cloud-rumble-lightning-prominent.mp3, hub.mp3, shield.mp3, portal.mp3 (all 4 required + 2 bonus). PASS CRITERIA B: ZERO media-related pageerrors across the ENTIRE session (was 57 → 35 → 8 across prior iters, now 0). The two-part fix in /app/frontend/lib/staarwardd/audio-provider.tsx is effective: (1) cached AudioPlayer per sound (never replace/remove during session — verified by 3 extra PLAY/STOP/PLAY toggles that produced zero pageerrors and zero hub.mp3 refetches — cached DOM element replayed from seekTo(0)); (2) web-only unhandledrejection suppressor scoped to NotSupportedError / AbortError / 'no supported source' / 'play() interrupted' messages only. SUPPRESSION NARROWNESS CONFIRMED: injected a real Promise.reject(new Error('sanity-check-error-should-propagate')) — it DID surface as a pageerror (delta +1), proving the handler is not overbroad and normal JS rejections still bubble. REGRESSION 100% PASS: AWAKEN THE GATEWAYS reveals all 7 portals (Creativity, Work, Home, Wellbeing, Relationships, Events, Style); Work portal click routes to /portal/work with 'EXECUTIVE COMMAND WORKSPACE'; direct /hub renders 'STAAR COMMAND ENVIRONMENT'. Deprecated packages detected: NONE (audio-provider uses expo-audio, not expo-av). Non-blocking warnings persist (carry-over from iter 4-6): shadow*/textShadow*/pointerEvents deprecations, CanvasKit load fetch warning in dev bundle.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "RN-Web style-prop deprecations (carry-over, non-blocking)", "issue": "Console warnings persist across the hub/cinematic tree: '\"shadow*\" style props are deprecated. Use \"boxShadow\"', '\"textShadow*\" style props are deprecated. Use \"textShadow\"', 'props.pointerEvents is deprecated. Use style.pointerEvents', 'Animated: useNativeDriver is not supported... Falling back to JS-based animation'. These are unchanged from iter 4-6 and unrelated to the audio fix. Reference: components/staarwardd/* (not modified per constraint)."}
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_7.json",
+    "/app/test_reports/iteration_6.json"
+  ],
+  "action_items": [
+    "None for the audio fix — verified working end-to-end. Optional cleanup: migrate deprecated shadow*/textShadow*/pointerEvents props in hub-adjacent components to silence RN-Web warnings (carry-over item)."
+  ],
+  "critical_code_review_comments": [
+    "/app/frontend/lib/staarwardd/audio-provider.tsx implementation is clean: cached-player map keyed by AmbientKey/CinematicCue (lines 84-86), pauseAllAmbient() only pauses (never replaces src), toggleAmbient/playCue create-once-then-reuse pattern (lines 153-165, 175-183), unhandledrejection handler scoped to 4 specific media reason patterns (lines 98-110). Verified narrowness with runtime sanity test (non-media rejection propagates correctly).",
+    "Cleanup on unmount (lines 116-121) still calls player.remove() — this is fine because it only runs when the provider tears down (page navigation away), and any teardown-time MediaError would be suppressed by the same benign-rejection handler.",
+    "Constraint honored: no changes to /app/frontend/index.js, /app/frontend/components/staarwardd/*, or /app/frontend/package.json 'main'. Runtime observations match the file logic.",
+    "/app/frontend/public/audio/ contents complete (16 mp3s); network confirmed 206 audio/mpeg for all 6 files exercised this iteration."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "7/7 checks pass — (1) 4/4 required audio files streamed 206; (2) zero pageerrors full session; (3) 3x ambience toggles zero errors + cached-player reuse verified; (4) 7/7 portals revealed; (5) Work portal opens /portal/work; (6) /hub renders; (7) sanity-check rejection propagates (suppressor not overbroad)."},
+  "seed_data_creation": "None — canonical experience has no login/seed data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "AUDIO FIX IS COMPLETE. Measurement recipe that reliably captures streamed audio + pageerror deltas: page.on('response') filter on '/audio/' + endswith('.mp3'); page.on('pageerror') push to list; classify errors by substring match ('no supported source', 'NotSupported', 'AbortError', 'play() request was interrupted') vs other. Fresh-session recipe: goto '/', run localStorage.clear() + sessionStorage.clear() in evaluate, goto '/' again, wait 3500ms, then click ENABLE SOUND (force=True). SKIP CINEMATIC button appears within ~700ms of mount and can be safely force-clicked mid-cinematic. hub.mp3 NOT refetched on the 2nd/3rd toggleAmbient('hub') calls — this is expected and correct (cached AudioPlayer element replays from seekTo(0)). Suppressor sanity test: Promise.reject(new Error('sanity-check-error-should-propagate')) via page.evaluate — must produce pageerror delta of +1. If suppressor is later widened, retest this specific sanity injection.",
+  "rca_of_issue": "N/A — original bug fully resolved. Historical trace: iter 4-5 pageerror count 57 (source resolution failed on web); iter 6 count 35 (source resolution fixed via /public/audio + /audio/*.mp3 uri sources with audio/mpeg MIME, but expo-audio's web player.remove() still fired MediaError on outgoing HTMLAudioElement during cue swap); iter 7 count 0 (cached-player-per-sound pattern eliminates the remove()/replace() cycle entirely; scoped unhandledrejection suppressor catches any residual benign teardown/init noise; sanity check confirms non-media rejections still surface)."
+}

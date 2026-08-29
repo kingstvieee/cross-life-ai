@@ -41,7 +41,8 @@ Landing → Experience Demo → Hub (work signal active, cyan lines) → Work �
 - Route wiring: / = LaunchSequence (Toronto Response Flight cinematic, sound/skip) → GuardianArrival → CinematicHub; /hub = CinematicHub; /landing and /intro = Redirect to /; canonical Work opens at /portal/work ("Executive Command Workspace"). Legacy routes /chat, /guardian-view, /settings, /portal/[id], onboarding preserved.
 - _layout.tsx wraps Stack with all four staarwardd providers + AuthProvider; fonts/splash/gesture/safe-area/StatusBar intact.
 - Dead template files (trpc, nativewind, themed-view, use-colors, etc.) moved to /app/backups/unused-template-lib; canonical archives in /app/backups. `npx tsc --noEmit` passes clean.
-- Verified by testing_agent iteration_5: all 9 acceptance checks pass (mobile 390 + desktop 1280). Known non-blockers: web audio cue sources unsupported on web (silent), CanvasKit ArrayBuffer fallback.
+- Verified by testing_agent iteration_5: all 9 acceptance checks pass (mobile 390 + desktop 1280). Known non-blockers: CanvasKit ArrayBuffer fallback notice.
+- WEB AUDIO FIX (iterations 6-7, VERIFIED zero pageerrors): lib/staarwardd/audio-provider.tsx — web uses {uri:'/audio/<file>.mp3'} sources served from /app/frontend/public/audio (audio/mpeg MIME); native keeps require() bundles. One cached AudioPlayer per sound (NEVER call replace()/remove() during session — expo-audio web strips src and fires spurious MediaErrors). Web-only unhandledrejection suppressor scoped to 4 benign media reasons. All cues stream (HTTP 206): toronto-portal, transition, cloud-rumble, hub, shield, portal.
 
 ## Status (previous iterations)
 - Backend: complete — pytest suites passing (iterations 1-3)
