@@ -54,3 +54,11 @@ Landing → Experience Demo → Hub (work signal active, cyan lines) → Work �
 ## Notes
 - Demo login creates ephemeral user + seeded scenario; no persistent test creds needed (Google auth is Emergent-managed)
 - Do not modify protected .env values / metro.config.js
+
+## Session Update (June 2026) — Video Entrance Fixed & Regression Passed
+- Fixed the uninterrupted video entrance autoplay: video ALWAYS starts muted on fresh load (browser muted-autoplay allowed), regardless of saved sound prefs. ENABLE SOUND unmutes and continues the same timeline (never restarts).
+- Added codec-aware source selection: H.264 mp4 for real browsers, VP9 webm fallback (/video/guardian-toronto-traverse-v22.webm, identical clip) for browsers lacking proprietary codecs; plus error-event src swap and self-heal play retry.
+- Testing Agent full frontend regression (iteration_10.json): 9/9 PASS — muted autoplay advances past 1s with zero clicks, sound toggle, 7 portal overlays over moving video, auto Hub transition, Skip, direct /hub, Judge Reset replay, demo coordination APIs (coordinate-evening/morning) 200 OK.
+- Note: real endpoint names are /api/guardian/coordinate-evening and /api/guardian/coordinate-morning.
+- Remaining optional (non-blocking): RN Web shadow*/pointerEvents deprecation warnings, CanvasKit fetch warning on web.
+- Fixed Judge Reset regression: reset now hard-navigates to a clean root (web: window.location.assign('/'); native: reset param clears index.tsx session state). Verified from both direct /hub and post-skip Hub — entrance video replays with advancing currentTime. Direct /hub fast path unchanged.

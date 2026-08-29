@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
 import { useGuardianActivity } from "@/lib/staarwardd/guardian-activity";
 import { useHomeSafety } from "@/lib/staarwardd/home-safety-provider";
@@ -37,7 +37,15 @@ export function JudgeReset() {
     } catch { /* reset stays best-effort */ }
     setBusy(false);
     setOpen(false);
-    router.replace("/");
+    // Hard navigation to a clean root: the Index screen may still be mounted
+    // with sessionEntered=true, so a soft replace would leave the judge on the
+    // Hub. On web a full page load guarantees a fresh entrance; on native the
+    // reset param tells index.tsx to drop its session state and replay.
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.location.assign("/");
+    } else {
+      router.replace({ pathname: "/", params: { reset: String(Date.now()) } });
+    }
   };
 
   return (

@@ -101,3 +101,38 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+frontend:
+  - task: "Uninterrupted video entrance (launch-sequence.tsx)"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/staarwardd/launch-sequence.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Fixed autoplay: video now ALWAYS starts muted regardless of saved sound prefs (browser muted-autoplay allowed). Added codec-aware src pick (H.264 mp4 in real browsers, VP9 webm fallback for codec-less browsers like Playwright Chromium) plus error-event fallback swap. ENABLE SOUND unmutes and continues same timeline. Self-heal retry play in poll loop. Verified via screenshot: t advances past 1s with zero clicks, portals overlay moving video, auto Hub transition, sound toggle works without restart."
+
+test_plan:
+  current_focus:
+    - "Full frontend regression: entrance video, Hub, Judge Reset, demo flow"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Video entrance fixed (muted autoplay + webm codec fallback for headless Chromium). Requesting full frontend regression: 1) fresh / load plays 29s video, currentTime advances >1s with NO clicks, 2) ENABLE SOUND unmutes without restarting, 3) portal overlays appear over moving video near end, 4) auto-transition to Hub at video end, 5) Skip button works, 6) direct /hub renders canonical hub, 7) Judge Reset clears memory and replays entrance, 8) core demo flow (Work evening -> Wellbeing morning coordination) still works. No still Guardian images in entrance."
+
+  - task: "Judge Reset hard-navigates to clean root entrance"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/staarwardd/judge-reset.tsx, /app/frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "User regression: reset left judge on Hub because index.tsx held sessionEntered=true in mounted state; router.replace('/') re-showed the stale screen. Fix: web uses window.location.assign('/') for a guaranteed clean page load; native passes a reset=Date.now() param that index.tsx watches to drop session state. Verified via screenshot both paths: direct /hub -> reset -> video playing (t=3.4s advancing, url=/), and session Hub (after skip) -> reset -> entrance replays (t=3.5s). Direct /hub fast path untouched."
