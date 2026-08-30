@@ -37,6 +37,10 @@ export default function ScorecardScreen() {
     memory.routineWindow ? `Routine window — ${memory.routineWindow}` : null,
     memory.preferredPortal ? `Preferred world — ${memory.preferredPortal}` : null,
   ].filter(Boolean) as string[];
+  const synchronizedWorlds = receipts.some((receipt) => receipt.trigger === "Judge crisis demonstration completed") ? 3 : 0;
+  const unapprovedActions = receipts.filter(
+    (receipt) => ["executing", "completed"].includes(receipt.outcome) && receipt.approvalState !== "approved",
+  ).length;
 
   // The Guardian narrates the verdict aloud as the scorecard appears
   // (waits for the session token so the speech request is authenticated).
@@ -95,7 +99,7 @@ export default function ScorecardScreen() {
   return (
     <SafeAreaView style={s.root} edges={["top", "bottom"]}>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={s.kicker}>STAARWAARDD · JUDGE SCORECARD</Text>
+        <Text style={s.kicker}>STAARWARDD · JUDGE SCORECARD</Text>
         <Text style={s.title} testID="scorecard-title">What the Guardian handled</Text>
         <Text style={s.subtitle}>A closing summary of everything coordinated during this demo.</Text>
 
@@ -105,19 +109,19 @@ export default function ScorecardScreen() {
             <Text style={s.statLabel}>COORDINATED{"\n"}ACTIONS</Text>
           </View>
           <View style={s.statCard}>
-            <Text style={s.statValue}>{remembered.length}</Text>
-            <Text style={s.statLabel}>PREFERENCES{"\n"}REMEMBERED</Text>
+            <Text style={s.statValue}>{synchronizedWorlds}</Text>
+            <Text style={s.statLabel}>WORLDS{"\n"}SYNCHRONIZED</Text>
           </View>
           <View style={s.statCard}>
-            <Text style={s.statValue}>{memory.consented ? "ON" : "OFF"}</Text>
-            <Text style={s.statLabel}>GUARDIAN{"\n"}MEMORY</Text>
+            <Text style={s.statValue}>{unapprovedActions}</Text>
+            <Text style={s.statLabel}>UNAPPROVED{"\n"}ACTIONS</Text>
           </View>
         </View>
 
         <Text style={s.sectionTitle}>COORDINATION RECEIPTS</Text>
         {receipts.length === 0 ? (
           <View style={s.emptyCard}>
-            <Text style={s.emptyText}>The Guardian stood ready. Run the Work → Wellbeing flow to see cross-life coordination captured here.</Text>
+            <Text style={s.emptyText}>The Guardian stood ready. Run the live crisis demo to see Work → Style → Connect coordination captured here.</Text>
           </View>
         ) : (
           receipts.map((r) => (

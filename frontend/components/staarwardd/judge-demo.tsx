@@ -22,18 +22,18 @@ type DemoStage = {
 
 const STAGES: DemoStage[] = [
   {
-    kicker: "LIVE CRISIS INTAKE",
+    kicker: "1 · LIVE CRISIS INTAKE",
     title: "Four urgent problems arrive at once.",
     worlds: ["Work"],
-    guardian: "Judges, watch closely. The executive product review moved forward, the launch metrics conflict, the deck no longer tells a decision story, and Product and Engineering disagree on the rollout. I am starting the safe, reversible preparation now and reporting every move.",
+    guardian: "Judges, watch closely. The executive product review moved forward by 42 minutes, the launch metrics conflict, the deck no longer tells a decision story, and Product and Engineering disagree on the rollout. I am starting the safe, reversible preparation now and reporting every move.",
     urgency: "T–42 MIN · EXECUTIVE REVIEW MOVED FORWARD",
-    signals: ["Meeting moved 15 minutes earlier", "Sales metric conflicts with dashboard", "Deck order hides the decision", "Rollout owners disagree"],
+    signals: ["Meeting moved forward by 42 minutes", "Sales metric conflicts with dashboard", "Deck order hides the decision", "Rollout owners disagree"],
     proactive: ["Locked all external sends", "Opened one shared crisis context", "Ranked blockers by meeting risk"],
     systems: [{ name: "Calendar", status: "demo signal read" }, { name: "Docs", status: "3 local sources ready" }, { name: "Project", status: "12 tasks mapped" }, { name: "Messages", status: "send locked" }],
     duration: 8000,
   },
   {
-    kicker: "1 · WORK TRIAGES WITHOUT WAITING",
+    kicker: "2 · WORK TRIAGES WITHOUT WAITING",
     title: "The Guardian decides what must be solved first.",
     worlds: ["Work"],
     user: "This changed fast. I cannot manage all of it before the review.",
@@ -47,7 +47,7 @@ const STAGES: DemoStage[] = [
     duration: 9000,
   },
   {
-    kicker: "2 · WORK BUILDS THE RECOVERY PLAN",
+    kicker: "3 · WORK BUILDS THE RECOVERY PLAN",
     title: "Preparation continues without another command.",
     worlds: ["Work"],
     guardian: "While you stay focused, I rebuilt the 30-minute review: a two-minute executive opening, the corrected product story, three decision points, an owner round, and a five-minute close. I also prepared the exact questions needed to resolve the metric and rollout conflict.",
@@ -60,7 +60,7 @@ const STAGES: DemoStage[] = [
     duration: 9000,
   },
   {
-    kicker: "3 · STYLE OPENS THE DRESS REHEARSAL",
+    kicker: "4 · STYLE OPENS THE DRESS REHEARSAL",
     title: "Work context becomes presentation coaching automatically.",
     worlds: ["Work", "Style"],
     guardian: "I did not wait for a Style command. The crowded metric slide and rushed opening were already meeting risks, so I opened the dress rehearsal. I tightened your first 45 seconds, simplified the slide, marked the pause before the recommendation, and prepared two calm answers for the hardest objection.",
@@ -73,7 +73,7 @@ const STAGES: DemoStage[] = [
     duration: 9500,
   },
   {
-    kicker: "4 · CONNECT PREPARES THE HUMAN ROOM",
+    kicker: "5 · CONNECT PREPARES THE HUMAN ROOM",
     title: "The Guardian anticipates conflict before the meeting.",
     worlds: ["Work", "Style", "Connect"],
     guardian: "I also carried the same context into Connect. Product needs a decision, Sales will challenge the corrected audience number, and Engineering will protect the rollout date. I prepared neutral language, owner handoffs, and separate follow-up drafts. Nothing has been sent.",
@@ -86,7 +86,7 @@ const STAGES: DemoStage[] = [
     duration: 10000,
   },
   {
-    kicker: "5 · A NEW DISRUPTION HITS",
+    kicker: "6 · A NEW DISRUPTION HITS",
     title: "The Guardian replans across all three worlds in real time.",
     worlds: ["Work", "Style", "Connect"],
     guardian: "New signal: the executive joined early and Sales confirmed 11,400, not 18,000. I updated the recommendation, shortened the rehearsal, rebuilt the first objection response, and re-drafted the owner handoffs. I handled every reversible change immediately and kept the sends locked for you.",
@@ -99,7 +99,7 @@ const STAGES: DemoStage[] = [
     duration: 9000,
   },
   {
-    kicker: "6 · ONE CROSS-LIFE OUTCOME",
+    kicker: "7 · ONE CROSS-LIFE OUTCOME",
     title: "The crisis is handled, explained, and auditable.",
     worlds: ["Work", "Style", "Connect"],
     user: "What did you handle while I focused on the rehearsal?",
@@ -124,6 +124,7 @@ type Props = {
 
 export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }: Props) {
   const audio = useStaarAudio();
+  const { stopAll } = audio;
   const [step, setStep] = useState(0);
   const spokenRef = useRef(-1);
   const recordedRef = useRef(new Set<number>());
@@ -144,6 +145,15 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
     const timer = setTimeout(() => setStep((value) => Math.min(value + 1, STAGES.length - 1)), stage.duration);
     return () => clearTimeout(timer);
   }, [complete, open, stage.duration, step]);
+
+  useEffect(() => {
+    if (!open || !complete || !onFinish) return;
+    const timer = setTimeout(() => {
+      stopAll();
+      onFinish();
+    }, stage.duration);
+    return () => clearTimeout(timer);
+  }, [complete, onFinish, open, stage.duration, stopAll]);
 
   useEffect(() => {
     if (!open || recordedRef.current.has(step)) return;

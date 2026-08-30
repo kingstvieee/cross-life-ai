@@ -44,7 +44,7 @@ export function DemoTimerBadge() {
 
   const finish = useCallback(() => {
     stop();
-    router.push("/scorecard");
+    router.replace("/scorecard");
   }, [router, stop]);
 
   // Time's up — close the demo and present the scorecard automatically.
