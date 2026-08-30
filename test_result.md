@@ -202,3 +202,15 @@ frontend:
       - working: true
         agent: "main"
         comment: "Scorecard (/scorecard): stats (coordinated actions, remembered prefs, memory on/off), receipt cards, memory highlights list, BACK TO HUB + judge reset. Reached 3 ways: VIEW SCORECARD button on auto-demo completion, tapping the countdown badge, or timer hitting 0 (auto). Demo timer starts when START JUDGE DEMO · AUTO pressed. Memory Highlights: portal-visits session tracker — visit 1 speaks portal intro, return visit speaks one remembered preference via new authed POST /api/guardian/speak-line (Field max 200 chars, tts rate limit, 401 unauth verified). E2E verified: demo completes 6 scenes -> scorecard shows 5 receipts, badge stops; consent -> Work -> hub -> Work fires speak-line (1 intro, 1 highlight). NOTE: judge-demo.tsx auto-walkthrough component appeared externally (not built by main agent this session); integrated timer + scorecard with it."
+
+  - task: "Scorecard Voice + Share Scorecard + Ambient Score + auto demo-login restore"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/scorecard.tsx, lib/staarwardd/audio-provider.tsx, components/staarwardd/portal-screen.tsx, src/auth.tsx, backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "1) Scorecard Voice: Guardian narrates verdict via speak-line on scorecard mount (waits for token), mirrored subtitle (testID scorecard-subtitle). Verified fresh-browser: subtitle shown, speech played. 2) Share: GET /api/scorecard/image (auth, 10/min, PIL-rendered 1080x1350 PNG using FreeSans fonts) — web downloads via blob, native expo-file-system/legacy download + expo-sharing. Verified 200 + download; 401 unauth. pillow in requirements. 3) Ambient Score: audio-provider playAmbient(key) with 1.8s volume fade + stopAmbient; portal-screen plays world soundscape on entry, stops on exit (verified work.mp3 fetch on entry, gated by master+ambience). 4) CRITICAL FIX: AuthProvider auto demo-login restored — nothing called loginDemo, so fresh browsers had token=null and ALL authed features 401'd. refresh() now mints a demo session when no valid token (verified auth/demo 200 on fresh load). Demo rate limit raised 10->30/hr/IP for judge panels behind one NAT. NOTE: judge-demo.tsx externally rewritten again ('RUN LIVE CRISIS DEMO · AUTO') — my demoTimer.start(), onFinish, view-scorecard-btn integrations survived."
