@@ -1,6 +1,6 @@
 import { glow, textGlow } from "@/lib/staarwardd/shadow";
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Animated, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -21,10 +21,9 @@ import { getRoutineBriefing } from "@/lib/staarwardd/routine-briefing";
 import { createGuardianInteraction } from "@/lib/staarwardd/guardian-interaction";
 import { useGuardianActivity } from "@/lib/staarwardd/guardian-activity";
 import { JudgeReset } from "@/components/staarwardd/judge-reset";
-import { playVoice } from "@/src/voice";
+import { fetchGuardianLine, playGuardianLine } from "@/lib/staarwardd/guardian-tts";
+import { useDemoTimer } from "@/lib/staarwardd/demo-timer";
 import type { PortalId } from "@/lib/staarwardd/types";
-
-const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL || "";
 
 export function CinematicHub({ greet = false }: { greet?: boolean }) {
   const { width } = useWindowDimensions();
@@ -46,32 +45,25 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
   const greeting = useRef(new Animated.Value(0)).current;
   const routineAnnounced = useRef(false);
   const greeted = useRef(false);
+  const stopGreeting = useRef<(() => void) | null>(null);
+  const [spokenLine, setSpokenLine] = useState<string | null>(null);
+  const demoTimer = useDemoTimer();
 
-  // Guardian's spoken Onyx welcome as the Hub resolves from the entrance.
+  // Guardian's spoken Onyx welcome as the Hub resolves from the entrance,
+  // with the words shown as an on-screen subtitle line while he speaks.
   useEffect(() => {
     if (!greet || greeted.current || !audio.voice) return;
     greeted.current = true;
     let cancelled = false;
     const timer = setTimeout(async () => {
-      try {
-        const r = await fetch(`${BACKEND}/api/guardian/greeting`);
-        if (!r.ok || cancelled) return;
-        const { url } = await r.json();
-        const full = `${BACKEND}${url}`;
-        if (Platform.OS === "web" && typeof window !== "undefined") {
-          const el = new window.Audio(full);
-          el.volume = 0.85;
-          el.play().catch(() => {
-            // Autoplay blocked (no interaction yet) — greet on the first tap instead.
-            const onTap = () => { el.play().catch(() => {}); };
-            window.addEventListener("pointerdown", onTap, { once: true });
-          });
-        } else {
-          await playVoice(full);
-        }
-      } catch { /* greeting is optional and never blocks the hub */ }
+      const line = await fetchGuardianLine("/api/guardian/greeting");
+      if (!line || cancelled) return;
+      stopGreeting.current = playGuardianLine(line.url, {
+        onStart: () => { if (!cancelled) setSpokenLine(line.text); },
+        onEnd: () => setSpokenLine(null),
+      });
     }, 900);
-    return () => { cancelled = true; clearTimeout(timer); };
+    return () => { cancelled = true; clearTimeout(timer); stopGreeting.current?.(); };
   }, [greet, audio.voice]);
 
   useEffect(() => {
@@ -187,8 +179,17 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
       <AudioControls open={audioOpen} onClose={() => setAudioOpen(false)} />
       <MemorySheet open={memoryOpen} onClose={() => setMemoryOpen(false)} />
       <GuardianActivitySheet open={activityOpen} onClose={() => setActivityOpen(false)} />
-      <InfoModal open={aboutOpen} onClose={() => setAboutOpen(false)} onStart={() => { setAboutOpen(false); enter("work"); }} />
+      <InfoModal open={aboutOpen} onClose={() => setAboutOpen(false)} onStart={() => { setAboutOpen(false); demoTimer.start(); enter("work"); }} />
       <CompanionModal open={companionOpen} onClose={() => setCompanionOpen(false)} />
+      {/* Elegant subtitle line while the Guardian speaks his welcome */}
+      {spokenLine && (
+        <View style={styles.subtitleWrap} testID="guardian-subtitle">
+          <View style={styles.subtitleCard}>
+            <Text style={styles.subtitleKicker}>GUARDIAN</Text>
+            <Text style={styles.subtitleText}>{spokenLine}</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -228,6 +229,10 @@ The preview is local and honest: no hardware or external action is claimed.</Tex
 function CompanionModal({ open, onClose }: { open: boolean; onClose: () => void }) { return <Modal transparent visible={open} animationType="slide" onRequestClose={onClose}><View style={styles.back}><View style={styles.modal}><Text style={styles.modalKicker}>COMPANION FIELD</Text><Text style={styles.modalTitle}>Approved companion visuals required.</Text><Text style={styles.modalCopy}>Kaia, Atlas, and STAARWARDD watch visual files are not available in this project. This field remains intentionally unavailable until approved assets and the entitlement-backed device protocol are supplied.</Text><Pressable accessibilityRole="button" onPress={onClose} style={styles.modalButton}><Text style={styles.modalButtonText}>CLOSE</Text></Pressable></View></View></Modal>; }
 
 const styles = StyleSheet.create({
+  subtitleWrap: { position: "absolute", left: 16, right: 16, bottom: 26, alignItems: "center", pointerEvents: "none" },
+  subtitleCard: { maxWidth: 440, alignItems: "center", paddingHorizontal: 18, paddingVertical: 11, borderRadius: 18, borderWidth: 1, borderColor: "rgba(232,200,111,0.5)", backgroundColor: "rgba(4,7,16,0.86)", ...glow("#E8C86F", 16, 0.3) },
+  subtitleKicker: { color: "#E8C86F", fontSize: 8, letterSpacing: 1.6, fontWeight: "800" },
+  subtitleText: { color: "#F5F8FF", fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 3, fontWeight: "600", fontStyle: "italic" },
   root: { flex: 1, backgroundColor: "#080B14", overflow: "hidden" }, safe: { flex: 1 }, scroll: { paddingHorizontal: 15, paddingBottom: 32 }, orbitLine: { position: "absolute", width: 590, height: 590, borderRadius: 295, borderWidth: 1, borderColor: "rgba(232,200,111,0.26)", alignSelf: "center", top: 78, ...glow("#9C7CFF", 22, 0.45) }, header: { paddingTop: 18, paddingHorizontal: 5, flexDirection: "row", justifyContent: "space-between" }, actions: { flexDirection: "row", gap: 8 },
   headerCompact: { alignItems: "flex-start", flexDirection: "column", gap: 14 },
   actionsCompact: { width: "100%", justifyContent: "flex-end", flexWrap: "wrap" },

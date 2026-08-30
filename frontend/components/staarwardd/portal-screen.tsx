@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import type { TextStyle, ViewStyle } from "react-native";
 import { useRouter } from "expo-router";
@@ -18,6 +18,8 @@ import { WorldActionScene } from "@/components/staarwardd/world-action-scene";
 import { HomeSafetySheet } from "@/components/staarwardd/home-safety-sheet";
 import { GuardianInteractionCard } from "@/components/staarwardd/guardian-interaction-card";
 import { GuardianActivitySheet } from "@/components/staarwardd/guardian-activity-sheet";
+import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
+import { fetchGuardianLine, playGuardianLine } from "@/lib/staarwardd/guardian-tts";
 
 const HORIZONS: { id: Horizon; label: string }[] = [
   { id: "now", label: "NOW" },
@@ -38,7 +40,23 @@ export function PortalScreen({ portalId }: { portalId: PortalId }) {
   const [safetyOpen, setSafetyOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const { record } = useGuardianActivity();
+  const audio = useStaarAudio();
+  const introSpoken = useRef(false);
   const experience = PORTAL_EXPERIENCES[portalId];
+
+  // Guardian speaks a one-line Onyx introduction when a judge enters this world.
+  useEffect(() => {
+    if (introSpoken.current || !audio.voice) return;
+    introSpoken.current = true;
+    let cancelled = false;
+    let stop: (() => void) | null = null;
+    const timer = setTimeout(async () => {
+      const line = await fetchGuardianLine(`/api/guardian/portal-intro/${portalId}`);
+      if (!line || cancelled) return;
+      stop = playGuardianLine(line.url);
+    }, 700);
+    return () => { cancelled = true; clearTimeout(timer); stop?.(); };
+  }, [portalId, audio.voice]);
 
   const tasks = useMemo(() => plan[horizon], [horizon, plan]);
   const submitCommand = (value?: string) => {

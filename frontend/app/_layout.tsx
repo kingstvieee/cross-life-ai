@@ -11,6 +11,7 @@ import { StaarAudioProvider } from "@/lib/staarwardd/audio-provider";
 import { PreferenceMemoryProvider } from "@/lib/staarwardd/preference-memory";
 import { HomeSafetyProvider } from "@/lib/staarwardd/home-safety-provider";
 import { GuardianActivityProvider } from "@/lib/staarwardd/guardian-activity";
+import { DemoTimerBadge, DemoTimerProvider } from "@/lib/staarwardd/demo-timer";
 
 LogBox.ignoreAllLogs(true);
 SplashScreen.preventAutoHideAsync();
@@ -32,14 +33,17 @@ export default function RootLayout() {
             <GuardianActivityProvider>
               <HomeSafetyProvider>
                 <StaarAudioProvider>
-                  <StatusBar style="light" />
-                  <Stack
-                    screenOptions={{
-                      headerShown: false,
-                      animation: "fade",
-                      contentStyle: { backgroundColor: "#080B14" },
-                    }}
-                  />
+                  <DemoTimerProvider>
+                    <StatusBar style="light" />
+                    <Stack
+                      screenOptions={{
+                        headerShown: false,
+                        animation: "fade",
+                        contentStyle: { backgroundColor: "#080B14" },
+                      }}
+                    />
+                    <DemoTimerBadge />
+                  </DemoTimerProvider>
                 </StaarAudioProvider>
               </HomeSafetyProvider>
             </GuardianActivityProvider>

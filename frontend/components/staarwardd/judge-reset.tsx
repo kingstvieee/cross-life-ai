@@ -6,6 +6,7 @@ import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
 import { useGuardianActivity } from "@/lib/staarwardd/guardian-activity";
 import { useHomeSafety } from "@/lib/staarwardd/home-safety-provider";
 import { usePreferenceMemory } from "@/lib/staarwardd/preference-memory";
+import { useDemoTimer } from "@/lib/staarwardd/demo-timer";
 
 // Storage keys not owned by a provider erase():
 const RESET_KEYS = [
@@ -23,6 +24,7 @@ export function JudgeReset() {
   const { erase: eraseMemory } = usePreferenceMemory();
   const { erase: eraseActivity } = useGuardianActivity();
   const { erase: eraseSafety } = useHomeSafety();
+  const { stop: stopDemoTimer } = useDemoTimer();
   const [busy, setBusy] = useState(false);
 
   const reset = async () => {
@@ -30,6 +32,7 @@ export function JudgeReset() {
     setBusy(true);
     try {
       audio.stopAll();
+      stopDemoTimer();
       eraseMemory();
       eraseActivity();
       eraseSafety();
