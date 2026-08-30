@@ -24,8 +24,8 @@ export function useReturningUser() {
 // The single uninterrupted video backbone — the full canonical entrance.
 // Same clip in two encodings: H.264 mp4 (Safari/Chrome/Edge) and VP9 webm
 // (browsers without proprietary codecs). Content is identical.
-const WEB_SRC = "/video/guardian-toronto-traverse-v22.mp4";
-const WEB_SRC_WEBM = "/video/guardian-toronto-traverse-v22.webm";
+const WEB_SRC = "/video/guardian-toronto-traverse-hd.mp4";
+const WEB_SRC_WEBM = "/video/guardian-toronto-traverse-hd.webm";
 
 function pickWebSrc(v: any): string {
   try {
@@ -36,7 +36,7 @@ function pickWebSrc(v: any): string {
   } catch {}
   return WEB_SRC;
 }
-const NATIVE_SRC = require("@/assets/videos/guardian-toronto-traverse-v22.mp4");
+const NATIVE_SRC = require("@/assets/videos/guardian-toronto-traverse-hd.mp4");
 
 const PORTALS: { id: PortalId; label: string; img: any }[] = [
   { id: "creativity", label: "Creativity", img: require("@/assets/images/staarwardd/portal-creativity-v7.webp") },
@@ -89,6 +89,8 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
       const chosen = pickWebSrc(v);
       if (v.getAttribute("src") !== chosen) v.setAttribute("src", chosen);
       v.setAttribute("playsinline", "true");
+      v.setAttribute("preload", "auto");
+      v.setAttribute("poster", "/video/guardian-toronto-traverse-poster.jpg");
       v.setAttribute("muted", "true");
       // Force muted before the first play() — muted autoplay is always allowed.
       v.muted = true;
@@ -191,6 +193,8 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
               autoPlay: !reduced,
               muted: !soundEnabled,
               playsInline: true,
+              preload: "auto",
+              poster: "/video/guardian-toronto-traverse-poster.jpg",
               onEnded: finish,
               "data-testid": "entrance-video",
               "data-playing": String(playing),

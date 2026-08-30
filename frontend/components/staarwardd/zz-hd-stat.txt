@@ -1,0 +1,2 @@
+stat: cannot statx 'public/video/guardian-toronto-traverse-hd.mp4': No such file or directory
+stat: cannot statx 'assets/videos/guardian-toronto-traverse-hd.mp4': No such file or directory

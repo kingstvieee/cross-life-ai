@@ -1,0 +1,2 @@
+/root/.venv/lib/python3.11/site-packages/imageio_ffmpeg/binaries/ffmpeg-linux-aarch64-v7.0.2
+/tmp/ffmpeg.log

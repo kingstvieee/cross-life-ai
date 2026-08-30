@@ -1,0 +1,63 @@
+ffmpeg version 7.0.2-static https://johnvansickle.com/ffmpeg/  Copyright (c) 2000-2024 the FFmpeg developers
+  built with gcc 8 (Debian 8.3.0-6)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-debug --disable-ffplay --disable-indev=sndio --disable-outdev=sndio --cc=gcc --enable-fontconfig --enable-frei0r --enable-gnutls --enable-gmp --enable-libgme --enable-gray --enable-libaom --enable-libfribidi --enable-libass --enable-libfreetype --enable-libmp3lame --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenjpeg --enable-librubberband --enable-libsoxr --enable-libspeex --enable-libsrt --enable-libvorbis --enable-libopus --enable-libtheora --enable-libvidstab --enable-libvo-amrwbenc --enable-libvpx --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxml2 --enable-libdav1d --enable-libxvid --enable-libzimg
+  libavutil      59.  8.100 / 59.  8.100
+  libavcodec     61.  3.100 / 61.  3.100
+  libavformat    61.  1.100 / 61.  1.100
+  libavdevice    61.  1.100 / 61.  1.100
+  libavfilter    10.  1.100 / 10.  1.100
+  libswscale      8.  1.100 /  8.  1.100
+  libswresample   5.  1.100 /  5.  1.100
+  libpostproc    58.  1.100 / 58.  1.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'public/video/guardian-toronto-traverse-v22.mp4':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf60.16.100
+  Duration: 00:00:29.00, start: 0.000000, bitrate: 258 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 360x640, 256 kb/s, 20 fps, 20 tbr, 10240 tbn (default)
+      Metadata:
+        handler_name    : VideoHandler
+        vendor_id       : [0][0][0][0]
+        encoder         : Lavc60.31.102 libx264
+Stream mapping:
+  Stream #0:0 -> #0:0 (h264 (native) -> h264 (libx264))
+Press [q] to stop, [?] for help
+[libx264 @ 0xded0720] using cpu capabilities: ARMv8 NEON SVE SVE2
+[libx264 @ 0xded0720] profile High, level 4.0, 4:2:0, 8-bit
+[libx264 @ 0xded0720] 264 - core 164 r3191 4613ac3 - H.264/MPEG-4 AVC codec - Copyleft 2003-2024 - http://www.videolan.org/x264.html - options: cabac=1 ref=3 deblock=1:0:0 analyse=0x3:0x113 me=hex subme=7 psy=1 psy_rd=1.00:0.00 mixed_ref=1 me_range=16 chroma_me=1 trellis=1 8x8dct=1 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=-2 threads=12 lookahead_threads=2 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=1 weightb=1 open_gop=0 weightp=2 keyint=250 keyint_min=20 scenecut=40 intra_refresh=0 rc_lookahead=40 rc=crf mbtree=1 crf=17.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=1:1.00
+Output #0, mp4, to 'public/video/guardian-toronto-traverse-hd.mp4':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf61.1.100
+  Stream #0:0(und): Video: h264 (avc1 / 0x31637661), yuv420p(progressive), 720x1280, q=2-31, 20 fps, 10240 tbn (default)
+      Metadata:
+        handler_name    : VideoHandler
+        vendor_id       : [0][0][0][0]
+        encoder         : Lavc61.3.100 libx264
+      Side data:
+        cpb: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+frame=    3 fps=0.0 q=22.0 size=       0KiB time=00:00:00.05 bitrate=   7.7kbits/s speed=0.0997x    frame=   26 fps= 26 q=22.0 size=    1024KiB time=00:00:01.20 bitrate=6990.8kbits/s speed= 1.2x    frame=   48 fps= 32 q=22.0 size=    1792KiB time=00:00:02.30 bitrate=6382.8kbits/s speed=1.53x    frame=   65 fps= 32 q=22.0 size=    2560KiB time=00:00:03.15 bitrate=6657.7kbits/s speed=1.57x    frame=   90 fps= 36 q=22.0 size=    3328KiB time=00:00:04.40 bitrate=6196.2kbits/s speed=1.76x    frame=  113 fps= 38 q=22.0 size=    4096KiB time=00:00:05.55 bitrate=6045.9kbits/s speed=1.85x    frame=  135 fps= 38 q=22.0 size=    4864KiB time=00:00:06.65 bitrate=5991.9kbits/s speed= 1.9x    frame=  158 fps= 39 q=22.0 size=    5888KiB time=00:00:07.80 bitrate=6184.0kbits/s speed=1.95x    frame=  181 fps= 40 q=22.0 size=    6656KiB time=00:00:08.95 bitrate=6092.3kbits/s speed=1.98x    frame=  202 fps= 40 q=22.0 size=    7424KiB time=00:00:10.00 bitrate=6081.8kbits/s speed=   2x    frame=  225 fps= 41 q=22.0 size=    8192KiB time=00:00:11.15 bitrate=6018.8kbits/s speed=2.02x    frame=  247 fps= 41 q=22.0 size=    8960KiB time=00:00:12.25 bitrate=5991.9kbits/s speed=2.04x    frame=  268 fps= 41 q=22.0 size=    9728KiB time=00:00:13.30 bitrate=5991.9kbits/s speed=2.04x    frame=  290 fps= 41 q=22.0 size=   10496KiB time=00:00:14.40 bitrate=5971.1kbits/s speed=2.05x    frame=  313 fps= 42 q=22.0 size=   11264KiB time=00:00:15.55 bitrate=5934.1kbits/s speed=2.07x    frame=  337 fps= 42 q=22.0 size=   12032KiB time=00:00:16.75 bitrate=5884.6kbits/s speed=2.09x    frame=  360 fps= 42 q=22.0 size=   12800KiB time=00:00:17.90 bitrate=5858.0kbits/s speed= 2.1x    frame=  384 fps= 43 q=22.0 size=   13568KiB time=00:00:19.10 bitrate=5819.3kbits/s speed=2.12x    frame=  414 fps= 44 q=22.0 size=   14080KiB time=00:00:20.60 bitrate=5599.2kbits/s speed=2.17x    frame=  441 fps= 44 q=22.0 size=   14848KiB time=00:00:21.95 bitrate=5541.5kbits/s speed=2.19x    frame=  463 fps= 44 q=22.0 size=   15872KiB time=00:00:23.05 bitrate=5640.9kbits/s speed=2.19x    frame=  491 fps= 45 q=22.0 size=   16640KiB time=00:00:24.45 bitrate=5575.3kbits/s speed=2.22x    frame=  518 fps= 45 q=22.0 size=   17152KiB time=00:00:25.80 bitrate=5446.1kbits/s speed=2.24x    frame=  546 fps= 45 q=22.0 size=   18176KiB time=00:00:27.20 bitrate=5474.2kbits/s speed=2.26x    [mp4 @ 0xdf1e320] Starting second pass: moving the moov atom to the beginning of the file
+[out#0/mp4 @ 0xdf1e250] video:19375KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.039653%
+frame=  580 fps= 46 q=-1.0 Lsize=   19382KiB time=00:00:28.90 bitrate=5494.2kbits/s speed=2.31x    
+[libx264 @ 0xded0720] frame I:5     Avg QP:15.42  size:102402
+[libx264 @ 0xded0720] frame P:229   Avg QP:18.02  size: 51879
+[libx264 @ 0xded0720] frame B:346   Avg QP:19.96  size: 21523
+[libx264 @ 0xded0720] consecutive B-frames:  4.8% 42.4% 13.4% 39.3%
+[libx264 @ 0xded0720] mb I  I16..4:  6.5% 78.2% 15.4%
+[libx264 @ 0xded0720] mb P  I16..4:  4.1% 33.2%  6.0%  P16..4: 28.9% 17.4%  7.7%  0.0%  0.0%    skip: 2.8%
+[libx264 @ 0xded0720] mb B  I16..4:  0.9%  4.0%  0.8%  B16..8: 37.4% 13.2%  3.3%  direct:14.4%  skip:25.9%  L0:36.4% L1:49.3% BI:14.4%
+[libx264 @ 0xded0720] 8x8 transform intra:75.7% inter:58.4%
+[libx264 @ 0xded0720] coded y,uvDC,uvAC intra: 79.3% 77.7% 49.0% inter: 42.7% 37.3% 2.5%
+[libx264 @ 0xded0720] i16 v,h,dc,p: 28% 28% 12% 32%
+[libx264 @ 0xded0720] i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 23% 18% 15%  5%  7%  8%  7%  8%  8%
+[libx264 @ 0xded0720] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 28% 22% 18%  4%  7%  7%  6%  5%  4%
+[libx264 @ 0xded0720] i8c dc,h,v,p: 46% 22% 23%  9%
+[libx264 @ 0xded0720] Weighted P-Frames: Y:9.6% UV:2.6%
+[libx264 @ 0xded0720] ref P L0: 61.9% 19.3% 14.7%  3.9%  0.3%
+[libx264 @ 0xded0720] ref B L0: 91.1%  7.8%  1.2%
+[libx264 @ 0xded0720] ref B L1: 98.4%  1.6%
+[libx264 @ 0xded0720] kb/s:5472.85
