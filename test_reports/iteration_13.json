@@ -1,0 +1,55 @@
+{
+  "summary": "Full regression of the complete judge journey. Backend: 11/11 pytest pass covering all endpoints called out in the review (auth/demo, guardian/greeting, portal-intro work + bogus 404, speak-line 401/200/422, scorecard/image 401/200 PNG, tts mp3 mime, coordinate-evening + coordinate-morning). Frontend: end-to-end judge flow at 390x844 pass — entrance video muted-autoplays and currentTime advances (3.11→5.61s, webm fallback picked as expected in headless Chromium), auto demo login POST fires (200), SKIP works, hub guardian-subtitle shows welcome line, RUN LIVE CRISIS DEMO opens the auto-running walkthrough with demo-timer-badge 'DEMO · 1:25' + 'RUNNING AUTOMATICALLY · NO TAPS NEEDED' and scenes advance without input, scorecard-title/share-btn/hub-btn render, scorecard-subtitle narrates the verdict aloud (POST /api/guardian/speak-line 200), scorecard-share-btn fires GET /api/scorecard/image → 200, one-tap Judge Reset hard-navigates to '/' and the entrance replays with advancing currentTime (3.61s), fresh Work portal visit fires /api/guardian/portal-intro/work. No regressions.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "acceptance_checks": [
+    {"id": "F1-ENTRANCE", "check": "entrance-video muted-autoplays with currentTime advancing (0-clicks) + webm fallback picked", "result": "PASS (t=3.11→5.61s, muted=true, src=guardian-toronto-traverse-hd.webm)"},
+    {"id": "F1b-SKIP", "check": "skip-cinematic-btn resolves to hub", "result": "PASS"},
+    {"id": "F2-AUTO-LOGIN", "check": "POST /api/auth/demo fires on fresh load", "result": "PASS (status 200)"},
+    {"id": "F3-HUB-GREETING", "check": "guardian-subtitle appears + GET /api/guardian/greeting + /api/tts/*.mp3", "result": "PASS ('Welcome. I am your Guardian. Seven worlds, one presence. Let us begin.', 1 mp3 call)"},
+    {"id": "F4-CRISIS-DEMO", "check": "role=button 'Start automatic cross-life crisis judge demo' opens auto-running walkthrough with demo-timer-badge + scenes advance without taps", "result": "PASS (badge visible 'DEMO · 1:25', SCENE 1 OF 7, RUNNING AUTOMATICALLY · NO TAPS NEEDED)"},
+    {"id": "F5-SCORECARD", "check": "scorecard-title + stats + share/back-hub buttons + verdict narration via POST /api/guardian/speak-line + subtitle + GET /api/scorecard/image → 200 PNG", "result": "PASS (speak-line hit=1, image status=200)"},
+    {"id": "F6-PORTAL-VOICE", "check": "First visit to /portal/work fires GET /api/guardian/portal-intro/work", "result": "PASS"},
+    {"id": "F7-JUDGE-RESET", "check": "single tap on judge-reset-btn hard-navigates to '/' and entrance replays with advancing video time", "result": "PASS (url=/, entrance mounted, currentTime=3.61s)"},
+    {"id": "B1-AUTH-DEMO", "check": "POST /api/auth/demo → 200 {session_token, user:is_demo=true, 7 portals}", "result": "PASS"},
+    {"id": "B2-GREETING", "check": "GET /api/guardian/greeting → 200 {url, text}", "result": "PASS"},
+    {"id": "B3-PORTAL-INTRO-WORK", "check": "GET /api/guardian/portal-intro/work → 200 text contains 'Work'", "result": "PASS"},
+    {"id": "B4-PORTAL-INTRO-404", "check": "GET /api/guardian/portal-intro/unknown → 404", "result": "PASS"},
+    {"id": "B5-TTS-MP3", "check": "GET /api/tts/<key>.mp3 → 200 audio/mpeg, >500 bytes", "result": "PASS"},
+    {"id": "B6-SPEAK-LINE-401", "check": "POST /api/guardian/speak-line unauth → 401", "result": "PASS"},
+    {"id": "B7-SPEAK-LINE-200", "check": "POST /api/guardian/speak-line authed → 200 {url, text}", "result": "PASS"},
+    {"id": "B8-SPEAK-LINE-422", "check": "POST /api/guardian/speak-line text >200 chars → 422", "result": "PASS"},
+    {"id": "B9-SCORECARD-401", "check": "GET /api/scorecard/image unauth → 401", "result": "PASS"},
+    {"id": "B10-SCORECARD-200", "check": "GET /api/scorecard/image authed → 200 image/png (PNG magic bytes verified)", "result": "PASS"},
+    {"id": "B11-CORE-FLOW", "check": "POST /api/guardian/coordinate-evening + /coordinate-morning both 200 with structured payloads", "result": "PASS"}
+  ],
+  "test_report_links": [
+    "/app/test_reports/iteration_13.json",
+    "/app/backend/tests/test_iteration13_regression.py",
+    "/app/test_reports/pytest/iteration13_regression.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py: /api/guardian/speak-line correctly caps text via Pydantic (SpeakLineIn max_length=200), so 422 fires before the rate limiter — confirmed empirically. Same by-design behaviour as /guardian/chat-once from iteration 12.",
+    "auth.tsx refresh(): auto demo-login remains the critical path for judges. Verified fires on every fresh load; localStorage.clear() + navigate reproduces the 200 POST /api/auth/demo consistently.",
+    "cinematic-hub.tsx guardian-subtitle useEffect: gated on `audio.voice` truthy AND `greet=true`; verified subtitle rendered even under browser autoplay policy (guardian-tts.ts defers audio to pointerdown but the subtitle is decoupled from actual playback start).",
+    "scorecard.tsx narration useEffect: waits for `token` before POSTing /api/guardian/speak-line — this correctly avoids the 401 that would otherwise fire if the demo-token round-trip hadn't finished before the screen mounts.",
+    "launch-sequence.tsx: pickWebSrc() codec probe correctly selects webm in headless Chromium (which has no H.264). Entrance video onError swap to webm is the safety net; verified currentSrc=…-hd.webm.",
+    "judge-demo.tsx (435 lines): file is at the split-threshold; consider extracting STAGES data array (~120 lines of scene copy) into a data module if this grows further. Currently within acceptable range.",
+    "Console-only CanvasKit warning ('Failed to fetch') is a benign RN-Web skia-fallback in this preview; app renders correctly on the plain web canvas."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration13_regression.py"
+  ],
+  "success_rate": {"backend": "100% (11/11 pytest)", "frontend": "100% (18/18 acceptance)"},
+  "seed_data_creation": "TestAuthDemo mints one demo session per module (users + user_sessions doc in Mongo). TestSpeakLine + TestScorecardImage reuse that single session so they consume ~2 speak-line + 1 share-image budget slots. No stale data left behind beyond the one demo user.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 13 verifies the complete cinematic judge journey end-to-end after the judge-demo.tsx rewrite. Playwright Chromium always picks the webm fallback — that is expected. If retesting soon, note that the share-image bucket is 10/min/user and the tts user bucket is 30/min — normal single-pass tests never trip them. The provided demo-token in iteration_12 (demo_bcd24315c8ea45148e96e87a30a4586d) is now 24h+ stale; iteration_13 mints its own via /api/auth/demo. Frontend confirmed at 390x844 mobile viewport. All rate-limit budgets, memory highlight recall on portal-return (session visit tracking), and the memory-consent 'first-time vs return' portal-intro branch remain covered by iteration_11+_12 reports.",
+  "rca_of_issue": "N/A — no bugs found. Full judge journey (entrance → auto-login → hub greeting → crisis demo → scorecard → portal-intro → judge-reset) verified green in a single run."
+}
