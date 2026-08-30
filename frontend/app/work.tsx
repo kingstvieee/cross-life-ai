@@ -116,7 +116,7 @@ export default function Work() {
                 <Text style={styles.gKicker}>THE GUARDIAN NOTICED</Text>
               </View>
               <Text style={styles.gText}>
-                Work has been unusually heavy — urgent items unresolved, your stress signal is elevated, and you're meeting Amara at 8 PM.
+                Work has been unusually heavy — urgent items unresolved, your stress signal is elevated, and you are meeting Amara at 8 PM.
                 Want me to coordinate your evening across Wellbeing, Home, Style and Relationships?
               </Text>
               <Pressable accessibilityRole="button" style={styles.gCta} onPress={coordinate} disabled={!!busy} testID="coordinate-evening-btn">

@@ -1,8 +1,8 @@
 import { glow, textGlow } from "@/lib/staarwardd/shadow";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AudioControls } from "@/components/staarwardd/audio-controls";
@@ -48,7 +48,17 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
   const greeted = useRef(false);
   const stopGreeting = useRef<(() => void) | null>(null);
   const [spokenLine, setSpokenLine] = useState<string | null>(null);
-  const demoTimer = useDemoTimer();
+  const { start: startDemoTimer, stop: stopDemoTimer } = useDemoTimer();
+  const { stopAll } = audio;
+
+  // Native web modals can outlive a stacked route. Always dismiss the judge
+  // experience and its audio when the Hub loses focus so the scorecard is the
+  // only visible surface after automatic completion.
+  useFocusEffect(useCallback(() => () => {
+    setAboutOpen(false);
+    stopDemoTimer();
+    stopAll();
+  }, [stopAll, stopDemoTimer]));
 
   // Guardian's spoken Onyx welcome as the Hub resolves from the entrance,
   // with the words shown as an on-screen subtitle line while he speaks.
@@ -135,7 +145,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
               <Pressable accessibilityRole="button" accessibilityLabel="Open preference memory" onPress={() => setMemoryOpen(true)} style={styles.round}><Text style={styles.roundText}>◈</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Open audio controls" onPress={() => setAudioOpen(true)} style={styles.round}><Text style={styles.roundText}>{audio.master ? "♫" : "◌"}</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Open Guardian activity history" onPress={() => setActivityOpen(true)} style={styles.round}><Text style={styles.roundText}>≡</Text></Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel="Start automatic cross-life crisis judge demo" onPress={() => { demoTimer.start(); setAboutOpen(true); }} style={styles.judgeButton}><Text style={styles.judgeButtonText}>RUN LIVE CRISIS DEMO · AUTO</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Start automatic cross-life crisis judge demo" onPress={() => { startDemoTimer(240); setAboutOpen(true); }} style={styles.judgeButton}><Text style={styles.judgeButtonText}>RUN LIVE CRISIS DEMO · AUTO</Text></Pressable>
               <JudgeReset />
             </View>
           </View>
@@ -183,10 +193,10 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
       <JudgeDemo
         open={aboutOpen}
         memoryConsented={memory.consented}
-        onClose={() => setAboutOpen(false)}
+        onClose={() => { setAboutOpen(false); stopDemoTimer(); }}
         onFinish={() => {
           setAboutOpen(false);
-          demoTimer.stop();
+          stopDemoTimer();
           router.push("/scorecard" as never);
         }}
         onStage={(stage) => {

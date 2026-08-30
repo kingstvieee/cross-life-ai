@@ -214,3 +214,15 @@ frontend:
       - working: true
         agent: "main"
         comment: "1) Scorecard Voice: Guardian narrates verdict via speak-line on scorecard mount (waits for token), mirrored subtitle (testID scorecard-subtitle). Verified fresh-browser: subtitle shown, speech played. 2) Share: GET /api/scorecard/image (auth, 10/min, PIL-rendered 1080x1350 PNG using FreeSans fonts) — web downloads via blob, native expo-file-system/legacy download + expo-sharing. Verified 200 + download; 401 unauth. pillow in requirements. 3) Ambient Score: audio-provider playAmbient(key) with 1.8s volume fade + stopAmbient; portal-screen plays world soundscape on entry, stops on exit (verified work.mp3 fetch on entry, gated by master+ambience). 4) CRITICAL FIX: AuthProvider auto demo-login restored — nothing called loginDemo, so fresh browsers had token=null and ALL authed features 401'd. refresh() now mints a demo session when no valid token (verified auth/demo 200 on fresh load). Demo rate limit raised 10->30/hr/IP for judge panels behind one NAT. NOTE: judge-demo.tsx externally rewritten again ('RUN LIVE CRISIS DEMO · AUTO') — my demoTimer.start(), onFinish, view-scorecard-btn integrations survived."
+
+  - task: "Crisis demo fixes: Onyx narration, speech-paced scenes, live action execution"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/staarwardd/judge-demo.tsx, cinematic-hub.tsx, lib/staarwardd/demo-timer.tsx, backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "User reported: demo skips too fast, voice not the Guardian's, actions not demonstrated. Fixes: (1) replaced browser speechSynthesis (audio.speak) with real Onyx TTS via POST /api/guardian/speak-line (cap raised 200->480 chars); all 7 scene lines pre-warmed in tts_cache; (2) scenes now advance ONLY when the Onyx narration ends (+2s beat, 50s hard cap, duration fallback if fetch fails) — verified scene 1 holds ~22s vs 8s before; (3) GUARDIAN ACTIONS panel now executes live: QUEUED -> EXECUTING… -> DONE staggered animation per action, verified transitions; '● GUARDIAN SPEAKING' indicator tied to actual playback. Demo countdown start now parameterized; hub starts 240s for the ~3min speech-paced demo. Replay uses cycle counter to re-drive engine."

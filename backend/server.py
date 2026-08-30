@@ -114,7 +114,7 @@ class SpeakIn(BaseModel):
 
 
 class SpeakLineIn(BaseModel):
-    text: str = Field(..., min_length=1, max_length=200)
+    text: str = Field(..., min_length=1, max_length=480)
 
 
 # ============================================================

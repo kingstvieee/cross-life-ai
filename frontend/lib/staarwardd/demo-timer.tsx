@@ -7,7 +7,7 @@ const DEMO_SECONDS = 90;
 
 type DemoTimerValue = {
   endsAt: number | null;
-  start: () => void;
+  start: (seconds?: number) => void;
   stop: () => void;
 };
 
@@ -15,7 +15,7 @@ const Ctx = createContext<DemoTimerValue | null>(null);
 
 export function DemoTimerProvider({ children }: PropsWithChildren) {
   const [endsAt, setEndsAt] = useState<number | null>(null);
-  const start = useCallback(() => setEndsAt(Date.now() + DEMO_SECONDS * 1000), []);
+  const start = useCallback((seconds: number = DEMO_SECONDS) => setEndsAt(Date.now() + seconds * 1000), []);
   const stop = useCallback(() => setEndsAt(null), []);
   const value = useMemo(() => ({ endsAt, start, stop }), [endsAt, start, stop]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -44,7 +44,7 @@ export function DemoTimerBadge() {
 
   const finish = useCallback(() => {
     stop();
-    router.push("/scorecard");
+    router.replace("/scorecard");
   }, [router, stop]);
 
   // Time's up — close the demo and present the scorecard automatically.
