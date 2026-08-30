@@ -1,3 +1,4 @@
+import { glow } from "@/lib/staarwardd/shadow";
 import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -81,7 +82,7 @@ const styles = StyleSheet.create({
   card: {
     marginHorizontal: 16, backgroundColor: '#15171D', borderRadius: 24, padding: 20,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
-    shadowColor: '#00E5FF', shadowOpacity: 0.15, shadowRadius: 30, shadowOffset: { width: 0, height: 0 },
+    ...glow('#00E5FF', 30, 0.15),
   },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   iconWrap: {

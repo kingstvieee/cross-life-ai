@@ -1,3 +1,4 @@
+import { glow } from "@/lib/staarwardd/shadow";
 import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
   gText: { marginTop: 10, fontSize: 15, lineHeight: 22, color: '#F3F4F6', fontWeight: '500' },
   gCta: {
     marginTop: 16, backgroundColor: '#00E5FF', paddingVertical: 16, borderRadius: 999, alignItems: 'center',
-    shadowColor: '#00E5FF', shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 5 },
+    ...glow('#00E5FF', 16, 0.45, 5),
     elevation: 8,
   },
   gCtaText: { color: '#000000', fontWeight: '800', letterSpacing: 2.5, fontSize: 12 },

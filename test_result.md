@@ -148,3 +148,19 @@ agent_communication:
       - working: true
         agent: "main"
         comment: "User repro: single click on the visible hub button did nothing because the button only OPENED a confirmation modal (prior 'pass' was a false positive — the test also clicked the modal confirm). Fix: removed the modal entirely; the visible accessible button (role=button, name='Judge reset — replay the full opening for a new judge') now directly clears all seen flags/provider memory and hard-reloads to clean '/' via window.location.assign on web (reset param on native). Verified by clicking the REAL button via accessibility role+name: (1) fresh /hub -> 1 click -> URL '/', body 'Guardian video entrance', traverse webm t=3.9s advancing; (2) /?flow_reset=1 -> SKIP -> 1 click -> clean '/' with traverse entrance t=3.8s advancing."
+
+  - task: "Gateway caption strip + Onyx hub greeting + deprecated web style props cleanup"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/staarwardd/launch-sequence.tsx, cinematic-hub.tsx, lib/staarwardd/shadow.ts, backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "1) Added caption strip (testID gateway-caption) naming each gateway during entrance portal materialization. 2) New GET /api/guardian/greeting (Onyx TTS, cached) + CinematicHub greet prop (passed from index.tsx post-entrance) that fetches and plays the welcome; autoplay-block falls back to first-tap playback. 3) Replaced ALL deprecated shadow*/textShadow* style props with web boxShadow/textShadow via new glow()/textGlow() helpers (native keeps classic shadow props), moved all pointerEvents JSX props into styles. Console verified quiet (only benign useNativeDriver web note). Smoke test passed: entrance plays, captions cycle (CREATIVITY->HOME), hub resolves, greeting + mp3 fetched."
+
+agent_communication:
+  - agent: "main"
+    message: "Regression request: verify glow refactor didn't break visuals/flows. Test: entrance (video advances, captions, portals, counter, auto hub), hub (awaken gateways, portal glows visible, enter Work portal -> transition -> Work plan screen renders), Judge Reset one-tap, direct /hub. Backend: GET /api/guardian/greeting returns url; GET that /api/tts/...mp3 returns audio/mpeg."

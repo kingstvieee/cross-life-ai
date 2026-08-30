@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 11 verification: three new features (caption strip, Onyx greeting, glow refactor) plus regression on entrance/hub/one-tap judge reset. Backend 4/4 pytest passing on /api/guardian/greeting + /api/tts/<key>.mp3. Frontend 9/9 acceptance checks pass at 390x844 (Chromium auto-picks .webm as expected). Caption strip [data-testid=gateway-caption] observed cycling ['✦ CREATIVITY GATEWAY', '✦ WORK GATEWAY', '✦ HOME GATEWAY'] (3 unique names captured before video ended; caption updates each PORTAL_GAP=0.95s to the latest gateway). Auto hub transition renders 'Seven worlds, one presence.' at ~29s. Greeting network requests fire from index.tsx: GET /api/guardian/greeting (200) followed by GET /api/tts/13bcea0c908e932f6994fdb99e6043d1.mp3 (200 audio/mpeg). AWAKEN THE GATEWAYS tap surfaces the GUARDIAN greeting bubble. Tapping Work gateway navigates to /portal/work with no crashes and portal renders correctly. One-tap judge reset (⟲) with NO confirmation modal hard-resets to '/' and entrance video replays with advancing currentTime (3.42s captured). Direct /hub renders hub without entrance AND does NOT fire /api/guardian/greeting (greet prop correctly scoped to index.tsx). Console is QUIET — zero 'shadowColor', 'textShadow', or 'props.pointerEvents' deprecation warnings captured across the full flow. grep across /app/frontend/components + /app/frontend/app confirms no leftover deprecated style props. Glow refactor via glow()/textGlow() helpers in /app/frontend/lib/staarwardd/shadow.ts is functional and visually intact — gateway rings still show colored glows in the screenshot.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "acceptance_checks": [
+    {"id": 1, "check": "Fresh '/' — entrance-video present, muted-autoplays, currentTime>1s zero clicks", "measured": {"present": true, "muted": true, "paused": false, "t_at_2.5s": 2.60602, "duration": 29, "src": "/video/guardian-toronto-traverse-hd.webm"}, "result": "PASS"},
+    {"id": 2, "check": "Caption strip [data-testid=gateway-caption] cycles through gateway names in last ~8s", "measured": {"unique_captions_captured": ["✦ CREATIVITY GATEWAY", "✦ WORK GATEWAY", "✦ HOME GATEWAY"]}, "result": "PASS"},
+    {"id": 3, "check": "Auto Hub transition renders 'Seven worlds, one presence.' at ~29s", "measured": {"hub_heading_seen": true}, "result": "PASS"},
+    {"id": 4, "check": "Onyx greeting fetches fire after hub resolves from entrance", "measured": {"greeting_requests": ["/api/guardian/greeting"], "tts_requests": ["/api/tts/13bcea0c908e932f6994fdb99e6043d1.mp3"]}, "result": "PASS (audio playback deferred to first tap by autoplay policy — by design)"},
+    {"id": 5, "check": "Glow refactor regression — AWAKEN → greeting bubble; gateway tap → portal renders", "measured": {"awaken_click": "ok", "greeting_bubble_GUARDIAN_label": true, "work_gateway_tap_url": "/portal/work", "work_screen_rendered": true, "red_screen": false}, "result": "PASS"},
+    {"id": 6, "check": "One-tap judge reset ⟲ hard-navigates to '/' and entrance replays", "measured": {"reset_btn_found": true, "post_reset_launch_root": true, "post_reset_video_t": 3.417511, "post_reset_paused": false}, "result": "PASS"},
+    {"id": 7, "check": "Direct /hub renders hub WITHOUT triggering greeting fetch", "measured": {"hub_heading": true, "entrance_video_present": false, "greeting_requests_fired": 0, "tts_requests_fired": 0}, "result": "PASS"},
+    {"id": 8, "check": "Console quiet — no shadow/textShadow/pointerEvents deprecation warnings", "measured": {"deprecated_hits": 0, "total_console_msgs": 10}, "result": "PASS"},
+    {"id": 9, "check": "Backend: GET /api/guardian/greeting → 200 {url}; GET /api/tts/<key>.mp3 → 200 audio/mpeg", "measured": {"pytest": "4/4 passed", "junit": "/app/test_reports/pytest/iteration11_greeting.xml"}, "result": "PASS"}
+  ],
+  "test_report_links": [
+    "/app/test_reports/iteration_11.json",
+    "/app/backend/tests/test_greeting_tts.py",
+    "/app/test_reports/pytest/iteration11_greeting.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "shadow.ts glow()/textGlow() correctly branches Platform.OS==='web' to boxShadow/textShadow strings and keeps native shadow*/textShadow* props for iOS/Android — clean, minimal helper.",
+    "launch-sequence.tsx line 225 caption text uses PORTALS[min(portalCount, len)-1].label — because portalCount is monotonically increasing (never reset per gateway), the caption always shows the LATEST summoned gateway. It effectively 'cycles' because portalCount advances every PORTAL_GAP=0.95s. Verified empirically (3 unique names captured in test window before video ended).",
+    "index.tsx line 30 passes greet only when the LaunchSequence has completed (i.e. entrance path). Direct /hub never routes through IndexScreen so greet is never true — confirmed no /api/guardian/greeting request fires on direct /hub.",
+    "Judge Reset is confirmed ONE-TAP (no modal) — [data-testid=judge-reset-btn] tap immediately clears storage and returns to '/' with the entrance video replaying with advancing currentTime.",
+    "Zero deprecated-style-prop console warnings and zero grep hits for shadowColor/shadowOpacity/shadowRadius/shadowOffset/textShadowColor/textShadowRadius/textShadowOffset/pointerEvents= JSX props across /app/frontend/components + /app/frontend/app — glow refactor is complete."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (4/4 pytest)", "frontend": "100% (8/8 acceptance checks)"},
+  "seed_data_creation": "None. Only side-effect is TTS cache row keyed by SHA-256 of the greeting text (idempotent and shared across all users).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All three new features work: caption strip cycles gateway names in the final ~8s, Onyx greeting fetches (/api/guardian/greeting → /api/tts/<key>.mp3) fire only from index.tsx (never from direct /hub), and the glow()/textGlow() helpers in /app/frontend/lib/staarwardd/shadow.ts silenced every RN-Web deprecated-style-prop warning. Judge Reset is now one-tap (no confirmation modal — do NOT look for [data-testid=judge-reset-confirm]). Playwright's Chromium picks the .webm fallback (currentSrc contains guardian-toronto-traverse-hd.webm) — this is expected. Backend pytest file at /app/backend/tests/test_greeting_tts.py is idempotent and can be re-run. Do NOT modify metro.config.js, app.json, or .env.",
+  "rca_of_issue": "N/A — no regressions found."
+}

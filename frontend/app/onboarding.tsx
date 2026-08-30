@@ -1,3 +1,4 @@
+import { glow } from "@/lib/staarwardd/shadow";
 import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -130,7 +131,7 @@ const styles = StyleSheet.create({
   cardDesc: { fontSize: 13, color: '#9CA3AF', marginTop: 4 },
   cta: {
     marginHorizontal: 24, marginBottom: 32, backgroundColor: '#00E5FF', paddingVertical: 18, borderRadius: 999,
-    alignItems: 'center', shadowColor: '#00E5FF', shadowOpacity: 0.45, shadowRadius: 18, elevation: 8,
+    alignItems: 'center', ...glow('#00E5FF', 18, 0.45), elevation: 8,
   },
   ctaText: { color: '#000000', fontWeight: '800', letterSpacing: 3 },
 });

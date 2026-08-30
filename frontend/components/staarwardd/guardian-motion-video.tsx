@@ -39,7 +39,7 @@ export function GuardianMotionVideo({ clip, size, onReady, onFailure }: { clip: 
 
   if (failed) return null;
 
-  return <View style={[styles.root, { width: size, height: size * 1.18 }]} pointerEvents="none">
+  return <View style={[styles.root, { width: size, height: size * 1.18, pointerEvents: "none" }]}>
     <VideoView
       style={styles.video}
       player={player}

@@ -1,3 +1,4 @@
+import { glow } from "@/lib/staarwardd/shadow";
 import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Modal, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -160,7 +161,7 @@ const styles = StyleSheet.create({
   itemChipText: { fontSize: 11, fontWeight: '600', color: '#D1D5DB' },
   cta: {
     backgroundColor: '#00E5FF', paddingVertical: 16, borderRadius: 999, alignItems: 'center',
-    shadowColor: '#00E5FF', shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 5 },
+    ...glow('#00E5FF', 16, 0.45, 5),
     elevation: 8,
   },
   ctaText: { color: '#000000', fontWeight: '800', letterSpacing: 2.5, fontSize: 12 },

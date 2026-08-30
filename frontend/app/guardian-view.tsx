@@ -1,3 +1,4 @@
+import { glow } from "@/lib/staarwardd/shadow";
 import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -119,7 +120,7 @@ const styles = StyleSheet.create({
   emptyP: { fontSize: 13.5, color: '#9CA3AF', textAlign: 'center', marginTop: 8, lineHeight: 20 },
   cta: {
     marginTop: 20, backgroundColor: '#00E5FF', paddingVertical: 15, paddingHorizontal: 28, borderRadius: 999,
-    shadowColor: '#00E5FF', shadowOpacity: 0.45, shadowRadius: 16, elevation: 8,
+    ...glow('#00E5FF', 16, 0.45), elevation: 8,
   },
   ctaText: { color: '#000000', fontWeight: '800', letterSpacing: 2, fontSize: 12 },
   card: {

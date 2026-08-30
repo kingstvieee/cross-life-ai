@@ -1,3 +1,4 @@
+import { textGlow } from "@/lib/staarwardd/shadow";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { DimensionProfile } from "@/lib/staarwardd/types";
@@ -22,7 +23,7 @@ const styles = StyleSheet.create({
   image: { ...StyleSheet.absoluteFillObject, height: "100%", width: "100%", opacity: 0.68 },
   tint: { ...StyleSheet.absoluteFillObject, opacity: 0.12 },
   content: { flex: 1, justifyContent: "flex-end", padding: 14, backgroundColor: "rgba(4, 8, 18, 0.36)" },
-  glyph: { color: "#F9FBFF", fontSize: 21, marginBottom: 25, textShadowColor: "#0C1428", textShadowRadius: 8 },
+  glyph: { color: "#F9FBFF", fontSize: 21, marginBottom: 25, ...textGlow("#0C1428", 8) },
   name: { color: "#F5F7FC", fontSize: 17, fontWeight: "800" },
   promise: { color: "#D7E0F0", fontSize: 10, fontWeight: "600", marginTop: 4 },
 });

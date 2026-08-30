@@ -1,3 +1,4 @@
+import { glow } from "@/lib/staarwardd/shadow";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, ImageSourcePropType, StyleSheet, View } from "react-native";
 
@@ -112,7 +113,7 @@ export function GuardianCharacter({ state, mood = "neutral", portalMode = "hub",
   const rightX = rightHand.interpolate({ inputRange: [-1, 1], outputRange: [-size * 0.28, size * 0.28] });
   const handY = energy.interpolate({ inputRange: [0, 1], outputRange: [size * 0.08, -size * 0.04] });
   const actionOpacity = energy.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0.55, 1] });
-  return <View accessible accessibilityLabel={label} pointerEvents="none" style={[styles.root, { width: size, height: size * 1.18 }]}>
+  return <View accessible accessibilityLabel={label} style={[styles.root, { width: size, height: size * 1.18, pointerEvents: "none" }]}>
     <Animated.View style={[styles.halo, { backgroundColor: tint, opacity: haloOpacity, transform: [{ scale: haloScale }] }]} />
     {isHandAction(state) && <><Animated.View style={[styles.handEnergy, { backgroundColor: tint, opacity: actionOpacity, transform: [{ translateX: leftX }, { translateY: handY }, { scale: haloScale }] }]} /><Animated.View style={[styles.handEnergy, { backgroundColor: tint, opacity: actionOpacity, transform: [{ translateX: rightX }, { translateY: handY }, { scale: haloScale }] }]} /><Animated.View style={[styles.energyArc, { borderColor: tint, opacity: actionOpacity, transform: [{ scale: haloScale }, { rotate: rotation }] }]} /></>}
     {motionClip && !reducedMotion && !videoFailed && <Animated.View style={[styles.motionLayer, { opacity, transform: [{ translateX: x }, { translateY: y }, { scale }, { rotate: rotation }] }]}><GuardianMotionVideo key={motionClip} clip={motionClip} size={size} onReady={() => setVideoReady(true)} onFailure={() => setVideoFailed(true)} /></Animated.View>}
@@ -121,4 +122,4 @@ export function GuardianCharacter({ state, mood = "neutral", portalMode = "hub",
   </View>;
 }
 
-const styles = StyleSheet.create({ root: { justifyContent: "center", alignItems: "center" }, halo: { position: "absolute", width: "76%", aspectRatio: 1, borderRadius: 500 }, motionLayer: { position: "absolute", width: "100%", height: "100%", justifyContent: "center", alignItems: "center" }, character: { width: "100%", height: "100%", position: "absolute" }, handEnergy: { position: "absolute", width: 26, height: 26, borderRadius: 26, shadowColor: "#FFFFFF", shadowOpacity: 0.92, shadowRadius: 14 }, energyArc: { position: "absolute", width: "72%", height: "60%", borderRadius: 999, borderWidth: 2, borderTopColor: "transparent", borderBottomColor: "transparent" } });
+const styles = StyleSheet.create({ root: { justifyContent: "center", alignItems: "center" }, halo: { position: "absolute", width: "76%", aspectRatio: 1, borderRadius: 500 }, motionLayer: { position: "absolute", width: "100%", height: "100%", justifyContent: "center", alignItems: "center" }, character: { width: "100%", height: "100%", position: "absolute" }, handEnergy: { position: "absolute", width: 26, height: 26, borderRadius: 26, ...glow("#FFFFFF", 14, 0.92) }, energyArc: { position: "absolute", width: "72%", height: "60%", borderRadius: 999, borderWidth: 2, borderTopColor: "transparent", borderBottomColor: "transparent" } });

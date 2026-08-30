@@ -1,3 +1,4 @@
+import { glow } from "@/lib/staarwardd/shadow";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useRef, useState } from "react";
@@ -206,7 +207,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
 
       {/* Final section: seven canonical gateways materialize one by one OVER the moving video */}
       {portalCount > 0 && (
-        <View pointerEvents="none" style={s.portalRow} testID="portal-overlay-row">
+        <View style={s.portalRow} testID="portal-overlay-row">
           {PORTALS.slice(0, portalCount).map((p, i) => (
             <View key={p.id} style={s.portal} testID={`portal-summon-${i + 1}`} accessibilityLabel={`${p.label} gateway summoned`}>
               {RNW
@@ -216,6 +217,12 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
               <Text style={s.portalLabel}>{p.label}</Text>
             </View>
           ))}
+        </View>
+      )}
+      {/* Subtle caption strip naming each gateway as it materializes */}
+      {portalCount > 0 && (
+        <View style={s.captionStrip} testID="gateway-caption">
+          <Text style={s.captionText}>✦ {PORTALS[Math.min(portalCount, PORTALS.length) - 1].label.toUpperCase()} GATEWAY</Text>
         </View>
       )}
       {portalCount > 0 && portalCount < 7 && (
@@ -247,11 +254,19 @@ const s = StyleSheet.create({
   portalRow: {
     position: "absolute", bottom: 96, left: 12, right: 12,
     flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10,
+    pointerEvents: "none",
   },
+  captionStrip: {
+    position: "absolute", top: 112, alignSelf: "center",
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
+    borderWidth: 1, borderColor: "rgba(232,200,111,0.5)", backgroundColor: "rgba(4,7,16,0.62)",
+    pointerEvents: "none",
+  },
+  captionText: { color: "#F4E9C8", fontSize: 10, letterSpacing: 1.6, fontWeight: "800" },
   portal: {
     alignItems: "center", padding: 6, borderRadius: 14,
     backgroundColor: "rgba(4,7,16,0.55)", borderWidth: 1, borderColor: "rgba(232,200,111,0.7)",
-    shadowColor: "#7EDCF3", shadowOpacity: 0.9, shadowRadius: 14,
+    ...glow("#7EDCF3", 14, 0.9),
   },
   portalLabel: { color: "#F4F7FF", fontSize: 9, fontWeight: "800", letterSpacing: 0.5, marginTop: 3 },
   counter: { position: "absolute", bottom: 64, alignSelf: "center", color: "#E8C86F", fontSize: 11, letterSpacing: 2, fontWeight: "800" },

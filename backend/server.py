@@ -754,6 +754,23 @@ async def guardian_speak(body: SpeakIn, authorization: Optional[str] = Header(No
     return {"url": f"/api/tts/{key}.mp3"}
 
 
+GREETING_TEXT = "Welcome. I am your Guardian. Seven worlds, one presence. Let us begin."
+
+
+@api_router.get("/guardian/greeting")
+async def guardian_greeting():
+    """Short spoken hub welcome in the Guardian's Onyx voice (cached)."""
+    key = hashlib.sha256(f"{GREETING_TEXT}|onyx|1.0|tts-1|mp3".encode()).hexdigest()[:32]
+    cached = await db.tts_cache.find_one({"key": key}, {"_id": 0, "key": 1})
+    if not cached:
+        try:
+            audio = await _tts().generate_speech(text=GREETING_TEXT, model="tts-1", voice="onyx")
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"tts_failed: {e}")
+        await db.tts_cache.insert_one({"key": key, "audio": audio, "created_at": utcnow()})
+    return {"url": f"/api/tts/{key}.mp3"}
+
+
 @api_router.get("/tts/{key}.mp3")
 async def get_tts(key: str):
     doc = await db.tts_cache.find_one({"key": key})

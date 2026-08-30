@@ -27,5 +27,5 @@ export default function IndexScreen() {
       />
     );
   }
-  return <CinematicHub />;
+  return <CinematicHub greet />;
 }

@@ -1,3 +1,4 @@
+import { glow } from "@/lib/staarwardd/shadow";
 import { useEffect, useMemo, useRef } from "react";
 import { Animated, Easing, StyleSheet } from "react-native";
 
@@ -15,7 +16,7 @@ function FlightParticle({ index }: { index: number }) {
 }
 
 export function FlightParticleTrail({ visible, reducedMotion }: { visible: boolean; reducedMotion: boolean }) {
-  return <Animated.View pointerEvents="none" style={[styles.root, { opacity: visible ? 1 : 0 }]}>{Array.from({ length: reducedMotion ? 8 : 28 }, (_, index) => <FlightParticle key={index} index={index} />)}</Animated.View>;
+  return <Animated.View style={[styles.root, { opacity: visible ? 1 : 0, pointerEvents: "none" }]}>{Array.from({ length: reducedMotion ? 8 : 28 }, (_, index) => <FlightParticle key={index} index={index} />)}</Animated.View>;
 }
 
-const styles = StyleSheet.create({ root: { ...StyleSheet.absoluteFillObject }, dot: { position: "absolute", backgroundColor: "#F7DC84", shadowColor: "#FFD966", shadowOpacity: 1, shadowRadius: 8 } });
+const styles = StyleSheet.create({ root: { ...StyleSheet.absoluteFillObject }, dot: { position: "absolute", backgroundColor: "#F7DC84", ...glow("#FFD966", 8, 1) } });
