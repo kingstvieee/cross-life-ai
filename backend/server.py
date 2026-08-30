@@ -96,7 +96,7 @@ class PrivacyUpdate(BaseModel):
 
 
 class ChatIn(BaseModel):
-    message: str
+    message: str = Field(..., min_length=1, max_length=2000)
     portal: Optional[str] = None
     companion: Optional[str] = "guardian"
 
@@ -116,6 +116,33 @@ class SpeakIn(BaseModel):
 # ============================================================
 # AUTH HELPERS
 # ============================================================
+logger = logging.getLogger("staar")
+
+# Lightweight in-memory sliding-window rate limiter (per-process; adequate for
+# this single-instance deployment). Buckets keyed by action + client identity.
+from collections import defaultdict, deque
+import time as _time
+
+_rl_buckets: Dict[str, deque] = defaultdict(deque)
+
+
+def rate_limit(bucket: str, limit: int, window_seconds: int) -> None:
+    now = _time.monotonic()
+    dq = _rl_buckets[bucket]
+    while dq and now - dq[0] > window_seconds:
+        dq.popleft()
+    if len(dq) >= limit:
+        raise HTTPException(status_code=429, detail="rate_limited")
+    dq.append(now)
+
+
+def client_ip(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 async def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="missing_bearer")
@@ -219,8 +246,9 @@ async def auth_session(body: SessionExchange):
 
 
 @api_router.post("/auth/demo")
-async def auth_demo():
+async def auth_demo(request: Request):
     """Create ephemeral demo session so judges can experience app instantly."""
+    rate_limit(f"demo:{client_ip(request)}", 10, 3600)
     demo_email = f"demo_{uuid.uuid4().hex[:8]}@staar.demo"
     user_id = f"demo_{uuid.uuid4().hex[:10]}"
     default_privacy = {p["id"]: {"access": True, "share": True, "confirm": False} for p in PORTALS}
@@ -308,6 +336,8 @@ class PortalStateUpdate(BaseModel):
 @api_router.post("/portal/{portal_id}/state")
 async def set_portal_state(portal_id: str, body: PortalStateUpdate, authorization: Optional[str] = Header(None)):
     user = await get_current_user(authorization)
+    if len(json.dumps(body.data)) > 20_000:
+        raise HTTPException(status_code=413, detail="payload_too_large")
     await db.portal_state.update_one(
         {"user_id": user["user_id"], "portal": portal_id},
         {"$set": {"data": body.data, "updated_at": utcnow()}},
@@ -737,6 +767,7 @@ def _tts() -> OpenAITextToSpeech:
 @api_router.post("/guardian/speak")
 async def guardian_speak(body: SpeakIn, authorization: Optional[str] = Header(None)):
     user = await get_current_user(authorization)
+    rate_limit(f"tts:{user['user_id']}", 30, 60)
     coord = await db.guardian_activity.find_one(
         {"id": body.coordination_id, "user_id": user["user_id"]}, {"_id": 0}
     )
@@ -748,8 +779,9 @@ async def guardian_speak(body: SpeakIn, authorization: Optional[str] = Header(No
     if not cached:
         try:
             audio = await _tts().generate_speech(text=text, model="tts-1", voice="onyx")
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=f"tts_failed: {e}")
+        except Exception:
+            logger.exception("tts generation failed")
+            raise HTTPException(status_code=502, detail="tts_failed")
         await db.tts_cache.insert_one({"key": key, "audio": audio, "created_at": utcnow()})
     return {"url": f"/api/tts/{key}.mp3"}
 
@@ -774,21 +806,24 @@ async def _tts_cached_line(text: str) -> dict:
     if not cached:
         try:
             audio = await _tts().generate_speech(text=text, model="tts-1", voice="onyx")
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=f"tts_failed: {e}")
+        except Exception:
+            logger.exception("tts generation failed")
+            raise HTTPException(status_code=502, detail="tts_failed")
         await db.tts_cache.insert_one({"key": key, "audio": audio, "created_at": utcnow()})
     return {"url": f"/api/tts/{key}.mp3", "text": text}
 
 
 @api_router.get("/guardian/greeting")
-async def guardian_greeting():
+async def guardian_greeting(request: Request):
     """Short spoken hub welcome in the Guardian's Onyx voice (cached)."""
+    rate_limit(f"ttsline:{client_ip(request)}", 30, 60)
     return await _tts_cached_line(GREETING_TEXT)
 
 
 @api_router.get("/guardian/portal-intro/{portal_id}")
-async def guardian_portal_intro(portal_id: str):
+async def guardian_portal_intro(portal_id: str, request: Request):
     """One-line Onyx introduction spoken when entering a world (cached)."""
+    rate_limit(f"ttsline:{client_ip(request)}", 30, 60)
     text = PORTAL_INTROS.get(portal_id)
     if not text:
         raise HTTPException(status_code=404, detail="unknown_portal")
@@ -844,6 +879,7 @@ def _companion_prompt(companion: str, portal: Optional[str], user: Dict[str, Any
 @api_router.post("/guardian/chat")
 async def guardian_chat(body: ChatIn, authorization: Optional[str] = Header(None)):
     user = await get_current_user(authorization)
+    rate_limit(f"chat:{user['user_id']}", 20, 60)
     companion = body.companion or user.get("companion", "guardian")
     session_id = f"{user['user_id']}_{companion}_{body.portal or 'hub'}"
     system_msg = _companion_prompt(companion, body.portal, user)
@@ -867,8 +903,9 @@ async def guardian_chat(body: ChatIn, authorization: Optional[str] = Header(None
                 elif isinstance(ev, StreamDone):
                     yield f"data: {json.dumps({'done': True})}\n\n"
                     break
-        except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        except Exception:
+            logger.exception("guardian chat stream failed")
+            yield f"data: {json.dumps({'error': 'chat_failed'})}\n\n"
 
     return StreamingResponse(
         event_stream(),
@@ -881,6 +918,7 @@ async def guardian_chat(body: ChatIn, authorization: Optional[str] = Header(None
 async def guardian_chat_once(body: ChatIn, authorization: Optional[str] = Header(None)):
     """Non-streaming variant for simple UI flows."""
     user = await get_current_user(authorization)
+    rate_limit(f"chat:{user['user_id']}", 20, 60)
     companion = body.companion or user.get("companion", "guardian")
     session_id = f"{user['user_id']}_{companion}_{body.portal or 'hub'}_once"
     system_msg = _companion_prompt(companion, body.portal, user)
@@ -911,11 +949,11 @@ app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
+    # Bearer-token auth (no cookies) — wildcard origins are safe only without credentials.
+    allow_credentials=False,
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)

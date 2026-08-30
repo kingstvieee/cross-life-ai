@@ -164,3 +164,29 @@ agent_communication:
 agent_communication:
   - agent: "main"
     message: "Regression request: verify glow refactor didn't break visuals/flows. Test: entrance (video advances, captions, portals, counter, auto hub), hub (awaken gateways, portal glows visible, enter Work portal -> transition -> Work plan screen renders), Judge Reset one-tap, direct /hub. Backend: GET /api/guardian/greeting returns url; GET that /api/tts/...mp3 returns audio/mpeg."
+
+backend:
+  - task: "Security hardening: rate limits, payload caps, generic errors, CORS"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Per security audit: in-memory sliding-window rate limiter added. /api/auth/demo 10/hr per IP (verified 429 on 10th+ call); chat + chat-once 20/min per user; guardian/speak 30/min per user; greeting/portal-intro 30/min per IP. ChatIn.message max 2000 chars. Portal state payload cap 20KB (413). TTS/chat errors now generic (logged server-side). CORS allow_credentials=False with wildcard origins (bearer auth, no cookies)."
+
+frontend:
+  - task: "Greeting subtitle + 90s demo timer + portal voice notes"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/lib/staarwardd/demo-timer.tsx, guardian-tts.ts, cinematic-hub.tsx, portal-screen.tsx, app/_layout.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Subtitle (testID guardian-subtitle) shows greeting words while Onyx audio plays in hub. DemoTimerBadge (testID demo-timer-badge, top-center slim pill) starts via JUDGE DEMO -> START WITH WORK, counts 90s down across screens, tap dismisses, auto-clears 4s after 0. Portal intro line fetched+spoken on portal entry (GET /api/guardian/portal-intro/{id}). Judge Reset stops timer. Smoke-verified: subtitle text shown, timer 1:32->1:27 across nav, dismiss works, intro request fired on /portal/work."

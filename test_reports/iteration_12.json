@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 12 verification: 3 new UX features (greeting subtitle, 90-sec demo countdown badge, portal voice-note intros) + 5 security hardening controls (rate limits, message caps, payload caps, generic errors, CORS credentials off). Backend: 11/11 pytest pass (test_iteration12_security.py). Frontend: all 4 new UX/integration flows pass at 390x844 + judge-reset regression passes. No regressions detected.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "acceptance_checks": [
+    {"id": "B1", "check": "POST /api/auth/demo rate limit → 429 within 10-12 rapid calls", "result": "PASS"},
+    {"id": "B2", "check": "POST /api/guardian/chat-once message>2000 chars → 422", "result": "PASS"},
+    {"id": "B3", "check": "POST /api/guardian/chat-once empty → 422", "result": "PASS"},
+    {"id": "B4", "check": "POST /api/guardian/chat-once >20 rapid calls → 429 (with valid 200 reply first)", "result": "PASS"},
+    {"id": "B5", "check": "POST /api/portal/work/state small payload → 200 {ok:true}", "result": "PASS"},
+    {"id": "B6", "check": "POST /api/portal/work/state >20KB payload → 413", "result": "PASS"},
+    {"id": "B7", "check": "GET /api/guardian/greeting → 200 {url,text}", "result": "PASS"},
+    {"id": "B8", "check": "GET /api/guardian/portal-intro/work → 200 {url,text} containing 'Work'", "result": "PASS"},
+    {"id": "B9", "check": "GET /api/guardian/portal-intro/bogus → 404", "result": "PASS"},
+    {"id": "B10", "check": "GET /api/tts/<key>.mp3 → 200 content-type audio/mpeg, non-empty", "result": "PASS"},
+    {"id": "B11", "check": "CORS Access-Control-Allow-Credentials NOT true (wildcard origin safety)", "result": "PASS"},
+    {"id": "F1", "check": "Fresh '/' → SKIP CINEMATIC → hub → [data-testid=guardian-subtitle] appears within ~5s showing 'GUARDIAN\\nWelcome. I am your Guardian. Seven worlds, one presence. Let us begin.'", "result": "PASS"},
+    {"id": "F2", "check": "GET /api/guardian/greeting + /api/tts/<key>.mp3 fire from hub", "result": "PASS"},
+    {"id": "F3", "check": "Hub → Open 90-sec judge demo → Start with Work → [data-testid=demo-timer-badge] appears with 'DEMO · 1:XX', counts down (1:28→1:25 in 2s), persists on /portal/work", "result": "PASS"},
+    {"id": "F4", "check": "Tap demo-timer-badge dismisses it", "result": "PASS"},
+    {"id": "F5", "check": "Entering /portal/work fires GET /api/guardian/portal-intro/work + /api/tts/<key>.mp3", "result": "PASS"},
+    {"id": "R1", "check": "Judge Reset ⟲ ([data-testid=judge-reset-btn]) with active demo badge → hard-navigates to '/', badge removed, entrance video replays muted-autoplay with advancing currentTime (2.03s)", "result": "PASS"}
+  ],
+  "test_report_links": [
+    "/app/test_reports/iteration_12.json",
+    "/app/backend/tests/test_iteration12_security.py",
+    "/app/test_reports/pytest/iteration12_security.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py: in-memory sliding-window rate_limit() is single-process only. For horizontal scale, migrate to Redis-backed limiter. Acceptable for the current single-instance deployment.",
+    "server.py: Pydantic ChatIn already caps message length via Field(max_length=2000), so 422 fires BEFORE the limiter — confirmed empirically. This means oversized-message spam CAN bypass the chat rate budget; consider a payload-size middleware if that becomes a concern.",
+    "server.py: portal state 20KB cap is enforced AFTER auth but BEFORE db write via len(json.dumps(body.data)) — clean and cheap.",
+    "server.py: /api/guardian/portal-intro applies rate_limit BEFORE the 404 check — a scanner probing unknown portals still consumes the ttsline budget. Minor and by-design.",
+    "CORSMiddleware: allow_credentials=False with allow_origins=['*'] is the correct and safe combo for Bearer-token auth. Verified via OPTIONS preflight — response header omits Access-Control-Allow-Credentials: true.",
+    "demo-timer.tsx (77 lines): clean context provider, DEMO_SECONDS=90 constant, auto-clears 4s past 0, tap-to-dismiss via Pressable with hitSlop=10 and accessibilityLabel. testID='demo-timer-badge' present.",
+    "guardian-tts.ts: web Audio() branch handles autoplay-blocked playback by deferring to first pointerdown — correct for the browser autoplay policy.",
+    "cinematic-hub.tsx: subtitle wrap uses pointerEvents:'none' via style prop (not JSX prop) — no RN-Web deprecation warning."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (11/11 pytest)", "frontend": "100% (6/6 acceptance + 1/1 regression)"},
+  "seed_data_creation": "TestAuthDemoRateLimit creates a few demo users + sessions in Mongo (users collection) — expected and cheap. TestPortalStatePayloadCap writes a small portal_state doc against the pre-existing token's user. No other side effects.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 3 UX features + 5 security hardening controls verified end-to-end. Chat rate-limit test spends ~21 real GPT-5.6 calls per run — do NOT re-run casually. The pre-provided demo token demo_bcd24315c8ea45148e96e87a30a4586d is still valid (24h) and burned through this hour's chat budget once. If retesting, wait a minute for the chat:{user_id} bucket to drain. Demo badge dismiss + judge-reset removes-badge both verified. Portal-intro fires from portal-screen.tsx introSpoken useEffect — network call visible even though browser autoplay may defer actual audio.",
+  "rca_of_issue": "N/A — no bugs found."
+}
