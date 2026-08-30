@@ -62,8 +62,14 @@ export function PortalScreen({ portalId }: { portalId: PortalId }) {
   const introSpoken = useRef(false);
   const experience = PORTAL_EXPERIENCES[portalId];
 
-  // First visit: Guardian speaks the world's one-line intro. Return visits:
-  // he recalls one remembered preference aloud instead (memory highlight).
+  // This world's soundscape fades in as the judge enters, and stops on exit.
+  useEffect(() => {
+    audio.playAmbient(portalId);
+    return () => audio.stopAmbient();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portalId, audio.master, audio.ambience]);
+
+  // Guardian speaks a one-line Onyx introduction when a judge enters this world.
   useEffect(() => {
     if (introSpoken.current || !audio.voice) return;
     introSpoken.current = true;

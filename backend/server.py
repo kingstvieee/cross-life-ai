@@ -252,7 +252,7 @@ async def auth_session(body: SessionExchange):
 @api_router.post("/auth/demo")
 async def auth_demo(request: Request):
     """Create ephemeral demo session so judges can experience app instantly."""
-    rate_limit(f"demo:{client_ip(request)}", 10, 3600)
+    rate_limit(f"demo:{client_ip(request)}", 30, 3600)
     demo_email = f"demo_{uuid.uuid4().hex[:8]}@staar.demo"
     user_id = f"demo_{uuid.uuid4().hex[:10]}"
     default_privacy = {p["id"]: {"access": True, "share": True, "confirm": False} for p in PORTALS}
@@ -815,6 +815,82 @@ async def _tts_cached_line(text: str) -> dict:
             raise HTTPException(status_code=502, detail="tts_failed")
         await db.tts_cache.insert_one({"key": key, "audio": audio, "created_at": utcnow()})
     return {"url": f"/api/tts/{key}.mp3", "text": text}
+
+
+SCORECARD_FONT_BOLD = "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"
+SCORECARD_FONT_REG = "/usr/share/fonts/truetype/freefont/FreeSans.ttf"
+
+
+def _render_scorecard_png(actions: int, remembered: int, memory_on: bool, lines: List[str]) -> bytes:
+    from io import BytesIO
+    from PIL import Image, ImageDraw, ImageFont
+
+    W, H = 1080, 1350
+    img = Image.new("RGB", (W, H), "#0A0B0E")
+    d = ImageDraw.Draw(img)
+
+    def font(size: int, bold: bool = False):
+        try:
+            return ImageFont.truetype(SCORECARD_FONT_BOLD if bold else SCORECARD_FONT_REG, size)
+        except Exception:
+            return ImageFont.load_default()
+
+    gold, cyan, white, dim = "#E8C86F", "#00E5FF", "#F5F8FF", "#9FB3D9"
+    # frame
+    d.rounded_rectangle([28, 28, W - 28, H - 28], radius=36, outline=gold, width=3)
+    d.rounded_rectangle([40, 40, W - 40, H - 40], radius=30, outline="#2A2410", width=1)
+
+    x, y = 84, 100
+    d.text((x, y), "STAARWAARDD · JUDGE SCORECARD", font=font(28, True), fill=gold)
+    y += 58
+    d.text((x, y), "What the Guardian handled", font=font(64, True), fill=white)
+    y += 96
+    d.text((x, y), "A closing summary of everything coordinated during this demo.", font=font(30), fill=dim)
+    y += 90
+
+    # stats row
+    stats = [(str(actions), "COORDINATED ACTIONS", cyan), (str(remembered), "PREFERENCES REMEMBERED", cyan), ("ON" if memory_on else "OFF", "GUARDIAN MEMORY", gold)]
+    box_w = (W - 2 * 84 - 2 * 24) // 3
+    for i, (value, label, color) in enumerate(stats):
+        bx = x + i * (box_w + 24)
+        d.rounded_rectangle([bx, y, bx + box_w, y + 190], radius=24, outline=gold, width=2, fill="#0D1220")
+        d.text((bx + box_w / 2, y + 62), value, font=font(58, True), fill=color, anchor="mm")
+        d.text((bx + box_w / 2, y + 138), label, font=font(17, True), fill=dim, anchor="mm")
+    y += 250
+
+    d.text((x, y), "COORDINATION RECEIPTS", font=font(26, True), fill=gold)
+    y += 56
+    if not lines:
+        d.text((x, y), "The Guardian stood ready — no external actions were taken.", font=font(30), fill=dim)
+        y += 60
+    for line in lines[:6]:
+        d.rounded_rectangle([x, y, W - 84, y + 78], radius=18, outline="#134A5C", width=2, fill="#0B1322")
+        d.text((x + 26, y + 39), "•", font=font(34, True), fill=cyan, anchor="lm")
+        d.text((x + 66, y + 39), line, font=font(30), fill=white, anchor="lm")
+        y += 94
+
+    d.text((W / 2, H - 120), "THE GUARDIAN · SEVEN WORLDS, ONE PRESENCE", font=font(26, True), fill=gold, anchor="mm")
+    d.text((W / 2, H - 78), "STAAR HUB · CROSS-LIFE AI", font=font(22), fill=dim, anchor="mm")
+
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+@api_router.get("/scorecard/image")
+async def scorecard_image(
+    actions: int = 0,
+    remembered: int = 0,
+    memory_on: bool = False,
+    lines: str = "",
+    authorization: Optional[str] = Header(None),
+):
+    """Shareable scorecard image judges can keep after the demo."""
+    user = await get_current_user(authorization)
+    rate_limit(f"share:{user['user_id']}", 10, 60)
+    items = [ln.strip()[:64] for ln in lines.split("|") if ln.strip()][:6]
+    png = _render_scorecard_png(max(0, min(actions, 99)), max(0, min(remembered, 20)), memory_on, items)
+    return Response(content=png, media_type="image/png", headers={"Content-Disposition": "inline; filename=staar-scorecard.png"})
 
 
 @api_router.post("/guardian/speak-line")

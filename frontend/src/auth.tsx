@@ -61,11 +61,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     const t = await readToken();
-    if (!t) { setUser(null); setToken(null); setLoading(false); return; }
+    if (t) {
+      try {
+        const r = await fetch(`${BACKEND}/api/auth/me`, { headers: { Authorization: `Bearer ${t}` } });
+        if (r.ok) { setUser(await r.json()); setToken(t); setLoading(false); return; }
+        await storeToken(null);
+      } catch {
+        setUser(null); setToken(null); setLoading(false); return;
+      }
+    }
+    // No valid session — judges get an instant demo session automatically.
     try {
-      const r = await fetch(`${BACKEND}/api/auth/me`, { headers: { Authorization: `Bearer ${t}` } });
-      if (r.ok) { setUser(await r.json()); setToken(t); }
-      else { await storeToken(null); setUser(null); setToken(null); }
+      const r = await fetch(`${BACKEND}/api/auth/demo`, { method: 'POST' });
+      if (r.ok) {
+        const data = await r.json();
+        await storeToken(data.session_token);
+        setToken(data.session_token);
+        setUser(data.user ?? null);
+      } else {
+        setUser(null); setToken(null);
+      }
     } catch {
       setUser(null); setToken(null);
     }

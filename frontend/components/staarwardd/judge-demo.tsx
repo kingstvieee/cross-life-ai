@@ -13,64 +13,103 @@ type DemoStage = {
   guardian: string;
   prediction?: string;
   receipt?: string;
+  urgency: string;
+  signals: string[];
+  proactive: string[];
+  systems: Array<{ name: string; status: string }>;
   duration: number;
 };
 
 const STAGES: DemoStage[] = [
   {
-    kicker: "LIVE PRODUCT SCENARIO",
-    title: "One difficult task. Three worlds. One Guardian.",
+    kicker: "LIVE CRISIS INTAKE",
+    title: "Four urgent problems arrive at once.",
     worlds: ["Work"],
-    guardian: "Alright, judges—here is the situation. One complicated product meeting, a messy deck, and no time to babysit the process. Watch me organize the work, build the overview, run the Style dress rehearsal, and prepare the team handoff.",
-    duration: 7000,
+    guardian: "Judges, watch closely. The executive product review moved forward, the launch metrics conflict, the deck no longer tells a decision story, and Product and Engineering disagree on the rollout. I am starting the safe, reversible preparation now and reporting every move.",
+    urgency: "T–42 MIN · EXECUTIVE REVIEW MOVED FORWARD",
+    signals: ["Meeting moved 15 minutes earlier", "Sales metric conflicts with dashboard", "Deck order hides the decision", "Rollout owners disagree"],
+    proactive: ["Locked all external sends", "Opened one shared crisis context", "Ranked blockers by meeting risk"],
+    systems: [{ name: "Calendar", status: "demo signal read" }, { name: "Docs", status: "3 local sources ready" }, { name: "Project", status: "12 tasks mapped" }, { name: "Messages", status: "send locked" }],
+    duration: 8000,
   },
   {
-    kicker: "1 · WORK ANALYZES + REARRANGES",
-    title: "The Guardian takes control of a difficult product task.",
+    kicker: "1 · WORK TRIAGES WITHOUT WAITING",
+    title: "The Guardian decides what must be solved first.",
     worlds: ["Work"],
-    user: "Our product review is tomorrow. The deck is out of order, the team updates conflict, and I need to present the new launch plan.",
-    guardian: "I have it. I analyzed the product brief and team notes, found two contradictions in the launch story, and rearranged the deck into problem, decision, evidence, rollout, and owners.",
-    receipt: "Brief analyzed · work rearranged · no external action",
-    duration: 10500,
+    user: "This changed fast. I cannot manage all of it before the review.",
+    guardian: "You do not have to. I already reconciled the product brief, dashboard snapshot, and team notes. The audience number is the critical conflict, the rollout owner is missing, and the recommendation appears nine slides too late. I moved those three risks to the front.",
+    prediction: "RISK MODEL · Wrong audience metric would weaken the recommendation and trigger the first executive objection",
+    receipt: "3 sources analyzed · 3 blockers ranked · user informed",
+    urgency: "T–40 MIN · TRIAGE COMPLETE",
+    signals: ["Audience: 18,000 in deck vs 11,400 in dashboard", "Rollout decision has no single owner", "Recommendation buried on slide 14"],
+    proactive: ["Reconciled local demo sources", "Created a decision-first deck order", "Flagged the metric for owner confirmation"],
+    systems: [{ name: "Docs", status: "contradictions found" }, { name: "Analytics", status: "demo snapshot compared" }, { name: "Project", status: "owner gap surfaced" }, { name: "Messages", status: "drafts only" }],
+    duration: 9000,
   },
   {
-    kicker: "2 · WORK BUILDS THE MEETING OVERVIEW",
-    title: "The preparation continues without more portal hunting.",
+    kicker: "2 · WORK BUILDS THE RECOVERY PLAN",
+    title: "Preparation continues without another command.",
     worlds: ["Work"],
-    user: "Handle the team meeting preparation too.",
-    guardian: "Already moving. I built the 30-minute overview: opening, product status, risk decisions, metric check, owner round, and close. I also surfaced the three questions the team must answer.",
-    prediction: "LIVE ANALYSIS · Conflicting dates + unclear owners → move the decision before the metrics review",
-    receipt: "Meeting overview prepared · team questions surfaced",
-    duration: 11000,
+    guardian: "While you stay focused, I rebuilt the 30-minute review: a two-minute executive opening, the corrected product story, three decision points, an owner round, and a five-minute close. I also prepared the exact questions needed to resolve the metric and rollout conflict.",
+    prediction: "PLAN ADAPTATION · Decision before metrics → executives understand what they must approve before discussion expands",
+    receipt: "Meeting overview built · owners and decisions visible",
+    urgency: "T–32 MIN · MEETING PLAN READY",
+    signals: ["Three decisions require explicit owners", "Risk discussion was consuming twelve minutes", "Executive opening lacked a recommendation"],
+    proactive: ["Re-sequenced the full agenda", "Built decision and owner cards", "Prepared a concise executive opening"],
+    systems: [{ name: "Calendar", status: "30-minute run-of-show" }, { name: "Docs", status: "overview prepared" }, { name: "Project", status: "owners mapped" }, { name: "Meeting", status: "questions queued" }],
+    duration: 9000,
   },
   {
-    kicker: "3 · STYLE RUNS THE DRESS REHEARSAL",
-    title: "The same context becomes presentation coaching.",
+    kicker: "3 · STYLE OPENS THE DRESS REHEARSAL",
+    title: "Work context becomes presentation coaching automatically.",
     worlds: ["Work", "Style"],
-    user: "Now run the dress rehearsal and fix the way I am presenting it.",
-    guardian: "Dress rehearsal is ready. I tightened your opening, simplified the crowded metrics slide, marked the pause before the recommendation, and prepared two answers for the hardest product objection.",
-    prediction: "STYLE ADAPTATION · Dense evidence + rehearsal hesitation → simplify the slide and strengthen the opening",
-    receipt: "Dress rehearsal prepared · delivery changes remain reversible",
-    duration: 11500,
+    guardian: "I did not wait for a Style command. The crowded metric slide and rushed opening were already meeting risks, so I opened the dress rehearsal. I tightened your first 45 seconds, simplified the slide, marked the pause before the recommendation, and prepared two calm answers for the hardest objection.",
+    prediction: "STYLE ADAPTATION · Dense slide + urgent room → clearer visual hierarchy, slower opening, stronger recommendation",
+    receipt: "Dress rehearsal prepared · presentation changes reversible",
+    urgency: "T–24 MIN · DRESS REHEARSAL ACTIVE",
+    signals: ["Opening runs 28 seconds over", "Metric slide has three competing headlines", "Presenter rushes before recommendation"],
+    proactive: ["Trimmed the opening to 45 seconds", "Converted one dense slide into three beats", "Prepared objection rehearsal prompts"],
+    systems: [{ name: "Slides", status: "local preview revised" }, { name: "Voice", status: "rehearsal active" }, { name: "Notes", status: "speaker cues ready" }, { name: "Video", status: "no recording claimed" }],
+    duration: 9500,
   },
   {
-    kicker: "4 · CONNECT PREPARES THE TEAM ROOM",
-    title: "The Guardian analyzes how the meeting will move.",
+    kicker: "4 · CONNECT PREPARES THE HUMAN ROOM",
+    title: "The Guardian anticipates conflict before the meeting.",
     worlds: ["Work", "Style", "Connect"],
-    user: "What about the people in the room?",
-    guardian: "I analyzed the team roles. Product needs clarity, Sales will challenge the audience number, and Engineering will protect the rollout date. I prepared neutral responses, owner handoffs, and follow-up drafts. Nothing is sent.",
-    prediction: "TEAM PREDICTION · Sales + Engineering tension → prepare neutral decision framing before the meeting",
-    receipt: "Team dynamics analyzed · follow-ups drafted, not sent",
-    duration: 11500,
+    guardian: "I also carried the same context into Connect. Product needs a decision, Sales will challenge the corrected audience number, and Engineering will protect the rollout date. I prepared neutral language, owner handoffs, and separate follow-up drafts. Nothing has been sent.",
+    prediction: "TEAM PREDICTION · Sales + Engineering tension → acknowledge both risks, then return the room to the decision",
+    receipt: "Team dynamics analyzed · responses prepared · sends held",
+    urgency: "T–17 MIN · TEAM STRATEGY READY",
+    signals: ["Sales trusts the old audience estimate", "Engineering expects a phased rollout", "Product needs one accountable decision owner"],
+    proactive: ["Mapped likely objections by role", "Prepared neutral decision framing", "Drafted unsent owner follow-ups"],
+    systems: [{ name: "People", status: "demo stakeholder map" }, { name: "Mail", status: "drafts held" }, { name: "Chat", status: "no message sent" }, { name: "Tasks", status: "handoffs prepared" }],
+    duration: 10000,
   },
   {
-    kicker: "5 · ONE CROSS-LIFE RESULT",
-    title: "The complete preparation is ready and inspectable.",
+    kicker: "5 · A NEW DISRUPTION HITS",
+    title: "The Guardian replans across all three worlds in real time.",
     worlds: ["Work", "Style", "Connect"],
-    user: "Give me the final overview.",
-    guardian: "You are ready. Work holds the analyzed brief and rearranged meeting plan. Style holds the rehearsed delivery. Connect holds the team read and follow-ups. One Guardian carried the same context across all three.",
-    prediction: "CROSS-AI RESULT · Work analysis powered the Style rehearsal and the Connect team strategy",
-    receipt: "Meeting plan ready · rehearsal ready · team drafts held · external actions: 0",
+    guardian: "New signal: the executive joined early and Sales confirmed 11,400, not 18,000. I updated the recommendation, shortened the rehearsal, rebuilt the first objection response, and re-drafted the owner handoffs. I handled every reversible change immediately and kept the sends locked for you.",
+    prediction: "REAL-TIME CROSSOVER · New metric changed the Work story, the Style rehearsal, and the Connect response at once",
+    receipt: "Plan re-synced across 3 worlds · user informed · external actions: 0",
+    urgency: "T–09 MIN · EXECUTIVE JOINED EARLY",
+    signals: ["Audience confirmed at 11,400", "Executive entered nine minutes early", "Original objection response is now outdated"],
+    proactive: ["Updated the product recommendation", "Compressed rehearsal to one critical pass", "Rewrote team responses with confirmed data"],
+    systems: [{ name: "Calendar", status: "timing adapted" }, { name: "Slides", status: "preview re-synced" }, { name: "Project", status: "owners re-sequenced" }, { name: "Messages", status: "re-drafted, not sent" }],
+    duration: 9000,
+  },
+  {
+    kicker: "6 · ONE CROSS-LIFE OUTCOME",
+    title: "The crisis is handled, explained, and auditable.",
+    worlds: ["Work", "Style", "Connect"],
+    user: "What did you handle while I focused on the rehearsal?",
+    guardian: "Work now holds the corrected product story, decisions, owners, and agenda. Style holds the clear slide and rehearsed delivery. Connect holds the stakeholder strategy and unsent follow-ups. One Guardian carried the context, adapted when the facts changed, and informed you at every step.",
+    prediction: "WHY IT MATTERS · One context layer replaced five disconnected handoffs and prevented stale information from reaching the room",
+    receipt: "Crisis prepared · 3 worlds synchronized · approvals preserved · external actions: 0",
+    urgency: "READY · COMPLETE PREPARATION IN UNDER 90 SECONDS",
+    signals: ["4 urgent risks resolved or contained", "3 worlds synchronized", "5 integration handoffs visible", "0 unapproved external actions"],
+    proactive: ["Prepared the work", "Rehearsed the delivery", "Anticipated the people", "Adapted to the new signal"],
+    systems: [{ name: "Calendar", status: "ready" }, { name: "Docs + Slides", status: "ready" }, { name: "Project + Tasks", status: "ready" }, { name: "Messages", status: "approval pending" }],
     duration: 14000,
   },
 ];
@@ -88,6 +127,7 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
   const [step, setStep] = useState(0);
   const spokenRef = useRef(-1);
   const recordedRef = useRef(new Set<number>());
+  const scrollRef = useRef<ScrollView>(null);
   const stage = STAGES[step];
   const complete = step === STAGES.length - 1;
 
@@ -123,6 +163,14 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
     audio.toggleAmbient("hub");
   }, [audio.activeAmbient, audio.ambience, audio.master, open]);
 
+  useEffect(() => {
+    if (!open) return;
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    const detailTimer = setTimeout(() => scrollRef.current?.scrollTo({ y: 330, animated: true }), 3600);
+    const evidenceTimer = setTimeout(() => scrollRef.current?.scrollTo({ y: complete ? 820 : 660, animated: true }), 6500);
+    return () => { clearTimeout(detailTimer); clearTimeout(evidenceTimer); };
+  }, [complete, open, step]);
+
   const close = () => {
     audio.stopAll();
     onClose();
@@ -156,7 +204,7 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
         </View>
         <Text style={styles.autoLabel}>{complete ? "DEMO COMPLETE · REVIEW THE RECEIPT" : "RUNNING AUTOMATICALLY · NO TAPS NEEDED"}</Text>
 
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.worldTrail}>
             {["Work", "Style", "Connect"].map((world, index) => {
               const active = stage.worlds.includes(world);
@@ -170,6 +218,15 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
                 </View>
               );
             })}
+          </View>
+
+          <View style={styles.urgencyBanner}>
+            <View style={styles.liveDot} />
+            <View style={styles.urgencyCopy}>
+              <Text style={styles.urgencyLabel}>SIMULATED LIVE TIMELINE</Text>
+              <Text style={styles.urgencyText}>{stage.urgency}</Text>
+            </View>
+            <Text style={styles.autonomyBadge}>PROACTIVE</Text>
           </View>
 
           <View style={styles.hero}>
@@ -197,6 +254,47 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
             </View>
           </View>
 
+          <View style={styles.detailGrid}>
+            <View style={[styles.detailPanel, styles.signalPanel]}>
+              <Text style={styles.panelLabel}>LIVE SITUATION INPUTS</Text>
+              {stage.signals.map((signal) => (
+                <View key={signal} style={styles.detailRow}>
+                  <Text style={styles.signalDot}>●</Text>
+                  <Text style={styles.detailText}>{signal}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={[styles.detailPanel, styles.actionPanel]}>
+              <Text style={styles.panelLabel}>GUARDIAN ACTIONS · NO NEW COMMAND</Text>
+              {stage.proactive.map((action) => (
+                <View key={action} style={styles.detailRow}>
+                  <Text style={styles.actionCheck}>✓</Text>
+                  <Text style={styles.detailText}>{action}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.integrationPanel}>
+            <View style={styles.integrationHeader}>
+              <View>
+                <Text style={styles.panelLabel}>CROSS-LIFE INTEGRATION MAP</Text>
+                <Text style={styles.integrationNote}>Connection-ready local demo · no live account, send, or device action claimed</Text>
+              </View>
+              <Text style={styles.safeBadge}>SAFE PREVIEW</Text>
+            </View>
+            <View style={styles.systemsRow}>
+              {stage.systems.map((system) => (
+                <View key={system.name} style={styles.systemChip}>
+                  <Text style={styles.systemName}>{system.name}</Text>
+                  <Text style={styles.systemStatus}>{system.status}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+
+
           {stage.prediction && (
             <View style={styles.predictionCard}>
               <Text style={styles.predictionLabel}>LIVE CONTEXT BRIDGE</Text>
@@ -211,6 +309,14 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
                 <Text style={styles.receiptText}>{stage.receipt}</Text>
               </View>
               <Text style={styles.shield}>◇</Text>
+            </View>
+          )}
+
+          {complete && (
+            <View style={styles.impactCard}>
+              <Text style={styles.impactLabel}>WHY THE WORLD NEEDS THIS</Text>
+              <Text style={styles.impactTitle}>People should not have to become the integration layer.</Text>
+              <Text style={styles.impactCopy}>Disconnected calendars, documents, tasks, presentations, and conversations force people to repeat context while urgent facts change. Cross-Life AI keeps one consented context layer, prepares the next safe step immediately, explains every move, and preserves human approval for real-world consequences.</Text>
             </View>
           )}
 
@@ -255,6 +361,33 @@ const styles = StyleSheet.create({
   progress: { flex: 1, height: 3, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.12)" },
   progressActive: { backgroundColor: "#E8C86F", ...glow("#E8C86F", 8, 0.7) },
   autoLabel: { color: "#8FE6CF", fontSize: 8, letterSpacing: 1.4, fontWeight: "900", paddingHorizontal: 20, paddingTop: 9 },
+  urgencyBanner: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 14, padding: 12, marginBottom: 16, backgroundColor: "rgba(233,92,92,0.1)", borderWidth: 1, borderColor: "rgba(255,113,113,0.36)" },
+  liveDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#FF6F6F", ...glow("#FF6F6F", 10, 0.8) },
+  urgencyCopy: { flex: 1 },
+  urgencyLabel: { color: "#FF9E9E", fontSize: 7, letterSpacing: 1.4, fontWeight: "900", marginBottom: 3 },
+  urgencyText: { color: "#FFFFFF", fontSize: 12, letterSpacing: 0.5, fontWeight: "900" },
+  autonomyBadge: { color: "#07140F", fontSize: 7, letterSpacing: 1.1, fontWeight: "900", paddingHorizontal: 9, paddingVertical: 6, borderRadius: 12, backgroundColor: "#8FE6CF" },
+  detailGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 12 },
+  detailPanel: { flexGrow: 1, flexBasis: 280, borderRadius: 16, padding: 14, borderWidth: 1 },
+  signalPanel: { backgroundColor: "rgba(255,118,118,0.07)", borderColor: "rgba(255,132,132,0.25)" },
+  actionPanel: { backgroundColor: "rgba(77,204,174,0.08)", borderColor: "rgba(111,226,199,0.28)" },
+  panelLabel: { color: "#9FB6ED", fontSize: 8, letterSpacing: 1.4, fontWeight: "900", marginBottom: 8 },
+  detailRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 5 },
+  signalDot: { color: "#FF8080", fontSize: 8, lineHeight: 18 },
+  actionCheck: { color: "#8FE6CF", fontSize: 11, lineHeight: 18, fontWeight: "900" },
+  detailText: { flex: 1, color: "#E8ECF8", fontSize: 11, lineHeight: 17, fontWeight: "600" },
+  integrationPanel: { marginBottom: 14, borderRadius: 16, padding: 14, backgroundColor: "rgba(106,137,218,0.08)", borderWidth: 1, borderColor: "rgba(138,164,234,0.25)" },
+  integrationHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 },
+  integrationNote: { color: "#7F8BAA", fontSize: 8, lineHeight: 13, fontWeight: "600" },
+  safeBadge: { color: "#AFC1F0", fontSize: 7, letterSpacing: 1, fontWeight: "900", paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: "rgba(159,182,237,0.3)" },
+  systemsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  systemChip: { flexGrow: 1, flexBasis: 130, minHeight: 48, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 9, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)" },
+  systemName: { color: "#FFFFFF", fontSize: 10, fontWeight: "900", marginBottom: 3 },
+  systemStatus: { color: "#8FE6CF", fontSize: 8, lineHeight: 12, fontWeight: "700", textTransform: "uppercase" },
+  impactCard: { marginTop: 14, borderRadius: 20, padding: 18, backgroundColor: "rgba(143,230,207,0.1)", borderWidth: 1, borderColor: "rgba(143,230,207,0.35)", ...glow("#68CDB5", 20, 0.18) },
+  impactLabel: { color: "#8FE6CF", fontSize: 8, letterSpacing: 1.5, fontWeight: "900" },
+  impactTitle: { color: "#FFFFFF", fontSize: 20, lineHeight: 25, fontWeight: "900", marginTop: 6 },
+  impactCopy: { color: "#D0E8E2", fontSize: 13, lineHeight: 20, marginTop: 7, fontWeight: "600" },
   scroll: { padding: 20, paddingBottom: 40, maxWidth: 880, width: "100%", alignSelf: "center" },
   worldTrail: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 22, gap: 6 },
   worldItem: { flexDirection: "row", alignItems: "center", gap: 6 },

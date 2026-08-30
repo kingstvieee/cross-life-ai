@@ -135,7 +135,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
               <Pressable accessibilityRole="button" accessibilityLabel="Open preference memory" onPress={() => setMemoryOpen(true)} style={styles.round}><Text style={styles.roundText}>◈</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Open audio controls" onPress={() => setAudioOpen(true)} style={styles.round}><Text style={styles.roundText}>{audio.master ? "♫" : "◌"}</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Open Guardian activity history" onPress={() => setActivityOpen(true)} style={styles.round}><Text style={styles.roundText}>≡</Text></Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel="Start automatic 90 second judge demo" onPress={() => { demoTimer.start(); setAboutOpen(true); }} style={styles.judgeButton}><Text style={styles.judgeButtonText}>START JUDGE DEMO · AUTO</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Start automatic cross-life crisis judge demo" onPress={() => { demoTimer.start(); setAboutOpen(true); }} style={styles.judgeButton}><Text style={styles.judgeButtonText}>RUN LIVE CRISIS DEMO · AUTO</Text></Pressable>
               <JudgeReset />
             </View>
           </View>
@@ -174,7 +174,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
           </View>
           <View style={styles.legend}><Text style={styles.legendTitle}>{fieldAwake ? "A world is ready when you are." : "Begin by awakening the field."}</Text></View>
           <Pressable accessibilityRole="button" onPress={() => setCompanionOpen(true)} style={styles.companion}><View style={styles.pedestal}><Text style={styles.pedestalMark}>◇</Text></View><View style={styles.companionCopy}><Text style={styles.companionKicker}>COMPANION FIELD</Text><Text style={styles.companionTitle}>Awaiting approved companion assets.</Text><Text style={styles.companionDetail}>No Kaia, Atlas, watch, or hardware connection is claimed in this build.</Text></View><Text style={styles.chevron}>›</Text></Pressable>
-          <Text style={styles.note}>JUDGE PATH · Entrance → Work Plan → Second World → Activity + Memory</Text>
+          <Text style={styles.note}>JUDGE PATH · Entrance → Live Crisis → Work → Style → Connect → Scorecard</Text>
         </ScrollView>
       </SafeAreaView>
       <AudioControls open={audioOpen} onClose={() => setAudioOpen(false)} />
@@ -192,11 +192,12 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
         onStage={(stage) => {
           const scenes: Array<{ portalId: PortalId; action: string; trigger: string } | null> = [
             null,
-            { portalId: "work", action: "Analyze the product brief and rearrange the launch deck", trigger: "A difficult product task entered Work" },
-            { portalId: "work", action: "Build the product review meeting overview", trigger: "Work analysis prepared the team meeting" },
-            { portalId: "style", action: "Run the product presentation dress rehearsal", trigger: "Work context crossed into Style" },
-            { portalId: "relationships", action: "Analyze team dynamics and draft meeting follow-ups", trigger: "Meeting context crossed into Connect" },
-            { portalId: "work", action: "Review the integrated Work, Style, and Connect preparation", trigger: "Judge demo completed" },
+            { portalId: "work", action: "Triage the urgent product review and rank the three meeting blockers", trigger: "Four time-sensitive risks arrived together" },
+            { portalId: "work", action: "Build the decision-first meeting recovery plan and owner map", trigger: "Guardian continued safe preparation without another command" },
+            { portalId: "style", action: "Prepare the urgent product presentation dress rehearsal", trigger: "Work risks automatically crossed into Style" },
+            { portalId: "relationships", action: "Analyze stakeholder conflict and prepare unsent team responses", trigger: "Meeting context automatically crossed into Connect" },
+            { portalId: "work", action: "Re-synchronize Work, Style, and Connect after the metric and timing changed", trigger: "A new urgent signal changed all three worlds" },
+            { portalId: "work", action: "Review the fully integrated crisis preparation and approval boundaries", trigger: "Judge crisis demonstration completed" },
           ];
           const scene = scenes[stage];
           if (!scene) return;

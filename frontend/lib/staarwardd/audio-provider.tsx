@@ -20,6 +20,8 @@ type AudioContextValue = AudioSettings & {
   activeAmbient: AmbientKey | null;
   update: (patch: Partial<AudioSettings>) => void;
   toggleAmbient: (key: AmbientKey) => void;
+  playAmbient: (key: AmbientKey) => void;
+  stopAmbient: () => void;
   playCue: (cue: CinematicCue) => void;
   speak: (text: string, rate?: number) => Promise<void>;
   stopAll: () => void;
@@ -98,6 +100,11 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   const ambientPlayers = useRef<Partial<Record<AmbientKey, AudioPlayer>>>({});
   const cuePlayers = useRef<Partial<Record<CinematicCue, AudioPlayer>>>({});
   const lastCue = useRef<CinematicCue | null>(null);
+  const fadeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearFade = () => {
+    if (fadeTimer.current) { clearInterval(fadeTimer.current); fadeTimer.current = null; }
+  };
 
   const pauseAllAmbient = () => {
     Object.values(ambientPlayers.current).forEach((p) => { try { p?.pause(); } catch { /* noop */ } });
@@ -154,6 +161,45 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     void Speech.stop();
   }, []);
 
+  // Each world's soundscape fades in softly on entry (non-toggling variant).
+  const playAmbient = useCallback((key: AmbientKey) => {
+    if (activeAmbient === key) return;
+    if (!settings.master || (!settings.music && !settings.ambience)) return;
+    try {
+      void setAudioModeAsync({ playsInSilentMode: false });
+      clearFade();
+      pauseAllAmbient();
+      let player = ambientPlayers.current[key];
+      if (!player) {
+        player = createAudioPlayer(SOURCES[key]);
+        ambientPlayers.current[key] = player;
+      }
+      player.loop = true;
+      player.volume = 0;
+      player.seekTo(0);
+      player.play();
+      const target = settings.volume;
+      const step = Math.max(target / 12, 0.01);
+      fadeTimer.current = setInterval(() => {
+        try {
+          const current = player?.volume ?? 0;
+          const next = Math.min(current + step, target);
+          if (player) player.volume = next;
+          if (next >= target) clearFade();
+        } catch { clearFade(); }
+      }, 150);
+      setActiveAmbient(key);
+    } catch {
+      setActiveAmbient(null);
+    }
+  }, [activeAmbient, settings.ambience, settings.master, settings.music, settings.volume]);
+
+  const stopAmbient = useCallback(() => {
+    clearFade();
+    pauseAllAmbient();
+    setActiveAmbient(null);
+  }, []);
+
   const toggleAmbient = useCallback((key: AmbientKey) => {
     if (activeAmbient === key) {
       ambientPlayers.current[key]?.pause();
@@ -207,7 +253,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     } catch { /* audio is optional; fail silently without misrepresenting playback */ }
   }, [guardianVoice, settings.master, settings.voice, settings.volume]);
 
-  const value = useMemo(() => ({ ...settings, activeAmbient, update, toggleAmbient, playCue, speak, stopAll }), [activeAmbient, playCue, settings, speak, stopAll, toggleAmbient, update]);
+  const value = useMemo(() => ({ ...settings, activeAmbient, update, toggleAmbient, playAmbient, stopAmbient, playCue, speak, stopAll }), [activeAmbient, playAmbient, playCue, settings, speak, stopAll, stopAmbient, toggleAmbient, update]);
   return <AudioContext.Provider value={value}>{children}</AudioContext.Provider>;
 }
 
