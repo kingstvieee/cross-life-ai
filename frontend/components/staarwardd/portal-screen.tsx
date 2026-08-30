@@ -19,7 +19,23 @@ import { HomeSafetySheet } from "@/components/staarwardd/home-safety-sheet";
 import { GuardianInteractionCard } from "@/components/staarwardd/guardian-interaction-card";
 import { GuardianActivitySheet } from "@/components/staarwardd/guardian-activity-sheet";
 import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
-import { fetchGuardianLine, playGuardianLine } from "@/lib/staarwardd/guardian-tts";
+import { fetchGuardianLine, fetchGuardianSpokenText, playGuardianLine } from "@/lib/staarwardd/guardian-tts";
+import { notePortalVisit } from "@/lib/staarwardd/portal-visits";
+import { usePreferenceMemory } from "@/lib/staarwardd/preference-memory";
+import { useAuth } from "@/src/auth";
+import type { PreferenceMemory } from "@/lib/staarwardd/preference-policy";
+
+// One remembered preference, spoken aloud on a return visit to a world.
+function memoryHighlightLine(memory: PreferenceMemory, portalId: PortalId, portalName: string): string | null {
+  if (!memory.consented) return null;
+  if (memory.preferredScene && memory.preferredRoom) return `Welcome back to ${portalName}. I remembered your ${memory.preferredScene} scene in the ${memory.preferredRoom}.`;
+  if (memory.preferredScene) return `Welcome back to ${portalName}. I remembered you prefer the ${memory.preferredScene} scene.`;
+  if (memory.preferredRoom) return `Welcome back to ${portalName}. I remembered the ${memory.preferredRoom} is your favorite space.`;
+  if (memory.routineWindow) return `Welcome back to ${portalName}. I remembered your ${memory.routineWindow} routine.`;
+  if (memory.displayName) return `Welcome back to ${portalName}, ${memory.displayName}. I remember you.`;
+  if (memory.preferredPortal === portalId) return `Welcome back. I remembered ${portalName} is where you like to begin.`;
+  return null;
+}
 
 const HORIZONS: { id: Horizon; label: string }[] = [
   { id: "now", label: "NOW" },
@@ -41,21 +57,31 @@ export function PortalScreen({ portalId }: { portalId: PortalId }) {
   const [activityOpen, setActivityOpen] = useState(false);
   const { record } = useGuardianActivity();
   const audio = useStaarAudio();
+  const { memory } = usePreferenceMemory();
+  const { token } = useAuth();
   const introSpoken = useRef(false);
   const experience = PORTAL_EXPERIENCES[portalId];
 
-  // Guardian speaks a one-line Onyx introduction when a judge enters this world.
+  // First visit: Guardian speaks the world's one-line intro. Return visits:
+  // he recalls one remembered preference aloud instead (memory highlight).
   useEffect(() => {
     if (introSpoken.current || !audio.voice) return;
     introSpoken.current = true;
+    const visit = notePortalVisit(portalId);
     let cancelled = false;
     let stop: (() => void) | null = null;
     const timer = setTimeout(async () => {
-      const line = await fetchGuardianLine(`/api/guardian/portal-intro/${portalId}`);
+      const line = visit === 1
+        ? await fetchGuardianLine(`/api/guardian/portal-intro/${portalId}`)
+        : await (async () => {
+            const text = memoryHighlightLine(memory, portalId, PORTAL_BY_ID[portalId].name);
+            return text ? fetchGuardianSpokenText(text, token) : null;
+          })();
       if (!line || cancelled) return;
       stop = playGuardianLine(line.url);
     }, 700);
     return () => { cancelled = true; clearTimeout(timer); stop?.(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portalId, audio.voice]);
 
   const tasks = useMemo(() => plan[horizon], [horizon, plan]);

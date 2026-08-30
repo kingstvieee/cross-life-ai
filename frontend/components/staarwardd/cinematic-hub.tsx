@@ -21,6 +21,7 @@ import { getRoutineBriefing } from "@/lib/staarwardd/routine-briefing";
 import { createGuardianInteraction } from "@/lib/staarwardd/guardian-interaction";
 import { useGuardianActivity } from "@/lib/staarwardd/guardian-activity";
 import { JudgeReset } from "@/components/staarwardd/judge-reset";
+import { JudgeDemo } from "@/components/staarwardd/judge-demo";
 import { fetchGuardianLine, playGuardianLine } from "@/lib/staarwardd/guardian-tts";
 import { useDemoTimer } from "@/lib/staarwardd/demo-timer";
 import type { PortalId } from "@/lib/staarwardd/types";
@@ -134,7 +135,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
               <Pressable accessibilityRole="button" accessibilityLabel="Open preference memory" onPress={() => setMemoryOpen(true)} style={styles.round}><Text style={styles.roundText}>◈</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Open audio controls" onPress={() => setAudioOpen(true)} style={styles.round}><Text style={styles.roundText}>{audio.master ? "♫" : "◌"}</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Open Guardian activity history" onPress={() => setActivityOpen(true)} style={styles.round}><Text style={styles.roundText}>≡</Text></Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel="Open 90 second judge demo" onPress={() => setAboutOpen(true)} style={styles.judgeButton}><Text style={styles.judgeButtonText}>JUDGE DEMO · 90 SEC</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Start automatic 90 second judge demo" onPress={() => { demoTimer.start(); setAboutOpen(true); }} style={styles.judgeButton}><Text style={styles.judgeButtonText}>START JUDGE DEMO · AUTO</Text></Pressable>
               <JudgeReset />
             </View>
           </View>
@@ -179,7 +180,31 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
       <AudioControls open={audioOpen} onClose={() => setAudioOpen(false)} />
       <MemorySheet open={memoryOpen} onClose={() => setMemoryOpen(false)} />
       <GuardianActivitySheet open={activityOpen} onClose={() => setActivityOpen(false)} />
-      <InfoModal open={aboutOpen} onClose={() => setAboutOpen(false)} onStart={() => { setAboutOpen(false); demoTimer.start(); enter("work"); }} />
+      <JudgeDemo
+        open={aboutOpen}
+        memoryConsented={memory.consented}
+        onClose={() => setAboutOpen(false)}
+        onFinish={() => {
+          setAboutOpen(false);
+          demoTimer.stop();
+          router.push("/scorecard" as never);
+        }}
+        onStage={(stage) => {
+          const scenes: Array<{ portalId: PortalId; action: string; trigger: string } | null> = [
+            null,
+            { portalId: "work", action: "Analyze the product brief and rearrange the launch deck", trigger: "A difficult product task entered Work" },
+            { portalId: "work", action: "Build the product review meeting overview", trigger: "Work analysis prepared the team meeting" },
+            { portalId: "style", action: "Run the product presentation dress rehearsal", trigger: "Work context crossed into Style" },
+            { portalId: "relationships", action: "Analyze team dynamics and draft meeting follow-ups", trigger: "Meeting context crossed into Connect" },
+            { portalId: "work", action: "Review the integrated Work, Style, and Connect preparation", trigger: "Judge demo completed" },
+          ];
+          const scene = scenes[stage];
+          if (!scene) return;
+          learnPortal(scene.portalId);
+          const interaction = createGuardianInteraction({ portalId: scene.portalId, action: scene.action, source: "local-preview", trigger: scene.trigger });
+          record(interaction.policy.receipt);
+        }}
+      />
       <CompanionModal open={companionOpen} onClose={() => setCompanionOpen(false)} />
       {/* Elegant subtitle line while the Guardian speaks his welcome */}
       {spokenLine && (

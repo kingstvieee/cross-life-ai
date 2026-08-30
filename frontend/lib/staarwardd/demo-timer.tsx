@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const DEMO_SECONDS = 90;
@@ -27,9 +28,11 @@ export function useDemoTimer() {
 }
 
 // Subtle floating countdown pill shown across every screen while the 90-second
-// judge demo runs. Tap to dismiss. Auto-clears a few seconds after reaching 0.
+// judge demo runs. Tapping it (or the countdown reaching zero) closes the demo
+// and opens the Judge Scorecard summary.
 export function DemoTimerBadge() {
   const { endsAt, stop } = useDemoTimer();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [now, setNow] = useState(() => Date.now());
 
@@ -39,29 +42,32 @@ export function DemoTimerBadge() {
     return () => clearInterval(iv);
   }, [endsAt]);
 
+  const finish = useCallback(() => {
+    stop();
+    router.push("/scorecard");
+  }, [router, stop]);
+
+  // Time's up — close the demo and present the scorecard automatically.
   useEffect(() => {
     if (!endsAt) return;
-    const clearAt = endsAt + 4000 - Date.now();
-    const timer = setTimeout(stop, Math.max(clearAt, 0));
+    const timer = setTimeout(finish, Math.max(endsAt - Date.now(), 0));
     return () => clearTimeout(timer);
-  }, [endsAt, stop]);
+  }, [endsAt, finish]);
 
   if (!endsAt) return null;
   const remain = Math.max(0, Math.ceil((endsAt - now) / 1000));
-  const label = remain > 0
-    ? `DEMO · ${Math.floor(remain / 60)}:${String(remain % 60).padStart(2, "0")}`
-    : "DEMO · TIME";
+  const label = `DEMO · ${Math.floor(remain / 60)}:${String(remain % 60).padStart(2, "0")}`;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Judge demo countdown — tap to dismiss"
-      onPress={stop}
+      accessibilityLabel="Judge demo countdown — tap to finish and view the scorecard"
+      onPress={finish}
       hitSlop={10}
-      style={[styles.pill, { top: insets.top + 2 }, remain === 0 && styles.pillDone]}
+      style={[styles.pill, { top: insets.top + 2 }]}
       testID="demo-timer-badge"
     >
-      <Text style={[styles.text, remain <= 10 && remain > 0 && styles.textUrgent]}>{label}</Text>
+      <Text style={[styles.text, remain <= 10 && styles.textUrgent]}>{label}</Text>
     </Pressable>
   );
 }

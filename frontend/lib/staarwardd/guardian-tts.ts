@@ -17,6 +17,22 @@ export async function fetchGuardianLine(path: string): Promise<GuardianLine | nu
   }
 }
 
+// POST a short dynamic line (e.g., remembered preference) for Onyx TTS.
+export async function fetchGuardianSpokenText(text: string, token: string | null): Promise<GuardianLine | null> {
+  try {
+    const r = await fetch(`${BACKEND}/api/guardian/speak-line`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ text }),
+    });
+    if (!r.ok) return null;
+    const { url } = await r.json();
+    return { text, url: `${BACKEND}${url}` };
+  } catch {
+    return null;
+  }
+}
+
 // Play a Guardian line. onStart fires when audio actually begins; onEnd when it
 // finishes (or fails). If the browser blocks autoplay, playback (and onStart)
 // defers to the user's first tap. Returns a stop() cleanup.

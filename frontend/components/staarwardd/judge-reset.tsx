@@ -7,6 +7,7 @@ import { useGuardianActivity } from "@/lib/staarwardd/guardian-activity";
 import { useHomeSafety } from "@/lib/staarwardd/home-safety-provider";
 import { usePreferenceMemory } from "@/lib/staarwardd/preference-memory";
 import { useDemoTimer } from "@/lib/staarwardd/demo-timer";
+import { clearPortalVisits } from "@/lib/staarwardd/portal-visits";
 
 // Storage keys not owned by a provider erase():
 const RESET_KEYS = [
@@ -33,6 +34,7 @@ export function JudgeReset() {
     try {
       audio.stopAll();
       stopDemoTimer();
+      clearPortalVisits();
       eraseMemory();
       eraseActivity();
       eraseSafety();

@@ -190,3 +190,15 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "Subtitle (testID guardian-subtitle) shows greeting words while Onyx audio plays in hub. DemoTimerBadge (testID demo-timer-badge, top-center slim pill) starts via JUDGE DEMO -> START WITH WORK, counts 90s down across screens, tap dismisses, auto-clears 4s after 0. Portal intro line fetched+spoken on portal entry (GET /api/guardian/portal-intro/{id}). Judge Reset stops timer. Smoke-verified: subtitle text shown, timer 1:32->1:27 across nav, dismiss works, intro request fired on /portal/work."
+
+  - task: "Judge Scorecard + Memory Highlights"
+    implemented: true
+    working: true
+    file: "/app/frontend/app/scorecard.tsx, lib/staarwardd/demo-timer.tsx, portal-visits.ts, components/staarwardd/portal-screen.tsx, judge-demo.tsx, backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Scorecard (/scorecard): stats (coordinated actions, remembered prefs, memory on/off), receipt cards, memory highlights list, BACK TO HUB + judge reset. Reached 3 ways: VIEW SCORECARD button on auto-demo completion, tapping the countdown badge, or timer hitting 0 (auto). Demo timer starts when START JUDGE DEMO · AUTO pressed. Memory Highlights: portal-visits session tracker — visit 1 speaks portal intro, return visit speaks one remembered preference via new authed POST /api/guardian/speak-line (Field max 200 chars, tts rate limit, 401 unauth verified). E2E verified: demo completes 6 scenes -> scorecard shows 5 receipts, badge stops; consent -> Work -> hub -> Work fires speak-line (1 intro, 1 highlight). NOTE: judge-demo.tsx auto-walkthrough component appeared externally (not built by main agent this session); integrated timer + scorecard with it."

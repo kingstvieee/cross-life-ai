@@ -76,6 +76,20 @@ const CUES: Record<CinematicCue, AudioSource> = isWeb
     };
 
 export function StaarAudioProvider({ children }: PropsWithChildren) {
+  const [guardianVoice, setGuardianVoice] = useState<string | undefined>();
+  useEffect(() => {
+    let mounted = true;
+    void Speech.getAvailableVoicesAsync().then((voices) => {
+      if (!mounted) return;
+      const canadian = voices.filter((voice) => voice.language.toLowerCase().replace("_", "-").startsWith("en-ca"));
+      const preferred = canadian.find((voice) => /liam/i.test(voice.name + " " + voice.identifier))
+        ?? canadian.find((voice) => /natural|enhanced|male/i.test(voice.name + " " + voice.identifier))
+        ?? canadian[0]
+        ?? voices.find((voice) => /liam/i.test(voice.name + " " + voice.identifier));
+      setGuardianVoice(preferred?.identifier);
+    }).catch(() => { /* System voice discovery is optional. */ });
+    return () => { mounted = false; };
+  }, []);
   const [settings, setSettings] = useState<AudioSettings>(DEFAULT_SETTINGS);
   const [activeAmbient, setActiveAmbient] = useState<AmbientKey | null>(null);
   // One cached player per sound. expo-audio's web replace()/remove() strips the element
@@ -189,9 +203,9 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     try {
       const alreadySpeaking = await Speech.isSpeakingAsync();
       if (alreadySpeaking) await Speech.stop();
-      Speech.speak(text, { language: "en-US", rate, pitch: 1, volume: settings.volume, useApplicationAudioSession: false });
+      Speech.speak(text, { language: "en-CA", voice: guardianVoice, rate: Math.min(Math.max(rate * 1.03, 0.94), 1.06), pitch: 0.96, volume: settings.volume, useApplicationAudioSession: false });
     } catch { /* audio is optional; fail silently without misrepresenting playback */ }
-  }, [settings.master, settings.voice, settings.volume]);
+  }, [guardianVoice, settings.master, settings.voice, settings.volume]);
 
   const value = useMemo(() => ({ ...settings, activeAmbient, update, toggleAmbient, playCue, speak, stopAll }), [activeAmbient, playCue, settings, speak, stopAll, toggleAmbient, update]);
   return <AudioContext.Provider value={value}>{children}</AudioContext.Provider>;

@@ -113,6 +113,10 @@ class SpeakIn(BaseModel):
     coordination_id: str
 
 
+class SpeakLineIn(BaseModel):
+    text: str = Field(..., min_length=1, max_length=200)
+
+
 # ============================================================
 # AUTH HELPERS
 # ============================================================
@@ -811,6 +815,14 @@ async def _tts_cached_line(text: str) -> dict:
             raise HTTPException(status_code=502, detail="tts_failed")
         await db.tts_cache.insert_one({"key": key, "audio": audio, "created_at": utcnow()})
     return {"url": f"/api/tts/{key}.mp3", "text": text}
+
+
+@api_router.post("/guardian/speak-line")
+async def guardian_speak_line(body: SpeakLineIn, authorization: Optional[str] = Header(None)):
+    """Speak a short Guardian line (e.g., a remembered preference). Auth + rate limited."""
+    user = await get_current_user(authorization)
+    rate_limit(f"tts:{user['user_id']}", 30, 60)
+    return await _tts_cached_line(body.text)
 
 
 @api_router.get("/guardian/greeting")
