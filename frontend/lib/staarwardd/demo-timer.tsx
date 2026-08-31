@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const DEMO_SECONDS = 90;
+const DEMO_SECONDS = 180;
 
 type DemoTimerValue = {
   endsAt: number | null;
@@ -27,7 +27,7 @@ export function useDemoTimer() {
   return value;
 }
 
-// Subtle floating countdown pill shown across every screen while the 90-second
+// Subtle floating countdown pill shown across every screen while the immersive
 // judge demo runs. Tapping it (or the countdown reaching zero) closes the demo
 // and opens the Judge Scorecard summary.
 export function DemoTimerBadge() {
@@ -61,7 +61,7 @@ export function DemoTimerBadge() {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Judge demo countdown — tap to finish and view the scorecard"
+      accessibilityLabel="Immersive judge demo countdown — tap to finish and view the scorecard"
       onPress={finish}
       hitSlop={10}
       style={[styles.pill, { top: insets.top + 2 }]}
