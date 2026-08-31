@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { GuardianCharacter } from "@/components/staarwardd/guardian-character";
+import { JudgeActionTheatre } from "@/components/staarwardd/judge-action-theatre";
 import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
+import { fetchGuardianSpokenText, playGuardianLine } from "@/lib/staarwardd/guardian-tts";
 import { glow, textGlow } from "@/lib/staarwardd/shadow";
+import { useAuth } from "@/src/auth";
 
 type DemoStage = {
   kicker: string;
@@ -106,12 +109,22 @@ const STAGES: DemoStage[] = [
     guardian: "Work now holds the corrected product story, decisions, owners, and agenda. Style holds the clear slide and rehearsed delivery. Relationships holds the stakeholder strategy and unsent follow-ups. One Guardian carried the context, adapted when the facts changed, and informed you at every step.",
     prediction: "WHY IT MATTERS · One context layer replaced five disconnected handoffs and prevented stale information from reaching the room",
     receipt: "Crisis prepared · 3 worlds synchronized · approvals preserved · external actions: 0",
-    urgency: "READY · COMPLETE PREPARATION IN UNDER 90 SECONDS",
+    urgency: "READY · COMPLETE, VISIBLE CROSS-LIFE PREPARATION",
     signals: ["4 urgent risks resolved or contained", "3 worlds synchronized", "5 integration handoffs visible", "0 unapproved external actions"],
     proactive: ["Prepared the work", "Rehearsed the delivery", "Anticipated the people", "Adapted to the new signal"],
     systems: [{ name: "Calendar", status: "ready" }, { name: "Docs + Slides", status: "ready" }, { name: "Project + Tasks", status: "ready" }, { name: "Messages", status: "approval pending" }],
     duration: 14000,
   },
+];
+
+const GUARDIAN_VOICE_LINES = [
+  "Judges, four urgent problems just arrived. I am opening one safe crisis context, ranking the meeting risks, and locking every external send.",
+  "I reconciled the brief, dashboard, and notes. The audience metric is the critical conflict, so I am moving it and the missing owner to the front.",
+  "I am rebuilding the review now: decision first, corrected story, explicit owners, and a concise executive opening.",
+  "I carried the Work context into Style. Watch me trim the opening, simplify the crowded slide, and mark the pause before the recommendation.",
+  "I carried the same context into Relationships. I am mapping each objection and drafting neutral follow-ups. Nothing will be sent without approval.",
+  "New signal received. I am propagating the confirmed metric through Work, Style, and Relationships while keeping all sends locked.",
+  "The preparation is complete. Three portals now share one current context, every change is visible, and human approval remains intact.",
 ];
 
 type Props = {
@@ -124,13 +137,18 @@ type Props = {
 
 export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }: Props) {
   const audio = useStaarAudio();
+  const { token } = useAuth();
   const { stopAll } = audio;
   const [step, setStep] = useState(0);
+  const [visualDone, setVisualDone] = useState(false);
+  const [voiceDone, setVoiceDone] = useState(false);
+  const [voicePlaying, setVoicePlaying] = useState(false);
   const spokenRef = useRef(-1);
   const recordedRef = useRef(new Set<number>());
   const scrollRef = useRef<ScrollView>(null);
   const stage = STAGES[step];
   const complete = step === STAGES.length - 1;
+  const markVisualComplete = useCallback(() => setVisualDone(true), []);
 
   useEffect(() => {
     if (!open) return;
@@ -141,19 +159,24 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
   }, [open]);
 
   useEffect(() => {
-    if (!open || complete) return;
-    const timer = setTimeout(() => setStep((value) => Math.min(value + 1, STAGES.length - 1)), stage.duration);
-    return () => clearTimeout(timer);
-  }, [complete, open, stage.duration, step]);
+    if (!open) return;
+    setVisualDone(false);
+    setVoiceDone(false);
+    setVoicePlaying(false);
+  }, [open, step]);
 
   useEffect(() => {
-    if (!open || !complete || !onFinish) return;
+    if (!open || !visualDone || !voiceDone) return;
     const timer = setTimeout(() => {
-      stopAll();
-      onFinish();
-    }, stage.duration);
+      if (complete) {
+        stopAll();
+        onFinish?.();
+      } else {
+        setStep((value) => Math.min(value + 1, STAGES.length - 1));
+      }
+    }, complete ? 5200 : 2600);
     return () => clearTimeout(timer);
-  }, [complete, onFinish, open, stage.duration, stopAll]);
+  }, [complete, onFinish, open, stopAll, visualDone, voiceDone]);
 
   useEffect(() => {
     if (!open || recordedRef.current.has(step)) return;
@@ -162,11 +185,25 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
   }, [onStage, open, step]);
 
   useEffect(() => {
-    if (!open || !audio.master || !audio.voice || spokenRef.current === step) return;
+    if (!open || spokenRef.current === step) return;
     spokenRef.current = step;
-    const timer = setTimeout(() => void audio.speak(stage.guardian, 0.98), 320);
-    return () => clearTimeout(timer);
-  }, [audio.master, audio.voice, open, stage.guardian, step]);
+    let cancelled = false;
+    let stopVoice = () => {};
+    const fallback = setTimeout(() => {
+      if (!cancelled) { setVoicePlaying(false); setVoiceDone(true); }
+    }, 26000);
+    const begin = setTimeout(() => {
+      void fetchGuardianSpokenText(GUARDIAN_VOICE_LINES[step], token).then((line) => {
+        if (cancelled) return;
+        if (!line) { setVoiceDone(true); return; }
+        stopVoice = playGuardianLine(line.url, {
+          onStart: () => { if (!cancelled) setVoicePlaying(true); },
+          onEnd: () => { if (!cancelled) { setVoicePlaying(false); setVoiceDone(true); } },
+        });
+      });
+    }, 500);
+    return () => { cancelled = true; clearTimeout(begin); clearTimeout(fallback); stopVoice(); };
+  }, [open, step, token]);
 
   useEffect(() => {
     if (!open || !audio.master || !audio.ambience || audio.activeAmbient === "hub") return;
@@ -212,7 +249,7 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
             <View key={item.kicker} style={[styles.progress, index <= step && styles.progressActive]} />
           ))}
         </View>
-        <Text style={styles.autoLabel}>{complete ? "DEMO COMPLETE · REVIEW THE RECEIPT" : "RUNNING AUTOMATICALLY · NO TAPS NEEDED"}</Text>
+        <Text style={styles.autoLabel}>{complete ? "DEMO COMPLETE · REVIEW THE RECEIPT" : "SCENE ADVANCES AFTER VOICE + VISIBLE ACTIONS COMPLETE"}</Text>
 
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.worldTrail}>
@@ -260,9 +297,11 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
             <View style={[styles.bubble, styles.guardianBubble]}>
               <Text style={[styles.role, styles.guardianRole]}>GUARDIAN</Text>
               <Text style={styles.guardianText}>{stage.guardian}</Text>
-              {audio.master && audio.voice && <Text style={styles.speaking}>● SPEAKING</Text>}
+              {voicePlaying && <Text style={styles.speaking}>● GUARDIAN ONYX VOICE · SPEAKING</Text>}
             </View>
           </View>
+
+          <JudgeActionTheatre step={step} actions={stage.proactive} onComplete={markVisualComplete} />
 
           <View style={styles.detailGrid}>
             <View style={[styles.detailPanel, styles.signalPanel]}>
