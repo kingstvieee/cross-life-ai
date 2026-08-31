@@ -45,7 +45,7 @@ const PORTALS: { id: PortalId; label: string; img: any }[] = [
   { id: "home", label: "Home", img: require("@/assets/images/staarwardd/portal-home-v7.webp") },
   { id: "wellbeing", label: "Wellbeing", img: require("@/assets/images/staarwardd/portal-wellbeing-v7.webp") },
   { id: "relationships", label: "Relationships", img: require("@/assets/images/staarwardd/portal-relationships-v7.webp") },
-  { id: "events", label: "Events", img: require("@/assets/images/staarwardd/portal-community-v7.webp") },
+  { id: "events", label: "Community", img: require("@/assets/images/staarwardd/portal-community-v7.webp") },
   { id: "style", label: "Style", img: require("@/assets/images/staarwardd/portal-style-v7.webp") },
 ];
 const PORTAL_WINDOW = 8; // portals materialize over the final ~8s of the clip
@@ -185,6 +185,16 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
 
   return (
     <View style={s.root} testID="launch-root" accessibilityLabel="Guardian video entrance">
+      {/* Desktop theatre treatment: preserve the full portrait cinematic while a blurred Toronto poster fills the widescreen frame. */}
+      {isWeb && desktop && RNW.unstable_createElement("img", {
+        src: "/video/guardian-toronto-traverse-poster.jpg",
+        "aria-hidden": "true",
+        style: {
+          position: "absolute", inset: "-28px", width: "calc(100% + 56px)", height: "calc(100% + 56px)",
+          objectFit: "cover", filter: "blur(24px) brightness(0.32) saturate(1.18)", transform: "scale(1.04)",
+          opacity: 0.78, pointerEvents: "none",
+        },
+      })}
       {/* Single uninterrupted video backbone — never paused or swapped between beats */}
       <View style={[s.stage, stage]} testID="entrance-video-stage">
         {isWeb
