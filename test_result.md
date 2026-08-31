@@ -226,3 +226,15 @@ frontend:
       - working: true
         agent: "main"
         comment: "User reported: demo skips too fast, voice not the Guardian's, actions not demonstrated. Fixes: (1) replaced browser speechSynthesis (audio.speak) with real Onyx TTS via POST /api/guardian/speak-line (cap raised 200->480 chars); all 7 scene lines pre-warmed in tts_cache; (2) scenes now advance ONLY when the Onyx narration ends (+2s beat, 50s hard cap, duration fallback if fetch fails) — verified scene 1 holds ~22s vs 8s before; (3) GUARDIAN ACTIONS panel now executes live: QUEUED -> EXECUTING… -> DONE staggered animation per action, verified transitions; '● GUARDIAN SPEAKING' indicator tied to actual playback. Demo countdown start now parameterized; hub starts 240s for the ~3min speech-paced demo. Replay uses cycle counter to re-drive engine."
+
+  - task: "Codex immersive-guardian-demo branch merge (through c5cc9a5)"
+    implemented: true
+    working: true
+    file: "/app/frontend/components/staarwardd/judge-action-theatre.tsx, judge-demo.tsx, lib/staarwardd/demo-timer.tsx, cinematic-hub.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Applied ae51c41 (JudgeActionTheatre), 7484588 (judge-demo taken wholesale from branch: GUARDIAN_VOICE_LINES via speak-line Onyx + voiceDone&&visualDone gating), 8a29005 (DEMO_SECONDS 180), c5cc9a5 (InfoModal copy). Preserved local: onFinish/view-scorecard-btn, start(seconds) param (hub passes 180), auto-login. E2E: 7/7 scenes, theatre each scene, onyx indicator, gaps 10-13s, 3:01 badge, scorecard 6 receipts, timer cleared. Voice lines max 146 chars (within 480 cap), all pre-warmed."
