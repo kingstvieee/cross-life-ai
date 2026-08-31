@@ -4,9 +4,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { GuardianCharacter } from "@/components/staarwardd/guardian-character";
 import { JudgeActionTheatre } from "@/components/staarwardd/judge-action-theatre";
 import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
-import { fetchGuardianSpokenText, playGuardianLine } from "@/lib/staarwardd/guardian-tts";
+import { fetchGuardianLine, playGuardianLine, type GuardianLine } from "@/lib/staarwardd/guardian-tts";
 import { glow, textGlow } from "@/lib/staarwardd/shadow";
-import { useAuth } from "@/src/auth";
 
 type DemoStage = {
   kicker: string;
@@ -117,16 +116,6 @@ const STAGES: DemoStage[] = [
   },
 ];
 
-const GUARDIAN_VOICE_LINES = [
-  "Judges, four urgent problems just arrived. I am opening one safe crisis context, ranking the meeting risks, and locking every external send.",
-  "I reconciled the brief, dashboard, and notes. The audience metric is the critical conflict, so I am moving it and the missing owner to the front.",
-  "I am rebuilding the review now: decision first, corrected story, explicit owners, and a concise executive opening.",
-  "I carried the Work context into Style. Watch me trim the opening, simplify the crowded slide, and mark the pause before the recommendation.",
-  "I carried the same context into Relationships. I am mapping each objection and drafting neutral follow-ups. Nothing will be sent without approval.",
-  "New signal received. I am propagating the confirmed metric through Work, Style, and Relationships while keeping all sends locked.",
-  "The preparation is complete. Three portals now share one current context, every change is visible, and human approval remains intact.",
-];
-
 type Props = {
   open: boolean;
   memoryConsented: boolean;
@@ -137,13 +126,18 @@ type Props = {
 
 export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }: Props) {
   const audio = useStaarAudio();
-  const { token } = useAuth();
   const { stopAll } = audio;
   const [step, setStep] = useState(0);
+  const [demoStarted, setDemoStarted] = useState(false);
   const [visualDone, setVisualDone] = useState(false);
   const [voiceDone, setVoiceDone] = useState(false);
   const [voicePlaying, setVoicePlaying] = useState(false);
+  const [voiceLine, setVoiceLine] = useState<GuardianLine | null>(null);
+  const [voiceError, setVoiceError] = useState(false);
+  const [narrationText, setNarrationText] = useState("");
+  const [voiceRetry, setVoiceRetry] = useState(0);
   const spokenRef = useRef(-1);
+  const stopVoiceRef = useRef<() => void>(() => {});
   const recordedRef = useRef(new Set<number>());
   const scrollRef = useRef<ScrollView>(null);
   const stage = STAGES[step];
@@ -153,9 +147,10 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
   useEffect(() => {
     if (!open) return;
     setStep(0);
+    setDemoStarted(false);
     spokenRef.current = -1;
     recordedRef.current = new Set();
-    audio.update({ master: true, voice: true, ambience: true, music: true });
+    audio.update({ master: true, voice: true, ambience: false, music: false });
   }, [open]);
 
   useEffect(() => {
@@ -163,7 +158,12 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
     setVisualDone(false);
     setVoiceDone(false);
     setVoicePlaying(false);
-  }, [open, step]);
+    stopVoiceRef.current();
+    stopVoiceRef.current = () => {};
+    setVoiceLine(null);
+    setVoiceError(false);
+    setNarrationText(stage.guardian);
+  }, [open, stage.guardian, step]);
 
   useEffect(() => {
     if (!open || !visualDone || !voiceDone) return;
@@ -174,7 +174,7 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
       } else {
         setStep((value) => Math.min(value + 1, STAGES.length - 1));
       }
-    }, complete ? 5200 : 2600);
+    }, complete ? 6500 : 4500);
     return () => clearTimeout(timer);
   }, [complete, onFinish, open, stopAll, visualDone, voiceDone]);
 
@@ -185,50 +185,61 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
   }, [onStage, open, step]);
 
   useEffect(() => {
-    if (!open || spokenRef.current === step) return;
-    spokenRef.current = step;
+    if (!open) return;
     let cancelled = false;
-    let stopVoice = () => {};
-    const fallback = setTimeout(() => {
-      if (!cancelled) { setVoicePlaying(false); setVoiceDone(true); }
-    }, 26000);
-    const begin = setTimeout(() => {
-      void fetchGuardianSpokenText(GUARDIAN_VOICE_LINES[step], token).then((line) => {
+    const load = async () => {
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const line = await fetchGuardianLine(`/api/guardian/judge-demo/${step + 1}`);
         if (cancelled) return;
-        if (!line) { setVoiceDone(true); return; }
-        stopVoice = playGuardianLine(line.url, {
-          onStart: () => { if (!cancelled) setVoicePlaying(true); },
-          onEnd: () => { if (!cancelled) { setVoicePlaying(false); setVoiceDone(true); } },
-        });
-      });
-    }, 500);
-    return () => { cancelled = true; clearTimeout(begin); clearTimeout(fallback); stopVoice(); };
-  }, [open, step, token]);
+        if (line) { setVoiceLine(line); setNarrationText(line.text); setVoiceError(false); return; }
+        await new Promise((resolve) => setTimeout(resolve, 900 * (attempt + 1)));
+      }
+      if (!cancelled) setVoiceError(true);
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [open, step, voiceRetry]);
+
+  const playSceneVoice = useCallback((line: GuardianLine) => {
+    if (spokenRef.current === step) return;
+    spokenRef.current = step;
+    setVoiceError(false);
+    stopVoiceRef.current = playGuardianLine(line.url, {
+      onStart: () => setVoicePlaying(true),
+      onEnd: () => { setVoicePlaying(false); setVoiceDone(true); },
+    });
+  }, [step]);
 
   useEffect(() => {
-    if (!open || !audio.master || !audio.ambience || audio.activeAmbient === "hub") return;
-    audio.toggleAmbient("hub");
-  }, [audio.activeAmbient, audio.ambience, audio.master, open]);
+    if (!open || !demoStarted || !voiceLine || spokenRef.current === step) return;
+    playSceneVoice(voiceLine);
+  }, [demoStarted, open, playSceneVoice, step, voiceLine]);
+
+  const startDemo = () => {
+    if (!voiceLine) { if (voiceError) setVoiceRetry((value) => value + 1); return; }
+    setDemoStarted(true);
+    playSceneVoice(voiceLine);
+  };
 
   useEffect(() => {
     if (!open) return;
     scrollRef.current?.scrollTo({ y: 0, animated: false });
-    const detailTimer = setTimeout(() => scrollRef.current?.scrollTo({ y: 330, animated: true }), 3600);
-    const evidenceTimer = setTimeout(() => scrollRef.current?.scrollTo({ y: complete ? 820 : 660, animated: true }), 6500);
-    return () => { clearTimeout(detailTimer); clearTimeout(evidenceTimer); };
-  }, [complete, open, step]);
+  }, [open, step]);
 
   const close = () => {
+    stopVoiceRef.current();
     audio.stopAll();
     onClose();
   };
 
   const replay = () => {
+    stopVoiceRef.current();
     audio.stopAll();
     setStep(0);
     spokenRef.current = -1;
     recordedRef.current = new Set();
-    audio.update({ master: true, voice: true, ambience: true, music: true });
+    setDemoStarted(false);
+    audio.update({ master: true, voice: true, ambience: false, music: false });
   };
 
   return (
@@ -251,7 +262,29 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
         </View>
         <Text style={styles.autoLabel}>{complete ? "DEMO COMPLETE · REVIEW THE RECEIPT" : "SCENE ADVANCES AFTER VOICE + VISIBLE ACTIONS COMPLETE"}</Text>
 
-        <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {demoStarted && (
+          <View style={styles.narratorDock}>
+            <GuardianCharacter state={voicePlaying ? "speaking" : "listening"} mood="focused" portalMode="hub" size={76} />
+            <View style={styles.narratorCopy}>
+              <Text style={styles.narratorLabel}>{voicePlaying ? "GUARDIAN · NARRATING LIVE" : "GUARDIAN · HOLDING THE SCENE"}</Text>
+              <Text style={styles.narratorText} numberOfLines={3}>{narrationText}</Text>
+            </View>
+          </View>
+        )}
+
+        {!demoStarted && (
+          <View style={styles.demoGate}>
+            <GuardianCharacter state="speaking" mood="focused" portalMode="hub" size={132} />
+            <Text style={styles.gateKicker}>LIVE JUDGE EXPERIENCE</Text>
+            <Text style={styles.gateTitle}>The Guardian will guide the entire situation.</Text>
+            <Text style={styles.gateCopy}>He will announce every new signal, narrate each action while it happens, and hold every scene until both the voice and visible work are complete.</Text>
+            <Pressable disabled={!voiceLine && !voiceError} onPress={startDemo} style={[styles.gateButton, !voiceLine && !voiceError && styles.gateButtonLoading]}>
+              <Text style={styles.gateButtonText}>{voiceError ? "VOICE CONNECTION FAILED · RETRY" : voiceLine ? "BEGIN WITH GUARDIAN VOICE" : "PREPARING GUARDIAN VOICE…"}</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {demoStarted && <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.worldTrail}>
             {["Work", "Style", "Relationships"].map((world, index) => {
               const active = stage.worlds.includes(world);
@@ -393,7 +426,7 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
               </View>
             </View>
           )}
-        </ScrollView>
+        </ScrollView>}
       </LinearGradient>
     </Modal>
   );
@@ -410,6 +443,17 @@ const styles = StyleSheet.create({
   progress: { flex: 1, height: 3, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.12)" },
   progressActive: { backgroundColor: "#E8C86F", ...glow("#E8C86F", 8, 0.7) },
   autoLabel: { color: "#8FE6CF", fontSize: 8, letterSpacing: 1.4, fontWeight: "900", paddingHorizontal: 20, paddingTop: 9 },
+  narratorDock: { minHeight: 92, marginHorizontal: 16, marginTop: 9, paddingHorizontal: 12, borderRadius: 18, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: "rgba(232,200,111,0.38)", backgroundColor: "rgba(5,9,22,0.96)", ...glow("#E8C86F", 16, 0.2), zIndex: 10 },
+  narratorCopy: { flex: 1, paddingVertical: 10, paddingRight: 8 },
+  narratorLabel: { color: "#E8C86F", fontSize: 8, letterSpacing: 1.3, fontWeight: "900" },
+  narratorText: { color: "#F4F7FF", fontSize: 11, lineHeight: 16, fontWeight: "700", marginTop: 4 },
+  demoGate: { flex: 1, alignItems: "center", justifyContent: "center", padding: 28 },
+  gateKicker: { color: "#E8C86F", fontSize: 9, letterSpacing: 1.8, fontWeight: "900", marginTop: 8 },
+  gateTitle: { color: "#FFFFFF", fontSize: 25, lineHeight: 31, textAlign: "center", fontWeight: "900", marginTop: 8 },
+  gateCopy: { color: "#C8D3E8", maxWidth: 560, fontSize: 13, lineHeight: 20, textAlign: "center", marginTop: 9 },
+  gateButton: { minHeight: 52, marginTop: 22, paddingHorizontal: 22, borderRadius: 999, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#E8C86F", backgroundColor: "rgba(232,200,111,0.16)", ...glow("#E8C86F", 18, 0.35) },
+  gateButtonLoading: { opacity: 0.58 },
+  gateButtonText: { color: "#FFF0B8", fontSize: 10, letterSpacing: 1.1, fontWeight: "900" },
   urgencyBanner: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 14, padding: 12, marginBottom: 16, backgroundColor: "rgba(233,92,92,0.1)", borderWidth: 1, borderColor: "rgba(255,113,113,0.36)" },
   liveDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#FF6F6F", ...glow("#FF6F6F", 10, 0.8) },
   urgencyCopy: { flex: 1 },
