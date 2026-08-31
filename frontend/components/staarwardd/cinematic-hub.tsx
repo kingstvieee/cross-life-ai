@@ -173,7 +173,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
             </View>
           </View>
 
-          {prepared && <Pressable accessibilityRole="button" onPress={() => setMemoryOpen(true)} style={styles.memoryBrief}><Text style={styles.memoryKicker}>LOCAL MEMORY PREPARED</Text><Text style={styles.memoryBriefText}>{describeMemory(memory)}</Text><Text style={styles.memoryBriefNote}>Prepares STAARWARDD only · no home device is controlled</Text></Pressable>}
+          {prepared && <Pressable accessibilityRole="button" onPress={() => setMemoryOpen(true)} style={styles.memoryBrief}><Text style={styles.memoryKicker}>LOCAL MEMORY PREPARED</Text><Text style={styles.memoryBriefText}>{describeMemory(memory)}</Text><Text style={styles.memoryBriefNote}>Prepares STAARWAARDD only · no home device is controlled</Text></Pressable>}
           <View style={styles.routineBrief}>
             <View style={styles.routineHeader}><View><Text style={styles.routineKicker}>GUARDIAN ROUTINE</Text><Text style={styles.routineTitle}>{memory.consented ? routine.heading : "OPTIONAL PORTAL BRIEFING"}</Text></View><Text style={styles.routineCount}>7 WORLDS</Text></View>
             <Text style={styles.routinePrompt}>{memory.consented ? routine.prompt : "Enable local memory to tailor the Guardian’s questions to your routine."}</Text>
@@ -184,7 +184,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
           </View>
           <View style={styles.legend}><Text style={styles.legendTitle}>{fieldAwake ? "A world is ready when you are." : "Begin by awakening the field."}</Text></View>
           <Pressable accessibilityRole="button" onPress={() => setCompanionOpen(true)} style={styles.companion}><View style={styles.pedestal}><Text style={styles.pedestalMark}>◇</Text></View><View style={styles.companionCopy}><Text style={styles.companionKicker}>COMPANION FIELD</Text><Text style={styles.companionTitle}>Awaiting approved companion assets.</Text><Text style={styles.companionDetail}>No Kaia, Atlas, watch, or hardware connection is claimed in this build.</Text></View><Text style={styles.chevron}>›</Text></Pressable>
-          <Text style={styles.note}>JUDGE PATH · Entrance → Live Crisis → Work → Style → Connect → Scorecard</Text>
+          <Text style={styles.note}>JUDGE PATH · Entrance → Live Crisis → Work → Style → Relationships → Scorecard</Text>
         </ScrollView>
       </SafeAreaView>
       <AudioControls open={audioOpen} onClose={() => setAudioOpen(false)} />
@@ -205,8 +205,8 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
             { portalId: "work", action: "Triage the urgent product review and rank the three meeting blockers", trigger: "Four time-sensitive risks arrived together" },
             { portalId: "work", action: "Build the decision-first meeting recovery plan and owner map", trigger: "Guardian continued safe preparation without another command" },
             { portalId: "style", action: "Prepare the urgent product presentation dress rehearsal", trigger: "Work risks automatically crossed into Style" },
-            { portalId: "relationships", action: "Analyze stakeholder conflict and prepare unsent team responses", trigger: "Meeting context automatically crossed into Connect" },
-            { portalId: "work", action: "Re-synchronize Work, Style, and Connect after the metric and timing changed", trigger: "A new urgent signal changed all three worlds" },
+            { portalId: "relationships", action: "Analyze stakeholder conflict and prepare unsent team responses", trigger: "Meeting context automatically crossed into Relationships" },
+            { portalId: "work", action: "Re-synchronize Work, Style, and Relationships after the metric and timing changed", trigger: "A new urgent signal changed all three worlds" },
             { portalId: "work", action: "Review the fully integrated crisis preparation and approval boundaries", trigger: "Judge crisis demonstration completed" },
           ];
           const scene = scenes[stage];
@@ -252,7 +252,7 @@ function Gateway({ portal, index, awake, onPress }: { portal: (typeof PORTALS)[n
   const scale = form.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1] });
   const chargeScale = charge.interpolate({ inputRange: [0, 1], outputRange: [1, 1.17] });
   const chargeOpacity = charge.interpolate({ inputRange: [0, 1], outputRange: [0, 0.65] });
-  return <Animated.View style={[styles.gatewayWrap, pos, { opacity: form, transform: [{ translateY: rise }, { scale }, { scale: chargeScale }] }]}><Pressable accessibilityRole="button" accessibilityLabel={`Enter ${portal.name}`} onPress={onPress} style={({ pressed }) => [styles.gateway, { borderColor: portal.color, ...glow(portal.color, awake ? 22 : 14, awake ? 0.95 : 0.72) }, awake && styles.gatewayAwake, pressed && styles.gatewayPressed]}><Image source={portal.image} resizeMode="cover" style={styles.gatewayImage} /><View style={[styles.gatewayTint, { backgroundColor: portal.color }]} /><Animated.View style={[styles.gatewayCharge, { opacity: chargeOpacity, borderColor: portal.color }]} /><View style={styles.gatewayShade} /><Text style={[styles.gatewayGlyph, { color: portal.accent }]}>{portal.glyph}</Text><Text style={styles.gatewayName}>{portal.name === "Relationships" ? "Connect" : portal.name}</Text></Pressable></Animated.View>;
+  return <Animated.View style={[styles.gatewayWrap, pos, { opacity: form, transform: [{ translateY: rise }, { scale }, { scale: chargeScale }] }]}><Pressable accessibilityRole="button" accessibilityLabel={`Enter ${portal.name}`} onPress={onPress} style={({ pressed }) => [styles.gateway, { borderColor: portal.color, ...glow(portal.color, awake ? 22 : 14, awake ? 0.95 : 0.72) }, awake && styles.gatewayAwake, pressed && styles.gatewayPressed]}><Image source={portal.image} resizeMode="cover" style={styles.gatewayImage} /><View style={[styles.gatewayTint, { backgroundColor: portal.color }]} /><Animated.View style={[styles.gatewayCharge, { opacity: chargeOpacity, borderColor: portal.color }]} /><View style={styles.gatewayShade} /><Text style={[styles.gatewayGlyph, { color: portal.accent }]}>{portal.glyph}</Text><Text style={styles.gatewayName}>{portal.name}</Text></Pressable></Animated.View>;
 }
 
 function gatewayPosition(index: number) { const angle = (index / 7) * Math.PI * 2 - Math.PI / 2; return { left: `${50 + Math.cos(angle) * 38}%` as `${number}%`, top: `${50 + Math.sin(angle) * 38}%` as `${number}%` }; }
@@ -262,7 +262,7 @@ function InfoModal({ open, onClose, onStart }: { open: boolean; onClose: () => v
 4 · Open Activity and Memory to inspect the consent-first audit trail.
 
 The preview is local and honest: no hardware or external action is claimed.</Text><Pressable accessibilityRole="button" accessibilityLabel="Start judge demo with Work" onPress={onStart} style={styles.modalButton}><Text style={styles.modalButtonText}>START WITH WORK →</Text></Pressable><Pressable accessibilityRole="button" onPress={onClose} style={styles.modalSecondary}><Text style={styles.modalSecondaryText}>CLOSE</Text></Pressable></View></View></Modal>; }
-function CompanionModal({ open, onClose }: { open: boolean; onClose: () => void }) { return <Modal transparent visible={open} animationType="slide" onRequestClose={onClose}><View style={styles.back}><View style={styles.modal}><Text style={styles.modalKicker}>COMPANION FIELD</Text><Text style={styles.modalTitle}>Approved companion visuals required.</Text><Text style={styles.modalCopy}>Kaia, Atlas, and STAARWARDD watch visual files are not available in this project. This field remains intentionally unavailable until approved assets and the entitlement-backed device protocol are supplied.</Text><Pressable accessibilityRole="button" onPress={onClose} style={styles.modalButton}><Text style={styles.modalButtonText}>CLOSE</Text></Pressable></View></View></Modal>; }
+function CompanionModal({ open, onClose }: { open: boolean; onClose: () => void }) { return <Modal transparent visible={open} animationType="slide" onRequestClose={onClose}><View style={styles.back}><View style={styles.modal}><Text style={styles.modalKicker}>COMPANION FIELD</Text><Text style={styles.modalTitle}>Approved companion visuals required.</Text><Text style={styles.modalCopy}>Kaia, Atlas, and STAARWAARDD watch visual files are not available in this project. This field remains intentionally unavailable until approved assets and the entitlement-backed device protocol are supplied.</Text><Pressable accessibilityRole="button" onPress={onClose} style={styles.modalButton}><Text style={styles.modalButtonText}>CLOSE</Text></Pressable></View></View></Modal>; }
 
 const styles = StyleSheet.create({
   subtitleWrap: { position: "absolute", left: 16, right: 16, bottom: 26, alignItems: "center", pointerEvents: "none" },
