@@ -1,6 +1,28 @@
-import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Platform, StyleSheet, Text, View } from "react-native";
+import { createAudioPlayer, type AudioPlayer } from "expo-audio";
+import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
 import { glow } from "@/lib/staarwardd/shadow";
+
+// Soft success chime played as each theatre node completes.
+let webChime: HTMLAudioElement | null = null;
+let nativeChime: AudioPlayer | null = null;
+function playChime(volume: number) {
+  try {
+    if (Platform.OS === "web") {
+      if (typeof window === "undefined") return;
+      if (!webChime) webChime = new window.Audio("/audio/node-chime.mp3");
+      webChime.volume = volume;
+      webChime.currentTime = 0;
+      void webChime.play().catch(() => {});
+    } else {
+      if (!nativeChime) nativeChime = createAudioPlayer(require("@/assets/audio/node-chime.mp3"));
+      nativeChime.volume = volume;
+      nativeChime.seekTo(0);
+      nativeChime.play();
+    }
+  } catch { /* chime is optional */ }
+}
 
 const PREVIEWS = [
   { label: "CRISIS QUEUE", before: "4 signals arriving", after: "1 shared priority map", nodes: ["CALENDAR", "METRICS", "DECK", "TEAM"] },
@@ -16,11 +38,17 @@ type Props = { step: number; actions: string[]; onComplete: () => void };
 
 export function JudgeActionTheatre({ step, actions, onComplete }: Props) {
   const [active, setActive] = useState(0);
+  const audio = useStaarAudio();
+  const masterRef = useRef(audio.master);
+  masterRef.current = audio.master;
   const preview = PREVIEWS[step] ?? PREVIEWS[0];
 
   useEffect(() => {
     setActive(0);
-    const timers = actions.map((_, index) => setTimeout(() => setActive(index + 1), 900 + index * 1850));
+    const timers = actions.map((_, index) => setTimeout(() => {
+      setActive(index + 1);
+      if (masterRef.current) playChime(0.22);
+    }, 900 + index * 1850));
     const done = setTimeout(onComplete, 1500 + actions.length * 1850);
     return () => { timers.forEach(clearTimeout); clearTimeout(done); };
   }, [actions, onComplete, step]);
