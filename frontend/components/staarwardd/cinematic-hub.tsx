@@ -145,7 +145,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
               <Pressable accessibilityRole="button" accessibilityLabel="Open preference memory" onPress={() => setMemoryOpen(true)} style={styles.round}><Text style={styles.roundText}>◈</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Open audio controls" onPress={() => setAudioOpen(true)} style={styles.round}><Text style={styles.roundText}>{audio.master ? "♫" : "◌"}</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Open Guardian activity history" onPress={() => setActivityOpen(true)} style={styles.round}><Text style={styles.roundText}>≡</Text></Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel="Start automatic cross-life crisis judge demo" onPress={() => { startDemoTimer(240); setAboutOpen(true); }} style={styles.judgeButton}><Text style={styles.judgeButtonText}>RUN LIVE CRISIS DEMO · AUTO</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Start automatic cross-life crisis judge demo" onPress={() => { startDemoTimer(180); setAboutOpen(true); }} style={styles.judgeButton}><Text style={styles.judgeButtonText}>RUN LIVE CRISIS DEMO · AUTO</Text></Pressable>
               <JudgeReset />
             </View>
           </View>
