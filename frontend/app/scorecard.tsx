@@ -99,7 +99,7 @@ export default function ScorecardScreen() {
   return (
     <SafeAreaView style={s.root} edges={["top", "bottom"]}>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={s.kicker}>STAARWARDD · JUDGE SCORECARD</Text>
+        <Text style={s.kicker}>STAARWAARDD · JUDGE SCORECARD</Text>
         <Text style={s.title} testID="scorecard-title">What the Guardian handled</Text>
         <Text style={s.subtitle}>A closing summary of everything coordinated during this demo.</Text>
 
@@ -121,7 +121,7 @@ export default function ScorecardScreen() {
         <Text style={s.sectionTitle}>COORDINATION RECEIPTS</Text>
         {receipts.length === 0 ? (
           <View style={s.emptyCard}>
-            <Text style={s.emptyText}>The Guardian stood ready. Run the live crisis demo to see Work → Style → Connect coordination captured here.</Text>
+            <Text style={s.emptyText}>The Guardian stood ready. Run the live crisis demo to see Work → Style → Relationships coordination captured here.</Text>
           </View>
         ) : (
           receipts.map((r) => (
