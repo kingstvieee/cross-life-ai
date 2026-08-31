@@ -57,10 +57,10 @@ const RNW = isWeb ? require("react-native-web") : null;
 export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelectPortal?: (id: PortalId) => void }) {
   const { width: SW } = useWindowDimensions();
   const audio = useStaarAudio();
-  // The video ALWAYS starts muted so browser autoplay is never blocked —
-  // even if the saved global sound setting is ON. Only an explicit tap on
-  // ENABLE SOUND unmutes it (continuing the same timeline, never restarting).
-  const [soundEnabled, setSoundEnabled] = useState(false);
+  // Browsers do not permit audible autoplay. Hold the cinematic on frame zero
+  // until one intentional entrance tap, then begin with its soundtrack on.
+  const [started, setStarted] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [reduced, setReduced] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [portalCount, setPortalCount] = useState(0);
@@ -68,7 +68,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
   const videoRef = useRef<any>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const nativePlayer = useVideoPlayer(isWeb ? null : NATIVE_SRC, (p) => { p.loop = false; p.muted = true; });
+  const nativePlayer = useVideoPlayer(isWeb ? null : NATIVE_SRC, (p) => { p.loop = false; p.muted = false; });
 
   const finish = () => {
     if (done.current) return;
@@ -92,14 +92,16 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
       v.setAttribute("playsinline", "true");
       v.setAttribute("preload", "auto");
       v.setAttribute("poster", "/video/guardian-toronto-traverse-poster.jpg");
-      v.setAttribute("muted", "true");
-      // Force muted before the first play() — muted autoplay is always allowed.
-      v.muted = true;
-      v.defaultMuted = true;
-      v.autoplay = true;
+      v.autoplay = false;
+      v.muted = !started || !soundEnabled;
+      v.defaultMuted = !started;
+      v.volume = 0.65;
       const onEnd = () => finish();
       v.addEventListener("ended", onEnd);
-      const tryPlay = () => { try { const p = v.play?.(); p?.catch?.(() => {}); } catch {} };
+      const tryPlay = () => {
+        if (!started) return;
+        try { const p = v.play?.(); p?.catch?.(() => {}); } catch {}
+      };
       // Decode failure (unsupported codec) — swap to the webm encoding once.
       const onErr = () => {
         try {
@@ -121,7 +123,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
         v.removeEventListener("canplay", tryPlay);
       };
     } catch {}
-  }, [reduced]);
+  }, [reduced, soundEnabled, started]);
 
   // Reduced motion: hold the first frame briefly, then enter the hub calmly.
   useEffect(() => {
@@ -132,7 +134,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
 
   // Poll playback: drive portal overlays off real currentTime and finish on end.
   useEffect(() => {
-    if (reduced) return;
+    if (reduced || !started) return;
     const iv = setInterval(() => {
       let t = 0; let d = 0; let isPlaying = false;
       try {
@@ -141,7 +143,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
           if (!v) return;
           t = v.currentTime || 0; d = v.duration || 0; isPlaying = !v.paused && !v.ended;
           if (v.ended) { clearInterval(iv); finish(); return; }
-          // Self-heal: if playback stalled (paused, not ended), retry a muted play.
+          // Self-heal only after the user has entered with sound.
           if (v.paused && !v.ended && !done.current) {
             try { const p = v.play?.(); p?.catch?.(() => {}); } catch {}
           }
@@ -161,7 +163,33 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
     timers.current.push(setTimeout(finish, 45000));
     if (!isWeb) { try { nativePlayer.play(); } catch {} }
     return () => clearInterval(iv);
-  }, [reduced]);
+  }, [reduced, started]);
+
+  const startWithSound = () => {
+    setStarted(true);
+    setSoundEnabled(true);
+    audio.update({ master: true, music: true, ambience: true });
+    try {
+      if (isWeb && videoRef.current) {
+        const v = videoRef.current;
+        v.currentTime = 0;
+        v.muted = false;
+        v.defaultMuted = false;
+        v.volume = 0.65;
+        const p = v.play?.();
+        p?.catch?.(() => {
+          // Keep the first frame visible if the browser still refuses audio;
+          // the same entrance control remains available for another tap.
+          setStarted(false);
+          try { v.pause?.(); v.currentTime = 0; } catch {}
+        });
+      } else {
+        nativePlayer.currentTime = 0;
+        nativePlayer.muted = false;
+        nativePlayer.play();
+      }
+    } catch { setStarted(false); }
+  };
 
   // Explicit user tap — the only thing that unmutes. Continues the same
   // timeline (never restarts); toggling back re-mutes without pausing.
@@ -201,8 +229,8 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
           ? RNW.unstable_createElement("video", {
               ref: videoRef,
               // src is wired imperatively (codec-aware mp4/webm pick) — see effect above.
-              autoPlay: !reduced,
-              muted: !soundEnabled,
+              autoPlay: false,
+              muted: !started || !soundEnabled,
               playsInline: true,
               preload: "auto",
               poster: "/video/guardian-toronto-traverse-poster.jpg",
@@ -214,6 +242,17 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
             })
           : <VideoView player={nativePlayer} style={StyleSheet.absoluteFill} contentFit={desktop ? "contain" : "cover"} nativeControls={false} />}
       </View>
+
+      {!started && !reduced && (
+        <View style={s.entranceGate}>
+          <Text style={s.gateKicker}>STAARWAARDD · TORONTO</Text>
+          <Text style={s.gateTitle}>The Guardian is ready.</Text>
+          <Text style={s.gateNote}>Your cinematic will begin from the first frame with sound.</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Enter STAARWAARDD with sound" onPress={startWithSound} style={s.enterBtn} testID="enter-with-sound-btn">
+            <Text style={s.enterText}>ENTER STAARWAARDD · SOUND ON</Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* Final section: seven canonical gateways materialize one by one OVER the moving video */}
       {portalCount > 0 && (
@@ -240,14 +279,14 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
       )}
 
       {/* Controls */}
-      <View style={s.controls}>
+      {started && <View style={s.controls}>
         <Pressable accessibilityRole="button" accessibilityLabel={soundEnabled ? "Disable sound" : "Enable sound"} onPress={enableSound} style={s.soundBtn} testID="enable-sound-btn">
           <Text style={s.soundText}>{soundEnabled ? "SOUND ON" : "ENABLE SOUND"}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Skip cinematic" onPress={skip} style={s.skipBtn} testID="skip-cinematic-btn">
           <Text style={s.skipText}>SKIP CINEMATIC</Text>
         </Pressable>
-      </View>
+      </View>}
     </View>
   );
 }
@@ -281,6 +320,12 @@ const s = StyleSheet.create({
   portalLabel: { color: "#F4F7FF", fontSize: 9, fontWeight: "800", letterSpacing: 0.5, marginTop: 3 },
   counter: { position: "absolute", bottom: 64, alignSelf: "center", color: "#E8C86F", fontSize: 11, letterSpacing: 2, fontWeight: "800" },
   controls: { position: "absolute", top: 54, left: 16, right: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  entranceGate: { ...StyleSheet.absoluteFillObject, zIndex: 20, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "rgba(1,4,12,0.58)" },
+  gateKicker: { color: "#E8C86F", fontSize: 10, letterSpacing: 2.2, fontWeight: "900" },
+  gateTitle: { color: "#FFFFFF", fontSize: 28, lineHeight: 34, textAlign: "center", fontWeight: "900", marginTop: 9 },
+  gateNote: { color: "#D8E3F5", fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 7 },
+  enterBtn: { minHeight: 52, marginTop: 20, paddingHorizontal: 22, borderRadius: 999, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#F2D980", backgroundColor: "rgba(232,200,111,0.18)", ...glow("#E8C86F", 22, 0.55) },
+  enterText: { color: "#FFF2B8", fontSize: 11, letterSpacing: 1.25, fontWeight: "900" },
   soundBtn: { borderWidth: 1, borderColor: "rgba(232,200,111,0.6)", borderRadius: 12, paddingHorizontal: 14, minHeight: 44, justifyContent: "center", backgroundColor: "rgba(4,7,16,0.5)" },
   soundText: { color: "#E8C86F", fontSize: 10, letterSpacing: 1.2, fontWeight: "800" },
   skipBtn: { minHeight: 44, justifyContent: "center", paddingHorizontal: 8, backgroundColor: "rgba(4,7,16,0.4)", borderRadius: 12 },
