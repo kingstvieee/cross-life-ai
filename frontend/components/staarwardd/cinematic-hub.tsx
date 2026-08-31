@@ -256,7 +256,7 @@ function Gateway({ portal, index, awake, onPress }: { portal: (typeof PORTALS)[n
 }
 
 function gatewayPosition(index: number) { const angle = (index / 7) * Math.PI * 2 - Math.PI / 2; return { left: `${50 + Math.cos(angle) * 38}%` as `${number}%`, top: `${50 + Math.sin(angle) * 38}%` as `${number}%` }; }
-function InfoModal({ open, onClose, onStart }: { open: boolean; onClose: () => void; onStart: () => void }) { return <Modal transparent visible={open} animationType="fade" onRequestClose={onClose}><View style={styles.back}><View style={styles.modal}><Text style={styles.modalKicker}>JUDGE PREVIEW · 90 SECONDS</Text><Text style={styles.modalTitle}>See the product, not just the cinematic.</Text><Text style={styles.modalCopy}>1 · Watch the Guardian open the seven worlds.
+function InfoModal({ open, onClose, onStart }: { open: boolean; onClose: () => void; onStart: () => void }) { return <Modal transparent visible={open} animationType="fade" onRequestClose={onClose}><View style={styles.back}><View style={styles.modal}><Text style={styles.modalKicker}>JUDGE PREVIEW · IMMERSIVE MODE</Text><Text style={styles.modalTitle}>See the product act, not just describe itself.</Text><Text style={styles.modalCopy}>1 · Watch the Guardian open the seven worlds.
 2 · Enter Work and prepare a focused next-step plan.
 3 · Return to the Hub and open a second world to see the same context model adapt.
 4 · Open Activity and Memory to inspect the consent-first audit trail.
