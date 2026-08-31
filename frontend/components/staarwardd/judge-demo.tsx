@@ -75,8 +75,8 @@ const STAGES: DemoStage[] = [
   {
     kicker: "5 · CONNECT PREPARES THE HUMAN ROOM",
     title: "The Guardian anticipates conflict before the meeting.",
-    worlds: ["Work", "Style", "Connect"],
-    guardian: "I also carried the same context into Connect. Product needs a decision, Sales will challenge the corrected audience number, and Engineering will protect the rollout date. I prepared neutral language, owner handoffs, and separate follow-up drafts. Nothing has been sent.",
+    worlds: ["Work", "Style", "Relationships"],
+    guardian: "I also carried the same context into Relationships. Product needs a decision, Sales will challenge the corrected audience number, and Engineering will protect the rollout date. I prepared neutral language, owner handoffs, and separate follow-up drafts. Nothing has been sent.",
     prediction: "TEAM PREDICTION · Sales + Engineering tension → acknowledge both risks, then return the room to the decision",
     receipt: "Team dynamics analyzed · responses prepared · sends held",
     urgency: "T–17 MIN · TEAM STRATEGY READY",
@@ -88,9 +88,9 @@ const STAGES: DemoStage[] = [
   {
     kicker: "6 · A NEW DISRUPTION HITS",
     title: "The Guardian replans across all three worlds in real time.",
-    worlds: ["Work", "Style", "Connect"],
+    worlds: ["Work", "Style", "Relationships"],
     guardian: "New signal: the executive joined early and Sales confirmed 11,400, not 18,000. I updated the recommendation, shortened the rehearsal, rebuilt the first objection response, and re-drafted the owner handoffs. I handled every reversible change immediately and kept the sends locked for you.",
-    prediction: "REAL-TIME CROSSOVER · New metric changed the Work story, the Style rehearsal, and the Connect response at once",
+    prediction: "REAL-TIME CROSSOVER · New metric changed the Work story, the Style rehearsal, and the Relationships response at once",
     receipt: "Plan re-synced across 3 worlds · user informed · external actions: 0",
     urgency: "T–09 MIN · EXECUTIVE JOINED EARLY",
     signals: ["Audience confirmed at 11,400", "Executive entered nine minutes early", "Original objection response is now outdated"],
@@ -101,9 +101,9 @@ const STAGES: DemoStage[] = [
   {
     kicker: "7 · ONE CROSS-LIFE OUTCOME",
     title: "The crisis is handled, explained, and auditable.",
-    worlds: ["Work", "Style", "Connect"],
+    worlds: ["Work", "Style", "Relationships"],
     user: "What did you handle while I focused on the rehearsal?",
-    guardian: "Work now holds the corrected product story, decisions, owners, and agenda. Style holds the clear slide and rehearsed delivery. Connect holds the stakeholder strategy and unsent follow-ups. One Guardian carried the context, adapted when the facts changed, and informed you at every step.",
+    guardian: "Work now holds the corrected product story, decisions, owners, and agenda. Style holds the clear slide and rehearsed delivery. Relationships holds the stakeholder strategy and unsent follow-ups. One Guardian carried the context, adapted when the facts changed, and informed you at every step.",
     prediction: "WHY IT MATTERS · One context layer replaced five disconnected handoffs and prevented stale information from reaching the room",
     receipt: "Crisis prepared · 3 worlds synchronized · approvals preserved · external actions: 0",
     urgency: "READY · COMPLETE PREPARATION IN UNDER 90 SECONDS",
@@ -199,7 +199,7 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
       <LinearGradient colors={["#02040D", "#0B1432", "#1B1030"]} style={styles.root}>
         <View style={styles.topbar}>
           <View>
-            <Text style={styles.eyebrow}>STAARWARDD · JUDGE EXPERIENCE</Text>
+            <Text style={styles.eyebrow}>STAARWAARDD · JUDGE EXPERIENCE</Text>
             <Text style={styles.brand}>CROSS-LIFE AI</Text>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel="Close judge demo" onPress={close} style={styles.close}>
@@ -216,7 +216,7 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
 
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.worldTrail}>
-            {["Work", "Style", "Connect"].map((world, index) => {
+            {["Work", "Style", "Relationships"].map((world, index) => {
               const active = stage.worlds.includes(world);
               return (
                 <View key={world} style={styles.worldItem}>
