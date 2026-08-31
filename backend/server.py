@@ -792,6 +792,16 @@ async def guardian_speak(body: SpeakIn, authorization: Optional[str] = Header(No
 
 GREETING_TEXT = "Welcome. I am your Guardian. Seven worlds, one presence. Let us begin."
 
+JUDGE_DEMO_LINES = {
+    1: "Judges, the situation has just changed. The executive product review moved forward by forty-two minutes. The launch numbers conflict, the recommendation is buried, and Product and Engineering disagree on rollout. I have opened one shared crisis context, locked every external send, and I am ranking the meeting risks now.",
+    2: "I have compared the product brief, dashboard snapshot, and team notes. The deck says eighteen thousand people, but the verified dashboard says eleven thousand four hundred. That contradiction would trigger the first executive objection. I am correcting the working story, surfacing the missing rollout owner, and moving the decision to the front.",
+    3: "Now I am rebuilding the thirty-minute review. Watch the recommendation move to the opening, followed by the corrected product story, three decisions, named owners, and a five-minute close. I am also preparing the exact questions needed to settle the metric and rollout conflict. These are reversible working changes, not external actions.",
+    4: "The same Work context is now crossing into Style because the presentation itself is a meeting risk. The opening runs twenty-eight seconds too long and the metric slide has three competing headlines. I am trimming the opening to forty-five seconds, simplifying the slide into three clear beats, and marking the pause before the recommendation.",
+    5: "I am carrying the current facts into Relationships. Product needs a decision, Sales trusted the old audience estimate, and Engineering is protecting the rollout date. Watch me map the likely objection from each person, prepare neutral decision language, and draft separate owner follow-ups. The drafts remain locked. Nothing has been sent.",
+    6: "A new signal just arrived. The executive joined early, and Sales confirmed eleven thousand four hundred, not eighteen thousand. I am updating the Work recommendation, shortening the Style rehearsal, and rewriting the Relationships response with the confirmed number. One change is propagating through all three portals while every external send stays locked.",
+    7: "The live preparation is complete. Work now holds the corrected story, decisions, owners, and agenda. Style holds the clearer slide and rehearsed delivery. Relationships holds the stakeholder strategy and unsent follow-ups. I carried one current context across all three portals, adapted when the facts changed, explained every action, and preserved human approval.",
+}
+
 PORTAL_INTROS = {
     "creativity": "The Creativity world. Let's give your ideas room to move.",
     "work": "The Work world. One clear step at a time.",
@@ -906,6 +916,16 @@ async def guardian_greeting(request: Request):
     """Short spoken hub welcome in the Guardian's Onyx voice (cached)."""
     rate_limit(f"ttsline:{client_ip(request)}", 30, 60)
     return await _tts_cached_line(GREETING_TEXT)
+
+
+@api_router.get("/guardian/judge-demo/{scene}")
+async def guardian_judge_demo(scene: int, request: Request):
+    """Public, cached Onyx narration for the judge demo; no login race."""
+    rate_limit(f"judge-tts:{client_ip(request)}", 30, 60)
+    text = JUDGE_DEMO_LINES.get(scene)
+    if not text:
+        raise HTTPException(status_code=404, detail="unknown_demo_scene")
+    return await _tts_cached_line(text)
 
 
 @api_router.get("/guardian/portal-intro/{portal_id}")
