@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { GuardianCharacter } from "@/components/staarwardd/guardian-character";
+import { JudgeActionTheatre } from "@/components/staarwardd/judge-action-theatre";
 import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
 import { fetchGuardianSpokenText, playGuardianLine } from "@/lib/staarwardd/guardian-tts";
-import { useAuth } from "@/src/auth";
 import { glow, textGlow } from "@/lib/staarwardd/shadow";
+import { useAuth } from "@/src/auth";
 
 type DemoStage = {
   kicker: string;
@@ -77,8 +78,8 @@ const STAGES: DemoStage[] = [
   {
     kicker: "5 · CONNECT PREPARES THE HUMAN ROOM",
     title: "The Guardian anticipates conflict before the meeting.",
-    worlds: ["Work", "Style", "Connect"],
-    guardian: "I also carried the same context into Connect. Product needs a decision, Sales will challenge the corrected audience number, and Engineering will protect the rollout date. I prepared neutral language, owner handoffs, and separate follow-up drafts. Nothing has been sent.",
+    worlds: ["Work", "Style", "Relationships"],
+    guardian: "I also carried the same context into Relationships. Product needs a decision, Sales will challenge the corrected audience number, and Engineering will protect the rollout date. I prepared neutral language, owner handoffs, and separate follow-up drafts. Nothing has been sent.",
     prediction: "TEAM PREDICTION · Sales + Engineering tension → acknowledge both risks, then return the room to the decision",
     receipt: "Team dynamics analyzed · responses prepared · sends held",
     urgency: "T–17 MIN · TEAM STRATEGY READY",
@@ -90,9 +91,9 @@ const STAGES: DemoStage[] = [
   {
     kicker: "6 · A NEW DISRUPTION HITS",
     title: "The Guardian replans across all three worlds in real time.",
-    worlds: ["Work", "Style", "Connect"],
+    worlds: ["Work", "Style", "Relationships"],
     guardian: "New signal: the executive joined early and Sales confirmed 11,400, not 18,000. I updated the recommendation, shortened the rehearsal, rebuilt the first objection response, and re-drafted the owner handoffs. I handled every reversible change immediately and kept the sends locked for you.",
-    prediction: "REAL-TIME CROSSOVER · New metric changed the Work story, the Style rehearsal, and the Connect response at once",
+    prediction: "REAL-TIME CROSSOVER · New metric changed the Work story, the Style rehearsal, and the Relationships response at once",
     receipt: "Plan re-synced across 3 worlds · user informed · external actions: 0",
     urgency: "T–09 MIN · EXECUTIVE JOINED EARLY",
     signals: ["Audience confirmed at 11,400", "Executive entered nine minutes early", "Original objection response is now outdated"],
@@ -103,17 +104,27 @@ const STAGES: DemoStage[] = [
   {
     kicker: "7 · ONE CROSS-LIFE OUTCOME",
     title: "The crisis is handled, explained, and auditable.",
-    worlds: ["Work", "Style", "Connect"],
+    worlds: ["Work", "Style", "Relationships"],
     user: "What did you handle while I focused on the rehearsal?",
-    guardian: "Work now holds the corrected product story, decisions, owners, and agenda. Style holds the clear slide and rehearsed delivery. Connect holds the stakeholder strategy and unsent follow-ups. One Guardian carried the context, adapted when the facts changed, and informed you at every step.",
+    guardian: "Work now holds the corrected product story, decisions, owners, and agenda. Style holds the clear slide and rehearsed delivery. Relationships holds the stakeholder strategy and unsent follow-ups. One Guardian carried the context, adapted when the facts changed, and informed you at every step.",
     prediction: "WHY IT MATTERS · One context layer replaced five disconnected handoffs and prevented stale information from reaching the room",
     receipt: "Crisis prepared · 3 worlds synchronized · approvals preserved · external actions: 0",
-    urgency: "READY · COMPLETE PREPARATION IN UNDER 90 SECONDS",
+    urgency: "READY · COMPLETE, VISIBLE CROSS-LIFE PREPARATION",
     signals: ["4 urgent risks resolved or contained", "3 worlds synchronized", "5 integration handoffs visible", "0 unapproved external actions"],
     proactive: ["Prepared the work", "Rehearsed the delivery", "Anticipated the people", "Adapted to the new signal"],
     systems: [{ name: "Calendar", status: "ready" }, { name: "Docs + Slides", status: "ready" }, { name: "Project + Tasks", status: "ready" }, { name: "Messages", status: "approval pending" }],
     duration: 14000,
   },
+];
+
+const GUARDIAN_VOICE_LINES = [
+  "Judges, four urgent problems just arrived. I am opening one safe crisis context, ranking the meeting risks, and locking every external send.",
+  "I reconciled the brief, dashboard, and notes. The audience metric is the critical conflict, so I am moving it and the missing owner to the front.",
+  "I am rebuilding the review now: decision first, corrected story, explicit owners, and a concise executive opening.",
+  "I carried the Work context into Style. Watch me trim the opening, simplify the crowded slide, and mark the pause before the recommendation.",
+  "I carried the same context into Relationships. I am mapping each objection and drafting neutral follow-ups. Nothing will be sent without approval.",
+  "New signal received. I am propagating the confirmed metric through Work, Style, and Relationships while keeping all sends locked.",
+  "The preparation is complete. Three portals now share one current context, every change is visible, and human approval remains intact.",
 ];
 
 type Props = {
@@ -126,79 +137,73 @@ type Props = {
 
 export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }: Props) {
   const audio = useStaarAudio();
-  const { stopAll } = audio;
   const { token } = useAuth();
+  const { stopAll } = audio;
   const [step, setStep] = useState(0);
-  const [cycle, setCycle] = useState(0);
-  const [speaking, setSpeaking] = useState(false);
-  const [actionPhase, setActionPhase] = useState<number[]>([]);
+  const [visualDone, setVisualDone] = useState(false);
+  const [voiceDone, setVoiceDone] = useState(false);
+  const [voicePlaying, setVoicePlaying] = useState(false);
+  const spokenRef = useRef(-1);
   const recordedRef = useRef(new Set<number>());
   const scrollRef = useRef<ScrollView>(null);
   const stage = STAGES[step];
   const complete = step === STAGES.length - 1;
+  const markVisualComplete = useCallback(() => setVisualDone(true), []);
 
   useEffect(() => {
     if (!open) return;
     setStep(0);
+    spokenRef.current = -1;
     recordedRef.current = new Set();
     audio.update({ master: true, voice: true, ambience: true, music: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Scene engine: the Guardian narrates each scene in his real Onyx voice and
-  // the demo only advances AFTER the narration finishes (plus a short beat) —
-  // never mid-sentence. Fixed durations remain only as silent-mode fallbacks.
   useEffect(() => {
     if (!open) return;
-    let cancelled = false;
-    let advanced = false;
-    let stopAudio: (() => void) | null = null;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    const goNext = () => {
-      if (cancelled || advanced) return;
-      advanced = true;
-      setSpeaking(false);
-      timers.push(setTimeout(() => {
-        if (cancelled) return;
-        if (complete) { stopAll(); onFinish?.(); }
-        else setStep((value) => Math.min(value + 1, STAGES.length - 1));
-      }, complete ? 4200 : 2000));
-    };
-    // Hard cap so a stalled stream can never freeze the demo.
-    const cap = setTimeout(goNext, 50000);
-    timers.push(cap);
-    timers.push(setTimeout(async () => {
-      if (cancelled) return;
-      const line = await fetchGuardianSpokenText(stage.guardian, token);
-      if (cancelled) return;
-      if (!line) { timers.push(setTimeout(goNext, stage.duration)); return; }
-      stopAudio = playGuardianLine(line.url, {
-        onStart: () => { if (!cancelled) setSpeaking(true); },
-        onEnd: () => { clearTimeout(cap); goNext(); },
-      });
-    }, 420));
-    return () => { cancelled = true; timers.forEach(clearTimeout); stopAudio?.(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, step, cycle]);
+    setVisualDone(false);
+    setVoiceDone(false);
+    setVoicePlaying(false);
+  }, [open, step]);
 
-  // Live action demonstration: each Guardian action visibly executes in
-  // sequence (QUEUED -> EXECUTING -> DONE) while he narrates the scene.
   useEffect(() => {
-    if (!open) return;
-    setActionPhase(stage.proactive.map(() => 0));
-    const timers = stage.proactive.flatMap((_, index) => [
-      setTimeout(() => setActionPhase((prev) => prev.map((v, j) => (j === index ? Math.max(v, 1) : v))), 2200 + index * 3400),
-      setTimeout(() => setActionPhase((prev) => prev.map((v, j) => (j === index ? 2 : v))), 2200 + index * 3400 + 1900),
-    ]);
-    return () => timers.forEach(clearTimeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, step, cycle]);
+    if (!open || !visualDone || !voiceDone) return;
+    const timer = setTimeout(() => {
+      if (complete) {
+        stopAll();
+        onFinish?.();
+      } else {
+        setStep((value) => Math.min(value + 1, STAGES.length - 1));
+      }
+    }, complete ? 5200 : 2600);
+    return () => clearTimeout(timer);
+  }, [complete, onFinish, open, stopAll, visualDone, voiceDone]);
 
   useEffect(() => {
     if (!open || recordedRef.current.has(step)) return;
     recordedRef.current.add(step);
     onStage(step);
   }, [onStage, open, step]);
+
+  useEffect(() => {
+    if (!open || spokenRef.current === step) return;
+    spokenRef.current = step;
+    let cancelled = false;
+    let stopVoice = () => {};
+    const fallback = setTimeout(() => {
+      if (!cancelled) { setVoicePlaying(false); setVoiceDone(true); }
+    }, 26000);
+    const begin = setTimeout(() => {
+      void fetchGuardianSpokenText(GUARDIAN_VOICE_LINES[step], token).then((line) => {
+        if (cancelled) return;
+        if (!line) { setVoiceDone(true); return; }
+        stopVoice = playGuardianLine(line.url, {
+          onStart: () => { if (!cancelled) setVoicePlaying(true); },
+          onEnd: () => { if (!cancelled) { setVoicePlaying(false); setVoiceDone(true); } },
+        });
+      });
+    }, 500);
+    return () => { cancelled = true; clearTimeout(begin); clearTimeout(fallback); stopVoice(); };
+  }, [open, step, token]);
 
   useEffect(() => {
     if (!open || !audio.master || !audio.ambience || audio.activeAmbient === "hub") return;
@@ -221,8 +226,8 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
   const replay = () => {
     audio.stopAll();
     setStep(0);
+    spokenRef.current = -1;
     recordedRef.current = new Set();
-    setCycle((value) => value + 1);
     audio.update({ master: true, voice: true, ambience: true, music: true });
   };
 
@@ -231,7 +236,7 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
       <LinearGradient colors={["#02040D", "#0B1432", "#1B1030"]} style={styles.root}>
         <View style={styles.topbar}>
           <View>
-            <Text style={styles.eyebrow}>STAARWARDD · JUDGE EXPERIENCE</Text>
+            <Text style={styles.eyebrow}>STAARWAARDD · JUDGE EXPERIENCE</Text>
             <Text style={styles.brand}>CROSS-LIFE AI</Text>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel="Close judge demo" onPress={close} style={styles.close}>
@@ -244,11 +249,11 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
             <View key={item.kicker} style={[styles.progress, index <= step && styles.progressActive]} />
           ))}
         </View>
-        <Text style={styles.autoLabel}>{complete ? "DEMO COMPLETE · REVIEW THE RECEIPT" : "RUNNING AUTOMATICALLY · NO TAPS NEEDED"}</Text>
+        <Text style={styles.autoLabel}>{complete ? "DEMO COMPLETE · REVIEW THE RECEIPT" : "SCENE ADVANCES AFTER VOICE + VISIBLE ACTIONS COMPLETE"}</Text>
 
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.worldTrail}>
-            {["Work", "Style", "Connect"].map((world, index) => {
+            {["Work", "Style", "Relationships"].map((world, index) => {
               const active = stage.worlds.includes(world);
               return (
                 <View key={world} style={styles.worldItem}>
@@ -292,9 +297,11 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
             <View style={[styles.bubble, styles.guardianBubble]}>
               <Text style={[styles.role, styles.guardianRole]}>GUARDIAN</Text>
               <Text style={styles.guardianText}>{stage.guardian}</Text>
-              {speaking && <Text style={styles.speaking}>● GUARDIAN SPEAKING</Text>}
+              {voicePlaying && <Text style={styles.speaking}>● GUARDIAN ONYX VOICE · SPEAKING</Text>}
             </View>
           </View>
+
+          <JudgeActionTheatre step={step} actions={stage.proactive} onComplete={markVisualComplete} />
 
           <View style={styles.detailGrid}>
             <View style={[styles.detailPanel, styles.signalPanel]}>
@@ -307,21 +314,13 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
               ))}
             </View>
             <View style={[styles.detailPanel, styles.actionPanel]}>
-              <Text style={styles.panelLabel}>GUARDIAN ACTIONS · EXECUTING LIVE</Text>
-              {stage.proactive.map((action, index) => {
-                const phase = actionPhase[index] ?? 0;
-                return (
-                  <View key={action} style={[styles.detailRow, phase === 0 && styles.actionPending]}>
-                    <Text style={phase === 2 ? styles.actionCheck : phase === 1 ? styles.actionRunning : styles.actionQueued}>
-                      {phase === 2 ? "✓" : phase === 1 ? "►" : "○"}
-                    </Text>
-                    <Text style={[styles.detailText, phase === 0 && styles.detailTextDim]}>{action}</Text>
-                    <Text style={phase === 2 ? styles.statusDone : phase === 1 ? styles.statusRunning : styles.statusQueued}>
-                      {phase === 2 ? "DONE" : phase === 1 ? "EXECUTING…" : "QUEUED"}
-                    </Text>
-                  </View>
-                );
-              })}
+              <Text style={styles.panelLabel}>GUARDIAN ACTIONS · NO NEW COMMAND</Text>
+              {stage.proactive.map((action) => (
+                <View key={action} style={styles.detailRow}>
+                  <Text style={styles.actionCheck}>✓</Text>
+                  <Text style={styles.detailText}>{action}</Text>
+                </View>
+              ))}
             </View>
           </View>
 
@@ -425,12 +424,6 @@ const styles = StyleSheet.create({
   detailRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 5 },
   signalDot: { color: "#FF8080", fontSize: 8, lineHeight: 18 },
   actionCheck: { color: "#8FE6CF", fontSize: 11, lineHeight: 18, fontWeight: "900" },
-  actionRunning: { color: "#7EDCF3", fontSize: 10, lineHeight: 18, fontWeight: "900" },
-  actionQueued: { color: "#4A5570", fontSize: 10, lineHeight: 18 },
-  actionPending: { opacity: 0.55 },
-  statusDone: { color: "#8FE6CF", fontSize: 7, letterSpacing: 1, fontWeight: "900", lineHeight: 18 },
-  statusRunning: { color: "#7EDCF3", fontSize: 7, letterSpacing: 1, fontWeight: "900", lineHeight: 18 },
-  statusQueued: { color: "#4A5570", fontSize: 7, letterSpacing: 1, fontWeight: "900", lineHeight: 18 },
   detailText: { flex: 1, color: "#E8ECF8", fontSize: 11, lineHeight: 17, fontWeight: "600" },
   integrationPanel: { marginBottom: 14, borderRadius: 16, padding: 14, backgroundColor: "rgba(106,137,218,0.08)", borderWidth: 1, borderColor: "rgba(138,164,234,0.25)" },
   integrationHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 },
