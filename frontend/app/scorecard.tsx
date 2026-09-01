@@ -159,7 +159,7 @@ export default function ScorecardScreen() {
           <Text style={s.hubBtnText}>BACK TO HUB</Text>
         </Pressable>
         <View style={s.resetRow}>
-          <JudgeReset />
+          <JudgeReset testID="judge-reset-btn-scorecard" />
           <Text style={s.resetHint}>RESET FOR THE NEXT JUDGE</Text>
         </View>
       </ScrollView>

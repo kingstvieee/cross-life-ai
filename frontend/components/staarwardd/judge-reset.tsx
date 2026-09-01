@@ -19,7 +19,7 @@ const RESET_KEYS = [
 
 // ONE-TAP judge reset: the visible hub button itself performs the full reset
 // (no confirmation modal) and hard-navigates to a clean root entrance.
-export function JudgeReset() {
+export function JudgeReset({ testID = "judge-reset-btn" }: { testID?: string } = {}) {
   const router = useRouter();
   const audio = useStaarAudio();
   const { erase: eraseMemory } = usePreferenceMemory();
@@ -57,7 +57,7 @@ export function JudgeReset() {
       accessibilityLabel="Judge reset — replay the full opening for a new judge"
       onPress={reset}
       style={styles.round}
-      testID="judge-reset-btn"
+      testID={testID}
     >
       {busy ? <ActivityIndicator size="small" color="#E8C86F" /> : <Text style={styles.roundText}>⟲</Text>}
     </Pressable>

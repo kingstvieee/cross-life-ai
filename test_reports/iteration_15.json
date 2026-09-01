@@ -1,0 +1,29 @@
+{
+  "summary": "Iteration 15 — final dress rehearsal re-verification of 3 fixes (frontend only). ALL 3 FIXES PASS. FIX1 (no voice overlap): opening the crisis demo while the Guardian greeting is speaking immediately unmounts [data-testid=guardian-subtitle] (asserted None ~400ms after click). FIX2 (unique scorecard reset testID): /scorecard renders exactly one [data-testid=judge-reset-btn-scorecard] and zero [data-testid=judge-reset-btn]; clicking it hard-navigates to '/' and the entrance gate [data-testid=enter-with-sound-btn] reappears. FIX3 (demo timer 240s): [data-testid=demo-timer-badge] reads 'DEMO · 3:59' immediately after opening the demo (i.e. 240s starting value) and counts down (observed 3:57 after ~2.5s). Timed journey smoke verified end-to-end: entrance gate → tap enter → launch video plays → SKIP → hub → greeting subtitle appears → open crisis demo → BEGIN WITH GUARDIAN VOICE gate visible → scorecard direct-load → scorecard-subtitle observed (auto-login + narration working). No red screen, no console errors beyond expected CanvasKit fetch warning and RCTAnimation useNativeDriver warning (both harmless web-preview limits noted in prior iterations).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      { "screen": "JudgeDemo modal", "issues": ["demo-timer-badge is rendered in the root layout beneath the Modal on web (React Native Web portals Modal above absolute-positioned root children), so the '4:00' pill is not visually apparent while the demo modal is open even though its DOM node exists and counts down. Not part of the current fix scope — the badge still triggers auto-navigation to /scorecard at 0. Flagging for E1's awareness only."] }
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_15.json"],
+  "action_items": [
+    "Optional (non-blocking): re-parent DemoTimerBadge above the JudgeDemo Modal (e.g. render inside the Modal or via a top-level portal) so judges can visibly see the 4:00 countdown while the demo is open.",
+    "No blocking changes needed — all 3 fixes verified working."
+  ],
+  "critical_code_review_comments": [
+    "hub demo onPress correctly calls stopGreeting.current?.() and setSpokenLine(null) BEFORE startDemoTimer(240) + setAboutOpen(true) — clean ordering, no race.",
+    "JudgeReset now takes optional testID prop with default 'judge-reset-btn'; scorecard passes 'judge-reset-btn-scorecard' — clean, backwards-compatible API.",
+    "demo-timer.tsx DEMO_SECONDS default is still 180 but callers pass 240 explicitly — safe. Consider raising the default to 240 for consistency."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped per request)", "frontend": "100% (3/3 fixes PASS + full smoke journey PASS)" },
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 15 confirmed all judge-journey fixes; the app is ready to demo. Only cosmetic follow-up left: the DemoTimerBadge is hidden behind the JudgeDemo Modal on web preview (still functional, still counts down, still auto-navigates at 0 — but not visible to a judge while the demo is running). If E1 wants perfect visibility, move the badge into the modal or a higher portal.",
+  "rca_of_issue": "n/a — this iteration verified fixes rather than reproducing a new bug."
+}
