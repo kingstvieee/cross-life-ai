@@ -302,15 +302,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
           ))}
         </View>
       )}
-      {/* Controls */}
-      {started && <View style={s.controls}>
-        <Pressable accessibilityRole="button" accessibilityLabel={soundEnabled ? "Disable sound" : "Enable sound"} onPress={enableSound} style={s.soundBtn} testID="enable-sound-btn">
-          <Text style={s.soundText}>{soundEnabled ? "SOUND ON" : "ENABLE SOUND"}</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Enter the STAAR Hub" onPress={skip} style={s.skipBtn} testID="skip-cinematic-btn">
-          <Text style={s.skipText}>ENTER THE HUB</Text>
-        </Pressable>
-      </View>}
+      {/* No persistent walkthrough controls during the cinematic. The entrance gate is the only initial action; the sequence hands off automatically. */}
     </View>
   );
 }
