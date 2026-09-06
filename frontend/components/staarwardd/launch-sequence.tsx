@@ -25,15 +25,13 @@ export function useReturningUser() {
 // The single uninterrupted video backbone — the full canonical entrance.
 // Same clip in two encodings: H.264 mp4 (Safari/Chrome/Edge) and VP9 webm
 // (browsers without proprietary codecs). Content is identical.
-const WEB_SRC = "/video/guardian-toronto-traverse-hd.mp4";
-const WEB_SRC_WEBM = "/video/guardian-toronto-traverse-hd.webm";
+const WEB_SRC = require("@/assets/videos/guardian-toronto-traverse-hd.mp4") as string;
+const POSTER_SRC = require("@/assets/images/staarwardd/guardian-toronto.png") as string;
 
 function pickWebSrc(v: any): string {
   try {
     const h264 = v.canPlayType?.('video/mp4; codecs="avc1.42E01E"') || "";
     if (h264 === "probably" || h264 === "maybe") return WEB_SRC;
-    const vp9 = v.canPlayType?.('video/webm; codecs="vp9"') || "";
-    if (vp9) return WEB_SRC_WEBM;
   } catch {}
   return WEB_SRC;
 }
@@ -91,7 +89,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
       if (v.getAttribute("src") !== chosen) v.setAttribute("src", chosen);
       v.setAttribute("playsinline", "true");
       v.setAttribute("preload", "auto");
-      v.setAttribute("poster", "/video/guardian-toronto-traverse-poster.jpg");
+      v.setAttribute("poster", POSTER_SRC);
       v.autoplay = false;
       v.muted = !started || !soundEnabled;
       v.defaultMuted = !started;
@@ -102,16 +100,8 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
         if (!started) return;
         try { const p = v.play?.(); p?.catch?.(() => {}); } catch {}
       };
-      // Decode failure (unsupported codec) — swap to the webm encoding once.
-      const onErr = () => {
-        try {
-          if (v.getAttribute("src") !== WEB_SRC_WEBM) {
-            v.setAttribute("src", WEB_SRC_WEBM);
-            v.load?.();
-            tryPlay();
-          }
-        } catch {}
-      };
+      // Decode failure is non-fatal: the poster remains visible and the user can enter the Hub.
+      const onErr = () => {};
       v.addEventListener("error", onErr);
       tryPlay();
       v.addEventListener("loadedmetadata", tryPlay);
