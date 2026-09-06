@@ -268,23 +268,13 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
           ))}
         </View>
       )}
-      {/* Subtle caption strip naming each gateway as it materializes */}
-      {portalCount > 0 && (
-        <View style={s.captionStrip} testID="gateway-caption">
-          <Text style={s.captionText}>✦ {PORTALS[Math.min(portalCount, PORTALS.length) - 1].label.toUpperCase()} GATEWAY</Text>
-        </View>
-      )}
-      {portalCount > 0 && portalCount < 7 && (
-        <Text style={s.counter} testID="portal-counter">{portalCount} / 7 GATEWAYS</Text>
-      )}
-
       {/* Controls */}
       {started && <View style={s.controls}>
         <Pressable accessibilityRole="button" accessibilityLabel={soundEnabled ? "Disable sound" : "Enable sound"} onPress={enableSound} style={s.soundBtn} testID="enable-sound-btn">
           <Text style={s.soundText}>{soundEnabled ? "SOUND ON" : "ENABLE SOUND"}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Skip cinematic" onPress={skip} style={s.skipBtn} testID="skip-cinematic-btn">
-          <Text style={s.skipText}>SKIP CINEMATIC</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Enter the STAAR Hub" onPress={skip} style={s.skipBtn} testID="skip-cinematic-btn">
+          <Text style={s.skipText}>ENTER THE HUB</Text>
         </Pressable>
       </View>}
     </View>
