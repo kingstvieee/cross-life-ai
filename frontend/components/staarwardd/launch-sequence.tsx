@@ -25,7 +25,7 @@ export function useReturningUser() {
 // The single uninterrupted video backbone — the full canonical entrance.
 // Same clip in two encodings: H.264 mp4 (Safari/Chrome/Edge) and VP9 webm
 // (browsers without proprietary codecs). Content is identical.
-const WEB_SRC = require("@/assets/videos/guardian-toronto-traverse-hd.mp4") as string;
+const WEB_SRC = "";
 const POSTER_SRC = require("@/assets/images/staarwardd/guardian-toronto.png") as string;
 
 function pickWebSrc(v: any): string {
@@ -86,7 +86,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
     if (!v) return;
     try {
       const chosen = pickWebSrc(v);
-      if (v.getAttribute("src") !== chosen) v.setAttribute("src", chosen);
+      if (chosen && v.getAttribute("src") !== chosen) v.setAttribute("src", chosen);
       v.setAttribute("playsinline", "true");
       v.setAttribute("preload", "auto");
       v.setAttribute("poster", POSTER_SRC);
@@ -159,6 +159,10 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
     setStarted(true);
     setSoundEnabled(true);
     audio.update({ master: true, music: true, ambience: true });
+    if (isWeb && !WEB_SRC) {
+      timers.current.push(setTimeout(finish, 9000));
+      return;
+    }
     try {
       if (isWeb && videoRef.current) {
         const v = videoRef.current;
@@ -205,7 +209,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
     <View style={s.root} testID="launch-root" accessibilityLabel="Guardian video entrance">
       {/* Desktop theatre treatment: preserve the full portrait cinematic while a blurred Toronto poster fills the widescreen frame. */}
       {isWeb && desktop && RNW.unstable_createElement("img", {
-        src: "/video/guardian-toronto-traverse-poster.jpg",
+        src: POSTER_SRC,
         "aria-hidden": "true",
         style: {
           position: "absolute", inset: "-28px", width: "calc(100% + 56px)", height: "calc(100% + 56px)",
@@ -223,7 +227,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
               muted: !started || !soundEnabled,
               playsInline: true,
               preload: "auto",
-              poster: "/video/guardian-toronto-traverse-poster.jpg",
+              poster: POSTER_SRC,
               onEnded: finish,
               "data-testid": "entrance-video",
               "data-playing": String(playing),
