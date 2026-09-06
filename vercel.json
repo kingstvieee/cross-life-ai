@@ -1,6 +1,6 @@
 {
   "installCommand": "cd frontend && yarn install --frozen-lockfile",
-  "buildCommand": "cd frontend && yarn expo export --platform web",
+  "buildCommand": "cd frontend && yarn expo export --platform web && mkdir -p dist/video dist/audio && cp -R public/video/. dist/video/ && cp -R public/audio/. dist/audio/",
   "outputDirectory": "frontend/dist",
   "framework": null
 }
