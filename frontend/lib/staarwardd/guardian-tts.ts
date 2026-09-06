@@ -7,6 +7,7 @@ export type GuardianLine = { text: string; url: string };
 
 // Fetch a cached Onyx TTS line ({url, text}) from the backend.
 export async function fetchGuardianLine(path: string): Promise<GuardianLine | null> {
+  if (!BACKEND) return null;
   try {
     const r = await fetch(`${BACKEND}${path}`);
     if (!r.ok) return null;
@@ -19,6 +20,7 @@ export async function fetchGuardianLine(path: string): Promise<GuardianLine | nu
 
 // POST a short dynamic line (e.g., remembered preference) for Onyx TTS.
 export async function fetchGuardianSpokenText(text: string, token: string | null): Promise<GuardianLine | null> {
+  if (!BACKEND) return null;
   try {
     const r = await fetch(`${BACKEND}/api/guardian/speak-line`, {
       method: "POST",
