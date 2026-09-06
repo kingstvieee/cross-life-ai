@@ -60,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token]);
 
   const refresh = useCallback(async () => {
+    if (!BACKEND) { setUser(null); setToken(null); setLoading(false); return; }
     const t = await readToken();
     if (t) {
       try {
@@ -90,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { refresh(); }, [refresh]);
 
   const loginDemo = useCallback(async () => {
+    if (!BACKEND) return null;
     const r = await fetch(`${BACKEND}/api/auth/demo`, { method: 'POST' });
     if (!r.ok) return null;
     const data = await r.json();
