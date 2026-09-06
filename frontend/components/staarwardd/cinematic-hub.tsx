@@ -15,7 +15,7 @@ import { fetchGuardianLine, playGuardianLine } from "@/lib/staarwardd/guardian-t
 import { guardianEvent, guardianRuntime, type GuardianDecision } from "@/lib/staarwardd/guardian-runtime";
 import type { PortalId } from "@/lib/staarwardd/types";
 
-export function CinematicHub({ greet = false }: { greet?: boolean }) {
+export function CinematicHub({ greet = false, waitForLaunchAudio = false }: { greet?: boolean; waitForLaunchAudio?: boolean }) {
   const { width } = useWindowDimensions();
   const compact = width < 620;
   const router = useRouter();
@@ -33,7 +33,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
 
   // The Guardian welcomes the user through sound, not an explanatory workflow panel.
   useEffect(() => {
-    if (!greet || !audio.voice) return;
+    if (!greet || !audio.voice || waitForLaunchAudio) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const line = await fetchGuardianLine("/api/guardian/greeting");
@@ -41,14 +41,14 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
       stopGreeting.current = playGuardianLine(line.url);
     }, 900);
     return () => { cancelled = true; clearTimeout(timer); stopGreeting.current?.(); };
-  }, [audio.voice, greet]);
+  }, [audio.voice, greet, waitForLaunchAudio]);
 
   useEffect(() => {
     const loop = Animated.loop(Animated.timing(orbit, { toValue: 1, duration: 18000, easing: Easing.linear, useNativeDriver: true }));
     loop.start();
-    audio.playAmbient("hub");
+    if (!waitForLaunchAudio) audio.playAmbient("hub");
     return () => { loop.stop(); audio.stopAmbient(); };
-  }, [audio, orbit]);
+  }, [audio, orbit, waitForLaunchAudio]);
 
   useEffect(() => {
     let active = true;
@@ -76,12 +76,12 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={[styles.header, compact && styles.headerCompact]}>
             <View>
-              <Text style={styles.kicker}>STAARWAARDD · TORONTO</Text>
+              <Text style={styles.kicker}>STAARWAARDD Â· TORONTO</Text>
               <Text style={styles.title}>Your world is online.</Text>
               <Text style={styles.subtitle}>Seven worlds. One continuous presence. Enter wherever life is asking for attention.</Text>
             </View>
             <View style={styles.actions}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Open sound controls" onPress={() => setAudioOpen(true)} style={styles.round}><Text style={styles.roundText}>{audio.master ? "♫" : "◌"}</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Open sound controls" onPress={() => setAudioOpen(true)} style={styles.round}><Text style={styles.roundText}>{audio.master ? "â™«" : "â—Œ"}</Text></Pressable>
             </View>
           </View>
 
@@ -99,18 +99,18 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
             <Text style={styles.fieldKicker}>THE GUARDIAN HOLDS THE THREAD</Text>
             <Text style={styles.fieldPrompt}>Move freely. Context follows you across every world.</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Open STAAR Access Home" onPress={() => enter("home")} style={({ pressed }) => [styles.accessButton, pressed && styles.pressed]}>
-              <Text style={styles.accessButtonText}>STAAR ACCESS · ENTER HOME</Text><Text style={styles.accessArrow}>→</Text>
+              <Text style={styles.accessButtonText}>STAAR ACCESS Â· ENTER HOME</Text><Text style={styles.accessArrow}>â†’</Text>
             </Pressable>
           </View>
 
           {guardianSignal?.surfaced && <View style={styles.guardianAlert} accessibilityLiveRegion="polite">
-            <Text style={styles.guardianAlertKicker}>GUARDIAN · CONTEXT SURFACED WITHOUT A PROMPT</Text>
+            <Text style={styles.guardianAlertKicker}>GUARDIAN Â· CONTEXT SURFACED WITHOUT A PROMPT</Text>
             <Text style={styles.guardianAlertTitle}>{guardianSignal.recommendation}</Text>
-            <Text style={styles.guardianAlertCopy}>{guardianSignal.observation} Routing: {guardianSignal.portals.join(" · ")}.</Text>
+            <Text style={styles.guardianAlertCopy}>{guardianSignal.observation} Routing: {guardianSignal.portals.join(" Â· ")}.</Text>
           </View>}
 
           <View style={styles.worldRail}>
-            <Text style={styles.railKicker}>SEVEN WORLDS · FREE ENTRY</Text>
+            <Text style={styles.railKicker}>SEVEN WORLDS Â· FREE ENTRY</Text>
             <Text style={styles.railCopy}>Choose a portal without a prescribed order. The Guardian carries continuity between them.</Text>
             <View style={styles.worldList}>
               {PORTALS.map((portal) => <Pressable key={portal.id} accessibilityRole="button" accessibilityLabel={`Enter ${portal.name}`} onPress={() => enter(portal.id)} style={({ pressed }) => [styles.worldChip, { borderColor: `${portal.color}88` }, pressed && styles.pressed]}><Text style={[styles.worldGlyph, { color: portal.accent }]}>{portal.glyph}</Text><Text style={styles.worldName}>{portal.name}</Text></Pressable>)}
