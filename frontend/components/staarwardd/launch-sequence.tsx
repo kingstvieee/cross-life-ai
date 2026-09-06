@@ -22,10 +22,11 @@ export function useReturningUser() {
   return { loading, returning, markSeen };
 }
 
-// The single uninterrupted video backbone — the full canonical entrance.
-// Same clip in two encodings: H.264 mp4 (Safari/Chrome/Edge) and VP9 webm
-// (browsers without proprietary codecs). Content is identical.
-const WEB_SRC = "";
+// One canonical Toronto flight asset is used on both web and native.
+// The previous production build hard-coded WEB_SRC to an empty string,
+// which forced the synthetic placeholder scene seen in the mobile recording.
+const FLIGHT_ASSET = require("@/assets/videos/guardian-toronto-traverse-hd.mp4");
+const WEB_SRC = typeof FLIGHT_ASSET === "string" ? FLIGHT_ASSET : FLIGHT_ASSET?.uri || "";
 const WEB_FLIGHT_MS = 15000;
 const POSTER_ASSET = require("@/assets/images/staarwardd/guardian-toronto.png");
 const POSTER_SRC = typeof POSTER_ASSET === "string" ? POSTER_ASSET : POSTER_ASSET?.uri || "";
@@ -37,7 +38,7 @@ function pickWebSrc(v: any): string {
   } catch {}
   return WEB_SRC;
 }
-const NATIVE_SRC = require("@/assets/videos/guardian-toronto-traverse-hd.mp4");
+const NATIVE_SRC = FLIGHT_ASSET;
 
 const PORTALS: { id: PortalId; label: string; img: any }[] = [
   { id: "creativity", label: "Creativity", img: require("@/assets/images/staarwardd/portal-creativity-v7.webp") },
@@ -48,10 +49,9 @@ const PORTALS: { id: PortalId; label: string; img: any }[] = [
   { id: "events", label: "Community", img: require("@/assets/images/staarwardd/portal-community-v7.webp") },
   { id: "style", label: "Style", img: require("@/assets/images/staarwardd/portal-style-v7.webp") },
 ];
-const PORTAL_WINDOW = 8; // portals materialize over the final ~8s of the clip
-const PORTAL_GAP = 0.95; // seconds between each gateway
+const PORTAL_WINDOW = 8;
+const PORTAL_GAP = 0.95;
 
-// Web-only raw <video> (expo-video's web view renders black in this preview).
 const RNW = isWeb ? require("react-native-web") : null;
 
 function WebFlightScene({ started, elapsed }: { started: boolean; elapsed: number }) {
@@ -82,8 +82,6 @@ function WebFlightScene({ started, elapsed }: { started: boolean; elapsed: numbe
 export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelectPortal?: (id: PortalId) => void }) {
   const { width: SW } = useWindowDimensions();
   const audio = useStaarAudio();
-  // Browsers do not permit audible autoplay. Hold the cinematic on frame zero
-  // until one intentional entrance tap, then begin with its soundtrack on.
   const [started, setStarted] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [reduced, setReduced] = useState(false);
@@ -107,7 +105,6 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
 
   useEffect(() => { AccessibilityInfo.isReduceMotionEnabled?.().then((v) => setReduced(!!v)).catch(() => {}); }, []);
 
-  // Web: RNW can strip media props — wire src/playsinline/ended imperatively.
   useEffect(() => {
     if (!isWeb || reduced) return;
     const v = videoRef.current;
@@ -128,7 +125,6 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
         if (!started) return;
         try { const p = v.play?.(); p?.catch?.(() => {}); } catch {}
       };
-      // Decode failure is non-fatal: the poster remains visible and the user can enter the Hub.
       const onErr = () => {};
       v.addEventListener("error", onErr);
       tryPlay();
@@ -143,14 +139,12 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
     } catch {}
   }, [reduced, soundEnabled, started]);
 
-  // Reduced motion: hold the first frame briefly, then enter the hub calmly.
   useEffect(() => {
     if (!reduced) return;
     try { if (isWeb) videoRef.current?.pause?.(); else nativePlayer.pause(); } catch {}
     timers.current.push(setTimeout(finish, 2500));
   }, [reduced]);
 
-  // Poll playback: drive portal overlays off real currentTime and finish on end.
   useEffect(() => {
     if (reduced || !started) return;
     if (isWeb && !WEB_SRC) {
@@ -171,7 +165,6 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
           if (!v) return;
           t = v.currentTime || 0; d = v.duration || 0; isPlaying = !v.paused && !v.ended;
           if (v.ended) { clearInterval(iv); finish(); return; }
-          // Self-heal only after the user has entered with sound.
           if (v.paused && !v.ended && !done.current) {
             try { const p = v.play?.(); p?.catch?.(() => {}); } catch {}
           }
@@ -187,7 +180,6 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
         setPortalCount((c) => (n > c ? n : c));
       }
     }, 250);
-    // Hard fallback so the entrance can never trap the user.
     timers.current.push(setTimeout(finish, 45000));
     if (!isWeb) { try { nativePlayer.play(); } catch {} }
     return () => clearInterval(iv);
@@ -210,8 +202,6 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
         v.volume = 0.65;
         const p = v.play?.();
         p?.catch?.(() => {
-          // Keep the first frame visible if the browser still refuses audio;
-          // the same entrance control remains available for another tap.
           setStarted(false);
           try { v.pause?.(); v.currentTime = 0; } catch {}
         });
@@ -223,8 +213,6 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
     } catch { setStarted(false); }
   };
 
-  // Explicit user tap — the only thing that unmutes. Continues the same
-  // timeline (never restarts); toggling back re-mutes without pausing.
   const enableSound = () => {
     const next = !soundEnabled;
     setSoundEnabled(next);
@@ -234,7 +222,6 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
         const v = videoRef.current;
         v.muted = !next;
         v.volume = 0.65;
-        // If the browser paused on unmute (rare), resume from the same time.
         if (v.paused && !v.ended) { const p = v.play?.(); p?.catch?.(() => { v.muted = true; v.play?.()?.catch?.(() => {}); }); }
       } else nativePlayer.muted = !next;
     } catch {}
@@ -245,7 +232,6 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
 
   return (
     <View style={s.root} testID="launch-root" accessibilityLabel="Guardian video entrance">
-      {/* Desktop theatre treatment: preserve the full portrait cinematic while a blurred Toronto poster fills the widescreen frame. */}
       {isWeb && desktop && RNW.unstable_createElement("img", {
         src: POSTER_SRC,
         "aria-hidden": "true",
@@ -255,14 +241,12 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
           opacity: 0.78, pointerEvents: "none",
         },
       })}
-      {/* Single uninterrupted video backbone — never paused or swapped between beats */}
       <View style={[s.stage, stage]} testID="entrance-video-stage">
         {isWeb && !WEB_SRC
           ? <WebFlightScene started={started} elapsed={flightElapsed} />
           : isWeb
           ? RNW.unstable_createElement("video", {
               ref: videoRef,
-              // src is wired imperatively (codec-aware mp4/webm pick) — see effect above.
               autoPlay: false,
               muted: !started || !soundEnabled,
               playsInline: true,
@@ -288,7 +272,6 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
         </View>
       )}
 
-      {/* Final section: seven canonical gateways materialize one by one OVER the moving video */}
       {portalCount > 0 && (
         <View style={s.portalRow} testID="portal-overlay-row">
           {PORTALS.slice(0, portalCount).map((p, i) => (
@@ -302,12 +285,10 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
           ))}
         </View>
       )}
-      {/* No persistent walkthrough controls during the cinematic. The entrance gate is the only initial action; the sequence hands off automatically. */}
     </View>
   );
 }
 
-// Native-only portal thumbnail (kept out of the web tree so no entrance <img> stills leak on web besides overlays)
 function ViewImage({ img }: { img: any }) {
   const { Image } = require("react-native");
   return <Image source={img} style={{ width: 56, height: 56, borderRadius: 12 }} />;
