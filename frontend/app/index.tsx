@@ -10,7 +10,7 @@ export default function IndexScreen() {
   const { markSeen } = useReturningUser();
   const { reset } = useLocalSearchParams<{ reset?: string }>();
   // The main URL always plays the complete canonical entrance on every fresh
-  // page load â€” the opening-seen flag never short-circuits it. Direct /hub
+  // page load — the opening-seen flag never short-circuits it. Direct /hub
   // stays available as the fast path.
   const [sessionEntered, setSessionEntered] = useState(false);
   const soundtrackRef = useRef<any>(null);

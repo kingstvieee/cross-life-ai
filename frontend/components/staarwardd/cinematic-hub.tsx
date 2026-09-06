@@ -76,12 +76,12 @@ export function CinematicHub({ greet = false, waitForLaunchAudio = false }: { gr
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={[styles.header, compact && styles.headerCompact]}>
             <View>
-              <Text style={styles.kicker}>STAARWAARDD Â· TORONTO</Text>
+              <Text style={styles.kicker}>STAARWAARDD · TORONTO</Text>
               <Text style={styles.title}>Your world is online.</Text>
               <Text style={styles.subtitle}>Seven worlds. One continuous presence. Enter wherever life is asking for attention.</Text>
             </View>
             <View style={styles.actions}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Open sound controls" onPress={() => setAudioOpen(true)} style={styles.round}><Text style={styles.roundText}>{audio.master ? "â™«" : "â—Œ"}</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Open sound controls" onPress={() => setAudioOpen(true)} style={styles.round}><Text style={styles.roundText}>{audio.master ? "♫" : "◌"}</Text></Pressable>
             </View>
           </View>
 
@@ -99,18 +99,18 @@ export function CinematicHub({ greet = false, waitForLaunchAudio = false }: { gr
             <Text style={styles.fieldKicker}>THE GUARDIAN HOLDS THE THREAD</Text>
             <Text style={styles.fieldPrompt}>Move freely. Context follows you across every world.</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Open STAAR Access Home" onPress={() => enter("home")} style={({ pressed }) => [styles.accessButton, pressed && styles.pressed]}>
-              <Text style={styles.accessButtonText}>STAAR ACCESS Â· ENTER HOME</Text><Text style={styles.accessArrow}>â†’</Text>
+              <Text style={styles.accessButtonText}>STAAR ACCESS · ENTER HOME</Text><Text style={styles.accessArrow}>→</Text>
             </Pressable>
           </View>
 
           {guardianSignal?.surfaced && <View style={styles.guardianAlert} accessibilityLiveRegion="polite">
-            <Text style={styles.guardianAlertKicker}>GUARDIAN Â· CONTEXT SURFACED WITHOUT A PROMPT</Text>
+            <Text style={styles.guardianAlertKicker}>GUARDIAN · CONTEXT SURFACED WITHOUT A PROMPT</Text>
             <Text style={styles.guardianAlertTitle}>{guardianSignal.recommendation}</Text>
-            <Text style={styles.guardianAlertCopy}>{guardianSignal.observation} Routing: {guardianSignal.portals.join(" Â· ")}.</Text>
+            <Text style={styles.guardianAlertCopy}>{guardianSignal.observation} Routing: {guardianSignal.portals.join(" · ")}.</Text>
           </View>}
 
           <View style={styles.worldRail}>
-            <Text style={styles.railKicker}>SEVEN WORLDS Â· FREE ENTRY</Text>
+            <Text style={styles.railKicker}>SEVEN WORLDS · FREE ENTRY</Text>
             <Text style={styles.railCopy}>Choose a portal without a prescribed order. The Guardian carries continuity between them.</Text>
             <View style={styles.worldList}>
               {PORTALS.map((portal) => <Pressable key={portal.id} accessibilityRole="button" accessibilityLabel={`Enter ${portal.name}`} onPress={() => enter(portal.id)} style={({ pressed }) => [styles.worldChip, { borderColor: `${portal.color}88` }, pressed && styles.pressed]}><Text style={[styles.worldGlyph, { color: portal.accent }]}>{portal.glyph}</Text><Text style={styles.worldName}>{portal.name}</Text></Pressable>)}
