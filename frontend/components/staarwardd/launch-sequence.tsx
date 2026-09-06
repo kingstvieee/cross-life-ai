@@ -26,7 +26,8 @@ export function useReturningUser() {
 // Same clip in two encodings: H.264 mp4 (Safari/Chrome/Edge) and VP9 webm
 // (browsers without proprietary codecs). Content is identical.
 const WEB_SRC = "";
-const POSTER_SRC = require("@/assets/images/staarwardd/guardian-toronto.png") as string;
+const POSTER_ASSET = require("@/assets/images/staarwardd/guardian-toronto.png");
+const POSTER_SRC = typeof POSTER_ASSET === "string" ? POSTER_ASSET : POSTER_ASSET?.uri || "";
 
 function pickWebSrc(v: any): string {
   try {
