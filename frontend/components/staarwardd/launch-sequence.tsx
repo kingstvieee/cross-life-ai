@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useRef, useState } from "react";
 import {
-  AccessibilityInfo, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions,
+  AccessibilityInfo, Animated, Easing, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions,
 } from "react-native";
 import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
 
@@ -26,6 +26,7 @@ export function useReturningUser() {
 // Same clip in two encodings: H.264 mp4 (Safari/Chrome/Edge) and VP9 webm
 // (browsers without proprietary codecs). Content is identical.
 const WEB_SRC = "";
+const WEB_FLIGHT_MS = 15000;
 const POSTER_ASSET = require("@/assets/images/staarwardd/guardian-toronto.png");
 const POSTER_SRC = typeof POSTER_ASSET === "string" ? POSTER_ASSET : POSTER_ASSET?.uri || "";
 
@@ -53,6 +54,31 @@ const PORTAL_GAP = 0.95; // seconds between each gateway
 // Web-only raw <video> (expo-video's web view renders black in this preview).
 const RNW = isWeb ? require("react-native-web") : null;
 
+function WebFlightScene({ started, elapsed }: { started: boolean; elapsed: number }) {
+  const flight = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!started) { flight.stopAnimation(); flight.setValue(0); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(flight, { toValue: 1, duration: WEB_FLIGHT_MS, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(flight, { toValue: 0, duration: 1, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [flight, started]);
+  const scene = elapsed < 3200 ? "TORONTO · FIRST LIGHT" : elapsed < 7000 ? "THE GUARDIAN · CROSSING THE CITY" : elapsed < 11200 ? "SEVEN GATEWAYS · WAKING" : "STAARWAARDD · ARRIVAL VECTOR";
+  return <View pointerEvents="none" style={s.flightRoot}>
+    {RNW?.unstable_createElement("img", { src: POSTER_SRC, "aria-hidden": "true", style: { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.56, filter: "brightness(0.52) saturate(1.22)" } })}
+    <View style={s.flightSky} />
+    <View style={s.flightMoon} />
+    <View style={s.flightCity}><View style={s.towerA} /><View style={s.towerB} /><View style={s.towerC} /><View style={s.cityLine} /></View>
+    <Animated.View style={[s.flightGuardian, { transform: [{ translateX: flight.interpolate({ inputRange: [0, 1], outputRange: [-180, 260] }) }, { translateY: flight.interpolate({ inputRange: [0, 0.5, 1], outputRange: [72, -34, 52] }) }, { rotate: flight.interpolate({ inputRange: [0, 0.5, 1], outputRange: ["12deg", "-4deg", "9deg"] }) }] }]}>
+      <View style={s.guardianGlow} /><View style={s.guardianBody} /><View style={s.guardianWingLeft} /><View style={s.guardianWingRight} /><View style={s.guardianTrail} />
+    </Animated.View>
+    <View style={s.flightVignette} />
+    <View style={s.flightCaption}><Text style={s.flightKicker}>STAARWAARDD · TORONTO</Text><Text style={s.flightTitle}>{scene}</Text><Text style={s.flightSub}>One continuous presence. Seven ways into your life.</Text></View>
+  </View>;
+}
+
 export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelectPortal?: (id: PortalId) => void }) {
   const { width: SW } = useWindowDimensions();
   const audio = useStaarAudio();
@@ -63,6 +89,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
   const [reduced, setReduced] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [portalCount, setPortalCount] = useState(0);
+  const [flightElapsed, setFlightElapsed] = useState(0);
   const done = useRef(false);
   const videoRef = useRef<any>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -126,6 +153,16 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
   // Poll playback: drive portal overlays off real currentTime and finish on end.
   useEffect(() => {
     if (reduced || !started) return;
+    if (isWeb && !WEB_SRC) {
+      const startedAt = Date.now();
+      const iv = setInterval(() => {
+        const elapsed = Date.now() - startedAt;
+        setFlightElapsed(elapsed);
+        setPortalCount(Math.min(PORTALS.length, Math.max(0, Math.floor(Math.max(0, elapsed - 7600) / PORTAL_GAP / 1000) + 1)));
+        if (elapsed >= WEB_FLIGHT_MS) { clearInterval(iv); finish(); }
+      }, 250);
+      return () => clearInterval(iv);
+    }
     const iv = setInterval(() => {
       let t = 0; let d = 0; let isPlaying = false;
       try {
@@ -161,7 +198,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
     setSoundEnabled(true);
     audio.update({ master: true, music: true, ambience: true });
     if (isWeb && !WEB_SRC) {
-      timers.current.push(setTimeout(finish, 9000));
+      setFlightElapsed(1);
       return;
     }
     try {
@@ -220,7 +257,9 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
       })}
       {/* Single uninterrupted video backbone — never paused or swapped between beats */}
       <View style={[s.stage, stage]} testID="entrance-video-stage">
-        {isWeb
+        {isWeb && !WEB_SRC
+          ? <WebFlightScene started={started} elapsed={flightElapsed} />
+          : isWeb
           ? RNW.unstable_createElement("video", {
               ref: videoRef,
               // src is wired imperatively (codec-aware mp4/webm pick) — see effect above.
@@ -285,6 +324,25 @@ function ViewImage({ img }: { img: any }) {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#000", overflow: "hidden" },
   stage: { flex: 1, width: "100%", backgroundColor: "#000", overflow: "hidden" },
+  flightRoot: { flex: 1, backgroundColor: "#071427", overflow: "hidden" },
+  flightSky: { ...StyleSheet.absoluteFillObject, backgroundColor: "#102D4D", opacity: 0.64 },
+  flightMoon: { position: "absolute", width: 170, height: 170, borderRadius: 100, top: "12%", right: "13%", backgroundColor: "#F5DFA5", opacity: 0.28, shadowColor: "#F5DFA5", shadowOpacity: 0.7, shadowRadius: 46 },
+  flightCity: { position: "absolute", left: 0, right: 0, bottom: "10%", height: "28%", borderTopWidth: 1, borderTopColor: "#8FC5E855", backgroundColor: "#06101FBB" },
+  towerA: { position: "absolute", left: "15%", bottom: 0, width: 42, height: "78%", backgroundColor: "#0B2942", borderTopWidth: 2, borderTopColor: "#A8D9EA77" },
+  towerB: { position: "absolute", left: "47%", bottom: 0, width: 86, height: "100%", backgroundColor: "#0B233A", borderTopWidth: 2, borderTopColor: "#F4D79088" },
+  towerC: { position: "absolute", right: "14%", bottom: 0, width: 54, height: "64%", backgroundColor: "#102C45", borderTopWidth: 2, borderTopColor: "#A8D9EA66" },
+  cityLine: { position: "absolute", left: 0, right: 0, bottom: 12, height: 1, backgroundColor: "#E8C86F77" },
+  flightGuardian: { position: "absolute", left: "35%", top: "32%", width: 136, height: 90, alignItems: "center", justifyContent: "center" },
+  guardianGlow: { position: "absolute", width: 112, height: 54, borderRadius: 60, backgroundColor: "#9BE8FF22", shadowColor: "#9BE8FF", shadowOpacity: 0.9, shadowRadius: 26 },
+  guardianBody: { position: "absolute", width: 24, height: 72, borderRadius: 18, backgroundColor: "#D9F5FF", shadowColor: "#D9F5FF", shadowOpacity: 0.95, shadowRadius: 12, transform: [{ rotate: "18deg" }] },
+  guardianWingLeft: { position: "absolute", width: 86, height: 25, borderTopWidth: 4, borderColor: "#A7E9FF", borderRadius: 50, left: -8, top: 29, transform: [{ rotate: "-18deg" }] },
+  guardianWingRight: { position: "absolute", width: 86, height: 25, borderTopWidth: 4, borderColor: "#A7E9FF", borderRadius: 50, right: -8, top: 20, transform: [{ rotate: "24deg" }] },
+  guardianTrail: { position: "absolute", width: 110, height: 2, backgroundColor: "#F4D79088", left: -88, top: 58, transform: [{ rotate: "-11deg" }] },
+  flightVignette: { ...StyleSheet.absoluteFillObject, borderWidth: 24, borderColor: "#02071177" },
+  flightCaption: { position: "absolute", top: "13%", alignSelf: "center", alignItems: "center", paddingHorizontal: 18 },
+  flightKicker: { color: "#F4D790", fontSize: 10, letterSpacing: 2.1, fontWeight: "900" },
+  flightTitle: { color: "#FFFFFF", fontSize: 20, letterSpacing: 2.5, textAlign: "center", fontWeight: "900", marginTop: 10 },
+  flightSub: { color: "#D4E7F5", fontSize: 11, textAlign: "center", marginTop: 7 },
   portalRow: {
     position: "absolute", bottom: 96, left: 12, right: 12,
     flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10,
