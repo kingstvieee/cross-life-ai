@@ -12,6 +12,7 @@ import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
 import { haptic } from "@/lib/staarwardd/haptics";
 import { PORTALS } from "@/lib/staarwardd/portal-data";
 import { fetchGuardianLine, playGuardianLine } from "@/lib/staarwardd/guardian-tts";
+import { guardianEvent, guardianRuntime, type GuardianDecision } from "@/lib/staarwardd/guardian-runtime";
 import type { PortalId } from "@/lib/staarwardd/types";
 
 export function CinematicHub({ greet = false }: { greet?: boolean }) {
@@ -21,6 +22,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
   const audio = useStaarAudio();
   const [audioOpen, setAudioOpen] = useState(false);
   const [travelling, setTravelling] = useState<PortalId | null>(null);
+  const [guardianSignal, setGuardianSignal] = useState<GuardianDecision | null>(null);
   const orbit = useRef(new Animated.Value(0)).current;
   const stopGreeting = useRef<(() => void) | null>(null);
 
@@ -47,6 +49,14 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
     audio.playAmbient("hub");
     return () => { loop.stop(); audio.stopAmbient(); };
   }, [audio, orbit]);
+
+  useEffect(() => {
+    let active = true;
+    guardianRuntime.receive(guardianEvent("HOME_ENTERED", "home", { domain: "home", scheduleConflict: true, relevance: "high", relatedPortals: ["work", "style", "relationships"] }, { urgency: 0.78, userVisible: true })).then((decision) => {
+      if (active) setGuardianSignal(decision);
+    });
+    return () => { active = false; };
+  }, []);
 
   const enter = (id: PortalId) => {
     haptic.light();
@@ -93,6 +103,12 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
             </Pressable>
           </View>
 
+          {guardianSignal?.surfaced && <View style={styles.guardianAlert} accessibilityLiveRegion="polite">
+            <Text style={styles.guardianAlertKicker}>GUARDIAN · CONTEXT SURFACED WITHOUT A PROMPT</Text>
+            <Text style={styles.guardianAlertTitle}>{guardianSignal.recommendation}</Text>
+            <Text style={styles.guardianAlertCopy}>{guardianSignal.observation} Routing: {guardianSignal.portals.join(" · ")}.</Text>
+          </View>}
+
           <View style={styles.worldRail}>
             <Text style={styles.railKicker}>SEVEN WORLDS · FREE ENTRY</Text>
             <Text style={styles.railCopy}>Choose a portal without a prescribed order. The Guardian carries continuity between them.</Text>
@@ -131,5 +147,5 @@ const styles = StyleSheet.create({
   header: { paddingTop: 18, paddingHorizontal: 5, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }, headerCompact: { alignItems: "flex-start" }, actions: { flexDirection: "row", gap: 8 }, kicker: { color: "#E8C86F", fontSize: 10, letterSpacing: 1.8, fontWeight: "800" }, title: { color: "#F4F7FF", fontSize: 30, fontWeight: "800", letterSpacing: -0.7, marginTop: 7 }, subtitle: { color: "#AEBBD3", fontSize: 14, lineHeight: 20, marginTop: 6, maxWidth: 430 }, round: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: "rgba(232,200,111,0.5)", alignItems: "center", justifyContent: "center" }, roundText: { color: "#E8C86F", fontSize: 18, fontFamily: "serif" },
   commandField: { width: "100%", maxWidth: 560, aspectRatio: 1, alignSelf: "center", marginTop: 24, overflow: "hidden", borderRadius: 280, borderWidth: 1, borderColor: "rgba(242,213,124,0.42)", backgroundColor: "rgba(4,9,24,0.88)", alignItems: "center", justifyContent: "center", ...glow("#8D72FF", 24, 0.38), elevation: 10 }, commandFieldCompact: { borderRadius: 999 }, commandGlow: { position: "absolute", width: "66%", aspectRatio: 1, borderRadius: 999, borderWidth: 1.5, borderColor: "rgba(255,235,169,0.42)", backgroundColor: "rgba(71,54,143,0.20)", ...glow("#E8C86F", 28, 0.42) }, guardianVignette: { width: 196, height: 258, borderRadius: 98, overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: "#03060E", borderWidth: 1, borderColor: "rgba(240,210,120,0.36)", ...glow("#E8C86F", 24, 0.28) }, guardianVignetteCompact: { width: 152, height: 208, borderRadius: 76 }, gatewayField: { ...StyleSheet.absoluteFillObject }, gatewayWrap: { position: "absolute", marginLeft: -39, marginTop: -39 }, gateway: { width: 78, height: 78, borderRadius: 39, borderWidth: 1.5, overflow: "hidden", backgroundColor: "#101A34", justifyContent: "flex-end", padding: 8, elevation: 8 }, gatewayPressed: { opacity: 0.74, transform: [{ scale: 0.94 }] }, gatewayImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%", opacity: 0.82 }, gatewayTint: { ...StyleSheet.absoluteFillObject, opacity: 0.2 }, gatewayShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(3,9,24,0.28)" }, gatewayGlyph: { fontSize: 16, zIndex: 1, ...textGlow("#07101F", 8) }, gatewayName: { color: "#F3F7FF", width: 66, textAlign: "center", fontSize: 8, lineHeight: 9, letterSpacing: 0.2, fontWeight: "800", zIndex: 1, marginTop: 3 },
   fieldCopy: { alignItems: "center", marginTop: 16, paddingHorizontal: 12 }, fieldKicker: { color: "#F3D77D", fontSize: 9, letterSpacing: 1.15, fontWeight: "800", ...textGlow("#5B42B7", 10) }, fieldPrompt: { color: "#D5E2FA", fontSize: 12, fontWeight: "600", marginTop: 5, textAlign: "center" }, accessButton: { minHeight: 44, paddingHorizontal: 16, marginTop: 13, borderRadius: 14, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: "rgba(244,221,155,0.72)", backgroundColor: "rgba(232,200,111,0.16)", ...glow("#F3D77D", 12, 0.42) }, accessButtonText: { color: "#FFF5C6", fontSize: 10, letterSpacing: 0.7, fontWeight: "900" }, accessArrow: { color: "#F3D77D", fontSize: 20 },
-  worldRail: { marginTop: 28, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: "rgba(232,200,111,0.23)", backgroundColor: "rgba(11,18,38,0.62)" }, railKicker: { color: "#E8C86F", fontSize: 9, letterSpacing: 1.5, fontWeight: "800" }, railCopy: { color: "#B7C6DE", fontSize: 12, lineHeight: 18, marginTop: 6 }, worldList: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 }, worldChip: { minHeight: 38, paddingHorizontal: 11, borderRadius: 13, borderWidth: 1, backgroundColor: "rgba(4,8,18,0.5)", flexDirection: "row", alignItems: "center", gap: 6 }, worldGlyph: { fontSize: 15 }, worldName: { color: "#F1F5FF", fontSize: 11, fontWeight: "800" }, pressed: { opacity: 0.72, transform: [{ scale: 0.98 }] }, note: { color: "#8795AF", fontSize: 10, lineHeight: 15, textAlign: "center", marginTop: 18, paddingHorizontal: 12 },
+  guardianAlert: { maxWidth: 620, alignSelf: "center", marginTop: 18, padding: 15, borderRadius: 18, borderWidth: 1, borderColor: "rgba(232,200,111,0.42)", backgroundColor: "rgba(232,200,111,0.10)", ...glow("#E8C86F", 16, 0.22) }, guardianAlertKicker: { color: "#F3D77D", fontSize: 8, letterSpacing: 1.15, fontWeight: "900" }, guardianAlertTitle: { color: "#FFF6D4", fontSize: 14, lineHeight: 19, fontWeight: "800", marginTop: 6 }, guardianAlertCopy: { color: "#CEDAF1", fontSize: 11, lineHeight: 16, marginTop: 5 }, worldRail: { marginTop: 28, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: "rgba(232,200,111,0.23)", backgroundColor: "rgba(11,18,38,0.62)" }, railKicker: { color: "#E8C86F", fontSize: 9, letterSpacing: 1.5, fontWeight: "800" }, railCopy: { color: "#B7C6DE", fontSize: 12, lineHeight: 18, marginTop: 6 }, worldList: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 }, worldChip: { minHeight: 38, paddingHorizontal: 11, borderRadius: 13, borderWidth: 1, backgroundColor: "rgba(4,8,18,0.5)", flexDirection: "row", alignItems: "center", gap: 6 }, worldGlyph: { fontSize: 15 }, worldName: { color: "#F1F5FF", fontSize: 11, fontWeight: "800" }, pressed: { opacity: 0.72, transform: [{ scale: 0.98 }] }, note: { color: "#8795AF", fontSize: 10, lineHeight: 15, textAlign: "center", marginTop: 18, paddingHorizontal: 12 },
 });
