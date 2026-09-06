@@ -14,7 +14,7 @@ import { createGuardianInteraction } from "@/lib/staarwardd/guardian-interaction
 import { useGuardianActivity } from "@/lib/staarwardd/guardian-activity";
 import { PortalAtmosphere } from "@/components/staarwardd/portal-atmosphere";
 import { CreativityStudio } from "@/components/staarwardd/creativity-studio";
-import { WorldActionScene } from "@/components/staarwardd/world-action-scene";
+import { PortalWorld } from "@/components/staarwardd/portal-worlds";
 import { HomeSafetySheet } from "@/components/staarwardd/home-safety-sheet";
 import { GuardianInteractionCard } from "@/components/staarwardd/guardian-interaction-card";
 import { GuardianActivitySheet } from "@/components/staarwardd/guardian-activity-sheet";
@@ -128,7 +128,7 @@ export function PortalScreen({ portalId }: { portalId: PortalId }) {
               <View style={styles.navActions}><Pressable accessibilityRole="button" accessibilityLabel="Open Guardian activity history" onPress={() => setActivityOpen(true)} style={({ pressed }) => [styles.memoryButton, pressed && styles.pressed]}><Text style={styles.memoryText}>ACTIVITY</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Open memory and privacy information" onPress={() => setMemoryOpen(true)} style={({ pressed }) => [styles.memoryButton, pressed && styles.pressed]}><Text style={styles.memoryText}>MEMORY</Text></Pressable></View>
             </View>
             <View style={[styles.worldHeader, { borderColor: `${portal.color}66` }]}><Text style={[styles.eyebrow, { color: portal.accent }]}>{experience.world.toUpperCase()}</Text><Text style={styles.portalName}>{portal.name}</Text>{portalId === "home" && <Text style={styles.dayPart}>{homeDayPart() === "day" ? "DAYLIGHT ENVIRONMENT" : "NIGHT ENVIRONMENT"}</Text>}</View>
-            <WorldActionScene portalId={portalId} />
+            <PortalWorld portalId={portalId} onAction={submitCommand} />
             {portalId === "home" && <Pressable accessibilityRole="button" onPress={() => setSafetyOpen(true)} style={({ pressed }) => [styles.safetyEntry, pressed && styles.pressed]}><Text style={styles.safetyKicker}>HOME SAFETY GUARDIAN</Text><Text style={styles.safetyTitle}>Review connected-home readiness and local safety preferences.</Text><Text style={styles.safetyDetail}>No live sensor data is claimed until Google Home or Alexa access is authorized.</Text></Pressable>}
             {portalId === "creativity" ? <><CreativityStudio value={command} onChange={setCommand} onSubmit={submitCommand} />{guardianInteraction && <GuardianInteractionCard interaction={guardianInteraction} onSecondary={() => setGuardianInteraction(null)} />}</> : <><View style={[styles.nowCard, { borderColor: `${portal.color}55` }]}><View style={[styles.nowGlyph, { borderColor: `${portal.color}88` }]}><Text style={[styles.nowGlyphText, { color: portal.accent }]}>{portal.glyph}</Text></View><View style={styles.nowCopy}><Text style={styles.nowLabel}>WHAT MATTERS NOW</Text><Text style={styles.nowTitle}>{portal.focus}</Text></View></View>
             <Text style={styles.modeLabel}>HOW SHOULD {portal.name.toUpperCase()} HELP?</Text>
