@@ -24,6 +24,7 @@ import { notePortalVisit } from "@/lib/staarwardd/portal-visits";
 import { usePreferenceMemory } from "@/lib/staarwardd/preference-memory";
 import { useAuth } from "@/src/auth";
 import type { PreferenceMemory } from "@/lib/staarwardd/preference-policy";
+import { guardianEvent, guardianRuntime } from "@/lib/staarwardd/guardian-runtime";
 
 // One remembered preference, spoken aloud on a return visit to a world.
 function memoryHighlightLine(memory: PreferenceMemory, portalId: PortalId, portalName: string): string | null {
@@ -62,6 +63,12 @@ export function PortalScreen({ portalId }: { portalId: PortalId }) {
   const introSpoken = useRef(false);
   const experience = PORTAL_EXPERIENCES[portalId];
 
+  // Guardian remains active as a session-level runtime; portal UI is only one surface.
+  useEffect(() => {
+    void guardianRuntime.receive(guardianEvent("PORTAL_OPENED", portalId, { portal: portalId, domain: portalId, relevance: "normal" }));
+    return () => { guardianRuntime.setActivity("browsing"); };
+  }, [portalId]);
+
   // This world's soundscape fades in as the judge enters, and stops on exit.
   useEffect(() => {
     audio.playAmbient(portalId);
@@ -94,6 +101,7 @@ export function PortalScreen({ portalId }: { portalId: PortalId }) {
   const submitCommand = (value?: string) => {
     const request = value ?? command;
     haptic.light();
+    void guardianRuntime.receive(guardianEvent("USER_REQUESTED", portalId, { domain: portalId, request, relevance: "high", requiredPermission: 3 }, { userVisible: true, urgency: 0.35 }));
     setCommand(request);
     setPlan(createPreviewPlan(request, portalId));
     const interaction = createGuardianInteraction({ portalId, action: request, source: "manual", trigger: `You prepared a ${portal.name} request` });
