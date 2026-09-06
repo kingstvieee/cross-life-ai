@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -6,10 +6,20 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { PortalCard } from "@/components/staarwardd/portal-card";
 import { haptic } from "@/lib/staarwardd/haptics";
 import { PORTALS } from "@/lib/staarwardd/portal-data";
+import { guardianEvent, guardianRuntime, type GuardianDecision } from "@/lib/staarwardd/guardian-runtime";
 
 export function HubScreen() {
   const router = useRouter();
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [guardianSignal, setGuardianSignal] = useState<GuardianDecision | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    guardianRuntime.receive(guardianEvent("HOME_ENTERED", "home", { domain: "home", scheduleConflict: true, relevance: "high", relatedPortals: ["work", "style", "relationships"] }, { urgency: 0.78, userVisible: true })).then((decision) => {
+      if (active) setGuardianSignal(decision);
+    });
+    return () => { active = false; };
+  }, []);
 
   const openPortal = (id: string) => {
     haptic.light();
@@ -40,8 +50,8 @@ export function HubScreen() {
               <View style={styles.signalDot} />
               <View style={styles.signalCopy}>
                 <Text style={styles.signalLabel}>COMMAND STATUS</Text>
-                <Text style={styles.signalTitle}>Your dimensions are ready.</Text>
-                <Text style={styles.signalDetail}>Open one portal at a time. Preview actions never run outside the app.</Text>
+                <Text style={styles.signalTitle}>{guardianSignal?.recommendation ?? "Your dimensions are ready."}</Text>
+                <Text style={styles.signalDetail}>{guardianSignal?.observation ? `${guardianSignal.observation} Routing: ${guardianSignal.portals.join(" · ")}.` : "Open one portal at a time. Preview actions never run outside the app."}</Text>
               </View>
             </View>
             <View style={styles.sectionRow}>
