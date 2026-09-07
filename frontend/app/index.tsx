@@ -4,12 +4,15 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
 import { CinematicHub } from "@/components/staarwardd/cinematic-hub";
 import { LaunchSequence, useReturningUser } from "@/components/staarwardd/launch-sequence";
+import { WorldSummoning } from "@/components/staarwardd/world-summoning";
+
+type Phase = "flight" | "summon" | "hub";
 
 export default function IndexScreen() {
   const router = useRouter();
   const { markSeen } = useReturningUser();
   const { reset } = useLocalSearchParams<{ reset?: string }>();
-  const [sessionEntered, setSessionEntered] = useState(false);
+  const [phase, setPhase] = useState<Phase>("flight");
   const soundtrackRef = useRef<any>(null);
   const [soundtrackTail, setSoundtrackTail] = useState(false);
   const isWeb = Platform.OS === "web";
@@ -27,9 +30,16 @@ export default function IndexScreen() {
       soundtrackRef.current?.pause();
       if (soundtrackRef.current) soundtrackRef.current.currentTime = 0;
       setSoundtrackTail(false);
-      setSessionEntered(false);
+      setPhase("flight");
     }
   }, [reset]);
+
+  const flightComplete = () => {
+    const sound = soundtrackRef.current;
+    setSoundtrackTail(!!sound && !sound.paused && !sound.ended);
+    markSeen();
+    setPhase("summon");
+  };
 
   return <View style={{ flex: 1 }}>
     {isWeb && require("react-native-web").unstable_createElement("audio", {
@@ -39,16 +49,12 @@ export default function IndexScreen() {
       onEnded: () => setSoundtrackTail(false),
       onError: () => setSoundtrackTail(false),
     })}
-    {!sessionEntered ? (
-      <LaunchSequence
-        soundtrackRef={isWeb ? soundtrackRef : undefined}
-        onComplete={() => {
-          const sound = soundtrackRef.current;
-          setSoundtrackTail(!!sound && !sound.paused && !sound.ended);
-          markSeen(); setSessionEntered(true);
-        }}
-        onSelectPortal={(id) => { markSeen(); router.replace({ pathname: "/portal/[id]", params: { id } }); }}
-      />
-    ) : <CinematicHub greet waitForLaunchAudio={soundtrackTail} />}
+    {phase === "flight" && <LaunchSequence
+      soundtrackRef={isWeb ? soundtrackRef : undefined}
+      onComplete={flightComplete}
+      onSelectPortal={(id) => { markSeen(); router.replace({ pathname: "/portal/[id]", params: { id } }); }}
+    />}
+    {phase === "summon" && <WorldSummoning onComplete={() => setPhase("hub")} />}
+    {phase === "hub" && <CinematicHub greet waitForLaunchAudio={soundtrackTail} />}
   </View>;
 }
