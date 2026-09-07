@@ -6,7 +6,7 @@ import { glow } from "@/lib/staarwardd/shadow";
 
 const LAUNCH_KEY="staarwardd.launch-seen"; const isWeb=Platform.OS==="web";
 const WEB_MP4="/video/guardian-launch-synced-v4.mp4",WEB_POSTER="/video/guardian-toronto-traverse-poster.jpg";
-const SOUNDTRACK="/audio/STAARWAARDD_Synced_Effects_v4.mp3";
+const SOUNDTRACK="/audio/STAARWAARDD_Full_Launch_Enhanced_v1.mp3";
 const NATIVE_SRC=require("@/assets/videos/guardian-toronto-traverse-hd.mp4");
 export type PortalId="creativity"|"work"|"home"|"wellbeing"|"relationships"|"events"|"style";
 export function useReturningUser(){const[loading,setLoading]=useState(true),[returning,setReturning]=useState(false);useEffect(()=>{AsyncStorage.getItem(LAUNCH_KEY).then(v=>{setReturning(v==="1");setLoading(false)});},[]);return{loading,returning,markSeen:()=>void AsyncStorage.setItem(LAUNCH_KEY,"1")};}
