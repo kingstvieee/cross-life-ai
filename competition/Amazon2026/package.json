@@ -1,0 +1,10 @@
+{
+  "name": "staarwardd-amazon-2026",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@strands-agents/sdk": "^1.17.0"
+  }
+}
