@@ -1,10 +1,14 @@
 {
   "name": "staarwardd-amazon-2026",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "engines": { "node": ">=22" },
+  "scripts": {
+    "smoke": "node src/aws-smoke.mjs"
+  },
   "dependencies": {
-    "@strands-agents/sdk": "^1.17.0"
+    "@strands-agents/sdk": "^1.17.0",
+    "zod": "^4.0.0"
   }
 }
