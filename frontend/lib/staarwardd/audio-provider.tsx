@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import type { AmbientKey } from "@/lib/staarwardd/experience";
 
-export type CinematicCue = "opening" | "flight" | "shield" | "portal" | "transition" | "traverse" | "storm";
+export type CinematicCue = "opening" | "flight" | "shield" | "portal" | "transition" | "traverse" | "storm" | "cinematic";
 
 type AudioSettings = {
   master: boolean;
@@ -66,6 +66,7 @@ const CUES: Record<CinematicCue, AudioSource> = isWeb
       transition: webSrc("transition.mp3"),
       traverse: webSrc("toronto-portal.mp3"),
       storm: webSrc("cloud-rumble-lightning-prominent.mp3"),
+      cinematic: webSrc("staarwardd-entrance-room-v2.wav"),
     }
   : {
       opening: require("@/assets/audio/opening.mp3"),
@@ -75,6 +76,7 @@ const CUES: Record<CinematicCue, AudioSource> = isWeb
       transition: require("@/assets/audio/transition.mp3"),
       traverse: require("@/assets/audio/toronto-portal.mp3"),
       storm: require("@/assets/audio/cloud-rumble-lightning-prominent.mp3"),
+      cinematic: require("@/assets/audio/staarwardd-entrance-room-v2.wav"),
     };
 
 export function StaarAudioProvider({ children }: PropsWithChildren) {
