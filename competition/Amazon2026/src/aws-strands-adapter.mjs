@@ -10,7 +10,12 @@ const guardianPlanTool = tool({
 });
 
 export function createGuardianAgent() {
-  const model = new BedrockModel({ maxTokens: 1200 });
+  const apiKey = process.env.AWS_BEARER_TOKEN_BEDROCK?.trim();
+  const model = new BedrockModel({
+    region: process.env.AWS_REGION || 'us-east-1',
+    maxTokens: 1200,
+    ...(apiKey ? { apiKey } : {})
+  });
   return new Agent({
     id: 'staarwardd-guardian',
     model,
