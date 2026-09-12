@@ -6,7 +6,8 @@ export function startLaunchSoundtrack() {
   if (typeof window === "undefined") return;
   try {
     if (!el) {
-      el = new window.Audio("/audio/toronto-portal.mp3");
+      // Enhanced full launch soundtrack (from codex main) — loops seamlessly.
+      el = new window.Audio("/audio/STAARWAARDD_Full_Launch_Enhanced_v1.mp3");
       el.preload = "auto";
       el.loop = true;
     }
