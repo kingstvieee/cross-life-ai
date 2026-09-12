@@ -19,9 +19,10 @@ const PORTAL_ART: { id: string; name: string; src: any }[] = [
   { id: "style", name: "Style", src: require("@/assets/images/staarwardd/portal-style-v7.webp") },
 ];
 
-const SKYLINE = require("@/assets/images/staarwardd/guardian-toronto.png");
+const SKYLINE = require("@/assets/images/staarwardd/toronto-skyline-pan.png");
 const SIGIL = require("@/assets/images/staarwardd/maple-sigil.webp");
 const GUARDIAN_FLY = require("@/assets/images/staarwardd/guardian-poses/flying.png");
+const GUARDIAN_SUMMON = require("@/assets/images/staarwardd/guardian-poses/summon.png");
 const GUARDIAN_LAND = require("@/assets/images/staarwardd/guardian-poses/guide.png");
 
 function playFx(path: string, volume: number) {
@@ -48,6 +49,8 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
   const through = useRef(new Animated.Value(0)).current;
   const shake = useRef(new Animated.Value(0)).current;
   const dust = useRef(new Animated.Value(0)).current;
+  const float = useRef(new Animated.Value(0)).current;
+  const pan = useRef(new Animated.Value(0)).current;
   const fx = useRef<any[]>([]);
   const whispers = useRef<(string | null)[]>(PORTAL_ART.map(() => null));
   const wt = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -58,6 +61,11 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
       void fetchGuardianLine(`/api/guardian/gate-name/${p.id}`).then((line) => { whispers.current[i] = line?.url ?? null; });
     });
     fx.current.push(playFx("/audio/cloud-rumble-lightning-prominent.mp3", 0.8));
+    // Living Guardian: perpetual hover bob + wing sway so he never freezes.
+    Animated.loop(Animated.sequence([
+      Animated.timing(float, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(float, { toValue: 0, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ])).start();
     // SHOT 1 — descent + lightning + landing impact
     Animated.sequence([
       Animated.timing(flash, { toValue: 1, duration: 130, useNativeDriver: true }),
@@ -95,16 +103,20 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
     const t3 = setTimeout(() => {
       setShot(3);
       Animated.timing(skyline, { toValue: 1, duration: 1600, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+      // He returns forward — summoned worlds behind him, ready for work.
+      Animated.timing(recede, { toValue: 0.3, duration: 1400, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }).start();
+      // Slow cinematic pan across the Toronto skyline toward the CN Tower.
+      Animated.timing(pan, { toValue: 1, duration: 7600, easing: Easing.inOut(Easing.quad), useNativeDriver: true }).start();
     }, 9400);
     const t4 = setTimeout(() => {
       setShot(4);
       fx.current.push(playFx("/audio/shield.mp3", 0.75));
       Animated.spring(shield, { toValue: 1, friction: 7, tension: 38, useNativeDriver: true }).start();
-    }, 12600);
+    }, 13900);
     const t5 = setTimeout(() => {
       // SHOT 5 — camera passes through the shield into the living Hub
       Animated.timing(through, { toValue: 1, duration: 1100, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => onDone());
-    }, 16200);
+    }, 17500);
     return () => { [t2, t3, t4, t5, ...wt.current].forEach(clearTimeout); fx.current.forEach((el) => { try { el?.pause?.(); } catch {} }); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -125,6 +137,12 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
   const dustSpreadNeg = dust.interpolate({ inputRange: [0, 1], outputRange: [-20, -95] });
   const dustScale = dust.interpolate({ inputRange: [0, 1], outputRange: [0.3, 2.4] });
   const dustOpacity = dust.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 0.5, 0] });
+  const floatY = float.interpolate({ inputRange: [0, 1], outputRange: [0, -14] });
+  const sway = float.interpolate({ inputRange: [0, 1], outputRange: ["-2deg", "2deg"] });
+  const auraScale = float.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.12] });
+  const auraOpacity = float.interpolate({ inputRange: [0, 1], outputRange: [0.14, 0.3] });
+  const panX = pan.interpolate({ inputRange: [0, 1], outputRange: [0, -SW * 0.78] });
+  const panZoom = pan.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] });
   const gateW = Math.min(SW * 0.64, 300);
 
   return (
@@ -133,8 +151,8 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
       <View style={s.floorGlow} />
       {/* SHOT 3 — Toronto beyond the chamber */}
       {shot >= 3 && (
-        <Animated.View style={[s.skyWrap, { opacity: skyline, transform: [{ translateY: skyY }] }]}>
-          <Image source={SKYLINE} style={{ width: SW, height: SW * 0.56 }} resizeMode="cover" />
+        <Animated.View style={[s.skyWrap, { height: SW * 0.75, opacity: skyline, transform: [{ translateY: skyY }] }]}>
+          <Animated.Image source={SKYLINE} style={{ width: SW * 1.8, height: SW * 0.75, transform: [{ translateX: panX }, { scale: panZoom }] }} resizeMode="cover" />
           <LinearGradient colors={["rgba(42,36,56,0)", "rgba(42,36,56,0.9)"]} style={s.skyFade} />
         </Animated.View>
       )}
@@ -143,8 +161,10 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
         <Animated.View style={[s.ring, { opacity: rippleOpacity, transform: [{ scale: rippleScale }] }]} />
         <Animated.View style={[s.dust, { opacity: dustOpacity, transform: [{ translateY: 185 }, { translateX: dustSpreadNeg }, { scaleX: dustScale }] }]} />
         <Animated.View style={[s.dust, { opacity: dustOpacity, transform: [{ translateY: 185 }, { translateX: dustSpread }, { scaleX: dustScale }] }]} />
-        <Animated.View style={{ transform: [{ translateY: guardianY }, { translateY: recedeY }, { scale: guardianScale }, { scale: recedeScale }], alignItems: "center" }}>
-          <Image source={shot === 1 ? GUARDIAN_FLY : GUARDIAN_LAND} style={{ width: Math.min(SW * 0.72, 320), height: Math.min(SW * 0.72, 320) * 1.5 }} resizeMode="contain" />
+        <Animated.View style={{ transform: [{ translateY: guardianY }, { translateY: recedeY }, { translateY: floatY }, { scale: guardianScale }, { scale: recedeScale }, { rotate: sway }], alignItems: "center", justifyContent: "center" }}>
+          <Animated.View style={[s.auraOuter, { opacity: auraOpacity, transform: [{ scale: auraScale }] }]} />
+          <Animated.View style={[s.auraInner, { opacity: auraOpacity, transform: [{ scale: auraScale }] }]} />
+          <Image source={shot === 1 ? GUARDIAN_FLY : shot === 2 ? GUARDIAN_SUMMON : GUARDIAN_LAND} style={{ width: Math.min(SW * 0.72, 320), height: Math.min(SW * 0.72, 320) * 1.5 }} resizeMode="contain" />
         </Animated.View>
         {shot === 1 && <Text style={s.caption}>THE GUARDIAN ARRIVES</Text>}
         {/* SHOT 2 — seven full-size gateways take the spotlight, one by one */}
@@ -181,7 +201,9 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
 const s = StyleSheet.create({
   root: { zIndex: 60, elevation: 60, overflow: "hidden", backgroundColor: "#2A2438" },
   floorGlow: { position: "absolute", bottom: -110, alignSelf: "center", width: 420, height: 160, borderRadius: 210, backgroundColor: "rgba(244,206,110,0.14)" },
-  skyWrap: { position: "absolute", top: 0, left: 0, right: 0 },
+  skyWrap: { position: "absolute", top: 0, left: 0, right: 0, overflow: "hidden" },
+  auraOuter: { position: "absolute", width: 280, height: 280, borderRadius: 140, backgroundColor: "rgba(244,206,110,0.12)" },
+  auraInner: { position: "absolute", width: 170, height: 170, borderRadius: 85, backgroundColor: "rgba(255,232,166,0.16)" },
   skyFade: { position: "absolute", left: 0, right: 0, bottom: 0, height: 90 },
   ring: { position: "absolute", width: 180, height: 180, borderRadius: 90, borderWidth: 3, borderColor: "#C9A23F" },
   dust: { position: "absolute", width: 90, height: 24, borderRadius: 45, backgroundColor: "rgba(233,214,170,0.55)" },
