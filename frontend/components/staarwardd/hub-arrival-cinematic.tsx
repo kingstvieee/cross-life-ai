@@ -126,7 +126,7 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
           </Animated.View>
         )}
       </Animated.View>
-      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF", opacity: flash }]} />
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: "#FFFFFF", opacity: flash, pointerEvents: "none" }]} />
       <Pressable accessibilityRole="button" accessibilityLabel="Skip arrival cinematic" onPress={onDone} style={s.skip} testID="skip-arrival-btn">
         <Text style={s.skipText}>SKIP</Text>
       </Pressable>
