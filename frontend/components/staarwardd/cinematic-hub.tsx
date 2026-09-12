@@ -21,6 +21,7 @@ import { getRoutineBriefing } from "@/lib/staarwardd/routine-briefing";
 import { createGuardianInteraction } from "@/lib/staarwardd/guardian-interaction";
 import { useGuardianActivity } from "@/lib/staarwardd/guardian-activity";
 import { JudgeReset } from "@/components/staarwardd/judge-reset";
+import { HubArrivalCinematic } from "@/components/staarwardd/hub-arrival-cinematic";
 import { JudgeDemo } from "@/components/staarwardd/judge-demo";
 import { fetchGuardianLine, playGuardianLine } from "@/lib/staarwardd/guardian-tts";
 import { useDemoTimer } from "@/lib/staarwardd/demo-timer";
@@ -48,6 +49,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
   const greeted = useRef(false);
   const stopGreeting = useRef<(() => void) | null>(null);
   const [spokenLine, setSpokenLine] = useState<string | null>(null);
+  const [arrival, setArrival] = useState(greet);
   const { start: startDemoTimer, stop: stopDemoTimer } = useDemoTimer();
   const { stopAll } = audio;
 
@@ -63,7 +65,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
   // Guardian's spoken Onyx welcome as the Hub resolves from the entrance,
   // with the words shown as an on-screen subtitle line while he speaks.
   useEffect(() => {
-    if (!greet || greeted.current || !audio.voice) return;
+    if (!greet || arrival || greeted.current || !audio.voice) return;
     greeted.current = true;
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -137,9 +139,12 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={[styles.header, compact && styles.headerCompact]}>
-            <View>
-              <Text style={styles.kicker}>STAAR COMMAND ENVIRONMENT</Text>
-              <Text style={styles.title}>Seven worlds, one presence.</Text>
+            <View style={hs.brandRow}>
+              <Image source={require("@/assets/images/staarwardd/maple-sigil.webp")} style={hs.sigil} />
+              <View>
+                <Text style={hs.brandName}>STAARWAARDD</Text>
+                <Text style={hs.brandTag}>THE GUARDIAN COMMAND CHAMBER</Text>
+              </View>
             </View>
             <View style={[styles.actions, compact && styles.actionsCompact]}>
               <Pressable accessibilityRole="button" accessibilityLabel="Open preference memory" onPress={() => setMemoryOpen(true)} style={styles.round}><Text style={styles.roundText}>◈</Text></Pressable>
@@ -162,7 +167,26 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
                 <Text style={styles.greetingText}>{guardianGreeting}</Text>
               </Animated.View>
             )}
-            <View style={[styles.gatewayField, compact && styles.gatewayFieldCompact]}>{PORTALS.map((portal, index) => <Gateway key={portal.id} portal={portal} index={index} awake={fieldAwake} onPress={() => enter(portal.id)} />)}</View>
+          </View>
+          {/* Seven full-size immersive gateways — physical doorways, not icons */}
+          <View style={hs.portalGrid}>
+            {PORTALS.map((portal) => (
+              <Pressable
+                key={portal.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Enter the ${portal.name} world`}
+                onPress={() => enter(portal.id)}
+                style={({ pressed }) => [hs.portalCard, { borderColor: portal.color, width: compact ? "47%" : "23%" }, pressed && hs.portalPressed]}
+                testID={`hub-portal-${portal.id}`}
+              >
+                <Image source={HUB_PORTAL_ART[portal.id]} style={hs.portalImage} resizeMode="cover" />
+                <LinearGradient colors={["rgba(6,10,22,0)", "rgba(6,10,22,0.78)"]} style={hs.portalShade} />
+                <View style={hs.portalMeta}>
+                  <Text style={hs.portalName}>{portal.name.toUpperCase()}</Text>
+                  <View style={[hs.portalPulse, { backgroundColor: portal.color }]} />
+                </View>
+              </Pressable>
+            ))}
           </View>
           <View style={styles.commandCopy}>
             <Text style={styles.commandKicker}>{fieldAwake ? "THE FIELD IS AWAKE" : "GUARDIAN AT CENTER"}</Text>
@@ -217,6 +241,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
         }}
       />
       <CompanionModal open={companionOpen} onClose={() => setCompanionOpen(false)} />
+      {arrival && <HubArrivalCinematic onDone={() => setArrival(false)} />}
       {/* Elegant subtitle line while the Guardian speaks his welcome */}
       {spokenLine && (
         <View style={styles.subtitleWrap} testID="guardian-subtitle">
@@ -263,6 +288,32 @@ function InfoModal({ open, onClose, onStart }: { open: boolean; onClose: () => v
 
 The preview is local and honest: no hardware or external action is claimed.</Text><Pressable accessibilityRole="button" accessibilityLabel="Start judge demo with Work" onPress={onStart} style={styles.modalButton}><Text style={styles.modalButtonText}>START WITH WORK →</Text></Pressable><Pressable accessibilityRole="button" onPress={onClose} style={styles.modalSecondary}><Text style={styles.modalSecondaryText}>CLOSE</Text></Pressable></View></View></Modal>; }
 function CompanionModal({ open, onClose }: { open: boolean; onClose: () => void }) { return <Modal transparent visible={open} animationType="slide" onRequestClose={onClose}><View style={styles.back}><View style={styles.modal}><Text style={styles.modalKicker}>COMPANION FIELD</Text><Text style={styles.modalTitle}>Approved companion visuals required.</Text><Text style={styles.modalCopy}>Kaia, Atlas, and STAARWAARDD watch visual files are not available in this project. This field remains intentionally unavailable until approved assets and the entitlement-backed device protocol are supplied.</Text><Pressable accessibilityRole="button" onPress={onClose} style={styles.modalButton}><Text style={styles.modalButtonText}>CLOSE</Text></Pressable></View></View></Modal>; }
+
+const HUB_PORTAL_ART: Record<string, any> = {
+  creativity: require("@/assets/images/staarwardd/portal-creativity-v7.webp"),
+  work: require("@/assets/images/staarwardd/portal-work-v7.webp"),
+  home: require("@/assets/images/staarwardd/portal-home-v7.webp"),
+  wellbeing: require("@/assets/images/staarwardd/portal-wellbeing-v7.webp"),
+  relationships: require("@/assets/images/staarwardd/portal-relationships-v7.webp"),
+  events: require("@/assets/images/staarwardd/portal-community-v7.webp"),
+  style: require("@/assets/images/staarwardd/portal-style-v7.webp"),
+};
+
+// Premium bright-champagne hub styling (Guardian command chamber)
+const hs = StyleSheet.create({
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  sigil: { width: 44, height: 44 },
+  brandName: { color: "#F4E3B2", fontSize: 21, letterSpacing: 4.5, fontWeight: "800" },
+  brandTag: { color: "#C8B98E", fontSize: 9, letterSpacing: 2.4, fontWeight: "700", marginTop: 3 },
+  portalGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 12, marginTop: 18, width: "100%" },
+  portalCard: { aspectRatio: 1.18, borderRadius: 20, overflow: "hidden", borderWidth: 1.5, backgroundColor: "#0B1222", minWidth: 150 },
+  portalPressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
+  portalImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  portalShade: { position: "absolute", left: 0, right: 0, bottom: 0, height: "52%" },
+  portalMeta: { position: "absolute", left: 12, right: 12, bottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  portalName: { color: "#FFFDF4", fontSize: 13, letterSpacing: 1.8, fontWeight: "800" },
+  portalPulse: { width: 10, height: 10, borderRadius: 5 },
+});
 
 const styles = StyleSheet.create({
   subtitleWrap: { position: "absolute", left: 16, right: 16, bottom: 26, alignItems: "center", pointerEvents: "none" },

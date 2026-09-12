@@ -66,6 +66,10 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
   const [portalCount, setPortalCount] = useState(0);
   const done = useRef(false);
   const videoRef = useRef<any>(null);
+  const soundtrackRef = useRef<any>(null);
+
+  // Stop the launch soundtrack when the entrance resolves into the hub.
+  useEffect(() => () => { try { soundtrackRef.current?.pause?.(); } catch {} }, []);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const nativePlayer = useVideoPlayer(isWeb ? null : NATIVE_SRC, (p) => { p.loop = false; p.muted = false; });
@@ -169,6 +173,18 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
     setStarted(true);
     setSoundEnabled(true);
     audio.update({ master: true, music: true, ambience: true });
+    // Premium launch soundtrack (real STAARWAARDD asset), preloaded, ~80% volume,
+    // with one graceful retry if the browser interrupts playback.
+    if (isWeb && typeof window !== "undefined") {
+      try {
+        const track = new window.Audio("/audio/toronto-portal.mp3");
+        track.preload = "auto";
+        track.volume = 0.8;
+        soundtrackRef.current = track;
+        const p = track.play();
+        p?.catch?.(() => { setTimeout(() => track.play().catch(() => {}), 450); });
+      } catch { /* soundtrack optional */ }
+    }
     try {
       if (isWeb && videoRef.current) {
         const v = videoRef.current;
