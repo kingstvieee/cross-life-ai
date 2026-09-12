@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Image, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { fetchGuardianLine } from "@/lib/staarwardd/guardian-tts";
 
 // One continuous cinematic ending, portrait-mobile first:
 // SHOT 1 Guardian lands in a bright chamber through controlled lightning
@@ -45,9 +46,17 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
   const skyline = useRef(new Animated.Value(0)).current;
   const shield = useRef(new Animated.Value(0)).current;
   const through = useRef(new Animated.Value(0)).current;
+  const shake = useRef(new Animated.Value(0)).current;
+  const dust = useRef(new Animated.Value(0)).current;
   const fx = useRef<any[]>([]);
+  const whispers = useRef<(string | null)[]>(PORTAL_ART.map(() => null));
+  const wt = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
+    // Gateway whispers: prefetch each gate's spoken name (cached Onyx TTS).
+    PORTAL_ART.forEach((p, i) => {
+      void fetchGuardianLine(`/api/guardian/gate-name/${p.id}`).then((line) => { whispers.current[i] = line?.url ?? null; });
+    });
     fx.current.push(playFx("/audio/cloud-rumble-lightning-prominent.mp3", 0.8));
     // SHOT 1 — descent + lightning + landing impact
     Animated.sequence([
@@ -57,13 +66,24 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
       Animated.timing(flash, { toValue: 0, duration: 320, useNativeDriver: true }),
     ]).start();
     Animated.timing(drop, { toValue: 1, duration: 1900, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(() => {
+      // Landing echo — impact ripple, dust burst at his feet, soft camera shake.
       Animated.timing(ripple, { toValue: 1, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+      Animated.timing(dust, { toValue: 1, duration: 850, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+      Animated.sequence([
+        Animated.timing(shake, { toValue: 1, duration: 55, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: -1, duration: 55, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: 0.55, duration: 50, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: -0.35, duration: 50, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: 0, duration: 60, useNativeDriver: true }),
+      ]).start();
     });
     const t2 = setTimeout(() => {
       setShot(2);
       // Guardian steps back while each full-size gateway takes the spotlight.
       Animated.timing(recede, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }).start();
       rise.forEach((v, i) => {
+        // Guardian whispers each gate's name as it takes the spotlight.
+        wt.current.push(setTimeout(() => { const u = whispers.current[i]; if (u) fx.current.push(playFx(u, 0.9)); }, i * 800 + 120));
         Animated.sequence([
           Animated.delay(i * 800),
           Animated.timing(v, { toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
@@ -85,7 +105,7 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
       // SHOT 5 — camera passes through the shield into the living Hub
       Animated.timing(through, { toValue: 1, duration: 1100, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => onDone());
     }, 16200);
-    return () => { [t2, t3, t4, t5].forEach(clearTimeout); fx.current.forEach((el) => { try { el?.pause?.(); } catch {} }); };
+    return () => { [t2, t3, t4, t5, ...wt.current].forEach(clearTimeout); fx.current.forEach((el) => { try { el?.pause?.(); } catch {} }); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -99,6 +119,12 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
   const throughFade = through.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 1, 0] });
   const recedeY = recede.interpolate({ inputRange: [0, 1], outputRange: [0, SH * 0.17] });
   const recedeScale = recede.interpolate({ inputRange: [0, 1], outputRange: [1, 0.55] });
+  const shakeX = shake.interpolate({ inputRange: [-1, 1], outputRange: [-4, 4] });
+  const shakeY = shake.interpolate({ inputRange: [-1, 1], outputRange: [6, -6] });
+  const dustSpread = dust.interpolate({ inputRange: [0, 1], outputRange: [20, 95] });
+  const dustSpreadNeg = dust.interpolate({ inputRange: [0, 1], outputRange: [-20, -95] });
+  const dustScale = dust.interpolate({ inputRange: [0, 1], outputRange: [0.3, 2.4] });
+  const dustOpacity = dust.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 0.5, 0] });
   const gateW = Math.min(SW * 0.64, 300);
 
   return (
@@ -112,9 +138,11 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
           <LinearGradient colors={["rgba(42,36,56,0)", "rgba(42,36,56,0.9)"]} style={s.skyFade} />
         </Animated.View>
       )}
-      <Animated.View style={{ transform: [{ scale: throughScale }], flex: 1, alignItems: "center", justifyContent: "center" }}>
+      <Animated.View style={{ transform: [{ scale: throughScale }, { translateX: shakeX }, { translateY: shakeY }], flex: 1, alignItems: "center", justifyContent: "center" }}>
         {/* SHOT 1 — Guardian arrival */}
         <Animated.View style={[s.ring, { opacity: rippleOpacity, transform: [{ scale: rippleScale }] }]} />
+        <Animated.View style={[s.dust, { opacity: dustOpacity, transform: [{ translateY: 185 }, { translateX: dustSpreadNeg }, { scaleX: dustScale }] }]} />
+        <Animated.View style={[s.dust, { opacity: dustOpacity, transform: [{ translateY: 185 }, { translateX: dustSpread }, { scaleX: dustScale }] }]} />
         <Animated.View style={{ transform: [{ translateY: guardianY }, { translateY: recedeY }, { scale: guardianScale }, { scale: recedeScale }], alignItems: "center" }}>
           <Image source={shot === 1 ? GUARDIAN_FLY : GUARDIAN_LAND} style={{ width: Math.min(SW * 0.72, 320), height: Math.min(SW * 0.72, 320) * 1.5 }} resizeMode="contain" />
         </Animated.View>
@@ -156,6 +184,7 @@ const s = StyleSheet.create({
   skyWrap: { position: "absolute", top: 0, left: 0, right: 0 },
   skyFade: { position: "absolute", left: 0, right: 0, bottom: 0, height: 90 },
   ring: { position: "absolute", width: 180, height: 180, borderRadius: 90, borderWidth: 3, borderColor: "#C9A23F" },
+  dust: { position: "absolute", width: 90, height: 24, borderRadius: 45, backgroundColor: "rgba(233,214,170,0.55)" },
   caption: { marginTop: 14, color: "#F4DC9C", fontSize: 12, letterSpacing: 2.4, fontWeight: "800", textAlign: "center" },
   captionBottom: { position: "absolute", bottom: 64, alignSelf: "center" },
   spotField: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },

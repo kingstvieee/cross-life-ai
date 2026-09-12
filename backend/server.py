@@ -928,6 +928,27 @@ async def guardian_judge_demo(scene: int, request: Request):
     return await _tts_cached_line(text)
 
 
+GATE_NAME_LINES = {
+    "creativity": "Creativity awakens.",
+    "work": "Work awakens.",
+    "home": "Home awakens.",
+    "wellbeing": "Wellbeing awakens.",
+    "relationships": "Relationships awaken.",
+    "events": "Community awakens.",
+    "style": "Style awakens.",
+}
+
+
+@api_router.get("/guardian/gate-name/{portal_id}")
+async def guardian_gate_name(portal_id: str, request: Request):
+    """Spoken gateway-name whisper for the arrival cinematic (cached Onyx)."""
+    rate_limit(f"ttsline:{client_ip(request)}", 30, 60)
+    text = GATE_NAME_LINES.get(portal_id)
+    if not text:
+        raise HTTPException(status_code=404, detail="unknown_portal")
+    return await _tts_cached_line(text)
+
+
 @api_router.get("/guardian/portal-intro/{portal_id}")
 async def guardian_portal_intro(portal_id: str, request: Request):
     """One-line Onyx introduction spoken when entering a world (cached)."""
