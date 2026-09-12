@@ -150,17 +150,14 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
               <Pressable accessibilityRole="button" accessibilityLabel="Open preference memory" onPress={() => setMemoryOpen(true)} style={styles.round}><Text style={styles.roundText}>◈</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Open audio controls" onPress={() => setAudioOpen(true)} style={styles.round}><Text style={styles.roundText}>{audio.master ? "♫" : "◌"}</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Open Guardian activity history" onPress={() => setActivityOpen(true)} style={styles.round}><Text style={styles.roundText}>≡</Text></Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel="Start automatic cross-life crisis judge demo" onPress={() => { stopGreeting.current?.(); setSpokenLine(null); startDemoTimer(240); setAboutOpen(true); }} style={styles.judgeButton}><Text style={styles.judgeButtonText}>RUN LIVE CRISIS DEMO · AUTO</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Start automatic cross-life crisis judge demo" onPress={() => { stopGreeting.current?.(); setSpokenLine(null); try { require("@/lib/staarwardd/launch-soundtrack").stopLaunchSoundtrack(); } catch {} startDemoTimer(240); setAboutOpen(true); }} style={styles.judgeButton}><Text style={styles.judgeButtonText}>RUN LIVE CRISIS DEMO · AUTO</Text></Pressable>
               <JudgeReset />
             </View>
           </View>
 
-          <View style={[styles.commandField, compact && styles.commandFieldCompact]}>
-            <Animated.View style={[styles.commandGlow, { transform: [{ rotate: rotation }] }]} />
-            <Animated.View style={[styles.awakeningRing, { opacity: awakeningOpacity, transform: [{ scale: awakeningScale }] }]} />
-            <View style={[styles.guardianVignette, compact && styles.guardianVignetteCompact]}>
-              <GuardianCharacter state={fieldAwake ? "portalSelection" : "idle"} mood={fieldAwake ? "excited" : "focused"} portalMode="hub" size={compact ? 190 : 238} />
-            </View>
+          {/* Living Guardian stage — open chamber, no concentric dashboard rings */}
+          <View style={hs.guardianStage}>
+            <GuardianCharacter state={fieldAwake ? "portalSelection" : "idle"} mood={fieldAwake ? "excited" : "focused"} portalMode="hub" size={compact ? 250 : 320} />
             {fieldAwake && (
               <Animated.View style={[styles.greetingBubble, { opacity: greeting, transform: [{ translateY: greetingTranslate }] }]}>
                 <Text style={styles.greetingLabel}>GUARDIAN</Text>
@@ -313,6 +310,7 @@ const hs = StyleSheet.create({
   portalMeta: { position: "absolute", left: 12, right: 12, bottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   portalName: { color: "#FFFDF4", fontSize: 13, letterSpacing: 1.8, fontWeight: "800" },
   portalPulse: { width: 10, height: 10, borderRadius: 5 },
+  guardianStage: { alignItems: "center", justifyContent: "flex-end", marginTop: 12, minHeight: 300 },
 });
 
 const styles = StyleSheet.create({

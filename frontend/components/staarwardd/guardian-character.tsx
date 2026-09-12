@@ -1,6 +1,6 @@
 import { glow } from "@/lib/staarwardd/shadow";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, ImageSourcePropType, StyleSheet, View } from "react-native";
+import { Animated, Easing, ImageSourcePropType, Platform, StyleSheet, View } from "react-native";
 
 import { GuardianMotionVideo, type GuardianMotionClip } from "@/components/staarwardd/guardian-motion-video";
 import type { PortalId } from "@/lib/staarwardd/types";
@@ -48,7 +48,9 @@ export function GuardianCharacter({ state, mood = "neutral", portalMode = "hub",
   const [videoFailed, setVideoFailed] = useState(false);
   const tint = moodColors[mood];
   const label = useMemo(() => `Guardian ${state.replace(/([A-Z])/g, " $1").toLowerCase()} in ${portalMode}`, [portalMode, state]);
-  const motionClip = motionClipFor(state);
+  // Web preview: expo-video renders an opaque black rectangle here, which
+  // breaks the transparent-Guardian look. Use the keyed pose images instead.
+  const motionClip = Platform.OS === "web" ? null : motionClipFor(state);
 
   useEffect(() => {
     setVideoReady(false);

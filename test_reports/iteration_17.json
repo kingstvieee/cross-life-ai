@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 17 — Regression test of STAARWAARDD Judge Demo + Hub after audio/visual cinematic overhaul. Backend smoke 5/5 PASS (POST /api/auth/demo, GET /api/guardian/judge-demo/1, GET the returned TTS mp3 with Range, POST /api/guardian/speak-line + streaming the returned mp3). Frontend regression (390x844) 4/4 PASS: (1) HUB LOAD — tapping enter-with-sound-btn → skip-cinematic-btn → skip-arrival-btn lands cleanly on the interactive Hub; brand header 'STAARWAARDD · THE GUARDIAN COMMAND CHAMBER' visible, all 7 hub-portal-<id> cards render (creativity, work, home, wellbeing, relationships, events, style — 'events' labeled COMMUNITY), Guardian pose PNG renders on transparent background (no black video rectangle), no white/blank screen, no legacy circular dashboard. (2) JUDGE DEMO — 'RUN LIVE CRISIS DEMO · AUTO' opens the modal, demo-timer-badge reads 'DEMO · 3:58' (240s start) and counts down, BEGIN WITH GUARDIAN VOICE gate appears, tapping it starts narration and the Guardian Actions panel; observed at least 2 scene transitions (Scene 1 'Four urgent problems arrive at once.' → Scene 2 'The Guardian decides what must be solved first.' with T-40 MIN · TRIAGE COMPLETE badge and QUEUED→EXECUTING→DONE state deltas: t+0s {q1,e1,d1} → t+4s {q0,e1,d3}); close × dismisses the modal cleanly. (3) PORTAL NAV — hub-portal-work navigates to /portal/work rendering 'Executive Command Workspace / Work' with Listen/Coach/Plan/Create/Operate mode chips + Plan Mode PREPARE button; back-navigation returns to Hub with brand header intact — no crash, no white screen. (4) SCORECARD — direct load of /scorecard renders 'STAARWAARDD · JUDGE SCORECARD' with 0/0/0 stat tiles, 'COORDINATION RECEIPTS', 'MEMORY HIGHLIGHTS', SHARE SCORECARD + BACK TO HUB buttons, and the judge-reset-btn-scorecard testID; tapping BACK TO HUB hard-navigates to '/' entrance gate. Console noise limited to benign RCTAnimation useNativeDriver warning + one wasm CanvasKit fetch retry — both non-blocking web-preview artifacts documented in prior iterations. No red screen, no page errors, no API failures.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_17.json",
+    "/app/backend/tests/test_iteration17_regression.py",
+    "/app/test_reports/pytest/iteration17.xml"
+  ],
+  "action_items": [
+    "None blocking — audio/visual cinematic overhaul has not regressed Hub, Judge Demo, portal navigation, or Scorecard.",
+    "OPTIONAL (carried from iteration_15/16): re-parent DemoTimerBadge above the Modal so judges see the 4:00 countdown while the demo is open, and migrate any remaining `pointerEvents=\"none\"` JSX props to `style={{ pointerEvents: 'none' }}` to silence a lingering react-native-web deprecation warning.",
+    "OPTIONAL: backend TTS route /api/tts/<hash>.mp3 rejects HEAD with 405 — if that's inconvenient for cache probes, add a HEAD handler; not needed for the audio element which uses ranged GET."
+  ],
+  "critical_code_review_comments": [
+    "guardian-character.tsx correctly guards Platform.OS==='web' to skip GuardianMotionVideo and fall back to transparent pose PNGs, eliminating the tiny black video rectangle previously reported.",
+    "launch-soundtrack.ts uses a module-level HTMLAudioElement guarded by typeof window checks — safe on Expo Go native runtime, keeps audio alive across Expo Router transitions.",
+    "hub-arrival-cinematic.tsx timeline (t2=3.3s, t3=9.4s, t4=12.6s, done ~16.2s) with useNativeDriver on all Animated.timings; timers cleared on unmount — no leaks.",
+    "Judge demo scene ordering preserved: scene 2 correctly shows 'WORK → STYLE → RELATIONSHIPS' hop chips and PROACTIVE badge; state machine transitions QUEUED→EXECUTING→DONE match spec.",
+    "Scorecard uses a distinct testID (judge-reset-btn-scorecard) — prior fix from iteration 15 still in place."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration17_regression.py (new pytest smoke — 5 tests)",
+    "/app/test_reports/pytest/iteration17.xml (JUnit)",
+    "/app/test_reports/iteration_17.json"
+  ],
+  "success_rate": { "backend": "100% (5/5)", "frontend": "100% (4/4 regression checks)" },
+  "seed_data_creation": "None — used demo auth session minted on the fly.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 17 confirms the cinematic/audio overhaul did not regress interactive surfaces. Journey to test quickly: goto /, click [data-testid=enter-with-sound-btn], click [data-testid=skip-cinematic-btn], click [data-testid=skip-arrival-btn] → Hub. Use RUN LIVE CRISIS DEMO to exercise the Judge modal; expect 240s [data-testid=demo-timer-badge] and BEGIN WITH GUARDIAN VOICE gate. /scorecard direct-loads without auth (AuthProvider mints demo session automatically). Backend smoke test at /app/backend/tests/test_iteration17_regression.py; run with EXPO_PUBLIC_BACKEND_URL=https://cross-life-ai.preview.emergentagent.com pytest -v. Screenshots: /tmp/it17_hub.png, /tmp/it17_demo_scene1.png, /tmp/it17_demo_scene_progress.png, /tmp/it17_work_portal.png, /tmp/it17_scorecard.png.",
+  "rca_of_issue": "n/a — regression pass, no new bugs reproduced."
+}
