@@ -22,6 +22,7 @@ import { createGuardianInteraction } from "@/lib/staarwardd/guardian-interaction
 import { useGuardianActivity } from "@/lib/staarwardd/guardian-activity";
 import { JudgeReset } from "@/components/staarwardd/judge-reset";
 import { HubArrivalCinematic } from "@/components/staarwardd/hub-arrival-cinematic";
+import { LivingHubChamber } from "@/components/staarwardd/living-hub-chamber";
 import { JudgeDemo } from "@/components/staarwardd/judge-demo";
 import { fetchGuardianLine, playGuardianLine } from "@/lib/staarwardd/guardian-tts";
 import { useDemoTimer } from "@/lib/staarwardd/demo-timer";
@@ -155,41 +156,17 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
             </View>
           </View>
 
-          {/* Living Guardian stage — open chamber, no concentric dashboard rings */}
-          <View style={hs.guardianStage}>
-            <GuardianCharacter state={fieldAwake ? "portalSelection" : "idle"} mood={fieldAwake ? "excited" : "focused"} portalMode="hub" size={compact ? 250 : 320} />
-            {fieldAwake && (
-              <Animated.View style={[styles.greetingBubble, { opacity: greeting, transform: [{ translateY: greetingTranslate }] }]}>
-                <Text style={styles.greetingLabel}>GUARDIAN</Text>
-                <Text style={styles.greetingText}>{guardianGreeting}</Text>
-              </Animated.View>
-            )}
-          </View>
-          {/* Seven full-size immersive gateways — physical doorways, not icons */}
-          <View style={hs.portalGrid}>
-            {PORTALS.map((portal) => (
-              <Pressable
-                key={portal.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Enter the ${portal.name} world`}
-                onPress={() => enter(portal.id)}
-                style={({ pressed }) => [hs.portalCard, { borderColor: portal.color, width: compact ? "47%" : "23%" }, pressed && hs.portalPressed]}
-                testID={`hub-portal-${portal.id}`}
-              >
-                <Image source={HUB_PORTAL_ART[portal.id]} style={hs.portalImage} resizeMode="cover" />
-                <LinearGradient colors={["rgba(6,10,22,0)", "rgba(6,10,22,0.78)"]} style={hs.portalShade} />
-                <View style={hs.portalMeta}>
-                  <Text style={hs.portalName}>{portal.name.toUpperCase()}</Text>
-                  <View style={[hs.portalPulse, { backgroundColor: portal.color }]} />
-                </View>
-              </Pressable>
-            ))}
-          </View>
+          <LivingHubChamber awake={fieldAwake} onAwaken={awakenField} onEnter={enter} />
+          {fieldAwake && (
+            <Animated.View style={[styles.greetingBubble, styles.greetingBubbleFlow, { opacity: greeting, transform: [{ translateY: greetingTranslate }] }]}>
+              <Text style={styles.greetingLabel}>GUARDIAN</Text>
+              <Text style={styles.greetingText}>{guardianGreeting}</Text>
+            </Animated.View>
+          )}
           <View style={styles.commandCopy}>
             <Text style={styles.commandKicker}>{fieldAwake ? "THE FIELD IS AWAKE" : "GUARDIAN AT CENTER"}</Text>
             <Text style={styles.commandPrompt}>{fieldAwake ? "Choose your first world." : "Seven functional worlds orbit one consent-first Guardian."}</Text>
             <View style={styles.commandActions}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Awaken the gateways" disabled={fieldAwake} onPress={awakenField} style={[styles.commandAction, fieldAwake && styles.commandActionAwake]}><Text style={styles.commandActionText}>{fieldAwake ? "GATEWAYS AWAKENED" : "AWAKEN THE GATEWAYS"}</Text></Pressable>
               <Pressable accessibilityRole="button" onPress={() => audio.toggleAmbient("hub")} style={styles.ambient}><Text style={styles.ambientText}>{audio.activeAmbient === "hub" ? "STOP HUB AMBIENCE" : "PLAY HUB AMBIENCE"}</Text></Pressable>
             </View>
           </View>
@@ -238,7 +215,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
         }}
       />
       <CompanionModal open={companionOpen} onClose={() => setCompanionOpen(false)} />
-      {arrival && <HubArrivalCinematic onDone={() => setArrival(false)} />}
+      {arrival && <HubArrivalCinematic onDone={() => { setArrival(false); awakenField(); }} />}
       {/* Elegant subtitle line while the Guardian speaks his welcome */}
       {spokenLine && (
         <View style={styles.subtitleWrap} testID="guardian-subtitle">
@@ -314,6 +291,7 @@ const hs = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  greetingBubbleFlow: { position: "relative", top: 0, alignSelf: "center", marginTop: 12 },
   subtitleWrap: { position: "absolute", left: 16, right: 16, bottom: 26, alignItems: "center", pointerEvents: "none" },
   subtitleCard: { maxWidth: 440, alignItems: "center", paddingHorizontal: 18, paddingVertical: 11, borderRadius: 18, borderWidth: 1, borderColor: "rgba(232,200,111,0.5)", backgroundColor: "rgba(4,7,16,0.86)", ...glow("#E8C86F", 16, 0.3) },
   subtitleKicker: { color: "#E8C86F", fontSize: 8, letterSpacing: 1.6, fontWeight: "800" },
