@@ -330,7 +330,7 @@ const s = StyleSheet.create({
   portalLabel: { color: "#F4F7FF", fontSize: 9, fontWeight: "800", letterSpacing: 0.5, marginTop: 3 },
   counter: { position: "absolute", bottom: 64, alignSelf: "center", color: "#E8C86F", fontSize: 11, letterSpacing: 2, fontWeight: "800" },
   controls: { position: "absolute", top: 54, left: 16, right: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  entranceGate: { ...StyleSheet.absoluteFillObject, zIndex: 20, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "rgba(1,4,12,0.58)" },
+  entranceGate: { position: "absolute", inset: 0, zIndex: 20, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "rgba(1,4,12,0.58)" },
   gateKicker: { color: "#E8C86F", fontSize: 10, letterSpacing: 2.2, fontWeight: "900" },
   gateTitle: { color: "#FFFFFF", fontSize: 28, lineHeight: 34, textAlign: "center", fontWeight: "900", marginTop: 9 },
   gateNote: { color: "#D8E3F5", fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 7 },

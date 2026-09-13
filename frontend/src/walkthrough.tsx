@@ -77,7 +77,7 @@ export function Walkthrough({ onDone, onFinish }: { onDone: () => void; onFinish
 
 const styles = StyleSheet.create({
   scrim: {
-    ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end', zIndex: 50,
+    position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end', zIndex: 50,
   },
   card: {
     marginHorizontal: 16, backgroundColor: '#15171D', borderRadius: 24, padding: 20,

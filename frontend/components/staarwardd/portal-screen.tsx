@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   taskApprovalText: { color: "#F2D881" },
   taskArrow: { color: "#D9E4F9", fontSize: 17 },
   dataBoundary: { padding: 14, borderRadius: 16, marginTop: 16, borderWidth: 1, borderColor: "rgba(209,224,255,0.14)", backgroundColor: "rgba(6,12,25,0.5)" }, dataBoundaryTitle: { color: "#E8C86F", fontSize: 9, letterSpacing: 1.15, fontWeight: "800" }, dataBoundaryText: { color: "#B6C3D8", fontSize: 12, lineHeight: 17, marginTop: 5 },
-  privacyCard: { height: 106, borderRadius: 19, marginTop: 12, overflow: "hidden", justifyContent: "center", backgroundColor: "rgba(8,14,27,0.8)", borderWidth: 1, borderColor: "rgba(210,224,255,0.13)" }, privacyTint: { ...StyleSheet.absoluteFillObject },
+  privacyCard: { height: 106, borderRadius: 19, marginTop: 12, overflow: "hidden", justifyContent: "center", backgroundColor: "rgba(8,14,27,0.8)", borderWidth: 1, borderColor: "rgba(210,224,255,0.13)" }, privacyTint: { position: "absolute", inset: 0 },
   privacyCopy: { padding: 17 },
   privacyTitle: { color: "#F1F6FF", fontSize: 16, fontWeight: "800" },
   privacyText: { color: "#D0DAEB", fontSize: 12, lineHeight: 17, marginTop: 4, maxWidth: "92%" },
