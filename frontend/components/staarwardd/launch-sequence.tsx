@@ -6,6 +6,7 @@ import {
   AccessibilityInfo, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions,
 } from "react-native";
 import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
+import { startLaunchSoundtrack, stopLaunchSoundtrack } from "@/lib/staarwardd/launch-soundtrack";
 
 const LAUNCH_KEY = "staarwardd.launch-seen";
 const isWeb = Platform.OS === "web";
@@ -93,9 +94,12 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
       v.setAttribute("preload", "auto");
       v.setAttribute("poster", "/video/guardian-toronto-traverse-poster.jpg");
       v.autoplay = false;
-      v.muted = !started || !soundEnabled;
-      v.defaultMuted = !started;
-      v.volume = 0.65;
+      // The persistent app-root soundtrack is the only music source. Keeping
+      // the video muted prevents duplicate audio and makes the handoff to the
+      // arrival/HUB timeline seamless.
+      v.muted = true;
+      v.defaultMuted = true;
+      v.volume = 0;
       const onEnd = () => finish();
       v.addEventListener("ended", onEnd);
       const tryPlay = () => {
@@ -178,9 +182,9 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
       if (isWeb && videoRef.current) {
         const v = videoRef.current;
         v.currentTime = 0;
-        v.muted = false;
-        v.defaultMuted = false;
-        v.volume = 0.65;
+        v.muted = true;
+        v.defaultMuted = true;
+        v.volume = 0;
         const p = v.play?.();
         p?.catch?.(() => {
           // Keep the first frame visible if the browser still refuses audio;
@@ -205,8 +209,9 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
     try {
       if (isWeb && videoRef.current) {
         const v = videoRef.current;
-        v.muted = !next;
-        v.volume = 0.65;
+        v.muted = true;
+        v.volume = 0;
+        if (next) startLaunchSoundtrack(); else stopLaunchSoundtrack();
         // If the browser paused on unmute (rare), resume from the same time.
         if (v.paused && !v.ended) { const p = v.play?.(); p?.catch?.(() => { v.muted = true; v.play?.()?.catch?.(() => {}); }); }
       } else nativePlayer.muted = !next;
