@@ -1,3 +1,4 @@
+import { describePhysicalContext, type GuardianEntryContext } from "./entry-context";
 import { PORTAL_META_BY_ID } from "./portal-meta";
 import type { Horizon, PlanPreview, PortalId, TaskPreview } from "./types";
 
@@ -73,17 +74,20 @@ function task(portalId: PortalId, horizon: Horizon, request: string, sensitive: 
   };
 }
 
-export function createPreviewPlan(input: string, preferredPortalId: PortalId): PlanPreview {
-  const request = input.trim() || PORTAL_META_BY_ID[preferredPortalId].promptSeed;
+export function createPreviewPlan(input: string, preferredPortalId: PortalId, entryContext?: GuardianEntryContext | null): PlanPreview {
+  const contextualPortalId = entryContext?.physical && entryContext.portalId ? entryContext.portalId : preferredPortalId;
+  const request = input.trim() || PORTAL_META_BY_ID[contextualPortalId].promptSeed;
   const lower = request.toLowerCase();
   const matchedPortals = (Object.keys(PORTAL_KEYWORDS) as PortalId[]).filter((id) => PORTAL_KEYWORDS[id].some((keyword) => lower.includes(keyword)));
-  const portals = matchedPortals.length ? matchedPortals : [preferredPortalId];
+  const portals = matchedPortals.length ? matchedPortals : [contextualPortalId];
   const sensitive = SENSITIVE_INTENT.test(lower);
   const primary = portals[0];
+  const physicalContext = describePhysicalContext(entryContext);
+  const summaryBase = `A calm, coordinated preview across ${portals.map((id) => PORTAL_META_BY_ID[id].name).join(" + ")}.`;
 
   return {
-    id: `preview-${hash(lower)}`,
-    summary: `A calm, coordinated preview across ${portals.map((id) => PORTAL_META_BY_ID[id].name).join(" + ")}.`,
+    id: `preview-${hash(`${lower}-${physicalContext ?? "web"}`)}`,
+    summary: physicalContext ? `${summaryBase} Physical context: ${physicalContext}.` : summaryBase,
     portals,
     sensitive,
     now: portals.slice(0, 2).map((portalId, index) => task(portalId, "now", request, sensitive && index === 0)),
