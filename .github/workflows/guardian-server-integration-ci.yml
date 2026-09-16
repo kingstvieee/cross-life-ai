@@ -1,0 +1,45 @@
+name: Guardian Server Integration CI
+
+on:
+  push:
+    branches:
+      - guardian-core-server-integration
+    paths:
+      - 'backend/guardian_core.py'
+      - 'backend/guardian_store.py'
+      - 'backend/guardian_routes.py'
+      - 'backend/guardian_server_integration.py'
+      - 'backend/test_guardian_core.py'
+      - 'backend/test_guardian_store.py'
+      - 'backend/test_guardian_routes.py'
+      - 'backend/test_guardian_server_integration.py'
+      - '.github/workflows/guardian-server-integration-ci.yml'
+  pull_request:
+    paths:
+      - 'backend/guardian_core.py'
+      - 'backend/guardian_store.py'
+      - 'backend/guardian_routes.py'
+      - 'backend/guardian_server_integration.py'
+      - 'backend/test_guardian_core.py'
+      - 'backend/test_guardian_store.py'
+      - 'backend/test_guardian_routes.py'
+      - 'backend/test_guardian_server_integration.py'
+      - '.github/workflows/guardian-server-integration-ci.yml'
+
+jobs:
+  guardian-server-integration:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install focused dependencies
+        run: python -m pip install --upgrade pip pytest pytest-xdist fastapi==0.110.1 httpx==0.28.1
+      - name: Compile Guardian integration
+        run: python -m py_compile guardian_core.py guardian_store.py guardian_routes.py guardian_server_integration.py test_guardian_core.py test_guardian_store.py test_guardian_routes.py test_guardian_server_integration.py
+      - name: Run Guardian integration tests
+        run: python -m pytest test_guardian_core.py test_guardian_store.py test_guardian_routes.py test_guardian_server_integration.py
