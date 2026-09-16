@@ -5,8 +5,10 @@ on:
     paths:
       - 'backend/guardian_core.py'
       - 'backend/guardian_store.py'
+      - 'backend/guardian_routes.py'
       - 'backend/test_guardian_core.py'
       - 'backend/test_guardian_store.py'
+      - 'backend/test_guardian_routes.py'
       - '.github/workflows/guardian-activation-ci.yml'
   push:
     branches:
@@ -14,8 +16,10 @@ on:
     paths:
       - 'backend/guardian_core.py'
       - 'backend/guardian_store.py'
+      - 'backend/guardian_routes.py'
       - 'backend/test_guardian_core.py'
       - 'backend/test_guardian_store.py'
+      - 'backend/test_guardian_routes.py'
       - '.github/workflows/guardian-activation-ci.yml'
 
 jobs:
@@ -30,8 +34,8 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install test dependencies
-        run: python -m pip install --upgrade pip pytest pytest-xdist
+        run: python -m pip install --upgrade pip pytest pytest-xdist fastapi==0.110.1 httpx==0.28.1
       - name: Compile Guardian modules
-        run: python -m py_compile guardian_core.py guardian_store.py test_guardian_core.py test_guardian_store.py
+        run: python -m py_compile guardian_core.py guardian_store.py guardian_routes.py test_guardian_core.py test_guardian_store.py test_guardian_routes.py
       - name: Run Guardian focused tests
-        run: python -m pytest test_guardian_core.py test_guardian_store.py
+        run: python -m pytest test_guardian_core.py test_guardian_store.py test_guardian_routes.py
