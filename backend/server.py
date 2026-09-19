@@ -17,6 +17,7 @@ import json
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
 from emergentintegrations.llm.openai import OpenAITextToSpeech
+from guardian_server_integration import ensure_guardian_indexes, install_guardian_core
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -186,6 +187,7 @@ def user_public(u: Dict[str, Any]) -> Dict[str, Any]:
 # ============================================================
 @app.on_event("startup")
 async def startup():
+    await ensure_guardian_indexes(db)
     await db.users.create_index("email", unique=True)
     await db.users.create_index("user_id", unique=True)
     await db.user_sessions.create_index("session_token", unique=True)
@@ -1074,6 +1076,7 @@ async def root():
     return {"app": "STAAR Hub", "status": "online"}
 
 
+install_guardian_core(app, db=db, get_current_user=get_current_user)
 app.include_router(api_router)
 
 app.add_middleware(
