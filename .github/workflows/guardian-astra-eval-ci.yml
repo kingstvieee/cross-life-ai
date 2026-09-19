@@ -1,0 +1,23 @@
+name: Guardian Astra Evaluation CI
+on:
+  push:
+    branches: [guardian-astra-evaluation]
+  pull_request:
+    paths:
+      - backend/guardian_astra_eval.py
+      - backend/test_guardian_astra_eval.py
+      - .github/workflows/guardian-astra-eval-ci.yml
+permissions:
+  contents: read
+jobs:
+  offline-contract-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m py_compile backend/guardian_astra_eval.py backend/test_guardian_astra_eval.py
+      - run: python -m unittest discover -s backend -p 'test_guardian_astra_eval.py' -v
+      - run: python backend/guardian_astra_eval.py
