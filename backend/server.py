@@ -18,6 +18,7 @@ import json
 from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
 from emergentintegrations.llm.openai import OpenAITextToSpeech
 from guardian_server_integration import ensure_guardian_indexes, install_guardian_core
+from style_swap_routes import build_style_swap_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1077,6 +1078,7 @@ async def root():
 
 
 install_guardian_core(app, db=db, get_current_user=get_current_user)
+app.include_router(build_style_swap_router(get_current_user=get_current_user, rate_limit=rate_limit), prefix="/api")
 app.include_router(api_router)
 
 app.add_middleware(
