@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install focused dependencies
-        run: python -m pip install --upgrade pip pytest fastapi==0.110.1 httpx==0.28.1
+        run: python -m pip install --upgrade pip pytest pytest-xdist fastapi==0.110.1 httpx==0.28.1
       - name: Compile Style Swap backend
         run: python -m py_compile style_swap_routes.py test_style_swap_routes.py
       - name: Run Style Swap route tests
