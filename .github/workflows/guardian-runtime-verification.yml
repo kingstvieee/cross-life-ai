@@ -1,0 +1,124 @@
+name: Guardian Runtime Verification
+
+on:
+  push:
+    branches:
+      - guardian-runtime-verification
+  pull_request:
+    paths:
+      - 'api/index.py'
+      - 'backend/guardian_core.py'
+      - 'backend/guardian_store.py'
+      - 'backend/guardian_routes.py'
+      - 'requirements.txt'
+      - '.github/workflows/guardian-runtime-verification.yml'
+
+jobs:
+  live-fastapi-mongo:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      MONGO_URL: mongodb://127.0.0.1:27017
+      DB_NAME: guardian_runtime_verify
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Guardian runtime dependencies
+        run: python -m pip install --upgrade pip -r requirements.txt
+
+      - name: Start real FastAPI runtime
+        run: |
+          python -m uvicorn api.index:app --host 127.0.0.1 --port 8000 > guardian-runtime.log 2>&1 &
+          echo $! > guardian-runtime.pid
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8000/health >/tmp/health.json; then
+              cat /tmp/health.json
+              exit 0
+            fi
+            sleep 1
+          done
+          cat guardian-runtime.log
+          exit 1
+
+      - name: Prove unauthenticated Guardian boundary
+        run: |
+          status=$(curl -sS -o /tmp/unauth.json -w "%{http_code}" http://127.0.0.1:8000/api/guardian/core/briefing)
+          cat /tmp/unauth.json
+          test "$status" = "401"
+
+      - name: Prove authenticated briefing and per-user isolation
+        run: |
+          curl -fsS -H "Authorization: Bearer verify-user-a"             http://127.0.0.1:8000/api/guardian/core/briefing > /tmp/a-before.json
+
+          curl -fsS -X POST             -H "Authorization: Bearer verify-user-a"             -H "Content-Type: application/json"             -d '{"enabled":true}'             http://127.0.0.1:8000/api/guardian/core/private-mode > /tmp/a-toggle.json
+
+          curl -fsS -H "Authorization: Bearer verify-user-a"             http://127.0.0.1:8000/api/guardian/core/briefing > /tmp/a-after.json
+
+          curl -fsS -H "Authorization: Bearer verify-user-b"             http://127.0.0.1:8000/api/guardian/core/briefing > /tmp/b.json
+
+          python - <<'PY'
+          import json
+          a_before = json.load(open('/tmp/a-before.json'))
+          a_after = json.load(open('/tmp/a-after.json'))
+          b = json.load(open('/tmp/b.json'))
+          assert a_before['persistence']['durable'] is True
+          assert a_after['privateMode'] is True
+          assert b['privateMode'] is False
+          assert a_after['persistence']['scope'] == 'per-user'
+          assert b['persistence']['scope'] == 'per-user'
+          print({
+              'a_before_version': a_before['persistence']['version'],
+              'a_after_version': a_after['persistence']['version'],
+              'b_version': b['persistence']['version'],
+              'a_private': a_after['privateMode'],
+              'b_private': b['privateMode'],
+          })
+          PY
+
+      - name: Restart runtime and prove durable state survived
+        run: |
+          kill "$(cat guardian-runtime.pid)"
+          sleep 1
+          python -m uvicorn api.index:app --host 127.0.0.1 --port 8000 > guardian-runtime-restart.log 2>&1 &
+          echo $! > guardian-runtime.pid
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          curl -fsS -H "Authorization: Bearer verify-user-a"             http://127.0.0.1:8000/api/guardian/core/briefing > /tmp/a-restart.json
+
+          python - <<'PY'
+          import json
+          a = json.load(open('/tmp/a-restart.json'))
+          assert a['privateMode'] is True
+          assert a['persistence']['durable'] is True
+          print({
+              'restart_private_mode': a['privateMode'],
+              'version': a['persistence']['version'],
+              'durable': a['persistence']['durable'],
+          })
+          PY
+
+      - name: Dump runtime logs on failure
+        if: failure()
+        run: |
+          cat guardian-runtime.log || true
+          cat guardian-runtime-restart.log || true
