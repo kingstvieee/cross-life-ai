@@ -1,0 +1,56 @@
+name: Style Swap CI
+
+on:
+  push:
+    branches:
+      - style-swap-integration
+    paths:
+      - 'backend/style_swap_routes.py'
+      - 'backend/test_style_swap_routes.py'
+      - 'backend/server.py'
+      - 'frontend/app/style-swap.tsx'
+      - 'frontend/components/staarwardd/portal-screen.tsx'
+      - '.github/workflows/style-swap-ci.yml'
+  pull_request:
+    paths:
+      - 'backend/style_swap_routes.py'
+      - 'backend/test_style_swap_routes.py'
+      - 'backend/server.py'
+      - 'frontend/app/style-swap.tsx'
+      - 'frontend/components/staarwardd/portal-screen.tsx'
+      - '.github/workflows/style-swap-ci.yml'
+
+jobs:
+  backend-style-swap:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install focused dependencies
+        run: python -m pip install --upgrade pip pytest pytest-xdist fastapi==0.110.1 httpx==0.28.1
+      - name: Compile Style Swap backend
+        run: python -m py_compile style_swap_routes.py test_style_swap_routes.py
+      - name: Run Style Swap route tests
+        run: python -m pytest test_style_swap_routes.py -q
+
+  frontend-web-export:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+      - name: Install frontend
+        run: yarn install --frozen-lockfile
+      - name: Export web build
+        run: yarn expo export --platform web
