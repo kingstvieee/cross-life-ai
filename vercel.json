@@ -1,15 +1,11 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.py"
-    }
+  "installCommand": "cd frontend && yarn install --frozen-lockfile",
+  "buildCommand": "cd frontend && yarn expo export --platform web && mkdir -p dist/video dist/audio && cp -R public/video/. dist/video/ && cp -R public/audio/. dist/audio/",
+  "outputDirectory": "frontend/dist",
+  "framework": null,
+  "rewrites": [
+    { "source": "/hub", "destination": "/index.html" },
+    { "source": "/portal/:path*", "destination": "/index.html" },
+    { "source": "/scorecard", "destination": "/index.html" }
   ]
 }
