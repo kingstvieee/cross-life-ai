@@ -122,3 +122,5 @@ jobs:
         run: |
           cat guardian-runtime.log || true
           cat guardian-runtime-restart.log || true
+
+# verification trigger: PR #11 evidence run
