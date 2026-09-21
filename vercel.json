@@ -1,9 +1,21 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "cd frontend && yarn install --frozen-lockfile",
   "buildCommand": "cd frontend && yarn expo export --platform web && mkdir -p dist/video dist/audio && cp -R public/video/. dist/video/ && cp -R public/audio/. dist/audio/",
   "outputDirectory": "frontend/dist",
   "framework": null,
+  "services": {
+    "guardian_backend": {
+      "root": "backend/",
+      "framework": "fastapi",
+      "entrypoint": "server:app"
+    }
+  },
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": { "service": "guardian_backend" }
+    },
     { "source": "/hub", "destination": "/index.html" },
     { "source": "/portal/:path*", "destination": "/index.html" },
     { "source": "/scorecard", "destination": "/index.html" }
