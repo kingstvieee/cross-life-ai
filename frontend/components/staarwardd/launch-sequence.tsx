@@ -26,7 +26,7 @@ export function useReturningUser() {
 // The single uninterrupted video backbone — the full canonical entrance.
 // Same clip in two encodings: H.264 mp4 (Safari/Chrome/Edge) and VP9 webm
 // (browsers without proprietary codecs). Content is identical.
-const WEB_SRC = "/video/guardian-toronto-traverse-hd.mp4";
+const WEB_SRC = "/video/guardian-launch-synced-v4.mp4";
 const WEB_SRC_WEBM = "/video/guardian-toronto-traverse-hd.webm";
 
 function pickWebSrc(v: any): string {
@@ -40,17 +40,6 @@ function pickWebSrc(v: any): string {
 }
 const NATIVE_SRC = require("@/assets/videos/guardian-toronto-traverse-hd.mp4");
 
-const PORTALS: { id: PortalId; label: string; img: any }[] = [
-  { id: "creativity", label: "Creativity", img: require("@/assets/images/staarwardd/portal-creativity-v7.webp") },
-  { id: "work", label: "Work", img: require("@/assets/images/staarwardd/portal-work-v7.webp") },
-  { id: "home", label: "Home", img: require("@/assets/images/staarwardd/portal-home-v7.webp") },
-  { id: "wellbeing", label: "Wellbeing", img: require("@/assets/images/staarwardd/portal-wellbeing-v7.webp") },
-  { id: "relationships", label: "Relationships", img: require("@/assets/images/staarwardd/portal-relationships-v7.webp") },
-  { id: "events", label: "Community", img: require("@/assets/images/staarwardd/portal-community-v7.webp") },
-  { id: "style", label: "Style", img: require("@/assets/images/staarwardd/portal-style-v7.webp") },
-];
-const PORTAL_WINDOW = 8; // portals materialize over the final ~8s of the clip
-const PORTAL_GAP = 0.95; // seconds between each gateway
 
 // Web-only raw <video> (expo-video's web view renders black in this preview).
 const RNW = isWeb ? require("react-native-web") : null;
@@ -64,7 +53,6 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [reduced, setReduced] = useState(false);
   const [playing, setPlaying] = useState(false);
-  const [portalCount, setPortalCount] = useState(0);
   const done = useRef(false);
   const videoRef = useRef<any>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -157,11 +145,6 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
         }
       } catch { return; }
       setPlaying(isPlaying);
-      if (d > 0) {
-        const start = Math.max(d - PORTAL_WINDOW, 0);
-        const n = t < start ? 0 : Math.min(PORTALS.length, Math.floor((t - start) / PORTAL_GAP) + 1);
-        setPortalCount((c) => (n > c ? n : c));
-      }
     }, 250);
     // Hard fallback so the entrance can never trap the user.
     timers.current.push(setTimeout(finish, 45000));
@@ -264,30 +247,6 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
         </View>
       )}
 
-      {/* Final section: seven canonical gateways materialize one by one OVER the moving video */}
-      {portalCount > 0 && (
-        <View style={s.portalRow} testID="portal-overlay-row">
-          {PORTALS.slice(0, portalCount).map((p, i) => (
-            <View key={p.id} style={s.portal} testID={`portal-summon-${i + 1}`} accessibilityLabel={`${p.label} gateway summoned`}>
-              {RNW
-                ? RNW.unstable_createElement("img", { src: p.img?.uri ?? p.img, style: { width: 56, height: 56, borderRadius: 12, objectFit: "cover" } })
-                : null}
-              {!isWeb && <ViewImage img={p.img} />}
-              <Text style={s.portalLabel}>{p.label}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-      {/* Subtle caption strip naming each gateway as it materializes */}
-      {portalCount > 0 && (
-        <View style={s.captionStrip} testID="gateway-caption">
-          <Text style={s.captionText}>✦ {PORTALS[Math.min(portalCount, PORTALS.length) - 1].label.toUpperCase()} GATEWAY</Text>
-        </View>
-      )}
-      {portalCount > 0 && portalCount < 7 && (
-        <Text style={s.counter} testID="portal-counter">{portalCount} / 7 GATEWAYS</Text>
-      )}
-
       {/* Controls */}
       {started && <View style={s.controls}>
         <Pressable accessibilityRole="button" accessibilityLabel={soundEnabled ? "Disable sound" : "Enable sound"} onPress={enableSound} style={s.soundBtn} testID="enable-sound-btn">
@@ -301,34 +260,9 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
   );
 }
 
-// Native-only portal thumbnail (kept out of the web tree so no entrance <img> stills leak on web besides overlays)
-function ViewImage({ img }: { img: any }) {
-  const { Image } = require("react-native");
-  return <Image source={img} style={{ width: 56, height: 56, borderRadius: 12 }} />;
-}
-
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#000", overflow: "hidden" },
   stage: { flex: 1, width: "100%", backgroundColor: "#000", overflow: "hidden" },
-  portalRow: {
-    position: "absolute", bottom: 96, left: 12, right: 12,
-    flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10,
-    pointerEvents: "none",
-  },
-  captionStrip: {
-    position: "absolute", top: 112, alignSelf: "center",
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
-    borderWidth: 1, borderColor: "rgba(232,200,111,0.5)", backgroundColor: "rgba(4,7,16,0.62)",
-    pointerEvents: "none",
-  },
-  captionText: { color: "#F4E9C8", fontSize: 10, letterSpacing: 1.6, fontWeight: "800" },
-  portal: {
-    alignItems: "center", padding: 6, borderRadius: 14,
-    backgroundColor: "rgba(4,7,16,0.55)", borderWidth: 1, borderColor: "rgba(232,200,111,0.7)",
-    ...glow("#7EDCF3", 14, 0.9),
-  },
-  portalLabel: { color: "#F4F7FF", fontSize: 9, fontWeight: "800", letterSpacing: 0.5, marginTop: 3 },
-  counter: { position: "absolute", bottom: 64, alignSelf: "center", color: "#E8C86F", fontSize: 11, letterSpacing: 2, fontWeight: "800" },
   controls: { position: "absolute", top: 54, left: 16, right: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   entranceGate: { position: "absolute", inset: 0, zIndex: 20, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "rgba(1,4,12,0.58)" },
   gateKicker: { color: "#E8C86F", fontSize: 10, letterSpacing: 2.2, fontWeight: "900" },
