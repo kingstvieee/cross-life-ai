@@ -27,5 +27,7 @@ export default function IndexScreen() {
       />
     );
   }
-  return <CinematicHub />;
+  // Continue the entrance film into the moving seven-gateway arrival before
+  // revealing the interactive Hub. The direct /hub route remains the fast path.
+  return <CinematicHub greet />;
 }
