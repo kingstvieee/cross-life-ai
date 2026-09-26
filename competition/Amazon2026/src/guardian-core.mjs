@@ -22,12 +22,18 @@ export function requiresApproval(request='') { return externalActionPattern.test
 export function buildGuardianPlan(request, context={}) {
   const portals = detectPortals(request);
   const approvalRequired = requiresApproval(request);
+  const text = String(request).toLowerCase();
+  const approvalPortal = /message|email|send|gift|dinner|invite/.test(text) && portals.includes('Relationships')
+    ? 'Relationships'
+    : /lock|unlock|temperature|device/.test(text) && portals.includes('Home')
+      ? 'Home'
+      : portals[portals.length - 1];
   const steps = portals.map((portal,index)=>({
     id:`${portal.toLowerCase()}-${index+1}`,
     portal,
     capability: capabilityFor(portal),
-    status: approvalRequired && index === portals.length - 1 ? 'awaiting_approval' : 'prepared',
-    externalAction: approvalRequired && index === portals.length - 1,
+    status: approvalRequired && portal === approvalPortal ? 'awaiting_approval' : 'prepared',
+    externalAction: approvalRequired && portal === approvalPortal,
     summary: `${portal} prepares its part of: ${String(request).replace(/\s+/g,' ').trim().slice(0,140)}`
   }));
   return {
@@ -40,7 +46,7 @@ export function buildGuardianPlan(request, context={}) {
 }
 
 export function judgeScenario() {
-  const request = 'Guardian, my investor pitch is running late. Protect my launch, fitting, anniversary dinner, gift delivery, wellbeing reset and home arrival.';
+  const request = 'Guardian, my investor pitch is running late. Prepare my launch, fitting, anniversary dinner, gift delivery, wellbeing reset and home arrival. Draft a message about the dinner but do not send it.';
   const plan = buildGuardianPlan(request,{location:'Toronto'});
   return {
     ...plan,
