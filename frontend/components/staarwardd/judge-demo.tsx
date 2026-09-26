@@ -136,6 +136,7 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
   const [voiceError, setVoiceError] = useState(false);
   const [narrationText, setNarrationText] = useState("");
   const [voiceRetry, setVoiceRetry] = useState(0);
+  const [textMode, setTextMode] = useState(false);
   const spokenRef = useRef(-1);
   const stopVoiceRef = useRef<() => void>(() => {});
   const recordedRef = useRef(new Set<number>());
@@ -148,6 +149,7 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
     if (!open) return;
     setStep(0);
     setDemoStarted(false);
+    setTextMode(false);
     spokenRef.current = -1;
     recordedRef.current = new Set();
     audio.update({ master: true, voice: true, ambience: false, music: false });
@@ -178,6 +180,15 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
     return () => clearTimeout(timer);
   }, [complete, onFinish, open, stopAll, visualDone, voiceDone]);
 
+  // The web deployment may not serve the optional Guardian voice API. Keep
+  // the judge flow usable with an explicitly labelled, readable transcript.
+  useEffect(() => {
+    if (!open || !demoStarted || !textMode) return;
+    const readingMs = stage.guardian.trim().split(/\s+/).length * 400;
+    const timer = setTimeout(() => setVoiceDone(true), Math.max(stage.duration, readingMs));
+    return () => clearTimeout(timer);
+  }, [demoStarted, open, stage.duration, stage.guardian, step, textMode]);
+
   useEffect(() => {
     if (!open || recordedRef.current.has(step)) return;
     recordedRef.current.add(step);
@@ -185,7 +196,7 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
   }, [onStage, open, step]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || textMode) return;
     let cancelled = false;
     const load = async () => {
       for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -198,15 +209,24 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
     };
     void load();
     return () => { cancelled = true; };
-  }, [open, step, voiceRetry]);
+  }, [open, step, textMode, voiceRetry]);
+
+  useEffect(() => {
+    if (demoStarted && voiceError && !textMode) setTextMode(true);
+  }, [demoStarted, textMode, voiceError]);
 
   const playSceneVoice = useCallback((line: GuardianLine) => {
     if (spokenRef.current === step) return;
     spokenRef.current = step;
     setVoiceError(false);
+    let began = false;
     stopVoiceRef.current = playGuardianLine(line.url, {
-      onStart: () => setVoicePlaying(true),
-      onEnd: () => { setVoicePlaying(false); setVoiceDone(true); },
+      onStart: () => { began = true; setVoicePlaying(true); },
+      onEnd: () => {
+        setVoicePlaying(false);
+        if (began) setVoiceDone(true);
+        else setTextMode(true);
+      },
     });
   }, [step]);
 
@@ -216,7 +236,10 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
   }, [demoStarted, open, playSceneVoice, step, voiceLine]);
 
   const startDemo = () => {
-    if (!voiceLine) { if (voiceError) setVoiceRetry((value) => value + 1); return; }
+    if (!voiceLine) {
+      if (voiceError) { setTextMode(true); setDemoStarted(true); }
+      return;
+    }
     setDemoStarted(true);
     playSceneVoice(voiceLine);
   };
@@ -239,6 +262,7 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
     spokenRef.current = -1;
     recordedRef.current = new Set();
     setDemoStarted(false);
+    setTextMode(false);
     audio.update({ master: true, voice: true, ambience: false, music: false });
   };
 
@@ -260,13 +284,13 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
             <View key={item.kicker} style={[styles.progress, index <= step && styles.progressActive]} />
           ))}
         </View>
-        <Text style={styles.autoLabel}>{complete ? "DEMO COMPLETE · REVIEW THE RECEIPT" : "SCENE ADVANCES AFTER VOICE + VISIBLE ACTIONS COMPLETE"}</Text>
+        <Text style={styles.autoLabel}>{complete ? "DEMO COMPLETE · REVIEW THE RECEIPT" : textMode ? "TEXT-GUIDED DEMO · SCENES ADVANCE AFTER READING TIME + VISIBLE ACTIONS" : "SCENE ADVANCES AFTER VOICE + VISIBLE ACTIONS COMPLETE"}</Text>
 
         {demoStarted && (
           <View style={styles.narratorDock}>
             <GuardianCharacter state={voicePlaying ? "speaking" : "listening"} mood="focused" portalMode="hub" size={76} />
             <View style={styles.narratorCopy}>
-              <Text style={styles.narratorLabel}>{voicePlaying ? "GUARDIAN · NARRATING LIVE" : "GUARDIAN · HOLDING THE SCENE"}</Text>
+              <Text style={styles.narratorLabel}>{textMode ? "GUARDIAN · TEXT TRANSCRIPT (VOICE UNAVAILABLE)" : voicePlaying ? "GUARDIAN · NARRATING LIVE" : "GUARDIAN · HOLDING THE SCENE"}</Text>
               <Text style={styles.narratorText} numberOfLines={3}>{narrationText}</Text>
             </View>
           </View>
@@ -277,9 +301,9 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
             <GuardianCharacter state="speaking" mood="focused" portalMode="hub" size={132} />
             <Text style={styles.gateKicker}>LIVE JUDGE EXPERIENCE</Text>
             <Text style={styles.gateTitle}>The Guardian will guide the entire situation.</Text>
-            <Text style={styles.gateCopy}>He will announce every new signal, narrate each action while it happens, and hold every scene until both the voice and visible work are complete.</Text>
-            <Pressable disabled={!voiceLine && !voiceError} onPress={startDemo} style={[styles.gateButton, !voiceLine && !voiceError && styles.gateButtonLoading]}>
-              <Text style={styles.gateButtonText}>{voiceError ? "VOICE CONNECTION FAILED · RETRY" : voiceLine ? "BEGIN WITH GUARDIAN VOICE" : "PREPARING GUARDIAN VOICE…"}</Text>
+            <Text style={styles.gateCopy}>{voiceError ? "Guardian voice is unavailable here. Follow the on-screen transcript as each visible action plays; the demo will still reach the scorecard." : "He will announce every new signal, narrate each action while it happens, and hold every scene until both the voice and visible work are complete."}</Text>
+            <Pressable accessibilityRole="button" disabled={!voiceLine && !voiceError} onPress={startDemo} style={[styles.gateButton, !voiceLine && !voiceError && styles.gateButtonLoading]}>
+              <Text style={styles.gateButtonText}>{voiceError ? "BEGIN TEXT-GUIDED DEMO" : voiceLine ? "BEGIN WITH GUARDIAN VOICE" : "PREPARING GUARDIAN VOICE…"}</Text>
             </Pressable>
           </View>
         )}
