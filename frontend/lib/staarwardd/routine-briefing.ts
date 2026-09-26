@@ -7,7 +7,7 @@ const PORTAL_QUESTIONS: Record<PortalId, (memory: PreferenceMemory) => string> =
   home: (memory) => `Would a ${memory.preferredRoom ?? "useful space"} reset help most?`,
   wellbeing: (memory) => memory.preferredScene === "Quiet Reset" ? "Would a quiet reset help before anything else?" : "Would energy, movement, or rest help most?",
   relationships: () => "Who would you like to connect with intentionally?",
-  events: () => "What meaningful plan needs your attention?",
+  events: () => "What gathering or community connection needs your attention?",
   style: () => "What expression would serve today?",
 };
 
@@ -26,7 +26,7 @@ const PORTAL_NAMES: Record<PortalId, string> = {
   home: "Home",
   wellbeing: "Wellbeing",
   relationships: "Relationships",
-  events: "Events",
+  events: "Community",
   style: "Style",
 };
 
