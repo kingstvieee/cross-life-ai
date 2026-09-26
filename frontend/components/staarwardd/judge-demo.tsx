@@ -219,9 +219,14 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
     if (spokenRef.current === step) return;
     spokenRef.current = step;
     setVoiceError(false);
+    let began = false;
     stopVoiceRef.current = playGuardianLine(line.url, {
-      onStart: () => setVoicePlaying(true),
-      onEnd: () => { setVoicePlaying(false); setVoiceDone(true); },
+      onStart: () => { began = true; setVoicePlaying(true); },
+      onEnd: () => {
+        setVoicePlaying(false);
+        if (began) setVoiceDone(true);
+        else setTextMode(true);
+      },
     });
   }, [step]);
 
@@ -297,7 +302,7 @@ export function JudgeDemo({ open, memoryConsented, onClose, onStage, onFinish }:
             <Text style={styles.gateKicker}>LIVE JUDGE EXPERIENCE</Text>
             <Text style={styles.gateTitle}>The Guardian will guide the entire situation.</Text>
             <Text style={styles.gateCopy}>{voiceError ? "Guardian voice is unavailable here. Follow the on-screen transcript as each visible action plays; the demo will still reach the scorecard." : "He will announce every new signal, narrate each action while it happens, and hold every scene until both the voice and visible work are complete."}</Text>
-            <Pressable disabled={!voiceLine && !voiceError} onPress={startDemo} style={[styles.gateButton, !voiceLine && !voiceError && styles.gateButtonLoading]}>
+            <Pressable accessibilityRole="button" disabled={!voiceLine && !voiceError} onPress={startDemo} style={[styles.gateButton, !voiceLine && !voiceError && styles.gateButtonLoading]}>
               <Text style={styles.gateButtonText}>{voiceError ? "BEGIN TEXT-GUIDED DEMO" : voiceLine ? "BEGIN WITH GUARDIAN VOICE" : "PREPARING GUARDIAN VOICE…"}</Text>
             </Pressable>
           </View>
