@@ -8,8 +8,8 @@ export default async function handler(request, response) {
     return response.status(200).json({
       ok: true,
       product: 'STAARWAARDD Guardian',
-      track: 'Alexa+',
-      miniChallenge: 'AWS Builder',
+      track: 'Alexa+ simulated experience',
+      miniChallenge: 'AWS Builder (Bedrock mode only)',
       mode: 'competition-judge-api',
       awsRuntime: 'Strands Agents SDK + Amazon Bedrock',
       bedrockVerification: 'POST {"mode":"bedrock","input":"Guardian, get me ready for tomorrow"}',
@@ -91,10 +91,10 @@ export default async function handler(request, response) {
     ok: true,
     mode,
     architecture: {
-      interface: 'Alexa+',
-      protocol: 'MCP Streamable HTTP',
+      interface: 'Alexa+-style web simulation',
+      protocol: 'HTTPS JSON demo API; no Alexa/MCP connection',
       orchestrator: 'Guardian',
-      aws: 'Strands + Amazon Bedrock'
+      aws: 'Optional Strands + Amazon Bedrock verification route'
     },
     plan,
     raw,

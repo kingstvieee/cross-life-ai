@@ -27,16 +27,16 @@ function render(data) {
   $('#summary').textContent = plan.summary || 'Guardian coordinated the request.';
   $('#decision').textContent = coordination.decision || 'Prepared actions only; approval required for external changes.';
 
-  $('#techProof').textContent = `${data.architecture?.interface || 'Alexa+'} → ${data.architecture?.protocol || 'MCP'} → Guardian → ${data.architecture?.aws || 'AWS'}`;
-  $('#designProof').textContent = 'One request produces a coherent briefing, portal trace, approval state, and completed outcome.';
-  $('#impactProof').textContent = 'Cross-portal work is reduced from multiple app handoffs to one Guardian coordination flow.';
+  $('#techProof').textContent = `${data.architecture?.interface || 'Web simulation'} → ${data.architecture?.protocol || 'HTTPS JSON'} → ${data.architecture?.orchestrator || 'Guardian'}. AWS verification is separate.`;
+  $('#designProof').textContent = 'One request produces a briefing, portal trace, and approval state in a simulated scenario.';
+  $('#impactProof').textContent = 'Illustrates fewer app handoffs; no real-world time saving or customer adoption is measured in this demo.';
   $('#ideaProof').textContent = 'Guardian acts as a whole-life orchestration layer rather than a single-purpose chatbot.';
 
   $('#portals').innerHTML = domains.map((domain, index) => `
     <article class="portal-card">
       <span>${String(index + 1).padStart(2,'0')}</span>
       <b>${esc(domain)}</b>
-      <small>ACTIVE AGENT</small>
+      <small>PLANNED DOMAIN</small>
     </article>`).join('');
 
   $('#exchanges').innerHTML = (coordination.exchanges || []).map((x) => `
