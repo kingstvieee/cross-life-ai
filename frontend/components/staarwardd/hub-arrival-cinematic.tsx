@@ -41,6 +41,8 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
   const { width: SW, height: SH } = useWindowDimensions();
   const [shot, setShot] = useState(1);
   const [activePortal, setActivePortal] = useState(-1);
+  const [summonVideoPlaying, setSummonVideoPlaying] = useState(false);
+  const summonVideo = useRef<any>(null);
   const drop = useRef(new Animated.Value(0)).current;
   const flash = useRef(new Animated.Value(0)).current;
   const ripple = useRef(new Animated.Value(0)).current;
@@ -58,6 +60,18 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
   const fx = useRef<any[]>([]);
   const whispers = useRef<(string | null)[]>(PORTAL_ART.map(() => null));
   const wt = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Keep one moving shot under the entire seven-gateway ritual on web. The
+  // clip's Guardian and Toronto background stay in motion while the gateway
+  // effects are drawn over it; pose art remains as a playback fallback.
+  useEffect(() => {
+    if (Platform.OS !== "web" || shot < 2) return;
+    const video = summonVideo.current;
+    if (!video) return;
+    video.muted = true;
+    void video.play?.()?.catch?.(() => setSummonVideoPlaying(false));
+    return () => { try { video.pause?.(); } catch {} };
+  }, [shot >= 2]);
 
   useEffect(() => {
     startLaunchSoundtrack();
@@ -92,6 +106,10 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
     });
     const t2 = setTimeout(() => {
       setShot(2);
+      Animated.sequence([
+        Animated.timing(flash, { toValue: 0.85, duration: 170, useNativeDriver: true }),
+        Animated.timing(flash, { toValue: 0, duration: 420, useNativeDriver: true }),
+      ]).start();
       // The Guardian rises into the centre and conducts a deliberate clockwise
       // ritual. Each hand-cast visibly travels to and constructs one gateway.
       Animated.timing(recede, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }).start();
@@ -172,13 +190,28 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
   const panZoom = pan.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] });
   const gateW = Math.min(SW * 0.215, 104);
   const ritualRadius = Math.min(SW * 0.42, 172);
+  const movingRitual = Platform.OS === "web" && summonVideoPlaying && shot >= 2;
+  const RNW = Platform.OS === "web" ? require("react-native-web") : null;
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, s.root, { opacity: throughFade }]} testID="hub-arrival-cinematic">
       <LinearGradient colors={["#2A2438", "#4A3D57", "#8A6F3C"]} style={StyleSheet.absoluteFill} />
+      {Platform.OS === "web" && shot >= 2 && RNW.unstable_createElement("video", {
+        ref: summonVideo,
+        src: "/video/guardian-summon.mp4",
+        autoPlay: true,
+        loop: true,
+        muted: true,
+        playsInline: true,
+        preload: "auto",
+        onPlaying: () => setSummonVideoPlaying(true),
+        onError: () => setSummonVideoPlaying(false),
+        "aria-label": "Moving Guardian summoning the gateways above Toronto",
+        style: { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: summonVideoPlaying ? 1 : 0, pointerEvents: "none" },
+      })}
       <View style={s.floorGlow} />
       {/* SHOT 3 — Toronto beyond the chamber */}
-      {shot >= 3 && (
+      {shot >= 3 && !movingRitual && (
         <Animated.View style={[s.skyWrap, { height: SW * 0.75, opacity: skyline, transform: [{ translateY: skyY }] }]}>
           <Animated.Image source={SKYLINE} style={{ width: SW * 1.8, height: SW * 0.75, transform: [{ translateX: panX }, { scale: panZoom }] }} resizeMode="cover" />
           <LinearGradient colors={["rgba(42,36,56,0)", "rgba(42,36,56,0.9)"]} style={s.skyFade} />
@@ -189,15 +222,15 @@ export function HubArrivalCinematic({ onDone }: { onDone: () => void }) {
         <Animated.View style={[s.ring, { opacity: rippleOpacity, transform: [{ scale: rippleScale }] }]} />
         <Animated.View style={[s.dust, { opacity: dustOpacity, transform: [{ translateY: 185 }, { translateX: dustSpreadNeg }, { scaleX: dustScale }] }]} />
         <Animated.View style={[s.dust, { opacity: dustOpacity, transform: [{ translateY: 185 }, { translateX: dustSpread }, { scaleX: dustScale }] }]} />
-        <Animated.View style={{ zIndex: 4, transform: [{ translateY: guardianY }, { translateY: recedeY }, { translateY: floatY }, { translateX: guardianLean }, { scale: guardianScale }, { scale: recedeScale }, { rotate: guardianTurn }, { rotate: sway }], alignItems: "center", justifyContent: "center" }}>
+        {!movingRitual && <Animated.View style={{ zIndex: 4, transform: [{ translateY: guardianY }, { translateY: recedeY }, { translateY: floatY }, { translateX: guardianLean }, { scale: guardianScale }, { scale: recedeScale }, { rotate: guardianTurn }, { rotate: sway }], alignItems: "center", justifyContent: "center" }}>
           <Animated.View style={[s.auraOuter, { opacity: auraOpacity, transform: [{ scale: auraScale }] }]} />
           <Animated.View style={[s.auraInner, { opacity: auraOpacity, transform: [{ scale: auraScale }] }]} />
           {shot === 2 ? (
-            <GuardianCharacter key={`portal-cast-${activePortal}`} state="summoning" mood="excited" portalMode="hub" size={Math.min(SW * 0.72, 320)} />
+            <GuardianCharacter state="summoning" mood="excited" portalMode="hub" size={Math.min(SW * 0.72, 320)} />
           ) : (
             <Image source={shot === 1 ? GUARDIAN_FLY : GUARDIAN_LAND} style={{ width: Math.min(SW * 0.72, 320), height: Math.min(SW * 0.72, 320) * 1.5 }} resizeMode="contain" />
           )}
-        </Animated.View>
+        </Animated.View>}
         {shot === 1 && <Text style={s.caption}>THE GUARDIAN ARRIVES</Text>}
         {/* SHOT 2 — every energy cast originates at his hand and sweeps
             clockwise to its architectural gateway. */}
