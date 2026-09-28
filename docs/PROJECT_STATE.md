@@ -1,6 +1,6 @@
 # STAARWAARDD Project State
 
-Updated: 2026-09-27 (Toronto)
+Updated: 2026-09-28 (Toronto)
 
 ## Status rules
 DONE = final deliverable exists and passes acceptance criteria.
@@ -13,8 +13,8 @@ BLOCKED = a specific dependency prevents completion.
 |---|---|---|---|
 | STAARWAARDD / STAAR Hub | IN PRODUCTION | Published build and GitHub repo exist | Maintain persistent state and verify deployed build against main |
 | Milo & The Golden Key: Baby World | IN PRODUCTION | 36-clip render manifest + full production script exist; finished 9-minute movie not verified | 36-clip render -> continuity QA -> replacement renders -> master assembly -> final QA |
-| Guardian cinematic | READY FOR FINAL QA | Existing clips/master candidate exist; full intended sequence not verified end-to-end | Full-sequence audit, repair discontinuities, verified master export |
-| RISING STAARDFORM | BLOCKED | Shopify catalog remains draft/zero inventory | Verify sample approval, media, SKU/variant truth, inventory/preorder, payments, shipping; activate only ready products |
+| Guardian cinematic | BLOCKED | Canonical 29s opening + production brief + assembly script exist; approved 15–20s moving continuation from the 26.00s handoff is not present in accessible project files | Generate/recover exact continuation from source frame, QA identity/Toronto/seven-gateway continuity, then assemble verified master |
+| RISING STAARDFORM | BLOCKED | Live Shopify audit 2026-09-28: exactly 30 products, all Draft, all zero inventory; many carry Sample Approval Required and visible products lack featured media | Verify samples/media/SKU truth/inventory or preorder/payment/shipping; activate only launch-ready products |
 | DIGGITSTAAR | IN PRODUCTION | Website/business track active; Shopify bill #590880484 is PAID as of 2026-09-27 | Continue storefront/service catalog readiness; billing blocker cleared |
 | Funding / grants | IN PRODUCTION | Reusable dossier requirements defined | Keep evidence pack current and adapt per grant |
 
