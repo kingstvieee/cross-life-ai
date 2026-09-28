@@ -1,0 +1,43 @@
+{
+  "updated_at": "2026-09-27T22:12:00-04:00",
+  "timezone": "America/Toronto",
+  "projects": [
+    {
+      "id": "staarwaardd-hub",
+      "status": "IN_PRODUCTION"
+    },
+    {
+      "id": "milo-baby-world",
+      "status": "IN_PRODUCTION",
+      "pipeline": [
+        "render_36_clips",
+        "continuity_qa",
+        "replacement_renders",
+        "master_assembly",
+        "final_qa"
+      ]
+    },
+    {
+      "id": "guardian-cinematic",
+      "status": "READY_FOR_FINAL_QA"
+    },
+    {
+      "id": "rising-staardform",
+      "status": "BLOCKED"
+    },
+    {
+      "id": "diggitstaar",
+      "status": "IN_PRODUCTION",
+      "billing": {
+        "status": "RESOLVED",
+        "bill": "590880484",
+        "amount_usd": 1.13,
+        "paid_on": "2026-09-27"
+      }
+    },
+    {
+      "id": "funding",
+      "status": "IN_PRODUCTION"
+    }
+  ]
+}
