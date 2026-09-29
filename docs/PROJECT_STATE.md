@@ -1,6 +1,6 @@
 # STAARWAARDD Project State
 
-Updated: 2026-09-28 (Toronto)
+Updated: 2026-09-29 (Toronto)
 
 ## Status rules
 DONE = final deliverable exists and passes acceptance criteria.
@@ -12,9 +12,9 @@ BLOCKED = a specific dependency prevents completion.
 | Project | Status | Current truth | Next action |
 |---|---|---|---|
 | STAARWAARDD / STAAR Hub | IN PRODUCTION | Published build and GitHub repo exist | Maintain persistent state and verify deployed build against main |
-| Milo & The Golden Key: Baby World | IN PRODUCTION | 36-clip render manifest + full production script exist; finished 9-minute movie not verified | 36-clip render -> continuity QA -> replacement renders -> master assembly -> final QA |
+| Milo & The Golden Key: Baby World | IN PRODUCTION | Full production project has been started in InVideo using the locked 36-beat script; 16:9 stylized 3D locked, 720p generation with planned final 1080p upscale; finished episode not yet returned | Complete base generation -> continuity QA -> replacement renders -> master assembly/upscale -> final QA |
 | Guardian cinematic | BLOCKED | Canonical 29s opening + production brief + assembly script exist; approved 15–20s moving continuation from the 26.00s handoff is not present in accessible project files | Generate/recover exact continuation from source frame, QA identity/Toronto/seven-gateway continuity, then assemble verified master |
-| RISING STAARDFORM | BLOCKED | Live Shopify audit 2026-09-28: exactly 30 products, all Draft, all zero inventory; many carry Sample Approval Required and visible products lack featured media | Verify samples/media/SKU truth/inventory or preorder/payment/shipping; activate only launch-ready products |
+| RISING STAARDFORM | BLOCKED | Live Shopify audit 2026-09-29: exactly 30 products, all Draft and zero inventory. 27 explicitly carry Sample Approval Required. The 3 STAARISE SEAL products do not carry that tag, but still have no featured media and explicitly state they are unavailable for sale until manufacturing inventory is entered. | 27: sample/media/production approval. 3 STAARISE SEAL: add verified product media + inventory or approved preorder policy + payment/shipping readiness before activation. |
 | DIGGITSTAAR | IN PRODUCTION | Website/business track active; Shopify bill #590880484 is PAID as of 2026-09-27 | Continue storefront/service catalog readiness; billing blocker cleared |
 | Funding / grants | IN PRODUCTION | Reusable dossier requirements defined | Keep evidence pack current and adapt per grant |
 
