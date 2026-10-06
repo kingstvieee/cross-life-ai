@@ -1,6 +1,6 @@
 # STAARWAARDD — Guardian Opening Final Continuation Package
 Status: LOCKED FOR MAGICLIGHT PRODUCTION
-Date: 2026-10-02
+Date: 2026-10-05 (Toronto)
 Owner: STAARWAARDD
 Canonical repo: kingstvieee/cross-life-ai
 
@@ -24,14 +24,14 @@ Primary opening file:
 Source properties already established:
 - portrait 9:16
 - approximately 29 seconds
-- current approved handoff region: around 26.0 seconds
+- current technically audited handoff: 25.50 seconds; render continuity approval remains pending
 - Guardian airborne over Toronto
 - CN Tower visible
 - wings extended
 - silver / white / gold armor
 - glowing maple-style chest sigil
 
-Preserve the existing source from 0.00 through approximately 26.20 seconds unless QA proves a cleaner adjacent cut point.
+Preserve the existing source from 0.00 up to 25.50 seconds. Frame inspection on October 5 found that the old circular Creativity icon is already visible at 26.20 seconds, so that prior cut point would retain a rejected UI element. The 25.50-second frame preserves the airborne Guardian, extended wings, Toronto and CN Tower without the portal-icon overlay. Use that source frame as the continuation reference. The full rendered seam must still pass moving-shot QA before approval.
 
 ## Identity Lock — NON-NEGOTIABLE
 The continuation must preserve:
