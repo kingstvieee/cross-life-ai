@@ -1,6 +1,6 @@
 # Guardian Finalization Ledger
 
-Updated: 2026-10-05 (Toronto)
+Updated: 2026-10-07 (Toronto)
 
 ## Verified existing production state
 - Canonical opening specified as `frontend/public/video/guardian-launch-synced-v4.mp4`, 720×1280, about 29s.
@@ -28,16 +28,24 @@ Assembly tests use temporary synthetic media and verify duration, format, unchan
 
 Validation result for this branch: all three launch deadline tests and both assembly tests passed; shell syntax and `git diff --check` passed. Full frontend typecheck and Expo web export remain unverified: frozen-lockfile installation stalled while fetching packages, including a retry using the npm registry. No dependency versions or lockfile were changed. Keep this as a draft PR pending full frontend checks and the visual continuation gate.
 
+## October 7 production-direction synchronization
+- Updated only this ledger and the locked continuation brief to the latest visual direction; technical assembly/playback code and existing test results are unchanged.
+- Keep the previous/correct Guardian with only the requested light face adjustment and lowered short hair treatment with exactly two swoosh-like lines.
+- Guardian remains airborne while opening one portal at a time, with dominant theatrical hand magic and visible living worlds. The exact-seven render requirement and simultaneous gateway finale are superseded.
+- Preserve source footage through the 25.50s handoff unchanged; face/hair adjustments must pass seam QA without an abrupt morph. Confirm supplied likeness/hair references before any paid continuation generation.
+- No new generation, assembled master, visual approval or production acceptance is claimed by this documentation update.
+
 ## MagicLight continuation gate
 PASS only if all are true:
-- exact same Guardian face, haircut, skin tone, body proportions, armor, chest sigil and wings;
+- previous/correct Guardian identity retained with only the requested light face adjustment toward Steven and lowered short hair treatment with exactly two swoosh-like lines; same skin tone, body proportions, armor, chest sigil and wings;
+- clean 25.50s source handoff preserved, with no abrupt face/hair morph at the moving seam;
 - Toronto remains continuous and CN Tower stays visually coherent;
 - Guardian stays physically active with body, wings, hair, cloth, camera, clouds and city parallax moving;
-- seven portals are visibly summoned by Guardian gestures;
-- Creativity, Work, Home, Wellbeing, Relationships, Community and Style appear as monumental dimensional gateways, not UI circles/cards;
-- gateways remain open together;
-- no hard cut, freeze, dissolve, face change, costume mutation, duplicate Guardian, random extra people or generic city;
-- final camera push moves into the central portal toward the live Hub;
+- Guardian remains airborne while dominant, thrilling hand magic and theatrical arm, wrist and finger gestures visibly summon each portal;
+- revealed destinations use the established Creativity, Work, Home, Wellbeing, Relationships, Community and Style vocabulary as deep windows into living worlds, not UI circles/cards; no exact-seven reveal requirement;
+- only one gateway is open at any instant; close it fully before opening another, and leave only the single final gateway active for the Hub transition;
+- no hard cut, freeze, dissolve, unrequested face redesign, costume mutation, duplicate Guardian, random extra people or generic city;
+- final camera push moves into the single final active portal toward the live Hub;
 - portrait 9:16;
 - highest clean MagicLight Pro render quality available;
 - continuation target 15–20s.

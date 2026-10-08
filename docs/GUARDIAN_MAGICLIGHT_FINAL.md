@@ -1,6 +1,6 @@
 # STAARWAARDD — Guardian Opening Final Continuation Package
 Status: LOCKED FOR MAGICLIGHT PRODUCTION
-Date: 2026-10-05 (Toronto)
+Date: 2026-10-07 (Toronto)
 Owner: STAARWAARDD
 Canonical repo: kingstvieee/cross-life-ai
 
@@ -11,10 +11,10 @@ The user-approved intent is:
 1. App starts.
 2. Guardian is summoned as part of startup, not inserted afterward.
 3. Existing Guardian opening continues without a visible reset.
-4. Same Guardian remains on screen with exact identity, hair, suit, lighting and proportions.
-5. Guardian deliberately creates seven monumental portals.
-6. Portals resolve into the final seven-world layout.
-7. Camera moves through the central portal into the live Hub.
+4. Keep the previous/correct Guardian; apply only the requested light face adjustment toward Steven and lowered hair treatment with two swoosh-like lines. Preserve suit, lighting and proportions.
+5. Guardian stays airborne and opens one monumental portal at a time with dominant, theatrical hand magic.
+6. Each portal is a window into a living world; close it before opening the next. Do not require exactly seven reveals or a simultaneous seven-world formation.
+7. Camera moves through the single final active portal into the live Hub.
 8. No second-video feeling, no abrupt visual-quality change, no substitute Guardian.
 
 ## Canonical Source
@@ -35,10 +35,10 @@ Preserve the existing source from 0.00 up to 25.50 seconds. Frame inspection on 
 
 ## Identity Lock — NON-NEGOTIABLE
 The continuation must preserve:
-- exact same face
+- previous/correct Guardian identity, with only the requested light face adjustment toward Steven; no replacement face or redesign
 - same skin tone
-- same short dark hair and hairline
-- same facial proportions
+- lowered, short dark hair treatment matching Steven's supplied reference, with exactly two swoosh-like lines
+- established facial structure and proportions apart from that light adjustment
 - same age
 - same body proportions
 - same silver / white / gold winged Guardian suit
@@ -48,9 +48,9 @@ The continuation must preserve:
 - same clarity and skin/detail rendering
 
 Do not:
-- change hairstyle
-- smooth or reshape the face
-- change jaw, nose, eyes, lips, brow or facial hair
+- make any hairstyle change beyond the requested lowered treatment and two swoosh-like lines
+- smooth, reshape or redesign the face beyond the requested light adjustment
+- independently redesign jaw, nose, eyes, lips, brow or facial hair
 - turn the Guardian into a generic superhero
 - replace armor with robot / iRobot-style plating
 - create a second Guardian
@@ -60,13 +60,13 @@ Do not:
 ## MagicLight Master Prompt
 Continue directly from the supplied final frame of the existing STAARWAARDD Guardian opening.
 
-This is ONE UNINTERRUPTED CINEMATIC SHOT. Maintain the exact same Guardian from the supplied reference: identical face, short dark hair, hairline, skin tone, facial structure, body proportions, silver-white-gold futuristic winged suit, mechanical-magical wings, glowing chest sigil, material texture, Toronto lighting and image clarity.
+This is ONE UNINTERRUPTED CINEMATIC SHOT. Maintain the exact same Guardian from the supplied reference: the previous/correct Guardian identity with only the requested light face adjustment toward Steven and lowered short dark hair treatment with two swoosh-like lines; preserve skin tone, established facial structure, body proportions, silver-white-gold futuristic winged suit, mechanical-magical wings, glowing chest sigil, material texture, Toronto lighting and image clarity.
 
 The Guardian is already airborne over a recognizable Toronto skyline. The CN Tower remains a clear visual anchor in the background. Preserve continuous camera motion, skyline parallax, wind movement, subtle hair movement, cloth movement, wing movement, breathing and natural facial micro-movement. The Guardian must never freeze into a still image.
 
-The Guardian rises slightly while the camera continues its existing movement. He looks toward the space around him and begins a deliberate magical summoning sequence using both hands and body movement. Each portal is visibly created by his gesture and energy. Portals must NOT already exist before he summons them.
+The Guardian remains airborne throughout every portal opening, rising slightly while the camera continues its existing movement. He commands the magic with strong, theatrical arm sweeps, deliberate wrist turns, articulated fingers and coordinated body movement. Hand magic must be dominant, thrilling and visually powerful, building visibly from his hands into the gateway rather than a soft ambient glow. Each portal opens in direct response to his gesture and energy. Portals must NOT already exist before he summons them.
 
-Create exactly seven distinct monumental three-dimensional magical gateways:
+Use the following established world destinations as the visual vocabulary for monumental three-dimensional gateways. They are not a requirement to show exactly seven portals in this continuation:
 1. Creativity
 2. Work
 3. Home
@@ -85,7 +85,7 @@ RELATIONSHIPS: warm elegant social world, romantic but refined, connection-orien
 COMMUNITY: lively event/community environment, human-energy atmosphere without crowd clutter, sense of local discovery and belonging.
 STYLE: premium personal wardrobe / fashion world, elegant closet architecture, luxury styling environment.
 
-The seven portals form around Guardian progressively. Each one appears only after a distinct Guardian gesture. Keep Guardian continuously visible and moving while portals form.
+Open only ONE portal at a time. Each appears only after a distinct theatrical Guardian gesture and reads as a window into an actual world. If another destination is revealed, fully close the current gateway before summoning the next; never overlap open gateways. Keep Guardian airborne, continuously visible and moving during every opening. Prioritize readable, powerful action over fitting all seven destinations into the target duration.
 
 Portal design:
 - monumental, cinematic, magical architecture
@@ -102,14 +102,17 @@ Portal design:
 - no floating screenshots
 - no text labels in the generated footage
 
-By the end, all seven gateways remain open together in a balanced spatial formation around Guardian. Toronto and the CN Tower remain visible so this never becomes a generic fantasy city.
+At the end, only the single final gateway remains open for the Hub transition. Never create a ring or formation of simultaneously open portals. Toronto and the CN Tower remain visible so this never becomes a generic fantasy city.
 
 Final movement:
-The camera begins a smooth forward push toward the central portal. Guardian remains visually continuous and alive. Use the portal itself as the transition mechanism into the live STAARWAARDD Hub. The final frame should be designed for a clean app handoff, not a fade to black.
+The camera begins a smooth forward push toward the single final active portal. Guardian remains visually continuous and alive. Use the portal itself as the transition mechanism into the live STAARWAARDD Hub. The final frame should be designed for a clean app handoff, not a fade to black.
 
 ## Negative Prompt / Failure Prevention
-NO different face.
-NO new hairstyle.
+NO replacement Guardian or face redesign beyond the requested light adjustment.
+NO hairstyle changes beyond the lowered treatment and exactly two swoosh-like lines.
+NO multiple open portals or simultaneous seven-gateway finale.
+NO grounded portal opening.
+NO weak, soft hand magic or passive gestures.
 NO longer hair.
 NO shaved head.
 NO beard changes.
@@ -132,7 +135,7 @@ NO UI cards.
 NO circular app thumbnails.
 NO text.
 NO portal labels.
-NO logos inside generated continuation.
+NO logos inside generated continuation; the requested two swoosh-like haircut lines are hair detailing, not a branded logo.
 NO random extra people.
 NO abrupt color-temperature change.
 NO gritty first-half / glossy second-half mismatch.
@@ -147,9 +150,9 @@ Target continuation: 15–20 seconds.
 
 Suggested beat map:
 - 0.0–2.5 s: exact handoff, Guardian remains airborne, slight rise, continuous Toronto parallax.
-- 2.5–10.5 s: seven deliberate summoning gestures. Portals form progressively.
-- 10.5–14.0 s: all seven portals stabilize around Guardian, Toronto remains visible.
-- 14.0–18.0 s: camera pushes toward central portal for Hub transition.
+- 2.5–10.5 s: dominant theatrical hand magic opens one world-window portal; any subsequent reveal follows full closure of the previous gateway. Guardian remains airborne.
+- 10.5–14.0 s: single final gateway stabilizes with a living interior world; Guardian remains active and Toronto remains visible.
+- 14.0–18.0 s: camera pushes toward the single final active portal for Hub transition.
 
 Do not force every beat to a rigid timestamp if motion quality suffers. Continuity outranks clock precision.
 
@@ -170,13 +173,12 @@ A fake 4K upscale does not count as approval if the source contains face morphin
 
 ## Reference Priority
 Reference order:
-1. Existing final approved opening frames immediately before handoff
-2. Guardian primary full-body reference
-3. Guardian transformation / armor board
-4. Steven frontal identity reference
-5. Steven profile identity reference
+1. Clean existing opening frame at 25.50 seconds and adjacent moving frames for the seam, airborne pose, Toronto lighting and camera continuity
+2. Previous/correct Guardian reference for identity, suit, wings and proportions
+3. Steven's supplied frontal/profile references solely for the requested light face adjustment and lowered hair with two swoosh-like lines
+4. Guardian transformation / armor board for established material and suit detail
 
-The existing moving Guardian at the handoff point outranks generic stylistic references.
+The existing moving Guardian at the handoff point outranks generic stylistic references. The requested face/hair adjustments are the only identity-lock exceptions; match them to the supplied references without replacing the Guardian. Preserve source frames before 25.50 seconds unchanged, and reject any abrupt face/hair morph at the continuation seam. If references are unavailable or the seam cannot reconcile these adjustments, hold paid generation for review rather than inventing a new likeness.
 
 ## Assembly Rule
 Do not make the user watch:
@@ -211,8 +213,8 @@ Once `guardian-launch-continuous-v5.mp4` is approved:
 
 ## Approval Gate
 Do not mark opening COMPLETE unless every item passes:
-- same Guardian face before and after handoff
-- same hair and hairline
+- previous/correct Guardian retained with only the requested light face adjustment; no replacement likeness or abrupt seam morph
+- lowered hair treatment with exactly two swoosh-like lines, matched to Steven's supplied reference; no unrelated hair/hairline changes
 - same armor/suit
 - same wings
 - Toronto identity preserved
@@ -220,9 +222,11 @@ Do not mark opening COMPLETE unless every item passes:
 - no visible resolution/clarity jump
 - no color-grade jump
 - no freeze/still section
-- all seven portals present
-- portals are 3D worlds, not UI cards
-- Guardian visibly summons portals
+- only one portal open at any instant; previous gateway fully closes before the next opens
+- single final active gateway for Hub push-in; no required seven-portal count or simultaneous formation
+- portals are deep 3D windows into living worlds, not UI cards or circular icon overlays
+- Guardian remains airborne during every portal opening
+- dominant, thrilling hand magic with clearly theatrical gestures visibly causes each portal to open
 - one continuous moving shot
 - camera push ends naturally into Hub
 - no black-frame flash
