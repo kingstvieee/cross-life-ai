@@ -1,0 +1,26 @@
+flowchart TD
+    U[User] --> G[Visible Guardian Avatar]
+    G --> I[Intent Engine]
+    I --> M[Model Router / Planner]
+    M --> TK[Guardian Trust Kernel]
+
+    TK --> ID[Identity Engine]
+    TK --> PB[Permission Broker]
+    TK --> AC[Autonomy Controller]
+    TK --> RE[Risk Engine]
+    TK --> CV[Credential Vault]
+    TK --> FW[Network Egress Firewall]
+
+    TK --> SAE[Secure Action Executor]
+    SAE --> F[Files]
+    SAE --> C[Calendar]
+    SAE --> X[External Connector]
+    SAE --> D[Future Devices]
+
+    SAE --> V[Verification Layer]
+    V --> A[Immutable Audit Trail]
+    A --> MG[Memory Governance]
+
+    ES[Emergency Safe Mode] --> TK
+    ES --> SAE
+    ES --> FW

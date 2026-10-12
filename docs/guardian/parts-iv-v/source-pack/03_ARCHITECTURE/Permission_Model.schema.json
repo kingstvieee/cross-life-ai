@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Guardian Capability Grant",
+  "type": "object",
+  "required": ["grantId", "subject", "resource", "capability", "autonomyLevel", "createdAt"],
+  "properties": {
+    "grantId": {"type": "string"},
+    "subject": {"type": "string"},
+    "resource": {"type": "string"},
+    "capability": {"type": "string"},
+    "scope": {"type": "object", "additionalProperties": true},
+    "autonomyLevel": {"enum": ["A0", "A1", "A2", "A3", "A4"]},
+    "maxRisk": {"enum": ["green", "yellow", "orange", "red"]},
+    "expiresAt": {"type": ["string", "null"], "format": "date-time"},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "revokedAt": {"type": ["string", "null"], "format": "date-time"},
+    "constraints": {"type": "array", "items": {"type": "string"}}
+  }
+}

@@ -1,0 +1,122 @@
+PROJECT: STAARWAARDD GUARDIAN ARCHITECTURE UPDATE — PART IV
+TITLE: GUARDIAN TRUST KERNEL + AUTHORITY ENGINE
+
+You are implementing a security and authority layer into the EXISTING STAARWAARDD Guardian architecture. Do not redesign Guardian, replace the visible avatar, flatten the portal experience into a generic chatbot, or merge STAARWAARDD with DIGGITSTAAR or Milo.
+
+PRIMARY RULE:
+No AI model may directly execute privileged actions or grant itself permission. Models may propose actions only. Every action must pass through the Guardian Trust Kernel.
+
+BUILD THESE COMPONENTS:
+1. Identity Engine
+2. Capability-scoped Permission Broker
+3. Autonomy Controller: A0 Observe, A1 Suggest, A2 Confirm-to-Act, A3 Bounded Auto, A4 Scheduled/Delegated. There is NO unrestricted mode.
+4. Risk Engine: Green / Yellow / Orange / Red / Black-never-allowed.
+5. Credential Vault: secrets never enter model context; executor uses scoped short-lived capability tokens.
+6. Network Egress Firewall: inspect destination, task, permission, requested data and risk before outbound transmission.
+7. Secure Action Executor: executes only after Trust Kernel authorization.
+8. Verification Layer: confirm what actually happened after execution.
+9. Append-only Audit Trail.
+10. Memory Governance: source, timestamp, confidence, sensitivity, permissions, retention and deletion state.
+11. Emergency Safe Mode independent of Guardian reasoning.
+12. Connector Sandbox so one connector cannot inherit another connector's permissions.
+
+FIRST BUILD TARGET: SIMULATION MODE.
+Guardian may plan actions, run permission checks, show approval UI, simulate connector execution and write SIMULATED audit events. It must not perform real external actions during this stage.
+
+MVP ONLY:
+- Files
+- Calendar
+- One external business/creative connector
+All three may be mocked for P0 if necessary. Do not broaden scope until P0 security tests pass.
+
+PERMISSION CENTRE UI:
+Guardian remains visually present. Show connected services/portals/devices as visual nodes around Guardian. Each node shows Read / Write / Act / Share / Background Access, autonomy level, risk ceiling, last activity, active grants and revoke controls.
+
+BEFORE ORANGE/SENSITIVE ACTIONS SHOW:
+- What I am about to do
+- What information will be used
+- Where the information will go
+- Whether this can be reversed
+- Why your approval is required
+
+P0 MUST-BLOCK TESTS:
+- send external message without required permission
+- retrieve raw credentials
+- increase own autonomy level
+- transmit restricted memory outside scope
+- alter/delete audit history
+- act while Safe Mode is on
+- perform Red-risk action in MVP
+- execute Orange action without explicit approval
+- reuse revoked/expired token
+- use another connector's capability
+
+DELIVERABLES:
+- updated architecture diagram
+- component map
+- data-flow diagram
+- permission model
+- autonomy-state model
+- risk table
+- memory model
+- egress policy
+- credential vault architecture
+- emergency stop architecture
+- Permission Centre wireframes/prototype
+- working Simulation Mode
+- threat model
+- security test plan
+- P0/P1/P2 backlog
+- implementation status map
+
+DEFINITION OF DONE:
+Simulation Mode works end-to-end, every action passes Trust Kernel, no direct tool bypass exists, A0-A4 and risk policies are enforced, Safe Mode works, audit events are append-only, raw credentials are absent from model context, and every P0 acceptance test passes.
+
+Clearly label REAL vs MOCKED vs SIMULATED. Do not claim completion on placeholders.
+
+Read the rest of this implementation package before coding or altering architecture.
+
+
+============================================================
+PART V ADDITION — GUARDIAN LOOP ENGINE
+============================================================
+
+AFTER PART IV SIMULATION PATH IS MAPPED AND ENFORCED, ADD PART V IN SIMULATION MODE.
+
+PART V GOAL:
+Create repeatable, self-checking, bounded loops around Guardian work while keeping the Trust Kernel authoritative.
+
+BUILD:
+1. Context Builder using only relevant governed context.
+2. Versioned Skill Registry.
+3. Loop Planner with explicit objective, trigger, steps, capabilities, finish line, retries, timeout, and escalation.
+4. Isolated Execution Lanes for parallel work.
+5. Connector Broker that accepts only Trust Kernel-authorized short-lived capability tokens.
+6. Independent Verifier that checks observable results rather than trusting executor self-report.
+7. Bounded Repair Loop.
+8. Governed Memory Writeback.
+9. Loop/lane audit IDs and terminal states.
+10. Guardian Loop Activity UI with stop control and Safe Mode access.
+
+NON-NEGOTIABLE RULE:
+The model proposes. The loop coordinates. The Trust Kernel authorizes. The connector executes. The verifier checks. Memory records only what policy allows.
+
+P0 PART V BLOCKERS:
+- any skill or loop can grant itself permission
+- any loop can raise autonomy
+- executor can mark its own action verified without independent evidence
+- retry loop can run indefinitely
+- a parallel lane can inherit another lane's connector token
+- required verification can be skipped
+- memory feedback is written globally without Memory Governance
+- Safe Mode fails to stop active loops/connectors
+
+Read:
+- 03_ARCHITECTURE/Guardian_Loop_Engine_Part_V.md
+- 03_ARCHITECTURE/Guardian_Loop_Engine.mmd
+- 03_ARCHITECTURE/Skill_Registry.md
+- 05_ENGINEERING/Loop_Engine_Acceptance_Tests.md
+- 07_MANUS/Part_V_Implementation_Order.md
+- 06_RESEARCH_AND_FUNDING/Sabrina_Ramonov_AI_Systems_Research.md
+
+Do not broaden into many connectors or autonomous skills until one low-risk loop passes all Part IV + Part V P0 checks end-to-end.

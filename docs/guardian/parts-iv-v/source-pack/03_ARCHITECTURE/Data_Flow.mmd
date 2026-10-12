@@ -1,0 +1,28 @@
+sequenceDiagram
+    participant U as User
+    participant G as Guardian
+    participant M as Model/Planner
+    participant T as Trust Kernel
+    participant V as Credential Vault
+    participant X as External Tool
+    participant A as Audit Log
+
+    U->>G: Request action
+    G->>M: Interpret + plan
+    M->>T: Proposed action + declared purpose
+    T->>T: Identity + permission + risk checks
+
+    alt approval required
+        T->>G: Explain action + request approval
+        G->>U: What / data / destination / reversibility / reason
+        U->>G: Approve
+        G->>T: Signed approval
+    end
+
+    T->>V: Request scoped capability token
+    V-->>T: Short-lived token
+    T->>X: Execute authorized action
+    X-->>T: Result
+    T->>A: Append decision + execution record
+    T-->>G: Verified result
+    G-->>U: Report outcome

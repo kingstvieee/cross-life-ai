@@ -1,0 +1,26 @@
+flowchart TD
+    T[Trigger: user / schedule / event] --> CB[Context Builder]
+    CB --> SR[Skill Registry]
+    SR --> LP[Loop Planner]
+    LP --> L1[Execution Lane]
+    LP --> L2[Optional Parallel Lane]
+
+    L1 --> TK[Guardian Trust Kernel]
+    L2 --> TK
+    TK -->|Denied / Approval Needed| H[Human Approval or Escalation]
+    TK -->|Authorized| BR[Connector Broker]
+    BR --> C[Sandboxed Connector]
+    C --> A[External or Simulated Action]
+    A --> V[Independent Verifier]
+
+    V -->|Pass| MW[Governed Memory Writeback]
+    MW --> AU[Append-only Audit Trail]
+    V -->|Fail + retries remain| RP[Repair Planner]
+    RP --> TK
+    V -->|Fail / risk increased / retry exhausted| H
+    H --> AU
+
+    SM[Emergency Safe Mode] -. overrides .-> TK
+    SM -. stops .-> BR
+    SM -. stops .-> L1
+    SM -. stops .-> L2

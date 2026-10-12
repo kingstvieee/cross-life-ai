@@ -9,6 +9,7 @@ import { AudioControls } from "@/components/staarwardd/audio-controls";
 import { GuardianCharacter } from "@/components/staarwardd/guardian-character";
 import { MemorySheet } from "@/components/staarwardd/memory-sheet";
 import { GuardianActivitySheet } from "@/components/staarwardd/guardian-activity-sheet";
+import { GuardianControlSheet } from "@/components/staarwardd/guardian-control-sheet";
 import { GuardianInteractionCard } from "@/components/staarwardd/guardian-interaction-card";
 import { PortalTransition } from "@/components/staarwardd/portal-transition";
 import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
@@ -37,6 +38,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [controlOpen, setControlOpen] = useState(false);
   const [companionOpen, setCompanionOpen] = useState(false);
   const [travelling, setTravelling] = useState<PortalId | null>(null);
   const [fieldAwake, setFieldAwake] = useState(false);
@@ -151,6 +153,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
               <Pressable accessibilityRole="button" accessibilityLabel="Open preference memory" onPress={() => setMemoryOpen(true)} style={styles.round}><Text style={styles.roundText}>◈</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Open audio controls" onPress={() => setAudioOpen(true)} style={styles.round}><Text style={styles.roundText}>{audio.master ? "♫" : "◌"}</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Open Guardian activity history" onPress={() => setActivityOpen(true)} style={styles.round}><Text style={styles.roundText}>≡</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Open Guardian Permission Centre" onPress={() => setControlOpen(true)} style={styles.judgeButton}><Text style={styles.judgeButtonText}>PERMISSION CENTRE</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Start automatic cross-life crisis judge demo" onPress={() => { stopGreeting.current?.(); setSpokenLine(null); try { require("@/lib/staarwardd/launch-soundtrack").stopLaunchSoundtrack(); } catch {} startDemoTimer(240); setAboutOpen(true); }} style={styles.judgeButton}><Text style={styles.judgeButtonText}>RUN LIVE CRISIS DEMO · AUTO</Text></Pressable>
               <JudgeReset />
             </View>
@@ -188,6 +191,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
       <AudioControls open={audioOpen} onClose={() => setAudioOpen(false)} />
       <MemorySheet open={memoryOpen} onClose={() => setMemoryOpen(false)} />
       <GuardianActivitySheet open={activityOpen} onClose={() => setActivityOpen(false)} />
+      <GuardianControlSheet open={controlOpen} onClose={() => setControlOpen(false)} />
       <JudgeDemo
         open={aboutOpen}
         memoryConsented={memory.consented}

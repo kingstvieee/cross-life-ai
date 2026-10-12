@@ -20,6 +20,7 @@ class IndexCollection(FakeCollection):
 class FakeDB:
     def __init__(self):
         self.guardian_core_state = IndexCollection()
+        self.guardian_control_state = IndexCollection()
 
 
 def test_install_mounts_authenticated_guardian_routes_under_api():
@@ -47,3 +48,4 @@ def test_index_boundary_is_unique_per_user():
     db = FakeDB()
     asyncio.run(ensure_guardian_indexes(db))
     assert db.guardian_core_state.index_calls == [("user_id", True)]
+    assert db.guardian_control_state.index_calls == [("user_id", True)]
