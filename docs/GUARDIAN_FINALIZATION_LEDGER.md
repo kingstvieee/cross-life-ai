@@ -86,3 +86,11 @@ Do not mark opening COMPLETE until:
 - live deployment is watched from first frame through Hub;
 - no second-video feeling remains;
 - no clarity, identity, portal-design or audio handoff defects remain.
+
+## Runway repair budget and clarity checkpoint — October 12
+- Latest authorized budget: at most 100 new Runway credits from the user's top-up authorization; supersedes the earlier 27-credit cap. Workspace balance is not a spending authorization.
+- Six-second original-opening upscale task `7670e6a9-fa79-443c-9c00-4e1a7e690fb4` completed: 2304×4096, 25fps, 6.016s, stereo audio. It cost 12 credits before the 100-credit authorization.
+- Frame comparison shows smoother footage but persistent facial softness. This is not final clarity approval or an identity repair.
+- Recovered repository `guardian-toronto-traverse-hd.mp4`: despite its name it is 720×1280, 20fps, 29s and silent. It does not establish a sharper original.
+- New spend since the 100-credit authorization: 0; authorized budget remaining: 100. No full-upscale duplicate, character edit or portal generation submitted.
+- Portal geometry still awaits the user's forthcoming layout reference. Keep the world-interior concepts, airborne Toronto/CN Tower setting and one-portal-at-a-time direction; do not guess the layout.
