@@ -167,3 +167,11 @@ Do not mark opening COMPLETE until:
 - No complete opening exists or is approved. Keep original source and all rollback versions; do not deploy rejected review assets.
 - All paid work remains stopped after final25/25 credits. Do not request or consume another retry allowance automatically. No additional export is requested or produced by this rejection record.
 - Technical25.50s handoff, assembly and duration-aware playback code are unchanged.
+
+## User scope correction: original full film, clarity and magic only
+- User clarified that the requested change was only clearer footage and stronger magic, with the original live sequence preserved from start to finish. Do not send scripts, still-image treatments, partial reviews or another export before completion. No credits remain authorized.
+- Abandoned the proposed actor-matting/replacement-shot approach. Restored the original full35.800s sound-corrected moving review as the working baseline, not the rejected30.5s idle or held-pose replacements. No source shots removed, reordered, retimed, frozen or looped.
+- Free restoration uses original25fps/895frames, exact original audio stream, existing0–6s and9–12s restoration assets at their original positions, conservative edge-preserving luminance cleanup/shadow lift/sharpening, and stronger bloom only from existing film light. No added actors, portal geometry, poses or generated frames.
+- Working checkpoint `Guardian_Original_Film_Restored_Working.mp4`, Library identity `libfile_a882a84cd04c8191b023fe51b78ca436`, version2,720×1280,35.800s,33,470,179bytes; decode passed. Not delivered to user because the visual clarity gate still fails.
+- Matched-frame before/after at10.08s remains visibly smeared, especially the face. Free restoration improves contrast/edges but does not recover missing source detail. Available Guardian Library videos were checked; no sharper matching original was identified. Do not call this fixed, final,4K clarity or COMPLETE.
+- All further paid calls remain prohibited. Keep25.50s technical handoff and assembly/playback fixes untouched; no runtime asset wiring/deployment performed.
