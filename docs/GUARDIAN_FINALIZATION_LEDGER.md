@@ -159,3 +159,11 @@ Do not mark opening COMPLETE until:
 - Reassembled full review from original normal-speed action through25.50s plus exactly five native seconds of the new motion, played once without actor looping, holding, slow-motion stretching or cloud-ascent retiming. Existing first6s and9–12s restored sections are reused; continuous soundtrack remains.
 - Saved `Guardian_Full_Motion_4K_Review.mp4`, Library identity `libfile_a882a84cd04c8191b023fe51b78ca436`, version1:2160×3840,20fps H.264 High/AAC stereo,30.500s,36,709,667bytes. Full decode verified.
 - This is a4K delivery raster, with lower-resolution sections scaled, not a recovered native4K source. Original-opening softness and pre-handoff identity/costume drift remain unresolved, and the dominant theatrical gesture gate remains unmet. Do not mark COMPLETE, wire to canonical startup, deploy or treat generation/export success as approval. Technical timing/assembly/playback implementation remains unchanged.
+
+## Latest live-sequence rejection — October12,18:50 Toronto
+- User rejected Guardian_Full_Motion_4K_Review because the portal section still reads as still pictures rather than a live sequence. This supersedes any earlier assessment that nominal camera/body movement was an adequate motion repair.
+- Final raw motion take c5f236e7-0186-4863-8549-4e0c23d57dbd and its full assembled review are REJECTED production candidates. Mostly held Guardian poses with camera changes, world inserts, hand-energy overlays or title animation do not meet the live-performance requirement.
+- Require visibly continuous articulated body, arm, wrist, finger, wing and cloth motion from start to finish, with a clear gesture causing one portal to open. Static pose plus moving effects, idle loops, frozen holds, photo transitions and repeated review exports are not acceptable substitutes.
+- No complete opening exists or is approved. Keep original source and all rollback versions; do not deploy rejected review assets.
+- All paid work remains stopped after final25/25 credits. Do not request or consume another retry allowance automatically. No additional export is requested or produced by this rejection record.
+- Technical25.50s handoff, assembly and duration-aware playback code are unchanged.
