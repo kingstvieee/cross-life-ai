@@ -130,3 +130,10 @@ Do not mark opening COMPLETE until:
 - Saved revised playback review `Guardian_Continuity_Repair.mp4`, Library identity `libfile_a5514f31d0648191963f318da8997404`, version1:30.500s,540×960 H.264 Constrained Baseline with AAC stereo, full decode verified. Portal begins at25.50s; existing continuous audio is retained.
 - This is a review revision, not final acceptance. Theatrical arm/wrist/finger movement remains insufficient; original opening softness and exact identity consistency require user visual approval. A0.25s dissolve at21s and repeated idle source frames do not satisfy the locked no-dissolve/fully-active motion gate.
 - Canonical source, assembly script,25.50s technical handoff and duration-aware playback implementation are unchanged. No runtime assets, app wiring or production deployment were changed.
+
+## Screenshot quality rejection and native export — October 12
+- User supplied IMG_2247.jpeg showing smeared face, armour and feather detail in the flight shot around10s. The540p playback export added downsampling loss; source720p footage itself is also visibly soft.
+- Submitted exactly3.00s from source9–12s to upscale task `3a19ad95-756d-4f70-9438-f344a02bb9f2`, cost6credits. This brings the additional allowance to39/40 spent, one remaining. No regeneration/retry or full-cut upscale was submitted.
+- Output2304×4096,3.00s. Matched-frame comparison at source10s shows smoother compression/edges, but facial detail remains indistinct. Upscale does not pass the clarity gate and is not evidence of recovered identity detail.
+- Reassembled the latest review at native720×1280 with high-quality H.264 encoding and192kbps stereo AAC, retaining30.500s duration and25.50s portal onset. Saved `Guardian_Source_Quality_Review.mp4`, Library identity `libfile_a5514f31d0648191963f318da8997404`, version2,25,712,510bytes; full decode verified.
+- Quality remains rejected pending a sharper original or a properly reference-locked replacement of damaged footage. Do not call this full clarity, COMPLETE, approved v5, or deploy it. Technical implementation is unchanged.
