@@ -102,3 +102,8 @@ Do not mark opening COMPLETE until:
 - Submitted one 2K reference-anchored production keyframe: Runway task `05d31460-0f8c-4aa4-8835-a2351d6d04d2`. References: original beginning Guardian frame plus supplied portal-design image. Identity QA and motion generation remain pending.
 - Credit accounting: 20 of the newly authorized 100 spent; 80 remain. Earlier 12-credit upscale remains outside this new cap. No retries submitted.
 - Prior pending-reference entries are historical. The design reference is now available; do not continue treating its absence as a blocker.
+
+## Production keyframe correction
+- First portal-design keyframe is sharp and carries the central STAARWAARDD title, but fails the required hover pose: it depicts forward flight and an overly narrow vertical portal. Do not animate it.
+- Submitted one corrective keyframe `1b3f5adf-8a83-49ad-a5c2-b04c07d87616`: original Guardian upright and vertical in midair, feet hanging, theatrical hands visible; single broad horizontal gold rounded world-window beside him. Toronto/CN Tower and central brand title retained.
+- New spend is now 40 of the hard 100-credit cap; 60 remain. Corrected keyframe QA and any motion render remain pending. No new final master or full opening approval is claimed.
