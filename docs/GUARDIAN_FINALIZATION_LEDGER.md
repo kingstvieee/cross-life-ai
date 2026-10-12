@@ -113,3 +113,11 @@ Do not mark opening COMPLETE until:
 - Submitted motion task `0c44cc1d-fc5d-4341-a286-9395ad4c2e9f` from selected upright keyframe `1b3f5adf-8a83-49ad-a5c2-b04c07d87616`. One five-second render cost 60 credits. Cumulative new spend is exactly 100/100; zero remains. No further generation, upscale or retry is authorized.
 - Assemble the preserved existing action through the technical 25.50s handoff with the new five-second shot, reusing sound-corrected review audio across the full cut. This replaces the rejected appended ending; original files remain rollback.
 - This full-length review is not an approved final master: original-opening softness, pre-handoff character/costume drift, seam quality and new motion must still be assessed. Do not claim COMPLETE or deploy based on generation success alone.
+
+## Full opening magic review delivered
+- Saved `Guardian_Full_Opening_Magic_Review.mp4` (`libfile_720dc860bb5481919abb88e3d96f0a7f`): 30.500s, 720×1280 H.264, stereo AAC; full decode completed without errors.
+- Structure: existing opening action to the technical 25.50s handoff, then a five-second portal shot. The prior six-second clarity pass is reused in the prefix; original files remain untouched.
+- The raw five-second motion render introduced a second portal and an out-of-frame exit. Locally reused only its first 3.00s, retimed into five seconds, preserving the upright hovering Guardian and single portal. Added non-generative hand-energy trails, sparks, portal light burst, a stable typeset STAARWAARDD ending title, and a moving world interior derived from the existing fantasy-city footage.
+- Reused existing music continuously; locally synthesized a riser/shimmer/impact and mixed stereo with output limiting and end fade. No additional generation credits spent on compositing or sound.
+- Budget remains exactly 100/100 new credits spent. No retries or further paid work authorized.
+- This is a full review cut, not COMPLETE: softness and identity/costume drift in the preserved opening and the abrupt visual handoff remain unresolved. Do not wire this review into production or treat export success as visual approval.
