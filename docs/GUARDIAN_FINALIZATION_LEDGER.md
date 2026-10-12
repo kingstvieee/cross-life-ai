@@ -1,6 +1,6 @@
 # Guardian Finalization Ledger
 
-Updated: 2026-10-07 (Toronto)
+Updated: 2026-10-12 (Toronto)
 
 ## Verified existing production state
 - Canonical opening specified as `frontend/public/video/guardian-launch-synced-v4.mp4`, 720×1280, about 29s.
@@ -35,10 +35,20 @@ Validation result for this branch: all three launch deadline tests and both asse
 - Preserve source footage through the 25.50s handoff unchanged; face/hair adjustments must pass seam QA without an abrupt morph. Confirm supplied likeness/hair references before any paid continuation generation.
 - No new generation, assembled master, visual approval or production acceptance is claimed by this documentation update.
 
+## October 12 review rejection and repair status
+- The latest sound-corrected review is 35.80s, 720×1280 with stereo AAC audio. Sampled frames show soft early footage and chest-emblem/armor changes before the final portal section; do not assume only the appended finale needs repair.
+- Latest direction supersedes the October 7 face/hair adjustment permissions: retain the exact Guardian from the beginning through the end. Same face, hair, body proportions, armor, wings and chest emblem.
+- Keep the world-interior concepts; portal shape/layout is pending the reference the user said they will provide. Do not invent the geometry or claim approval.
+- A conservative denoise test of the opening was created without generation credits; inspected result remains too soft to claim full clarity. It is an unapproved working test, not a final master or identity repair.
+- LTX access restored for Staarwardd; displayed credit indicator is 0%. No generation was started.
+- Technical 25.50s assembly handoff and duration-aware playback fixes remain unchanged. Preserve rollback sources; source identity repairs must be visually accepted before assembly.
+
 ## MagicLight continuation gate
 PASS only if all are true:
-- previous/correct Guardian identity retained with only the requested light face adjustment toward Steven and lowered short hair treatment with exactly two swoosh-like lines; same skin tone, body proportions, armor, chest sigil and wings;
-- clean 25.50s source handoff preserved, with no abrupt face/hair morph at the moving seam;
+- exact Guardian from the beginning retained throughout; identical face, hairstyle/hairline, skin tone, body proportions, armor, chest sigil and wings;
+- full-size early footage is clear without grain/compression artifacts or invented face detail;
+- portal geometry/layout matches the user's supplied reference;
+- clean 25.50s technical handoff preserved, with no identity or costume drift before, during or after the moving seam;
 - Toronto remains continuous and CN Tower stays visually coherent;
 - Guardian stays physically active with body, wings, hair, cloth, camera, clouds and city parallax moving;
 - Guardian remains airborne while dominant, thrilling hand magic and theatrical arm, wrist and finger gestures visibly summon each portal;

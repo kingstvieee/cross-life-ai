@@ -1,8 +1,16 @@
 # STAARWAARDD — Guardian Opening Final Continuation Package
 Status: LOCKED FOR MAGICLIGHT PRODUCTION
-Date: 2026-10-07 (Toronto)
+Date: 2026-10-12 (Toronto)
 Owner: STAARWAARDD
 Canonical repo: kingstvieee/cross-life-ai
+
+## October 12 correction lock
+- The Guardian visible at the beginning is the identity authority for the entire opening: same face, hair, body proportions, armor, wings and chest emblem through the finale. Earlier permission for light face/hair adjustments is superseded for this correction pass; do not redesign him.
+- The latest 35.8s review is rejected for soft/grainy early footage, character/costume drift and the wrong portal ending. Clear output must be verified at full playback size, not inferred from export resolution.
+- Keep the world-interior concepts the user likes. Portal geometry/layout must match the user's forthcoming layout reference; the exact shape remains unresolved. Do not invent or spend credits on a replacement portal layout before that reference is available.
+- Keep Guardian airborne in the Toronto sky with CN Tower behind him while opening one portal at a time using dominant theatrical hand magic.
+- The 25.50s assembly handoff and duration-aware playback implementation remain unchanged. They are technical timings, not proof of identity consistency; review and repair any drift within the existing opening as well as the continuation. Preserve original source files as rollback.
+- A conservative non-generative denoise test does not meet the requested full clarity yet. Obtain the best original source and approve restored detail without face invention, plastic skin or sharpening halos before final assembly.
 
 ## Objective
 Finish the app opening as one seamless cinematic summon. The final experience must feel like one uninterrupted piece from the existing Guardian launch footage through the portal finale and into the live Hub.
@@ -11,7 +19,7 @@ The user-approved intent is:
 1. App starts.
 2. Guardian is summoned as part of startup, not inserted afterward.
 3. Existing Guardian opening continues without a visible reset.
-4. Keep the previous/correct Guardian; apply only the requested light face adjustment toward Steven and lowered hair treatment with two swoosh-like lines. Preserve suit, lighting and proportions.
+4. Keep the exact Guardian from the beginning throughout. Preserve his face, hair, suit, wings, chest emblem, lighting and proportions; no additional face/hair adjustment.
 5. Guardian stays airborne and opens one monumental portal at a time with dominant, theatrical hand magic.
 6. Each portal is a window into a living world; close it before opening the next. Do not require exactly seven reveals or a simultaneous seven-world formation.
 7. Camera moves through the single final active portal into the live Hub.
@@ -31,14 +39,14 @@ Source properties already established:
 - silver / white / gold armor
 - glowing maple-style chest sigil
 
-Preserve the existing source from 0.00 up to 25.50 seconds. Frame inspection on October 5 found that the old circular Creativity icon is already visible at 26.20 seconds, so that prior cut point would retain a rejected UI element. The 25.50-second frame preserves the airborne Guardian, extended wings, Toronto and CN Tower without the portal-icon overlay. Use that source frame as the continuation reference. The full rendered seam must still pass moving-shot QA before approval.
+Preserve the original source file untouched as rollback. Keep the existing action from 0.00 up to the technical 25.50-second handoff in the working assembly, repairing clarity and identity drift only where present. Frame inspection on October 5 found that the old circular Creativity icon is already visible at 26.20 seconds, so that prior cut point would retain a rejected UI element. The 25.50-second frame preserves the airborne Guardian, extended wings, Toronto and CN Tower without the portal-icon overlay. Use that source frame as the continuation reference. The full rendered seam must still pass moving-shot QA before approval.
 
 ## Identity Lock — NON-NEGOTIABLE
 The continuation must preserve:
-- previous/correct Guardian identity, with only the requested light face adjustment toward Steven; no replacement face or redesign
+- exact Guardian identity from the beginning; no replacement face or redesign
 - same skin tone
-- lowered, short dark hair treatment matching Steven's supplied reference, with exactly two swoosh-like lines
-- established facial structure and proportions apart from that light adjustment
+- same original hairstyle and hairline from the beginning
+- same established facial structure and proportions
 - same age
 - same body proportions
 - same silver / white / gold winged Guardian suit
@@ -48,8 +56,8 @@ The continuation must preserve:
 - same clarity and skin/detail rendering
 
 Do not:
-- make any hairstyle change beyond the requested lowered treatment and two swoosh-like lines
-- smooth, reshape or redesign the face beyond the requested light adjustment
+- change the original hairstyle or hairline
+- smooth, reshape or redesign the original face
 - independently redesign jaw, nose, eyes, lips, brow or facial hair
 - turn the Guardian into a generic superhero
 - replace armor with robot / iRobot-style plating
@@ -60,7 +68,7 @@ Do not:
 ## MagicLight Master Prompt
 Continue directly from the supplied final frame of the existing STAARWAARDD Guardian opening.
 
-This is ONE UNINTERRUPTED CINEMATIC SHOT. Maintain the exact same Guardian from the supplied reference: the previous/correct Guardian identity with only the requested light face adjustment toward Steven and lowered short dark hair treatment with two swoosh-like lines; preserve skin tone, established facial structure, body proportions, silver-white-gold futuristic winged suit, mechanical-magical wings, glowing chest sigil, material texture, Toronto lighting and image clarity.
+This is ONE UNINTERRUPTED CINEMATIC SHOT. Maintain the exact same Guardian from the supplied reference: the exact original Guardian from the beginning with the same face, hairstyle and hairline; preserve skin tone, established facial structure, body proportions, silver-white-gold futuristic winged suit, mechanical-magical wings, glowing chest sigil, material texture, Toronto lighting and image clarity.
 
 The Guardian is already airborne over a recognizable Toronto skyline. The CN Tower remains a clear visual anchor in the background. Preserve continuous camera motion, skyline parallax, wind movement, subtle hair movement, cloth movement, wing movement, breathing and natural facial micro-movement. The Guardian must never freeze into a still image.
 
@@ -108,8 +116,8 @@ Final movement:
 The camera begins a smooth forward push toward the single final active portal. Guardian remains visually continuous and alive. Use the portal itself as the transition mechanism into the live STAARWAARDD Hub. The final frame should be designed for a clean app handoff, not a fade to black.
 
 ## Negative Prompt / Failure Prevention
-NO replacement Guardian or face redesign beyond the requested light adjustment.
-NO hairstyle changes beyond the lowered treatment and exactly two swoosh-like lines.
+NO replacement Guardian or face redesign.
+NO hairstyle or hairline changes.
 NO multiple open portals or simultaneous seven-gateway finale.
 NO grounded portal opening.
 NO weak, soft hand magic or passive gestures.
@@ -135,7 +143,7 @@ NO UI cards.
 NO circular app thumbnails.
 NO text.
 NO portal labels.
-NO logos inside generated continuation; the requested two swoosh-like haircut lines are hair detailing, not a branded logo.
+NO logos inside generated continuation.
 NO random extra people.
 NO abrupt color-temperature change.
 NO gritty first-half / glossy second-half mismatch.
@@ -175,10 +183,10 @@ A fake 4K upscale does not count as approval if the source contains face morphin
 Reference order:
 1. Clean existing opening frame at 25.50 seconds and adjacent moving frames for the seam, airborne pose, Toronto lighting and camera continuity
 2. Previous/correct Guardian reference for identity, suit, wings and proportions
-3. Steven's supplied frontal/profile references solely for the requested light face adjustment and lowered hair with two swoosh-like lines
+3. Existing original Guardian opening frames for exact face, hair, suit and chest-emblem continuity
 4. Guardian transformation / armor board for established material and suit detail
 
-The existing moving Guardian at the handoff point outranks generic stylistic references. The requested face/hair adjustments are the only identity-lock exceptions; match them to the supplied references without replacing the Guardian. Preserve source frames before 25.50 seconds unchanged, and reject any abrupt face/hair morph at the continuation seam. If references are unavailable or the seam cannot reconcile these adjustments, hold paid generation for review rather than inventing a new likeness.
+The existing moving Guardian at the handoff point outranks generic stylistic references. The original Guardian at the beginning is the identity authority; do not reinterpret his face or hair. Preserve source files untouched as rollback, and reject identity/costume drift anywhere in the opening, including before 25.50 seconds. Hold new portal generation until the user's layout reference is supplied.
 
 ## Assembly Rule
 Do not make the user watch:
@@ -213,8 +221,10 @@ Once `guardian-launch-continuous-v5.mp4` is approved:
 
 ## Approval Gate
 Do not mark opening COMPLETE unless every item passes:
-- previous/correct Guardian retained with only the requested light face adjustment; no replacement likeness or abrupt seam morph
-- lowered hair treatment with exactly two swoosh-like lines, matched to Steven's supplied reference; no unrelated hair/hairline changes
+- exact beginning Guardian retained across the entire sequence; no face, costume, wing or chest-emblem drift
+- same original hairstyle and hairline throughout
+- portal geometry/layout matches the user's supplied reference
+- early footage is clear at full playback size, with no grain, compression blocks, invented face detail, plastic smoothing or sharpening halos
 - same armor/suit
 - same wings
 - Toronto identity preserved
