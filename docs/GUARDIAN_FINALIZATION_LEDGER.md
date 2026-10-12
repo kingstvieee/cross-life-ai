@@ -137,3 +137,9 @@ Do not mark opening COMPLETE until:
 - Output2304×4096,3.00s. Matched-frame comparison at source10s shows smoother compression/edges, but facial detail remains indistinct. Upscale does not pass the clarity gate and is not evidence of recovered identity detail.
 - Reassembled the latest review at native720×1280 with high-quality H.264 encoding and192kbps stereo AAC, retaining30.500s duration and25.50s portal onset. Saved `Guardian_Source_Quality_Review.mp4`, Library identity `libfile_a5514f31d0648191963f318da8997404`, version2,25,712,510bytes; full decode verified.
 - Quality remains rejected pending a sharper original or a properly reference-locked replacement of damaged footage. Do not call this full clarity, COMPLETE, approved v5, or deploy it. Technical implementation is unchanged.
+
+## Requested4K delivery and15-credit allowance — October12
+- User authorized at most15 further credits after the39/40 repair spend, in response to the4K-quality discussion. New allowance spend is0/15; no paid task was submitted.
+- Created separate `Guardian_4K_Review.mp4` (`libfile_a882a84cd04c8191b023fe51b78ca436`),2160×3840,20fps H.264 High with AAC stereo,30.500s,35,953,820bytes. Full decode passed.
+- Reused actual restored4K footage for0–6s and9–12s; remaining720p footage/composites are conventionally scaled. This is a4K delivery raster, not a native4K acquisition or recovery of missing facial detail.
+- Original source clarity defects and limited theatrical hand motion remain unresolved. Preserve all approval gates; no final acceptance, runtime wiring or deployment claimed.25.50s portal cue and technical implementation remain intact.
