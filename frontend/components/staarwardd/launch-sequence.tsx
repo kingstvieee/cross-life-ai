@@ -7,6 +7,7 @@ import {
 } from "react-native";
 import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
 import { startLaunchSoundtrack, stopLaunchSoundtrack } from "@/lib/staarwardd/launch-soundtrack";
+import { launchDeadlineMs } from "@/lib/staarwardd/launch-playback";
 
 const LAUNCH_KEY = "staarwardd.launch-seen";
 const isWeb = Platform.OS === "web";
@@ -56,6 +57,8 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
   const done = useRef(false);
   const videoRef = useRef<any>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
 
   const nativePlayer = useVideoPlayer(isWeb ? null : NATIVE_SRC, (p) => { p.loop = false; p.muted = false; });
 
@@ -127,27 +130,32 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
   // Poll playback: drive portal overlays off real currentTime and finish on end.
   useEffect(() => {
     if (reduced || !started) return;
+    const playbackStartedAt = Date.now();
     const iv = setInterval(() => {
       let t = 0; let d = 0; let isPlaying = false;
       try {
         if (isWeb) {
           const v = videoRef.current;
-          if (!v) return;
-          t = v.currentTime || 0; d = v.duration || 0; isPlaying = !v.paused && !v.ended;
-          if (v.ended) { clearInterval(iv); finish(); return; }
-          // Self-heal only after the user has entered with sound.
-          if (v.paused && !v.ended && !done.current) {
-            try { const p = v.play?.(); p?.catch?.(() => {}); } catch {}
+          if (v) {
+            t = v.currentTime || 0; d = v.duration || 0; isPlaying = !v.paused && !v.ended;
+            if (v.ended) { clearInterval(iv); finish(); return; }
+            // Self-heal only after the user has entered with sound.
+            if (v.paused && !v.ended && !done.current) {
+              try { const p = v.play?.(); p?.catch?.(() => {}); } catch {}
+            }
           }
         } else {
           t = nativePlayer.currentTime || 0; d = nativePlayer.duration || 0; isPlaying = nativePlayer.playing;
           if (d > 0 && t >= d - 0.15) { clearInterval(iv); finish(); return; }
         }
-      } catch { return; }
+      } catch { /* Failed media reads must not disable the escape deadline. */ }
+      // Read the decoded duration on each poll: metadata may arrive after
+      // playback begins, and future masters can exceed the old 45s cutoff.
+      if (Date.now() - playbackStartedAt >= launchDeadlineMs(d)) {
+        clearInterval(iv); finish(); return;
+      }
       setPlaying(isPlaying);
     }, 250);
-    // Hard fallback so the entrance can never trap the user.
-    timers.current.push(setTimeout(finish, 45000));
     if (!isWeb) { try { nativePlayer.play(); } catch {} }
     return () => clearInterval(iv);
   }, [reduced, started]);
