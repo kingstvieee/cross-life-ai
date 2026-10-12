@@ -7,7 +7,7 @@ Canonical repo: kingstvieee/cross-life-ai
 ## October 12 correction lock
 - The Guardian visible at the beginning is the identity authority for the entire opening: same face, hair, body proportions, armor, wings and chest emblem through the finale. Earlier permission for light face/hair adjustments is superseded for this correction pass; do not redesign him.
 - The latest 35.8s review is rejected for soft/grainy early footage, character/costume drift and the wrong portal ending. Clear output must be verified at full playback size, not inferred from export resolution.
-- Keep the world-interior concepts the user likes. Portal geometry/layout must match the user's forthcoming layout reference; the exact shape remains unresolved. Do not invent or spend credits on a replacement portal layout before that reference is available.
+- Keep the world-interior concepts the user likes. Portal design is now resolved from `2A825DC7-445D-476C-97E9-D72BFB55AC9D.jpeg`: borrow only sculpted polished-gold frames with broad curved corners and rounded rectangular world-window silhouettes, plus the central STAARWAARDD name. Do not reproduce the multi-panel dashboard layout, UI controls or person from that reference.
 - Keep Guardian airborne in the Toronto sky with CN Tower behind him while opening one portal at a time using dominant theatrical hand magic.
 - The 25.50s assembly handoff and duration-aware playback implementation remain unchanged. They are technical timings, not proof of identity consistency; review and repair any drift within the existing opening as well as the continuation. Preserve original source files as rollback.
 - A conservative non-generative denoise test does not meet the requested full clarity yet. Obtain the best original source and approve restored detail without face invention, plastic skin or sharpening halos before final assembly.
@@ -24,6 +24,14 @@ The user-approved intent is:
 6. Each portal is a window into a living world; close it before opening the next. Do not require exactly seven reveals or a simultaneous seven-world formation.
 7. Camera moves through the single final active portal into the live Hub.
 8. No second-video feeling, no abrupt visual-quality change, no substitute Guardian.
+
+## Resolved portal and title direction — October 12
+- Reference: `2A825DC7-445D-476C-97E9-D72BFB55AC9D.jpeg` (`libfile_a707cdc00e608191b20b6ceb20af8925`). Use the portal designs and central name only; the Guardian's identity still comes from the beginning of the existing opening.
+- Guardian hovers centrally in midair, with Toronto and the CN Tower behind him. Keep face, hands and wings readable.
+- Portal frame: sculpted polished gold, broad curved corners, rounded rectangular world-window silhouette, thick dimensional edges, white-gold magical light and a deep moving world interior.
+- Keep only one portal open at a time. Do not reproduce the reference's simultaneous collage, fixed corner panels or dashboard layout.
+- Place the exact word STAARWAARDD across the middle below the chest, without obscuring face or hand magic. This central brand title is the only approved text; omit portal labels, UI buttons, taglines and toolbars. Prefer compositing a stable title over the accepted moving master if generated letters distort.
+- Stage one sharp reference-anchored keyframe before animating it. Reject identity/costume drift before spending on motion. Hard new-credit cap remains 100 across image, animation, upscale and any retry.
 
 ## Canonical Source
 Primary opening file:
@@ -96,6 +104,7 @@ STYLE: premium personal wardrobe / fashion world, elegant closet architecture, l
 Open only ONE portal at a time. Each appears only after a distinct theatrical Guardian gesture and reads as a window into an actual world. If another destination is revealed, fully close the current gateway before summoning the next; never overlap open gateways. Keep Guardian airborne, continuously visible and moving during every opening. Prioritize readable, powerful action over fitting all seven destinations into the target duration.
 
 Portal design:
+- sculpted polished-gold frames with broad curved corners and rounded rectangular silhouettes, borrowing only portal design from the supplied reference
 - monumental, cinematic, magical architecture
 - thick dimensional rims
 - deep perspective
@@ -108,7 +117,7 @@ Portal design:
 - no cards
 - no UI tiles
 - no floating screenshots
-- no text labels in the generated footage
+- no portal text labels; central STAARWAARDD title is the sole approved text
 
 At the end, only the single final gateway remains open for the Hub transition. Never create a ring or formation of simultaneously open portals. Toronto and the CN Tower remain visible so this never becomes a generic fantasy city.
 
@@ -141,9 +150,9 @@ NO dissolve between actors.
 NO visible stitched-video seam.
 NO UI cards.
 NO circular app thumbnails.
-NO text.
-NO portal labels.
-NO logos inside generated continuation.
+NO text except the central exact STAARWAARDD title.
+NO portal labels, taglines, controls or toolbar.
+NO other logos inside generated continuation.
 NO random extra people.
 NO abrupt color-temperature change.
 NO gritty first-half / glossy second-half mismatch.
@@ -186,7 +195,7 @@ Reference order:
 3. Existing original Guardian opening frames for exact face, hair, suit and chest-emblem continuity
 4. Guardian transformation / armor board for established material and suit detail
 
-The existing moving Guardian at the handoff point outranks generic stylistic references. The original Guardian at the beginning is the identity authority; do not reinterpret his face or hair. Preserve source files untouched as rollback, and reject identity/costume drift anywhere in the opening, including before 25.50 seconds. Hold new portal generation until the user's layout reference is supplied.
+The existing moving Guardian at the handoff point outranks generic stylistic references. The original Guardian at the beginning is the identity authority; do not reinterpret his face or hair. Preserve source files untouched as rollback, and reject identity/costume drift anywhere in the opening, including before 25.50 seconds. Use the supplied reference only for portal design and the central brand title; do not copy its layout or Guardian.
 
 ## Assembly Rule
 Do not make the user watch:
@@ -223,7 +232,8 @@ Once `guardian-launch-continuous-v5.mp4` is approved:
 Do not mark opening COMPLETE unless every item passes:
 - exact beginning Guardian retained across the entire sequence; no face, costume, wing or chest-emblem drift
 - same original hairstyle and hairline throughout
-- portal geometry/layout matches the user's supplied reference
+- portal designs match the supplied gold rounded world-window reference, with no copied dashboard layout
+- central title spells STAARWAARDD exactly and stays stable without covering face or hand magic
 - early footage is clear at full playback size, with no grain, compression blocks, invented face detail, plastic smoothing or sharpening halos
 - same armor/suit
 - same wings

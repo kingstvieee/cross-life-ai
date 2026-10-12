@@ -38,7 +38,7 @@ Validation result for this branch: all three launch deadline tests and both asse
 ## October 12 review rejection and repair status
 - The latest sound-corrected review is 35.80s, 720×1280 with stereo AAC audio. Sampled frames show soft early footage and chest-emblem/armor changes before the final portal section; do not assume only the appended finale needs repair.
 - Latest direction supersedes the October 7 face/hair adjustment permissions: retain the exact Guardian from the beginning through the end. Same face, hair, body proportions, armor, wings and chest emblem.
-- Keep the world-interior concepts; portal shape/layout is pending the reference the user said they will provide. Do not invent the geometry or claim approval.
+- Keep the world-interior concepts; portal shape/layout was pending at this audit; the subsequent supplied reference resolves it as recorded below.
 - A conservative denoise test of the opening was created without generation credits; inspected result remains too soft to claim full clarity. It is an unapproved working test, not a final master or identity repair.
 - LTX access restored for Staarwardd; displayed credit indicator is 0%. No generation was started.
 - Technical 25.50s assembly handoff and duration-aware playback fixes remain unchanged. Preserve rollback sources; source identity repairs must be visually accepted before assembly.
@@ -47,7 +47,8 @@ Validation result for this branch: all three launch deadline tests and both asse
 PASS only if all are true:
 - exact Guardian from the beginning retained throughout; identical face, hairstyle/hairline, skin tone, body proportions, armor, chest sigil and wings;
 - full-size early footage is clear without grain/compression artifacts or invented face detail;
-- portal geometry/layout matches the user's supplied reference;
+- portal frame designs match the supplied gold rounded world-window reference, without copying the collage/dashboard layout;
+- central STAARWAARDD title is correctly spelled, stable and clear of face/hand magic;
 - clean 25.50s technical handoff preserved, with no identity or costume drift before, during or after the moving seam;
 - Toronto remains continuous and CN Tower stays visually coherent;
 - Guardian stays physically active with body, wings, hair, cloth, camera, clouds and city parallax moving;
@@ -94,3 +95,10 @@ Do not mark opening COMPLETE until:
 - Recovered repository `guardian-toronto-traverse-hd.mp4`: despite its name it is 720×1280, 20fps, 29s and silent. It does not establish a sharper original.
 - New spend since the 100-credit authorization: 0; authorized budget remaining: 100. No full-upscale duplicate, character edit or portal generation submitted.
 - Portal geometry still awaits the user's forthcoming layout reference. Keep the world-interior concepts, airborne Toronto/CN Tower setting and one-portal-at-a-time direction; do not guess the layout.
+
+## Supplied portal-design reference — October 12
+- User supplied `2A825DC7-445D-476C-97E9-D72BFB55AC9D.jpeg` and clarified: use only the portal designs and middle name, with Guardian hovering centrally in midair. Reference does not replace the original Guardian or authorize copying the whole layout.
+- Resolved design: dimensional sculpted gold frames, broad curved corners, rounded rectangular windows into living worlds. Central title: STAARWAARDD. Keep Toronto/CN Tower and one portal at a time; omit dashboard controls and small labels.
+- Submitted one 2K reference-anchored production keyframe: Runway task `05d31460-0f8c-4aa4-8835-a2351d6d04d2`. References: original beginning Guardian frame plus supplied portal-design image. Identity QA and motion generation remain pending.
+- Credit accounting: 20 of the newly authorized 100 spent; 80 remain. Earlier 12-credit upscale remains outside this new cap. No retries submitted.
+- Prior pending-reference entries are historical. The design reference is now available; do not continue treating its absence as a blocker.
