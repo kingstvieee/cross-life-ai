@@ -107,3 +107,9 @@ Do not mark opening COMPLETE until:
 - First portal-design keyframe is sharp and carries the central STAARWAARDD title, but fails the required hover pose: it depicts forward flight and an overly narrow vertical portal. Do not animate it.
 - Submitted one corrective keyframe `1b3f5adf-8a83-49ad-a5c2-b04c07d87616`: original Guardian upright and vertical in midair, feet hanging, theatrical hands visible; single broad horizontal gold rounded world-window beside him. Toronto/CN Tower and central brand title retained.
 - New spend is now 40 of the hard 100-credit cap; 60 remain. Corrected keyframe QA and any motion render remain pending. No new final master or full opening approval is claimed.
+
+## Authorized five-second animation and full review assembly
+- User selected five seconds: hover, then theatrically open one portal, and requested the full video.
+- Submitted motion task `0c44cc1d-fc5d-4341-a286-9395ad4c2e9f` from selected upright keyframe `1b3f5adf-8a83-49ad-a5c2-b04c07d87616`. One five-second render cost 60 credits. Cumulative new spend is exactly 100/100; zero remains. No further generation, upscale or retry is authorized.
+- Assemble the preserved existing action through the technical 25.50s handoff with the new five-second shot, reusing sound-corrected review audio across the full cut. This replaces the rejected appended ending; original files remain rollback.
+- This full-length review is not an approved final master: original-opening softness, pre-handoff character/costume drift, seam quality and new motion must still be assessed. Do not claim COMPLETE or deploy based on generation success alone.
