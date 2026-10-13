@@ -29,7 +29,7 @@ import { fetchGuardianLine, playGuardianLine } from "@/lib/staarwardd/guardian-t
 import { useDemoTimer } from "@/lib/staarwardd/demo-timer";
 import type { PortalId } from "@/lib/staarwardd/types";
 
-export function CinematicHub({ greet = false }: { greet?: boolean }) {
+export function CinematicHub({ greet = false, openingComplete = false }: { greet?: boolean; openingComplete?: boolean }) {
   const { width } = useWindowDimensions();
   const compact = width < 620;
   const router = useRouter();
@@ -41,18 +41,18 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
   const [controlOpen, setControlOpen] = useState(false);
   const [companionOpen, setCompanionOpen] = useState(false);
   const [travelling, setTravelling] = useState<PortalId | null>(null);
-  const [fieldAwake, setFieldAwake] = useState(false);
+  const [fieldAwake, setFieldAwake] = useState(openingComplete);
   const [routineInteraction, setRoutineInteraction] = useState<ReturnType<typeof createGuardianInteraction> | null>(null);
   const { memory, learnPortal } = usePreferenceMemory();
   const { record } = useGuardianActivity();
   const orbit = useRef(new Animated.Value(0)).current;
   const awakening = useRef(new Animated.Value(0)).current;
-  const greeting = useRef(new Animated.Value(0)).current;
+  const greeting = useRef(new Animated.Value(openingComplete ? 1 : 0)).current;
   const routineAnnounced = useRef(false);
   const greeted = useRef(false);
   const stopGreeting = useRef<(() => void) | null>(null);
   const [spokenLine, setSpokenLine] = useState<string | null>(null);
-  const [arrival, setArrival] = useState(greet);
+  const [arrival, setArrival] = useState(greet && !openingComplete);
   const { start: startDemoTimer, stop: stopDemoTimer } = useDemoTimer();
   const { stopAll } = audio;
 
@@ -68,7 +68,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
   // Guardian's spoken Onyx welcome as the Hub resolves from the entrance,
   // with the words shown as an on-screen subtitle line while he speaks.
   useEffect(() => {
-    if (!greet || arrival || greeted.current || !audio.voice) return;
+    if (!greet || arrival || greeted.current || !audio.master || !audio.voice) return;
     greeted.current = true;
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -80,7 +80,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
       });
     }, 900);
     return () => { cancelled = true; clearTimeout(timer); stopGreeting.current?.(); };
-  }, [greet, audio.voice]);
+  }, [greet, arrival, audio.master, audio.voice]);
 
   useEffect(() => {
     const loop = Animated.loop(Animated.timing(orbit, { toValue: 1, duration: 18000, useNativeDriver: true }));
