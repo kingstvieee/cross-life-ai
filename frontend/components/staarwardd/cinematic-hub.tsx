@@ -9,6 +9,7 @@ import { AudioControls } from "@/components/staarwardd/audio-controls";
 import { GuardianCharacter } from "@/components/staarwardd/guardian-character";
 import { MemorySheet } from "@/components/staarwardd/memory-sheet";
 import { GuardianActivitySheet } from "@/components/staarwardd/guardian-activity-sheet";
+import { GuardianControlSheet } from "@/components/staarwardd/guardian-control-sheet";
 import { GuardianInteractionCard } from "@/components/staarwardd/guardian-interaction-card";
 import { PortalTransition } from "@/components/staarwardd/portal-transition";
 import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
@@ -28,7 +29,7 @@ import { fetchGuardianLine, playGuardianLine } from "@/lib/staarwardd/guardian-t
 import { useDemoTimer } from "@/lib/staarwardd/demo-timer";
 import type { PortalId } from "@/lib/staarwardd/types";
 
-export function CinematicHub({ greet = false }: { greet?: boolean }) {
+export function CinematicHub({ greet = false, openingComplete = false }: { greet?: boolean; openingComplete?: boolean }) {
   const { width } = useWindowDimensions();
   const compact = width < 620;
   const router = useRouter();
@@ -37,20 +38,21 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [controlOpen, setControlOpen] = useState(false);
   const [companionOpen, setCompanionOpen] = useState(false);
   const [travelling, setTravelling] = useState<PortalId | null>(null);
-  const [fieldAwake, setFieldAwake] = useState(false);
+  const [fieldAwake, setFieldAwake] = useState(openingComplete);
   const [routineInteraction, setRoutineInteraction] = useState<ReturnType<typeof createGuardianInteraction> | null>(null);
   const { memory, learnPortal } = usePreferenceMemory();
   const { record } = useGuardianActivity();
   const orbit = useRef(new Animated.Value(0)).current;
   const awakening = useRef(new Animated.Value(0)).current;
-  const greeting = useRef(new Animated.Value(0)).current;
+  const greeting = useRef(new Animated.Value(openingComplete ? 1 : 0)).current;
   const routineAnnounced = useRef(false);
   const greeted = useRef(false);
   const stopGreeting = useRef<(() => void) | null>(null);
   const [spokenLine, setSpokenLine] = useState<string | null>(null);
-  const [arrival, setArrival] = useState(greet);
+  const [arrival, setArrival] = useState(greet && !openingComplete);
   const { start: startDemoTimer, stop: stopDemoTimer } = useDemoTimer();
   const { stopAll } = audio;
 
@@ -66,7 +68,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
   // Guardian's spoken Onyx welcome as the Hub resolves from the entrance,
   // with the words shown as an on-screen subtitle line while he speaks.
   useEffect(() => {
-    if (!greet || arrival || greeted.current || !audio.voice) return;
+    if (!greet || arrival || greeted.current || !audio.master || !audio.voice) return;
     greeted.current = true;
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -78,7 +80,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
       });
     }, 900);
     return () => { cancelled = true; clearTimeout(timer); stopGreeting.current?.(); };
-  }, [greet, audio.voice]);
+  }, [greet, arrival, audio.master, audio.voice]);
 
   useEffect(() => {
     const loop = Animated.loop(Animated.timing(orbit, { toValue: 1, duration: 18000, useNativeDriver: true }));
@@ -151,6 +153,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
               <Pressable accessibilityRole="button" accessibilityLabel="Open preference memory" onPress={() => setMemoryOpen(true)} style={styles.round}><Text style={styles.roundText}>◈</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Open audio controls" onPress={() => setAudioOpen(true)} style={styles.round}><Text style={styles.roundText}>{audio.master ? "♫" : "◌"}</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Open Guardian activity history" onPress={() => setActivityOpen(true)} style={styles.round}><Text style={styles.roundText}>≡</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Open Guardian Permission Centre" onPress={() => setControlOpen(true)} style={styles.judgeButton}><Text style={styles.judgeButtonText}>PERMISSION CENTRE</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Start automatic cross-life crisis judge demo" onPress={() => { stopGreeting.current?.(); setSpokenLine(null); try { require("@/lib/staarwardd/launch-soundtrack").stopLaunchSoundtrack(); } catch {} startDemoTimer(240); setAboutOpen(true); }} style={styles.judgeButton}><Text style={styles.judgeButtonText}>RUN LIVE CRISIS DEMO · AUTO</Text></Pressable>
               <JudgeReset />
             </View>
@@ -188,6 +191,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
       <AudioControls open={audioOpen} onClose={() => setAudioOpen(false)} />
       <MemorySheet open={memoryOpen} onClose={() => setMemoryOpen(false)} />
       <GuardianActivitySheet open={activityOpen} onClose={() => setActivityOpen(false)} />
+      <GuardianControlSheet open={controlOpen} onClose={() => setControlOpen(false)} />
       <JudgeDemo
         open={aboutOpen}
         memoryConsented={memory.consented}

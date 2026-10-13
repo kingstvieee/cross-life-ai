@@ -1,0 +1,31 @@
+name: Guardian Startup
+on:
+  push:
+    branches: [main, 'codex/guardian-trust-loop-*']
+    paths: ['frontend/**', '.github/workflows/guardian-startup-ci.yml']
+  pull_request:
+    paths: ['frontend/**', '.github/workflows/guardian-startup-ci.yml']
+permissions:
+  contents: read
+jobs:
+  startup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: node --test frontend/scripts/test-launch-playback.mjs
+      - run: python frontend/scripts/test-launch-media.py
+      - name: Install frontend
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+      - name: Export web build
+        working-directory: frontend
+        run: yarn expo export --platform web
+      - name: Bundle native startup assets
+        working-directory: frontend
+        run: yarn expo export --platform ios

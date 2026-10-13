@@ -7,6 +7,8 @@ import {
 } from "react-native";
 import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
 import { startLaunchSoundtrack, stopLaunchSoundtrack } from "@/lib/staarwardd/launch-soundtrack";
+import { LaunchShield } from "@/components/staarwardd/launch-shield";
+import { launchDeadlineMs } from "@/lib/staarwardd/launch-playback";
 
 const LAUNCH_KEY = "staarwardd.launch-seen";
 const isWeb = Platform.OS === "web";
@@ -17,7 +19,10 @@ export function useReturningUser() {
   const [loading, setLoading] = useState(true);
   const [returning, setReturning] = useState(false);
   useEffect(() => {
-    AsyncStorage.getItem(LAUNCH_KEY).then((v) => { setReturning(v === "1"); setLoading(false); });
+    AsyncStorage.getItem(LAUNCH_KEY)
+      .then((v) => setReturning(v === "1"))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
   const markSeen = () => { void AsyncStorage.setItem(LAUNCH_KEY, "1"); };
   return { loading, returning, markSeen };
@@ -26,8 +31,8 @@ export function useReturningUser() {
 // The single uninterrupted video backbone — the full canonical entrance.
 // Same clip in two encodings: H.264 mp4 (Safari/Chrome/Edge) and VP9 webm
 // (browsers without proprietary codecs). Content is identical.
-const WEB_SRC = "/video/guardian-launch-synced-v4.mp4";
-const WEB_SRC_WEBM = "/video/guardian-toronto-traverse-hd.webm";
+const WEB_SRC = "/video/guardian-launch-continuous-v5.mp4";
+const WEB_SRC_WEBM = "/video/guardian-launch-continuous-v5.webm";
 
 function pickWebSrc(v: any): string {
   try {
@@ -38,7 +43,7 @@ function pickWebSrc(v: any): string {
   } catch {}
   return WEB_SRC;
 }
-const NATIVE_SRC = require("@/assets/videos/guardian-toronto-traverse-hd.mp4");
+const NATIVE_SRC = require("@/public/video/guardian-launch-continuous-v5.mp4");
 
 
 // Web-only raw <video> (expo-video's web view renders black in this preview).
@@ -50,6 +55,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
   // Browsers do not permit audible autoplay. Hold the cinematic on frame zero
   // until one intentional entrance tap, then begin with its soundtrack on.
   const [started, setStarted] = useState(false);
+  const [entering, setEntering] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [reduced, setReduced] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -57,7 +63,9 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
   const videoRef = useRef<any>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const nativePlayer = useVideoPlayer(isWeb ? null : NATIVE_SRC, (p) => { p.loop = false; p.muted = false; });
+  useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
+
+  const nativePlayer = useVideoPlayer(isWeb ? null : NATIVE_SRC, (p) => { p.loop = false; p.muted = true; });
 
   const finish = () => {
     if (done.current) return;
@@ -80,7 +88,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
       if (v.getAttribute("src") !== chosen) v.setAttribute("src", chosen);
       v.setAttribute("playsinline", "true");
       v.setAttribute("preload", "auto");
-      v.setAttribute("poster", "/video/guardian-toronto-traverse-poster.jpg");
+      v.setAttribute("poster", "/video/guardian-launch-continuous-v5-poster.jpg");
       v.autoplay = false;
       // The persistent app-root soundtrack is the only music source. Keeping
       // the video muted prevents duplicate audio and makes the handoff to the
@@ -124,43 +132,54 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
     timers.current.push(setTimeout(finish, 2500));
   }, [reduced]);
 
-  // Poll playback: drive portal overlays off real currentTime and finish on end.
+  // Finish from decoded playback, with a bounded escape for failed media.
   useEffect(() => {
     if (reduced || !started) return;
+    const playbackStartedAt = Date.now();
     const iv = setInterval(() => {
       let t = 0; let d = 0; let isPlaying = false;
       try {
         if (isWeb) {
           const v = videoRef.current;
-          if (!v) return;
-          t = v.currentTime || 0; d = v.duration || 0; isPlaying = !v.paused && !v.ended;
-          if (v.ended) { clearInterval(iv); finish(); return; }
-          // Self-heal only after the user has entered with sound.
-          if (v.paused && !v.ended && !done.current) {
-            try { const p = v.play?.(); p?.catch?.(() => {}); } catch {}
+          if (v) {
+            t = v.currentTime || 0; d = v.duration || 0; isPlaying = !v.paused && !v.ended;
+            if (v.ended) { clearInterval(iv); finish(); return; }
+            // Self-heal only after the user has entered with sound.
+            if (v.paused && !v.ended && !done.current) {
+              try { const p = v.play?.(); p?.catch?.(() => {}); } catch {}
+            }
           }
         } else {
           t = nativePlayer.currentTime || 0; d = nativePlayer.duration || 0; isPlaying = nativePlayer.playing;
           if (d > 0 && t >= d - 0.15) { clearInterval(iv); finish(); return; }
         }
-      } catch { return; }
+      } catch { /* Failed media reads must not disable the escape deadline. */ }
+      // Read the decoded duration on each poll: metadata may arrive after
+      // playback begins, and future masters can exceed the old 45s cutoff.
+      if (Date.now() - playbackStartedAt >= launchDeadlineMs(d)) {
+        clearInterval(iv); finish(); return;
+      }
       setPlaying(isPlaying);
     }, 250);
-    // Hard fallback so the entrance can never trap the user.
-    timers.current.push(setTimeout(finish, 45000));
     if (!isWeb) { try { nativePlayer.play(); } catch {} }
     return () => clearInterval(iv);
   }, [reduced, started]);
 
   const startWithSound = () => {
-    setStarted(true);
+    setEntering(true);
     setSoundEnabled(true);
     audio.update({ master: true, music: true, ambience: true });
-    // Persistent app-root soundtrack: loops, survives route changes/re-renders.
-    if (isWeb) {
-      const { startLaunchSoundtrack } = require("@/lib/staarwardd/launch-soundtrack");
-      startLaunchSoundtrack();
-    }
+    startLaunchSoundtrack();
+  };
+
+  useEffect(() => {
+    if (entering) { audio.playCue("storm"); audio.playCue("shield"); }
+  }, [entering]);
+
+  const beginFilm = () => {
+    if (done.current) return;
+    setEntering(false);
+    setStarted(true);
     try {
       if (isWeb && videoRef.current) {
         const v = videoRef.current;
@@ -173,14 +192,15 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
           // Keep the first frame visible if the browser still refuses audio;
           // the same entrance control remains available for another tap.
           setStarted(false);
+          stopLaunchSoundtrack();
           try { v.pause?.(); v.currentTime = 0; } catch {}
         });
       } else {
         nativePlayer.currentTime = 0;
-        nativePlayer.muted = false;
+        nativePlayer.muted = true;
         nativePlayer.play();
       }
-    } catch { setStarted(false); }
+    } catch { setStarted(false); stopLaunchSoundtrack(); }
   };
 
   // Explicit user tap — the only thing that unmutes. Continues the same
@@ -189,15 +209,15 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
     const next = !soundEnabled;
     setSoundEnabled(next);
     audio.update({ master: next, music: next, ambience: next });
+    if (next) startLaunchSoundtrack(); else { stopLaunchSoundtrack(); audio.stopAll(); }
     try {
       if (isWeb && videoRef.current) {
         const v = videoRef.current;
         v.muted = true;
         v.volume = 0;
-        if (next) startLaunchSoundtrack(); else stopLaunchSoundtrack();
         // If the browser paused on unmute (rare), resume from the same time.
         if (v.paused && !v.ended) { const p = v.play?.(); p?.catch?.(() => { v.muted = true; v.play?.()?.catch?.(() => {}); }); }
-      } else nativePlayer.muted = !next;
+      } else nativePlayer.muted = true;
     } catch {}
   };
 
@@ -208,7 +228,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
     <View style={s.root} testID="launch-root" accessibilityLabel="Guardian video entrance">
       {/* Desktop theatre treatment: preserve the full portrait cinematic while a blurred Toronto poster fills the widescreen frame. */}
       {isWeb && desktop && RNW.unstable_createElement("img", {
-        src: "/video/guardian-toronto-traverse-poster.jpg",
+        src: "/video/guardian-launch-continuous-v5-poster.jpg",
         "aria-hidden": "true",
         style: {
           position: "absolute", inset: "-28px", width: "calc(100% + 56px)", height: "calc(100% + 56px)",
@@ -223,20 +243,21 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
               ref: videoRef,
               // src is wired imperatively (codec-aware mp4/webm pick) — see effect above.
               autoPlay: false,
-              muted: !started || !soundEnabled,
+              muted: true,
               playsInline: true,
               preload: "auto",
-              poster: "/video/guardian-toronto-traverse-poster.jpg",
+              poster: "/video/guardian-launch-continuous-v5-poster.jpg",
               onEnded: finish,
               "data-testid": "entrance-video",
               "data-playing": String(playing),
               "aria-label": "Guardian video entrance",
-              style: { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: desktop ? "contain" : "cover", background: "#000" },
+              style: { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", background: "#000" },
             })
-          : <VideoView player={nativePlayer} style={StyleSheet.absoluteFill} contentFit={desktop ? "contain" : "cover"} nativeControls={false} />}
+          : <VideoView player={nativePlayer} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls={false} />}
       </View>
 
-      {!started && !reduced && (
+      {entering && !reduced && <LaunchShield onComplete={beginFilm} />}
+      {!started && !entering && !reduced && (
         <View style={s.entranceGate}>
           <Text style={s.gateKicker}>STAARWAARDD · TORONTO</Text>
           <Text style={s.gateTitle}>The Guardian is ready.</Text>
@@ -248,7 +269,7 @@ export function LaunchSequence({ onComplete }: { onComplete: () => void; onSelec
       )}
 
       {/* Controls */}
-      {started && <View style={s.controls}>
+      {(started || entering) && <View style={s.controls}>
         <Pressable accessibilityRole="button" accessibilityLabel={soundEnabled ? "Disable sound" : "Enable sound"} onPress={enableSound} style={s.soundBtn} testID="enable-sound-btn">
           <Text style={s.soundText}>{soundEnabled ? "SOUND ON" : "ENABLE SOUND"}</Text>
         </Pressable>

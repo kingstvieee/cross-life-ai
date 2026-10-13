@@ -1,0 +1,36 @@
+{
+  "project": "STAARWAARDD",
+  "module": "Guardian Architecture Parts IV + V",
+  "name": "Guardian Trust Kernel + Authority Engine + Guardian Loop Engine",
+  "version": "2026-10-11.2",
+  "status": "implementation handoff updated with Part V",
+  "first_target": "Simulation Mode",
+  "production_actions_enabled": false,
+  "mvp_connectors": [
+    "Files",
+    "Calendar",
+    "One external business/creative connector"
+  ],
+  "separate_projects": [
+    "DIGGITSTAAR",
+    "Milo"
+  ],
+  "part_v": {
+    "name": "Guardian Loop Engine",
+    "production_actions_enabled": false,
+    "requires_part_iv": true,
+    "components": [
+      "Context Builder",
+      "Skill Registry",
+      "Loop Planner",
+      "Execution Lanes",
+      "Connector Broker",
+      "Independent Verifier",
+      "Repair Loop",
+      "Governed Memory Writeback"
+    ]
+  },
+  "research_added": [
+    "Sabrina Ramonov AI systems research synthesis"
+  ]
+}

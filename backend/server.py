@@ -1077,7 +1077,7 @@ async def root():
     return {"app": "STAAR Hub", "status": "online"}
 
 
-install_guardian_core(app, db=db, get_current_user=get_current_user)
+install_guardian_core(app, db=db, get_current_user=get_current_user, rate_limit=rate_limit)
 app.include_router(build_style_swap_router(get_current_user=get_current_user, rate_limit=rate_limit), prefix="/api")
 app.include_router(api_router)
 

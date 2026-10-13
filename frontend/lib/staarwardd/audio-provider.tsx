@@ -4,6 +4,8 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioSourc
 import { Platform } from "react-native";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 
+import { stopLaunchSoundtrack } from "@/lib/staarwardd/launch-soundtrack";
+
 import type { AmbientKey } from "@/lib/staarwardd/experience";
 
 export type CinematicCue = "opening" | "flight" | "shield" | "portal" | "transition" | "traverse" | "storm";
@@ -146,6 +148,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     setSettings((current) => {
       const next = { ...current, ...patch };
       void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      if (!next.master || !next.music) stopLaunchSoundtrack();
       if (!next.master || (!next.music && !next.ambience)) {
         pauseAllAmbient();
         setActiveAmbient(null);
@@ -155,6 +158,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   }, []);
 
   const stopAll = useCallback(() => {
+    stopLaunchSoundtrack();
     pauseAllAmbient();
     Object.values(cuePlayers.current).forEach((p) => { try { p?.pause(); } catch { /* noop */ } });
     setActiveAmbient(null);
