@@ -134,7 +134,32 @@ deployment, actual external tools, or physical Guardian hardware.
 - Both changed TSX files parse successfully with the TypeScript/JSX parser.
 - Permission Centre focused TypeScript check: passed with published React, React Native and gradient types, plus declared existing Auth/Guardian interfaces.
 - React Native Web / JSDOM interaction smoke against the new HTTP API and test database: passed grant, A2 approval, execution, independent verification, retained memory, Safe Mode and explicit resume with revoked grants. Authentication, Guardian rendering and gradient used test adapters.
-- Full Expo export and real-browser/device visual checks remain unverified: the full dependency fetch did not complete and the Chromium binary download returned an invalid archive. The focused checks above do not substitute for deployment testing.
+- Full Expo web export: **passed in GitHub Actions** for implementation commit `9457cb8625519672927a28c35dfeb1cecdf129d3`. [Style Swap CI run 38234550162](https://github.com/kingstvieee/cross-life-ai/actions/runs/38234550162), job `frontend-web-export` (114761905683), completed both `yarn install --frozen-lockfile` and `yarn expo export --platform web` successfully. The earlier local dependency-fetch failure does not negate this CI build evidence.
+- All four associated pull-request workflows passed for that implementation commit: Style Swap CI, Guardian Server Integration CI, Guardian Trust and Loop Simulation, and Guardian Activation CI. Build success does not prove authenticated deployment behavior.
+- October 12 follow-up: the seven-file focused suite above was rerun from that exact implementation commit: **72 passed**, zero failures (two dependency deprecation warnings). Python compilation of the fetched backend review modules also passed. These checks still use test database/authentication adapters.
+
+## Staging inspection and draft gates
+
+On October 12, GitHub reported both Vercel previews Ready. Direct browser inspection found:
+
+| Preview | Observed result | What this establishes |
+| --- | --- | --- |
+| [STAARWAARDD preview](https://staarwardd-git-codex-guardian-trust-loop-20261012-staarwarddd.vercel.app/) | Entrance and existing chamber load; Permission Centre opens and labels all three connectors SIMULATED. Reload controls renders `Request failed (404).` | Real-browser rendering smoke only; no successful authenticated control API response |
+| cross-life-ai preview | Redirects to Vercel login/deployment protection | No authenticated application test performed |
+
+The reachable preview cannot currently demonstrate grants, action confirmation, result verification, revocation, Safe Mode or per-user state isolation against a running backend. No grants or Safe Mode mutations were submitted during this browser inspection.
+
+`frontend/src/auth.tsx` uses `EXPO_PUBLIC_BACKEND_URL`, falling back to same-origin requests. The checked-in `vercel.json` exports the frontend and contains no API rewrite. This identifies a configuration/deployment investigation path, not proof of which environment setting caused the observed 404. Do not substitute a guessed backend host or weaken preview protection.
+
+Before merging this draft:
+- Confirm a staging backend with this implementation mounted at `/api/guardian/control`, a deployed MongoDB collection and the required unique user indexes.
+- Point the preview at that verified backend (or configure a verified same-origin API route), validate CORS and authentication, and rebuild if changing the Expo public environment.
+- Use two distinct staging users to demonstrate isolation of grants, runs, memory and stop state; demonstrate exact A2 approval, independently checked completion, revocation before dispatch, Safe Mode and explicit resume without restored grants.
+- Demonstrate cross-instance stop behavior against real shared MongoDB, including concurrent requests. Test-adapter CAS/race checks are not this deployment proof.
+- Demonstrate cancellation of already-dispatched legacy provider requests before claiming system-wide stop. This remains unimplemented/unverified.
+- Complete real-device visual/interaction QA. The browser rendering smoke does not replace it.
+
+Keep PR #18 in draft until these required deployment checks are demonstrated. Real connector integrations remain simulations; existing Guardian design and cinematic material are unchanged. No paid generation or live model evaluation was used for this follow-up.
 
 ## Primary technical references consulted
 
