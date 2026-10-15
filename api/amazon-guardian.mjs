@@ -1,5 +1,4 @@
 import { buildGuardianPlan, judgeScenario } from '../competition/Amazon2026/src/guardian-core.mjs';
-import { runGuardianOnBedrock } from '../competition/Amazon2026/src/aws-strands-adapter.mjs';
 
 export default async function handler(request, response) {
   response.setHeader('Cache-Control', 'no-store');
@@ -8,8 +7,8 @@ export default async function handler(request, response) {
     return response.status(200).json({
       ok: true,
       product: 'STAARWAARDD Guardian',
-      track: 'Alexa+',
-      miniChallenge: 'AWS Builder',
+      track: 'Alexa+ simulated experience',
+      miniChallenge: 'AWS Builder (Bedrock mode only)',
       mode: 'competition-judge-api',
       awsRuntime: 'Strands Agents SDK + Amazon Bedrock',
       bedrockVerification: 'POST {"mode":"bedrock","input":"Guardian, get me ready for tomorrow"}',
@@ -28,6 +27,7 @@ export default async function handler(request, response) {
   // A successful response here is evidence that Strands actually invoked Amazon Bedrock.
   if (body.mode === 'bedrock') {
     try {
+      const { runGuardianOnBedrock } = await import('../competition/Amazon2026/src/aws-strands-adapter.mjs');
       const result = await runGuardianOnBedrock(input);
       return response.status(200).json({
         ok: true,
@@ -91,10 +91,10 @@ export default async function handler(request, response) {
     ok: true,
     mode,
     architecture: {
-      interface: 'Alexa+',
-      protocol: 'MCP Streamable HTTP',
+      interface: 'Alexa+-style web simulation',
+      protocol: 'HTTPS JSON demo API; no Alexa/MCP connection',
       orchestrator: 'Guardian',
-      aws: 'Strands + Amazon Bedrock'
+      aws: 'Optional Strands + Amazon Bedrock verification route'
     },
     plan,
     raw,
