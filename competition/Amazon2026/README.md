@@ -13,7 +13,7 @@ An optional separate `mode: "bedrock"` route invokes `@strands-agents/sdk` with 
 - `../../api/amazon-guardian.mjs`: Vercel API handler.
 - `../../frontend/public/amazon-judge.{html,js,css}`: browser demo.
 
-Use Node.js 22 or newer. In this directory, run `npm install` and `npm run smoke`. From the repository root, configure the Vercel project with `vercel.json`; its build exports the Expo web app and public judge files. The API's default `GET` response describes the available modes. To verify AWS, provide valid Bedrock credentials and model access through the normal AWS provider chain, then send:
+Use Node.js 22 or newer. From the repository root, run `node competition/Amazon2026/src/aws-smoke.mjs`, then `node competition/Amazon2026/judge-server.mjs`. Open `http://127.0.0.1:3335/amazon-judge.html`. These simulation commands require no npm install, AWS account, or Expo build. The local runner rejects Bedrock mode so the judge demo cannot incur AWS charges. Optional AWS mode requires a separate dependency install (`npm install` in this directory) and configured AWS access. From the repository root, configure the Vercel project with `vercel.json`; its build exports the Expo web app and public judge files. The API's default `GET` response describes the available modes. To verify AWS, provide valid Bedrock credentials and model access through the normal AWS provider chain, then send:
 
 ```sh
 curl -sS -X POST https://YOUR-PREVIEW.example/api/amazon-guardian \
@@ -27,4 +27,8 @@ The expected success response includes `mode: "bedrock"` and `verifiedExecution:
 
 Open `/amazon-judge.html`, press **Run judge scenario**, then try a custom request mentioning an email or purchase. Show the resulting approval state and the fact that no message or purchase occurs. The simulated API response is immediate. There is no live integration with a personal calendar, email, store, or home device.
 
-For a Devpost submission, capture an actual screen recording under three minutes, publicly host it on YouTube or Vimeo, give judges repository access, and include the link and testing instructions. Explain the features added during the hackathon period. The current repository's private status means the named Devpost and Amazon reviewers must receive access before submitting; see the contest rules for their current GitHub usernames. Do not submit this README as evidence that the video, reviewer access, or AWS verification already exists.
+For a Devpost submission, capture an actual screen recording under three minutes, publicly host it on YouTube or Vimeo, give judges repository access, and include the link and testing instructions. Explain the features added during the hackathon period. The repository was public when inspected on October 15, 2026. Verify a detectable open-source license before using the public-repository submission route; otherwise arrange the private-repository reviewer access required by the rules. Do not submit this README as evidence that the video, reviewer access, or AWS verification already exists.
+
+## Approval scope
+
+This keyword-based simulation conservatively marks all domains in a request for approval whenever an external-action keyword is detected. It does not determine exactly which domain owns each action, interpret negation reliably, execute approvals, maintain session state, or resolve real calendar conflicts. The displayed inter-domain exchanges and impact counters illustrate the scenario; they are not independent agents or observed customer results.

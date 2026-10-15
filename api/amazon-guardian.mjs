@@ -1,5 +1,4 @@
 import { buildGuardianPlan, judgeScenario } from '../competition/Amazon2026/src/guardian-core.mjs';
-import { runGuardianOnBedrock } from '../competition/Amazon2026/src/aws-strands-adapter.mjs';
 
 export default async function handler(request, response) {
   response.setHeader('Cache-Control', 'no-store');
@@ -28,6 +27,7 @@ export default async function handler(request, response) {
   // A successful response here is evidence that Strands actually invoked Amazon Bedrock.
   if (body.mode === 'bedrock') {
     try {
+      const { runGuardianOnBedrock } = await import('../competition/Amazon2026/src/aws-strands-adapter.mjs');
       const result = await runGuardianOnBedrock(input);
       return response.status(200).json({
         ok: true,

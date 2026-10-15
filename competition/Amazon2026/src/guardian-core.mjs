@@ -22,18 +22,14 @@ export function requiresApproval(request='') { return externalActionPattern.test
 export function buildGuardianPlan(request, context={}) {
   const portals = detectPortals(request);
   const approvalRequired = requiresApproval(request);
-  const text = String(request).toLowerCase();
-  const approvalPortal = /message|email|send|gift|dinner|invite/.test(text) && portals.includes('Relationships')
-    ? 'Relationships'
-    : /lock|unlock|temperature|device/.test(text) && portals.includes('Home')
-      ? 'Home'
-      : portals[portals.length - 1];
+  // Conservative simulation boundary: a mixed request holds every domain for review.
+  // This keyword planner cannot reliably attribute each external action to a domain.
   const steps = portals.map((portal,index)=>({
     id:`${portal.toLowerCase()}-${index+1}`,
     portal,
     capability: capabilityFor(portal),
-    status: approvalRequired && portal === approvalPortal ? 'awaiting_approval' : 'prepared',
-    externalAction: approvalRequired && portal === approvalPortal,
+    status: approvalRequired ? 'awaiting_approval' : 'prepared',
+    externalAction: approvalRequired,
     summary: `${portal} prepares its part of: ${String(request).replace(/\s+/g,' ').trim().slice(0,140)}`
   }));
   return {
