@@ -6,34 +6,32 @@ This is an **Alexa+-style simulated experience** under the contest's alternate A
 
 An optional separate `mode: "bedrock"` route invokes `@strands-agents/sdk` with an Amazon Bedrock model. Only a successful response with `verifiedExecution: true` demonstrates that AWS was actually called. The ordinary judge and plan modes do not use AWS and must not be presented as proof of AWS Builder eligibility. Run the Bedrock route with configured AWS credentials and record its successful output before claiming that mini challenge.
 
+## Current judge source — verified October 19, 2026
+
+Use the existing isolated public repository:
+https://github.com/kingstvieee/staarwaardd-guardian-amazon-demo
+
+Its default branch has a detected root MIT license scoped to that demo repository.
+A fresh anonymous clone at 477c01c passed `npm ci --ignore-scripts`, `npm test`
+and `npm run build`. The current demo consolidates the original PR #14 planner
+with the `staarwardd_plan` MCP tool from staarwardd PR #3. Hosted browser checks
+verified initialize, notification acceptance, tools/list and tools/call at
+https://staarwaardd-guardian-amazon-demo.vercel.app/ . No Alexa device connection,
+AI-model invocation or AWS runtime use is established by those checks.
+
+The existing Devpost project is 1191047, STAARWAARDD Guardian for Alexa+.
+It references that isolated repository and remains DRAFT (3/5 steps done),
+with no video URL supplied. Judge testing instructions and stale MCP descriptions
+were corrected in that same draft. Do not create another repository or entry.
+The user explicitly instructed that no competition entry be submitted yet.
+Preserve the existing editorial demo, audio tour and video production.
+
+This PR remains the historical simulation implementation; its setup and scope
+below describe this branch, not all subsequent changes in the canonical demo repo.
+Do not add a repository-wide license to cross-life-ai. Public visibility of this
+original repository is unchanged; proprietary ownership and visibility are distinct.
+
 ## Source and setup
-
-### Isolated public-source packaging
-
-Do not add a repository-wide open-source license to the broader product.
-Export only this existing demo using the explicit allowlist:
-
-```sh
-node competition/Amazon2026/packaging/export-demo.mjs /absolute/new/path/amazon-guardian-demo
-```
-
-The destination must not exist and must be outside this repository. The export
-contains nine unchanged demo source files, standalone setup instructions, a root
-MIT license and a credential/dependency ignore file. It contains no Git history,
-Expo application, production backend or film assets. The license is granted to
-the exported demo software and packaging documentation only; it does not extend
-to the broader product or other repository contents.
-
-Publish the export as the default branch of a separate demo-only repository,
-without copying this repository's history. Verify GitHub detects the root MIT
-license and that an anonymous fresh clone runs the smoke check and local server.
-Then update the **existing** Devpost entry with that actual repository URL.
-This packaging change alone does not satisfy the public-source route for the
-current mixed repository, whose default-branch license remains unresolved.
-
-Private source remains an allowed alternative, but share only an isolated
-demo repository with the administrator and designated Amazon reviewers; do not
-grant access to the broader product merely to avoid public licensing.
 
 - `src/guardian-core.mjs`: deterministic planning, domain selection, approval gate, and sample scenario.
 - `src/aws-strands-adapter.mjs`: Strands agent and Bedrock invocation.

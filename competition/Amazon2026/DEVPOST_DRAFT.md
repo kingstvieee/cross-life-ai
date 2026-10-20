@@ -1,4 +1,13 @@
-# Devpost submission draft · STAARWAARDD Guardian
+# Historical Devpost source draft · STAARWAARDD Guardian
+
+Current owner: existing Devpost project 1191047 (STAARWAARDD Guardian for Alexa+).
+Verified October 19, 2026: DRAFT, 3/5 steps done; required video URL blank.
+The live draft has been corrected for the current MCP demonstration at
+https://github.com/kingstvieee/staarwaardd-guardian-amazon-demo (477c01c).
+Use that existing licensed repository, not another export or competing build.
+The user has explicitly withheld competition submission. The material below
+describes the earlier PR #14 simulation and is historical where it differs.
+
 
 **Primary track:** Alexa+ simulated experience (web alternate path). **Mini challenge:** AWS Builder only after a successful Strands/Bedrock runtime test is captured. Do not select Bee, Ring, Fire TV, Open Source, or AWS Builder without corresponding proof.
 
@@ -34,9 +43,9 @@ Record the actual functioning screen. Publish the video publicly on YouTube or V
 
 ## Required links to fill
 
-- Live judge page: `https://<stable-judge-accessible-host>/amazon-judge.html`
-- GitHub source: **PENDING isolated demo-only repository publication**. The current reviewed implementation is `https://github.com/kingstvieee/cross-life-ai/tree/codex/amazon-2026-submission-ready/competition/Amazon2026`; the older `amazon-2026` link does not identify PR #14's unmerged fixes. Use `packaging/export-demo.mjs` to prepare a standalone root-licensed copy, then replace this field with its actual repository URL. Do not describe the mixed source repository as publicly licensed.
+- Live judge page: https://staarwaardd-guardian-amazon-demo.vercel.app/ — initialization, discovery and tools/call verified.
+- GitHub source: https://github.com/kingstvieee/staarwaardd-guardian-amazon-demo — verified public, root MIT license detected; already referenced by the live Devpost draft.
 - Public YouTube/Vimeo demo: **PENDING**
-- Devpost entry URL and Submitted status: **PENDING**
-- Reviewer repository access or public licensed source: **PENDING**
+- Devpost project: 1191047 — live status **DRAFT**, not submitted.
+- Public licensed source: **VERIFIED** in the isolated repository; fresh anonymous clone, tests and build passed.
 - Optional Bedrock success record: **PENDING**
