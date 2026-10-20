@@ -35,7 +35,7 @@ Record the actual functioning screen. Publish the video publicly on YouTube or V
 ## Required links to fill
 
 - Live judge page: `https://<stable-judge-accessible-host>/amazon-judge.html`
-- GitHub source: `https://github.com/kingstvieee/cross-life-ai/tree/amazon-2026/competition/Amazon2026` (confirm the final submitted ref contains the approved fixes)
+- GitHub source: **PENDING isolated demo-only repository publication**. The current reviewed implementation is `https://github.com/kingstvieee/cross-life-ai/tree/codex/amazon-2026-submission-ready/competition/Amazon2026`; the older `amazon-2026` link does not identify PR #14's unmerged fixes. Use `packaging/export-demo.mjs` to prepare a standalone root-licensed copy, then replace this field with its actual repository URL. Do not describe the mixed source repository as publicly licensed.
 - Public YouTube/Vimeo demo: **PENDING**
 - Devpost entry URL and Submitted status: **PENDING**
 - Reviewer repository access or public licensed source: **PENDING**
