@@ -2,6 +2,7 @@ from copy import deepcopy
 from typing import Any, Callable, Dict, Optional, Tuple
 
 from guardian_core import GuardianCore, utc_iso
+from guardian_workflow import cancel, checkpoint, claim_lease, new_workflow, reconcile, view
 
 
 class GuardianStore:
@@ -24,6 +25,7 @@ class GuardianStore:
             "missions": deepcopy(core.missions),
             "ledger": deepcopy(core.ledger),
             "private_mode": core.private_mode,
+            "workflows": {"rsf-fabric-sourcing": new_workflow()},
             "created_at": utc_iso(),
             "updated_at": utc_iso(),
         }
@@ -69,6 +71,7 @@ class GuardianStore:
                         "missions": deepcopy(core.missions),
                         "ledger": deepcopy(core.ledger),
                         "private_mode": core.private_mode,
+                        "workflows": deepcopy(document.get("workflows", {"rsf-fabric-sourcing": new_workflow()})),
                         "updated_at": updated_at,
                     },
                     "$inc": {"version": 1},
@@ -134,3 +137,47 @@ class GuardianStore:
             lambda core: core.set_private_mode(enabled),
         )
         return result
+
+    async def get_workflow(self, user_id: str, workflow_id: str) -> Dict[str, Any]:
+        document = await self.ensure_user(user_id)
+        return view(document.get("workflows", {}).get(workflow_id), workflow_id).__dict__
+
+    async def _mutate_workflow(self, user_id: str, workflow_id: str, mutation: Callable[[Dict[str, Any]], Dict[str, Any]]) -> Dict[str, Any]:
+        def apply(core: GuardianCore) -> Dict[str, Any]:
+            # Workflow state lives beside the existing mission ledger, in the same
+            # optimistic-concurrency write, so checkpoints cannot drift from user scope.
+            document_workflow = getattr(core, "workflows", {}).get(workflow_id)
+            updated = mutation(deepcopy(document_workflow))
+            core.workflows = {**getattr(core, "workflows", {}), workflow_id: updated}
+            return view(updated, workflow_id).__dict__
+
+        result, _ = await self._mutate_with_workflows(user_id, apply)
+        return result
+
+    async def _mutate_with_workflows(self, user_id: str, mutation: Callable[[GuardianCore], Any], *, retries: int = 3) -> Tuple[Any, Dict[str, Any]]:
+        for _ in range(retries):
+            document = await self.ensure_user(user_id)
+            version = int(document.get("version", 0))
+            core = self._hydrate(document)
+            core.workflows = deepcopy(document.get("workflows", {"rsf-fabric-sourcing": new_workflow()}))
+            result = mutation(core)
+            updated_at = utc_iso()
+            write = await self.collection.update_one(
+                {"user_id": user_id, "version": version},
+                {"$set": {"schema_version": 1, "missions": deepcopy(core.missions), "ledger": deepcopy(core.ledger), "private_mode": core.private_mode, "workflows": deepcopy(core.workflows), "updated_at": updated_at}, "$inc": {"version": 1}},
+            )
+            if getattr(write, "matched_count", 0) == 1:
+                return deepcopy(result), {"version": version + 1, "updatedAt": updated_at}
+        raise RuntimeError("Guardian state changed concurrently; retry request")
+
+    async def claim_workflow_lease(self, user_id: str, workflow_id: str, *, owner: str, fence: int) -> Dict[str, Any]:
+        return await self._mutate_workflow(user_id, workflow_id, lambda workflow: claim_lease(workflow, workflow_id, owner=owner, fence=fence))
+
+    async def record_workflow_checkpoint(self, user_id: str, workflow_id: str, *, owner: str, fence: int, checkpoint_id: str, summary: str, idempotency_key: str) -> Dict[str, Any]:
+        return await self._mutate_workflow(user_id, workflow_id, lambda workflow: checkpoint(workflow, workflow_id, owner=owner, fence=fence, checkpoint_id=checkpoint_id, summary=summary, idempotency_key=idempotency_key))
+
+    async def cancel_workflow(self, user_id: str, workflow_id: str, *, owner: str, fence: int, reason: str) -> Dict[str, Any]:
+        return await self._mutate_workflow(user_id, workflow_id, lambda workflow: cancel(workflow, workflow_id, owner=owner, fence=fence, reason=reason))
+
+    async def reconcile_workflow(self, user_id: str, workflow_id: str, *, idempotency_key: str, outcome: str, evidence: Dict[str, Any]) -> Dict[str, Any]:
+        return await self._mutate_workflow(user_id, workflow_id, lambda workflow: reconcile(workflow, workflow_id, idempotency_key=idempotency_key, outcome=outcome, evidence=evidence))

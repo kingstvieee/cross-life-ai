@@ -15,10 +15,16 @@ export function GuardianArrival({ onComplete }: { onComplete: () => void }) {
   const [mood, setMood] = useState<ArrivalMood | null>(null);
   const [starting, setStarting] = useState(false);
   const rise = useRef(new Animated.Value(0)).current;
+  const announcedMood = useRef<ArrivalMood | null>(null);
   const name = memory.consented && memory.displayName.trim() ? memory.displayName.trim() : "there";
 
   useEffect(() => { Animated.timing(rise, { toValue: 1, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(); }, [rise]);
-  useEffect(() => { if (!mood) return; const line = mood === "Tired" ? `Welcome home, ${name}. I will keep the field calm.` : mood === "Going out" ? `Welcome home, ${name}. I will keep your next move light.` : mood === "Quiet" ? `Welcome home, ${name}. Quiet mode is yours.` : `Welcome home, ${name}. Starting up STAARWARDD Hub now.`; void audio.speak(line); }, [audio, mood, name]);
+  useEffect(() => {
+    if (!mood || mood === "Quiet" || announcedMood.current === mood) return;
+    announcedMood.current = mood;
+    const line = mood === "Tired" ? `Welcome home, ${name}. I will keep the field calm.` : mood === "Going out" ? `Welcome home, ${name}. I will keep your next move light.` : `Welcome home, ${name}. Starting up STAARWARDD Hub now.`;
+    void audio.speak(line);
+  }, [audio, mood, name]);
 
   const continueToHub = (selected: ArrivalMood) => { haptic.light(); setMood(selected); setStarting(true); setTimeout(onComplete, selected === "Regular" ? 1200 : 1900); };
   const translateY = rise.interpolate({ inputRange: [0, 1], outputRange: [32, 0] });

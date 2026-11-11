@@ -114,3 +114,24 @@ def test_unknown_mission_and_invalid_portal_are_safe_client_errors():
         headers=headers,
     )
     assert invalid.status_code == 400
+
+
+def test_rsf_workflow_routes_are_authenticated_scoped_and_fenced():
+    client = TestClient(make_app())
+    a = {"Authorization": "Bearer user-a"}
+    b = {"Authorization": "Bearer user-b"}
+    path = "/api/guardian/core/workflows/rsf-fabric-sourcing"
+
+    assert client.get(path).status_code == 401
+    assert client.get(path, headers=a).json()["source_manifest"]["status"] == "fixture-only"
+    leased = client.post(path + "/lease", headers=a, json={"owner": "worker-a", "fence": 4})
+    assert leased.status_code == 200
+    assert client.get(path, headers=b).json()["lease"] is None
+
+    stale = client.post(path + "/checkpoints", headers=a, json={"owner": "worker-a", "fence": 3, "checkpoint_id": "stale", "summary": "No", "idempotency_key": "stale"})
+    assert stale.status_code == 409
+    checkpoint = client.post(path + "/checkpoints", headers=a, json={"owner": "worker-a", "fence": 4, "checkpoint_id": "review", "summary": "Fixture-only review", "idempotency_key": "review:v1"})
+    assert checkpoint.status_code == 200
+    replay = client.post(path + "/checkpoints", headers=a, json={"owner": "worker-a", "fence": 4, "checkpoint_id": "review", "summary": "Duplicate", "idempotency_key": "review:v1"})
+    assert replay.status_code == 200
+    assert len(replay.json()["checkpoints"]) == 1

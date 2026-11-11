@@ -17,6 +17,27 @@ class GuardianPrivateModeUpdate(BaseModel):
     enabled: bool
 
 
+class GuardianLeaseRequest(BaseModel):
+    owner: str = Field(min_length=1)
+    fence: int = Field(ge=0)
+
+
+class GuardianCheckpointRequest(GuardianLeaseRequest):
+    checkpoint_id: str = Field(min_length=1)
+    summary: str = Field(min_length=1)
+    idempotency_key: str = Field(min_length=1)
+
+
+class GuardianCancelRequest(GuardianLeaseRequest):
+    reason: str = Field(min_length=1)
+
+
+class GuardianReconcileRequest(BaseModel):
+    idempotency_key: str = Field(min_length=1)
+    outcome: str
+    evidence: Dict[str, Any] = Field(default_factory=dict)
+
+
 def build_guardian_router(*, db: Any, get_current_user: Any) -> APIRouter:
     """Build authenticated Guardian Core routes against the app's Mongo database.
 
@@ -102,6 +123,62 @@ def build_guardian_router(*, db: Any, get_current_user: Any) -> APIRouter:
         user = await current_user(authorization)
         try:
             return await store.set_private_mode(user["user_id"], body.enabled)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail="guardian_state_conflict") from exc
+
+    @router.get("/workflows/{workflow_id}")
+    async def workflow(workflow_id: str, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        try:
+            return await store.get_workflow(user["user_id"], workflow_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="workflow_not_found") from exc
+
+    @router.post("/workflows/{workflow_id}/lease")
+    async def workflow_lease(workflow_id: str, body: GuardianLeaseRequest, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        try:
+            return await store.claim_workflow_lease(user["user_id"], workflow_id, owner=body.owner, fence=body.fence)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="workflow_not_found") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail="guardian_state_conflict") from exc
+
+    @router.post("/workflows/{workflow_id}/checkpoints")
+    async def workflow_checkpoint(workflow_id: str, body: GuardianCheckpointRequest, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        try:
+            return await store.record_workflow_checkpoint(user["user_id"], workflow_id, owner=body.owner, fence=body.fence, checkpoint_id=body.checkpoint_id, summary=body.summary, idempotency_key=body.idempotency_key)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="workflow_not_found") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail="guardian_state_conflict") from exc
+
+    @router.post("/workflows/{workflow_id}/cancel")
+    async def workflow_cancel(workflow_id: str, body: GuardianCancelRequest, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        try:
+            return await store.cancel_workflow(user["user_id"], workflow_id, owner=body.owner, fence=body.fence, reason=body.reason)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="workflow_not_found") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail="guardian_state_conflict") from exc
+
+    @router.post("/workflows/{workflow_id}/reconcile")
+    async def workflow_reconcile(workflow_id: str, body: GuardianReconcileRequest, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        try:
+            return await store.reconcile_workflow(user["user_id"], workflow_id, idempotency_key=body.idempotency_key, outcome=body.outcome, evidence=body.evidence)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="workflow_not_found") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         except RuntimeError as exc:
             raise HTTPException(status_code=409, detail="guardian_state_conflict") from exc
 

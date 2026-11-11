@@ -17,8 +17,10 @@ type AudioSettings = {
 };
 
 type AudioContextValue = AudioSettings & {
+  speechQuiet: boolean;
   activeAmbient: AmbientKey | null;
   update: (patch: Partial<AudioSettings>) => void;
+  setSpeechQuiet: (quiet: boolean) => void;
   toggleAmbient: (key: AmbientKey) => void;
   playAmbient: (key: AmbientKey) => void;
   stopAmbient: () => void;
@@ -93,6 +95,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     return () => { mounted = false; };
   }, []);
   const [settings, setSettings] = useState<AudioSettings>(DEFAULT_SETTINGS);
+  const [speechQuiet, setSpeechQuietState] = useState(false);
   const [activeAmbient, setActiveAmbient] = useState<AmbientKey | null>(null);
   // One cached player per sound. expo-audio's web replace()/remove() strips the element
   // src and calls load(), which fires spurious "no supported source" MediaErrors — so we
@@ -101,6 +104,11 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   const cuePlayers = useRef<Partial<Record<CinematicCue, AudioPlayer>>>({});
   const lastCue = useRef<CinematicCue | null>(null);
   const fadeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const speechRequest = useRef(0);
+  const speechQuietRef = useRef(false);
+  const settingsRef = useRef(settings);
+
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
 
   const clearFade = () => {
     if (fadeTimer.current) { clearInterval(fadeTimer.current); fadeTimer.current = null; }
@@ -146,6 +154,10 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     setSettings((current) => {
       const next = { ...current, ...patch };
       void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      if (!next.voice) {
+        speechRequest.current += 1;
+        void Speech.stop();
+      }
       if (!next.master || (!next.music && !next.ambience)) {
         pauseAllAmbient();
         setActiveAmbient(null);
@@ -158,7 +170,15 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     pauseAllAmbient();
     Object.values(cuePlayers.current).forEach((p) => { try { p?.pause(); } catch { /* noop */ } });
     setActiveAmbient(null);
+    speechRequest.current += 1;
     void Speech.stop();
+  }, []);
+
+  const setSpeechQuiet = useCallback((quiet: boolean) => {
+    speechQuietRef.current = quiet;
+    setSpeechQuietState(quiet);
+    speechRequest.current += 1;
+    if (quiet) void Speech.stop();
   }, []);
 
   // Each world's soundscape fades in softly on entry (non-toggling variant).
@@ -245,15 +265,18 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   }, [settings.ambience, settings.master, settings.music, settings.volume]);
 
   const speak = useCallback(async (text: string, rate = 0.95) => {
-    if (!settings.master || !settings.voice) return;
+    const requestId = ++speechRequest.current;
+    if (!settingsRef.current.master || !settingsRef.current.voice || speechQuietRef.current || !text.trim()) return;
     try {
       const alreadySpeaking = await Speech.isSpeakingAsync();
+      if (requestId !== speechRequest.current || speechQuietRef.current || !settingsRef.current.master || !settingsRef.current.voice) return;
       if (alreadySpeaking) await Speech.stop();
-      Speech.speak(text, { language: "en-CA", voice: guardianVoice, rate: Math.min(Math.max(rate * 1.03, 0.94), 1.06), pitch: 0.96, volume: settings.volume, useApplicationAudioSession: false });
+      if (requestId !== speechRequest.current || speechQuietRef.current || !settingsRef.current.master || !settingsRef.current.voice) return;
+      Speech.speak(text, { language: "en-CA", voice: guardianVoice, rate: Math.min(Math.max(rate * 1.03, 0.94), 1.06), pitch: 0.96, volume: settingsRef.current.volume, useApplicationAudioSession: false });
     } catch { /* audio is optional; fail silently without misrepresenting playback */ }
-  }, [guardianVoice, settings.master, settings.voice, settings.volume]);
+  }, [guardianVoice]);
 
-  const value = useMemo(() => ({ ...settings, activeAmbient, update, toggleAmbient, playAmbient, stopAmbient, playCue, speak, stopAll }), [activeAmbient, playAmbient, playCue, settings, speak, stopAll, stopAmbient, toggleAmbient, update]);
+  const value = useMemo(() => ({ ...settings, speechQuiet, activeAmbient, update, setSpeechQuiet, toggleAmbient, playAmbient, stopAmbient, playCue, speak, stopAll }), [activeAmbient, playAmbient, playCue, settings, setSpeechQuiet, speak, speechQuiet, stopAll, stopAmbient, toggleAmbient, update]);
   return <AudioContext.Provider value={value}>{children}</AudioContext.Provider>;
 }
 
