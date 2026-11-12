@@ -1,4 +1,5 @@
-from typing import Any, Dict, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
@@ -36,6 +37,60 @@ class GuardianReconcileRequest(BaseModel):
     idempotency_key: str = Field(min_length=1)
     outcome: str
     evidence: Dict[str, Any] = Field(default_factory=dict)
+    authority: Optional[Dict[str, Any]] = None
+
+
+class GuardianRetryRequest(GuardianLeaseRequest):
+    error: str = Field(min_length=1)
+
+
+class GuardianSpeechRequest(BaseModel):
+    quiet: bool
+
+
+class GuardianConsentRequest(BaseModel):
+    greetings: bool = False
+    check_ins: bool = False
+
+
+class GuardianProactiveRequest(BaseModel):
+    kind: str
+    at: datetime
+
+
+class GuardianDispatchRequest(GuardianLeaseRequest):
+    action: str = Field(min_length=1)
+    action_version: str = Field(min_length=1)
+    authority: Dict[str, Any]
+    context: Dict[str, Any] = Field(default_factory=dict)
+    idempotency_key: str = Field(min_length=1)
+
+
+class GuardianSentRequest(BaseModel):
+    idempotency_key: str = Field(min_length=1)
+
+
+class GuardianOperationCancelRequest(BaseModel):
+    idempotency_key: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+
+class GuardianProviderEventRequest(BaseModel):
+    event_id: str = Field(min_length=1)
+    idempotency_key: str = Field(min_length=1)
+    outcome: str
+    receipt: Dict[str, Any] = Field(default_factory=dict)
+
+
+class GuardianContributionRequest(BaseModel):
+    contribution_id: str = Field(min_length=1)
+    portal_id: str
+    kind: str = Field(min_length=1)
+    summary: str = Field(min_length=1)
+    version: str = Field(min_length=1)
+    privacy_scope: str = Field(min_length=1)
+    authority_scopes: List[str] = Field(default_factory=list)
+    idempotency_key: str = Field(min_length=1)
 
 
 def build_guardian_router(*, db: Any, get_current_user: Any) -> APIRouter:
@@ -174,12 +229,101 @@ def build_guardian_router(*, db: Any, get_current_user: Any) -> APIRouter:
     async def workflow_reconcile(workflow_id: str, body: GuardianReconcileRequest, authorization: Optional[str] = Header(None)):
         user = await current_user(authorization)
         try:
-            return await store.reconcile_workflow(user["user_id"], workflow_id, idempotency_key=body.idempotency_key, outcome=body.outcome, evidence=body.evidence)
+            if body.authority is None:
+                return await store.reconcile_workflow(user["user_id"], workflow_id, idempotency_key=body.idempotency_key, outcome=body.outcome, evidence=body.evidence)
+            return await store.reconcile_workflow_with_authority(user["user_id"], workflow_id, authority=body.authority, idempotency_key=body.idempotency_key, outcome=body.outcome, evidence=body.evidence)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="workflow_not_found") from exc
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except RuntimeError as exc:
             raise HTTPException(status_code=409, detail="guardian_state_conflict") from exc
+
+    @router.post("/workflows/{workflow_id}/retry")
+    async def workflow_retry(workflow_id: str, body: GuardianRetryRequest, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        try:
+            return await store.retry_workflow(user["user_id"], workflow_id, owner=body.owner, fence=body.fence, error=body.error)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.post("/workflows/{workflow_id}/recover")
+    async def workflow_recover(workflow_id: str, body: GuardianLeaseRequest, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        try:
+            return await store.recover_workflow(user["user_id"], workflow_id, owner=body.owner, fence=body.fence)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.post("/workflows/{workflow_id}/speech")
+    async def workflow_speech(workflow_id: str, body: GuardianSpeechRequest, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        return await store.set_speech_quiet(user["user_id"], workflow_id, quiet=body.quiet)
+
+    @router.post("/workflows/{workflow_id}/proactive-consent")
+    async def workflow_proactive_consent(workflow_id: str, body: GuardianConsentRequest, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        return await store.set_proactive_consent(user["user_id"], workflow_id, greetings=body.greetings, check_ins=body.check_ins)
+
+    @router.post("/workflows/{workflow_id}/proactive-decision")
+    async def workflow_proactive_decision(workflow_id: str, body: GuardianProactiveRequest, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        try:
+            return await store.proactive_decision(user["user_id"], workflow_id, kind=body.kind, at=body.at)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.post("/workflows/{workflow_id}/authority/revoke")
+    async def workflow_revoke_authority(workflow_id: str, body: Dict[str, Any], authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        return await store.revoke_workflow_authority(user["user_id"], workflow_id, reason=str(body.get("reason", "revoked")))
+
+    @router.post("/workflows/{workflow_id}/dispatch")
+    async def workflow_dispatch(workflow_id: str, body: GuardianDispatchRequest, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        try:
+            return await store.dispatch_workflow(user["user_id"], workflow_id, owner=body.owner, fence=body.fence, action=body.action, action_version=body.action_version, authority=body.authority, context=body.context, idempotency_key=body.idempotency_key)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.post("/workflows/{workflow_id}/sent")
+    async def workflow_sent(workflow_id: str, body: GuardianSentRequest, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        try:
+            return await store.mark_workflow_sent(user["user_id"], workflow_id, idempotency_key=body.idempotency_key)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.post("/workflows/{workflow_id}/operation-cancel")
+    async def workflow_operation_cancel(workflow_id: str, body: GuardianOperationCancelRequest, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        try:
+            return await store.request_operation_cancellation(user["user_id"], workflow_id, idempotency_key=body.idempotency_key, reason=body.reason)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.post("/workflows/{workflow_id}/provider-event")
+    async def workflow_provider_event(workflow_id: str, body: GuardianProviderEventRequest, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        try:
+            return await store.record_provider_event(user["user_id"], workflow_id, event_id=body.event_id, idempotency_key=body.idempotency_key, outcome=body.outcome, receipt=body.receipt)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.post("/workflows/{workflow_id}/portal-weave/contributions")
+    async def workflow_contribution(workflow_id: str, body: GuardianContributionRequest, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        try:
+            return await store.add_portal_contribution(user["user_id"], workflow_id, contribution_id=body.contribution_id, portal_id=body.portal_id, kind=body.kind, summary=body.summary, version=body.version, privacy_scope=body.privacy_scope, authority_scopes=body.authority_scopes, idempotency_key=body.idempotency_key)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.post("/workflows/{workflow_id}/portal-weave/arbitrate")
+    async def workflow_arbitrate(workflow_id: str, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        try:
+            return await store.arbitrate_portal_weave(user["user_id"], workflow_id)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     return router

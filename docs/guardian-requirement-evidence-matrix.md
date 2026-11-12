@@ -1,0 +1,39 @@
+# Guardian recovered-requirement evidence matrix
+
+**Baseline:** `origin/main` at `bc878fd5d9648cfc20418010094d1e3e76fd619c` (2026-11-12). PR19 Guardian upgrades and PR20 Expo web repair are preserved. This matrix reconciles recovered v2.0 requirements against the newer canonical v2.2 behavior; it is not a downgrade plan.
+
+**Evidence labels:** `PASS` means current code/tests directly demonstrate the requirement; `PARTIAL` means a bounded slice exists but a control is missing; `GAP` means implementation/test work is required; `UNAVAILABLE` means the recovered artifact was not found in the authorized workspace and no execution result is inferred.
+
+| Priority | Requirement | Current evidence | File(s) | Test evidence / gap | Planned P0/P1 treatment |
+|---|---|---|---|---|---|
+| P0 | Independent speech, conversation, execution channels; Quiet cancels pending speech but never work | `speechQuiet` and speech request fencing exist; execution is not coupled to speech in backend workflow | `frontend/lib/staarwardd/audio-provider.tsx`, `backend/guardian_workflow.py` | `backend/test_guardian_workflow.py` covers lease/checkpoint only; no mute-while-work-continues assertion | Add typed channel state and explicit execution-preserving mute tests |
+| P1 | Proactive consent and Toronto-time greetings/check-ins; no routine interruption before noon | No durable proactive-consent/time-window contract found | `backend/guardian_workflow.py` (new policy contract) | No current tests | Add deterministic consent/window policy, defaulting to no proactive interruption |
+| P0 | Durable worker/queue/outbox, leases, checkpoints, retry/restart recovery | Per-user optimistic persistence, lease/checkpoint, replay-safe outbox exist; no worker attempts/restart/retry model | `backend/guardian_store.py`, `backend/guardian_workflow.py` | Existing lease/replay tests pass; restart/retry tests absent | Add durable worker attempts, retry state, restart recovery, duplicate-event tests |
+| P0 | Backend-authoritative state and completion evidence | Mission completion gate requires `VERIFIED_COMPLETE` and evidence | `backend/guardian_core.py`, `backend/guardian_routes.py` | `test_guardian_routes.py::test_completion_evidence_gate_survives_http_boundary` | Extend workflow completion to reject forged client completion/event claims |
+| P0 | Dispatch-time scoped authority, action hash/version, revocation checks | No dispatch boundary or authority version/hash model found | `backend/guardian_workflow.py` (new) | No tests | Add authority snapshot at dispatch, hash/version binding, revocation/fence checks |
+| P0 | Privacy boundaries across retrieval, dispatch, logs, caches | `filter_context` strips identity/presence/credentials/raw prompt; no dispatch/log/cache redaction contract | `backend/guardian_workflow.py` | Existing context filter test only | Reuse filter for dispatch/log/cache and test cross-user/private isolation |
+| P0 | Authenticated private audio | Existing app TTS endpoints are authenticated for dynamic lines; Guardian core does not own audio route | `backend/server.py`, `frontend/lib/staarwardd/guardian-tts.ts` | Historical live tests exist but require runtime URL; no local private-audio contract test | Document/validate authenticated dynamic audio boundary; no new public audio route |
+| P1 | Phone/watch continuity without claiming unbuilt watch support | Native iOS config exists; no watch target/implementation | `frontend/app.json` | No watch tests; no claim permitted | Add truthful capability contract: phone supported by native target; watch unavailable |
+| P0 | Corrections: cannot recall sent external requests; dispatch boundary persists; uncertainty reconciles | Current `cancel` queues `cancel-work`; `reconcile` allows unknown but lacks dispatch boundary/authority read gate | `backend/guardian_workflow.py` | Existing unknown test is incomplete | Separate requested-operation cancellation from task cancellation; persist boundary; require valid read authority for reconciliation; unknown remains reconciling |
+| P0 | Outbox is not exactly-once; provider receipt is not independent verification | Current outbox is a list with replay-safe checkpoint only | `backend/guardian_workflow.py` | No duplicate provider event/late success tests | Add at-least-once event dedupe and evidence provenance (`provider-receipt` not independent) |
+| P1 | Typed Portal Weave contributions/arbitration across seven domains | Seven canonical portal IDs exist; no typed weave contribution/arbitration backend contract | `backend/guardian_core.py`, `frontend/lib/staarwardd/portal-meta.ts` | No weave tests | Add typed contribution validation, privacy scope, deterministic arbitration across all seven domains |
+| P1 | Recovered package has 25 dialogue tests | No recovered v2.0 dialogue-test file was found under authorized project/upload paths | N/A | `UNAVAILABLE`; do not invent execution results | Record gap; add focused deterministic control tests instead |
+| P1 | EAS candidate `3a21b2c8-424d-4dd6-a2fc-c3580125f64c` | No EAS auth/project metadata available in current environment | `frontend/app.json` | EAS ownership/slug/bundle cannot be verified without login | Prepare non-duplicating `eas.json` only after project ownership verification; report auth blocker |
+| P0 | Non-empty production backend configuration and actual health/routes/auth | Frontend falls back to empty backend URL; repository has no tracked env; server requires `MONGO_URL` and mounts Guardian routes through integration | `frontend/src/auth.tsx`, `frontend/lib/staarwardd/guardian-tts.ts`, `backend/server.py`, `backend/guardian_server_integration.py` | API probe requires deployed backend; local server requires private env; route tests are available | Add fail-fast backend URL resolution for native builds without inventing a host; verify route/auth via local tests and report runtime blocker |
+
+## Locked-surface impact
+
+This work is backend policy/state and documentation plus non-invasive native configuration validation. It does not rename portals, replace approved media, change package identity, alter audio defaults, add telemetry, create external connectors, add a watch target, publish, deploy, or change consent boundaries to permit background actions.
+
+## Verification status
+
+The recovered 25 dialogue tests are **unavailable** in the authorized workspace. The implementation PR must report this explicitly and must not claim those tests ran. EAS candidate ownership and backend production reachability remain external/runtime checks until authorized credentials/configuration are available.
+
+## Branch validation evidence
+
+- Backend: `python3 -m pytest -q test_guardian_*.py` — **36 passed**; `python3 -m compileall -q .` — **passed**.
+- Frontend: `yarn exec tsc --noEmit` — **passed**; exact `yarn expo export --platform web --no-bytecode` — **passed**, generating `dist/index.html` (1,258 bytes) and 91 files after approved media copy.
+- Changed-file ESLint: new resolver/scorecard/TTS/coordination files pass; `frontend/src/auth.tsx` retains the repository's pre-existing `react-hooks/set-state-in-effect` error at `useEffect(() => { refresh(); }, [refresh])`. This was not introduced by this branch and was not silenced.
+- Native identity resolved from Expo config: name `STAAR Hub`, slug `frontend`, version `1.0.0`, iOS bundle `com.emergent.crosslifeai.z79271`, platforms `ios/android/web`.
+- EAS: `eas whoami` reports **Not logged in**; `project:info` cannot verify candidate ownership/linkage. No project was created, no candidate ID was linked, and no iOS build was started.
+- The production backend origin remains unresolved because no authorized non-empty `EXPO_PUBLIC_BACKEND_URL` was available. The new resolver fails explicitly instead of issuing misleading relative requests.

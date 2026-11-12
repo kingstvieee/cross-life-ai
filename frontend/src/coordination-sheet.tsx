@@ -6,10 +6,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '@/src/auth';
+import { backendUrl } from './backend-config';
 import { portalMeta } from '@/src/theme';
 import { playVoice, stopVoice } from '@/src/voice';
-
-const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 type Props = {
   visible: boolean;
@@ -46,7 +45,7 @@ export function CoordinationSheet({ visible, onClose, coord, headline, sub }: Pr
       });
       if (!r.ok) { setVoice('idle'); return; }
       const { url } = await r.json();
-      const p = await playVoice(`${BACKEND}${url}`);
+      const p = await playVoice(backendUrl(url));
       setVoice('playing');
       const sub2 = p.addListener('playbackStatusUpdate', (st: any) => {
         if (st?.didJustFinish) {

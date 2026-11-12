@@ -1,17 +1,16 @@
 import { Platform } from "react-native";
 import { playVoice, stopVoice } from "@/src/voice";
-
-const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL || "";
+import { backendUrl } from "@/src/backend-config";
 
 export type GuardianLine = { text: string; url: string };
 
 // Fetch a cached Onyx TTS line ({url, text}) from the backend.
 export async function fetchGuardianLine(path: string): Promise<GuardianLine | null> {
   try {
-    const r = await fetch(`${BACKEND}${path}`);
+    const r = await fetch(backendUrl(path));
     if (!r.ok) return null;
     const { url, text } = await r.json();
-    return { text: text ?? "", url: `${BACKEND}${url}` };
+    return { text: text ?? "", url: backendUrl(url) };
   } catch {
     return null;
   }
@@ -20,14 +19,14 @@ export async function fetchGuardianLine(path: string): Promise<GuardianLine | nu
 // POST a short dynamic line (e.g., remembered preference) for Onyx TTS.
 export async function fetchGuardianSpokenText(text: string, token: string | null): Promise<GuardianLine | null> {
   try {
-    const r = await fetch(`${BACKEND}/api/guardian/speak-line`, {
+    const r = await fetch(backendUrl('/api/guardian/speak-line'), {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ text }),
     });
     if (!r.ok) return null;
     const { url } = await r.json();
-    return { text, url: `${BACKEND}${url}` };
+    return { text, url: backendUrl(url) };
   } catch {
     return null;
   }

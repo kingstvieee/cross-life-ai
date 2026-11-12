@@ -10,8 +10,7 @@ import { usePreferenceMemory } from "@/lib/staarwardd/preference-memory";
 import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
 import { fetchGuardianSpokenText, playGuardianLine } from "@/lib/staarwardd/guardian-tts";
 import { useAuth } from "@/src/auth";
-
-const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL || "";
+import { backendUrl } from "@/src/backend-config";
 
 const OUTCOME_COLORS: Record<string, string> = {
   completed: "#7BE3A6",
@@ -72,7 +71,7 @@ export default function ScorecardScreen() {
     try {
       const lines = receipts.slice(0, 6).map((r) => r.requestedAction).join("|");
       const qs = `actions=${receipts.length}&remembered=${remembered.length}&memory_on=${memory.consented}&lines=${encodeURIComponent(lines)}`;
-      const url = `${BACKEND}/api/scorecard/image?${qs}`;
+      const url = backendUrl(`/api/scorecard/image?${qs}`);
       const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       if (Platform.OS === "web" && typeof window !== "undefined") {
         const r = await fetch(url, { headers: authHeaders });

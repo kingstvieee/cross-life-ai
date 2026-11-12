@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-
-const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+import { backendUrl } from './backend-config';
 
 const KEY = 'staar_session_token';
 
@@ -56,14 +55,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const headers = new Headers(init.headers as any);
     if (token) headers.set('Authorization', `Bearer ${token}`);
     if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-    return fetch(`${BACKEND}${path}`, { ...init, headers });
+    return fetch(backendUrl(path), { ...init, headers });
   }, [token]);
 
   const refresh = useCallback(async () => {
     const t = await readToken();
     if (t) {
       try {
-        const r = await fetch(`${BACKEND}/api/auth/me`, { headers: { Authorization: `Bearer ${t}` } });
+        const r = await fetch(backendUrl('/api/auth/me'), { headers: { Authorization: `Bearer ${t}` } });
         if (r.ok) { setUser(await r.json()); setToken(t); setLoading(false); return; }
         await storeToken(null);
       } catch {
@@ -72,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     // No valid session — judges get an instant demo session automatically.
     try {
-      const r = await fetch(`${BACKEND}/api/auth/demo`, { method: 'POST' });
+      const r = await fetch(backendUrl('/api/auth/demo'), { method: 'POST' });
       if (r.ok) {
         const data = await r.json();
         await storeToken(data.session_token);
@@ -90,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { refresh(); }, [refresh]);
 
   const loginDemo = useCallback(async () => {
-    const r = await fetch(`${BACKEND}/api/auth/demo`, { method: 'POST' });
+    const r = await fetch(backendUrl('/api/auth/demo'), { method: 'POST' });
     if (!r.ok) return null;
     const data = await r.json();
     await storeToken(data.session_token);
@@ -100,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const exchangeSessionId = useCallback(async (sessionId: string) => {
-    const r = await fetch(`${BACKEND}/api/auth/session`, {
+    const r = await fetch(backendUrl('/api/auth/session'), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: sessionId }),
     });
@@ -113,14 +112,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    if (token) await fetch(`${BACKEND}/api/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+    if (token) await fetch(backendUrl('/api/auth/logout'), { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
     await storeToken(null);
     setToken(null); setUser(null);
   }, [token]);
 
   const patchProfile = useCallback(async (patch: Partial<User>) => {
     if (!token) return;
-    const r = await fetch(`${BACKEND}/api/user/profile`, {
+    const r = await fetch(backendUrl('/api/user/profile'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(patch),
