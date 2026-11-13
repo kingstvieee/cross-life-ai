@@ -61,14 +61,20 @@ export function SignInScreen() {
         <Text style={styles.entryTitle}>Your universe{ '\n' }awaits.</Text>
         <Text style={styles.entryCopy}>Your life. Your worlds. All connected.</Text>
         <View style={styles.providerStack}>
-          {["Google", "Microsoft", "Apple", "Email"].map(name => {
-            const ready = enabled.includes(name.toLowerCase());
-            return <Pressable key={name} disabled={!ready || Boolean(busy)} accessibilityRole="button" accessibilityLabel={"Continue with " + name + (ready ? "" : ", unavailable")} accessibilityState={{ disabled: !ready || Boolean(busy), busy: busy === name }}
+          {[
+            { id: 'apple', label: 'Apple', glyph: '' },
+            { id: 'google', label: 'Google', glyph: 'G' },
+            { id: 'microsoft', label: 'Microsoft / Outlook', glyph: '⊞' },
+            { id: 'yahoo', label: 'Yahoo', glyph: 'Y!' },
+            { id: 'email', label: 'Email', glyph: '' },
+          ].map(({ id, label, glyph }) => {
+            const ready = enabled.includes(id);
+            return <Pressable key={id} disabled={!ready || Boolean(busy)} accessibilityRole="button" accessibilityLabel={"Continue with " + label + (ready ? "" : ", unavailable")} accessibilityState={{ disabled: !ready || Boolean(busy), busy: busy === id }}
               style={({ pressed }) => [styles.provider, pressed && styles.pressed]}
-              onPress={() => void connect(name)}>
-              <View style={styles.providerIcon}>{name === "Email" || name === "Apple" ? <Ionicons name={name === "Apple" ? "logo-apple" : "mail-outline"} size={19} color="#DDE2E9" /> : <Text style={styles.providerGlyph}>{name === "Google" ? "G" : "⊞"}</Text>}</View>
-              <Text style={styles.providerLabel}>Continue with {name}</Text>
-              {busy === name ? <ActivityIndicator color="#CFD6DE" /> : !ready ? <Text style={styles.soon}>{checking ? 'CHECKING' : 'UNAVAILABLE'}</Text> : <Ionicons name="arrow-forward" size={16} color="#CFD6DE" />}
+              onPress={() => void connect(id)}>
+              <View style={styles.providerIcon}>{id === "email" || id === "apple" ? <Ionicons name={id === "apple" ? "logo-apple" : "mail-outline"} size={19} color="#DDE2E9" /> : <Text style={styles.providerGlyph}>{glyph}</Text>}</View>
+              <Text style={styles.providerLabel}>Continue with {label}</Text>
+              {busy === id ? <ActivityIndicator color="#CFD6DE" /> : !ready ? <Text style={styles.soon}>{checking ? 'CHECKING' : 'UNAVAILABLE'}</Text> : <Ionicons name="arrow-forward" size={16} color="#CFD6DE" />}
             </Pressable>;
           })}
         </View>

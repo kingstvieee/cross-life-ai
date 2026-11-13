@@ -36,9 +36,27 @@ Configure these variables through the backend host's secret/settings UI:
 | AUTH_APP_URL | Exact HTTPS frontend return URL |
 | AUTH_CONNECTION_GOOGLE | Existing Google connection name |
 | AUTH_CONNECTION_MICROSOFT | Existing Microsoft connection name |
+| AUTH_CONNECTION_YAHOO | Existing Yahoo OIDC connection name with verified email |
 | AUTH_CONNECTION_APPLE | Existing Apple connection name |
 | AUTH_NATIVE_REDIRECT_URL | Exactly frontend://auth-complete for the installed native scheme |
 | AUTH_CONNECTION_EMAIL | Existing hosted email-account connection name |
+
+Microsoft / Outlook shares the `microsoft` provider ID. Configure that broker
+connection to accept personal Microsoft accounts (including Outlook/Hotmail);
+work/school accounts require the appropriate supported account type or a
+separate enterprise connection. Yahoo uses its own `yahoo` provider ID and
+`AUTH_CONNECTION_YAHOO`; an email address alone never enables social login.
+Regular email login uses the broker's hosted account flow and must return
+`email_verified: true` before this backend creates a session. The app never
+collects a person's Google, Microsoft, Apple or Yahoo password.
+
+Operational checkpoint, 2026-11-13: Sign in with Apple was enabled and persisted
+as a primary App ID for `com.emergent.crosslifeai.z79271` in Apple Developer.
+Apple warned that existing provisioning profiles were invalidated and require
+regeneration. This is only the Apple capability prerequisite, not proof of a
+working broker connection or deployed login. The inspected Emergent live secrets
+contained no AUTH_* broker configuration. App Store Connect showed TestFlight
+builds 1 and 2, without these new changes. No new binary was uploaded.
 | EXPO_PUBLIC_BACKEND_URL | Frontend's actual backend HTTPS origin |
 
 The broker must support authorization-code PKCE, the connection selector, and

@@ -40,6 +40,7 @@ def make(monkeypatch, *, verified=True):
         "AUTH_APP_URL": "https://app.example.test/",
         "AUTH_CONNECTION_GOOGLE": "google-oauth2",
         "AUTH_CONNECTION_MICROSOFT": "microsoft",
+        "AUTH_CONNECTION_YAHOO": "yahoo",
         "AUTH_CONNECTION_EMAIL": "email-account",
     }
     for key, value in env.items():
@@ -105,7 +106,7 @@ def test_apple_is_separately_configured(monkeypatch):
     assert client.get("/api/auth/start/apple").status_code == 302
 
 
-@pytest.mark.parametrize("provider", ["google", "microsoft", "email"])
+@pytest.mark.parametrize("provider", ["google", "microsoft", "yahoo", "email"])
 def test_code_pkce_verified_identity_and_private_session_cookie(monkeypatch, provider):
     client, db, requests = make(monkeypatch)
     start, params = begin(client, provider)
@@ -128,6 +129,19 @@ def test_code_pkce_verified_identity_and_private_session_cookie(monkeypatch, pro
     assert not db.auth_flows.docs
     replay = client.get("/api/auth/callback", params={"state": params["state"][0], "code": "provider-code"})
     assert replay.status_code == 401
+
+
+def test_yahoo_requires_its_own_connection_and_outlook_uses_microsoft(monkeypatch):
+    client, _, _ = make(monkeypatch)
+    monkeypatch.delenv('AUTH_CONNECTION_YAHOO')
+    providers = {p['id']: p['enabled'] for p in client.get('/api/auth/providers').json()['providers']}
+    assert providers['yahoo'] is False and providers['microsoft'] is True
+    assert client.get('/api/auth/start/yahoo').status_code == 503
+    _, microsoft = begin(client, 'microsoft')
+    assert microsoft['connection'] == ['microsoft']
+    monkeypatch.setenv('AUTH_CONNECTION_YAHOO', 'yahoo-social')
+    _, yahoo = begin(client, 'yahoo')
+    assert yahoo['connection'] == ['yahoo-social']
 
 
 def test_missing_or_wrong_browser_binding_cannot_exchange(monkeypatch):

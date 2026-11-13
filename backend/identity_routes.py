@@ -19,7 +19,7 @@ from pydantic import BaseModel
 
 SESSION_COOKIE = "__Host-staar_session"
 FLOW_COOKIE = "__Host-staar_login"
-PROVIDERS = ("google", "microsoft", "apple", "email")
+PROVIDERS = ("google", "microsoft", "apple", "yahoo", "email")
 
 
 def native_redirect():
