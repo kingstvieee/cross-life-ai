@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import httpx
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from identity_routes import FLOW_COOKIE, SESSION_COOKIE, build_identity_router, digest
 
@@ -203,3 +203,33 @@ def test_new_account_defaults_to_atlas_but_existing_guardian_is_preserved(monkey
     _, params = begin(client)
     client.get('/api/auth/callback', params={'state': params['state'][0], 'code': 'code'})
     assert db.users.docs[0]['companion'] == 'guardian'
+
+
+def test_multipart_parser_is_installed_and_parses_apple_form_post():
+    """Fail clearly before a missing or shadowed parser breaks Apple callbacks."""
+    try:
+        import python_multipart  # noqa: F401
+    except ModuleNotFoundError:
+        try:
+            import multipart  # noqa: F401
+        except ModuleNotFoundError as exc:
+            pytest.fail(
+                "python-multipart is missing. Apple's form_post callback requires "
+                "request.form(). Install backend/requirements.txt (which pins "
+                "python-multipart==0.0.32) in both CI and the backend environment. "
+                f"Original error: {exc}"
+            )
+
+    probe = FastAPI()
+
+    @probe.post('/_probe/form')
+    async def parse_form(request: Request):
+        form = await request.form()
+        return {'state': form.get('state'), 'code': form.get('code')}
+
+    with TestClient(probe) as client:
+        response = client.post(
+            '/_probe/form', data={'state': 'state-value', 'code': 'code-value'}
+        )
+    assert response.status_code == 200, response.text
+    assert response.json() == {'state': 'state-value', 'code': 'code-value'}
