@@ -1,3 +1,4 @@
+import { PORTAL_BY_ID } from "@/lib/staarwardd/portal-data";
 import { glow } from "@/lib/staarwardd/shadow";
 import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Platform } from 'react-native';
@@ -76,7 +77,7 @@ export default function Work() {
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         {/* Cinematic header */}
         <View style={styles.hero}>
-          <Image source={{ uri: portalMeta.work.image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} />
+          <Image source={PORTAL_BY_ID.work.image} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} />
           <LinearGradient colors={['rgba(10,11,14,0.25)', 'rgba(10,11,14,0.6)', '#0A0B0E']} style={StyleSheet.absoluteFill} />
           <SafeAreaView edges={['top']} style={styles.heroInner}>
             <Pressable accessibilityRole="button" accessibilityLabel="Go back" style={styles.backBtn} onPress={() => router.back()} testID="back-btn">

@@ -66,7 +66,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
   // Guardian's spoken Onyx welcome as the Hub resolves from the entrance,
   // with the words shown as an on-screen subtitle line while he speaks.
   useEffect(() => {
-    if (!greet || arrival || greeted.current || !audio.voice) return;
+    if (!greet || arrival || greeted.current || !audio.master || !audio.voice || audio.speechQuiet) return;
     greeted.current = true;
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -78,7 +78,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
       });
     }, 900);
     return () => { cancelled = true; clearTimeout(timer); stopGreeting.current?.(); };
-  }, [greet, audio.voice]);
+  }, [greet, arrival, audio.master, audio.voice, audio.speechQuiet]);
 
   useEffect(() => {
     const loop = Animated.loop(Animated.timing(orbit, { toValue: 1, duration: 18000, useNativeDriver: true }));

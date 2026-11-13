@@ -1,20 +1,16 @@
 import { glow } from "@/lib/staarwardd/shadow";
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth';
 import { PORTAL_IDS, portalMeta } from '@/src/theme';
+import { COMPANIONS, CompanionId, speakCompanion, stopCompanion } from '@/src/companions';
 
 const AUTONOMY = [
   { id: 'suggest', name: 'SUGGEST', desc: 'Guardian recommends. You act.' },
   { id: 'assist', name: 'ASSIST', desc: 'Guardian prepares. Asks first.' },
   { id: 'proactive', name: 'PROACTIVE', desc: 'Guardian initiates low-risk routines.' },
-];
-const COMPANIONS = [
-  { id: 'guardian', name: 'Guardian Only', desc: 'Central intelligence.' },
-  { id: 'kaia', name: 'Guardian + Kaia', desc: 'Warm, emotionally perceptive.' },
-  { id: 'atlas', name: 'Guardian + Atlas', desc: 'Direct, grounded, practical.' },
 ];
 
 export default function Onboarding() {
@@ -23,12 +19,20 @@ export default function Onboarding() {
   const [step, setStep] = useState(0);
   const [portals, setPortals] = useState<string[]>([...PORTAL_IDS]);
   const [autonomy, setAutonomy] = useState<'suggest'|'assist'|'proactive'>('assist');
-  const [companion, setCompanion] = useState<'guardian'|'kaia'|'atlas'>('guardian');
+  const [companion, setCompanion] = useState<CompanionId>('atlas');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => () => { void stopCompanion(); }, []);
 
   const next = async () => {
     if (step === 3) {
-      await patchProfile({ portals_enabled: portals, autonomy, companion, onboarding_complete: true } as any);
-      router.replace('/hub');
+      if (saving) return;
+      setSaving(true); setError('');
+      try {
+        await patchProfile({ portals_enabled: portals, autonomy, companion, onboarding_complete: true });
+        router.replace('/hub');
+      } catch (e) { setError(e instanceof Error ? e.message : 'Setup could not be saved. Please try again.'); }
+      finally { setSaving(false); }
       return;
     }
     setStep(step + 1);
@@ -77,7 +81,7 @@ export default function Onboarding() {
                 onPress={() => setAutonomy(a.id as any)}
                     style={[styles.card, autonomy === a.id && styles.cardOn]}
               >
-                <Text style={[styles.cardTitle, autonomy === a.id && { color: '#00E5FF' }]}>{a.name}</Text>
+                <Text style={[styles.cardTitle, autonomy === a.id && { color: '#DDE3EA' }]}>{a.name}</Text>
                 <Text style={[styles.cardDesc, autonomy === a.id && { color: '#D1D5DB' }]}>{a.desc}</Text>
               </Pressable>
             ))}
@@ -86,24 +90,27 @@ export default function Onboarding() {
         {step === 3 && (
           <View>
             <Text style={styles.h}>Choose your companion.</Text>
+            <Text style={styles.p}>The same abilities and account history. Two distinct presences. Guardian remains the central system.</Text>
             {COMPANIONS.map((c) => (
-              <Pressable
-          accessibilityRole="button"
-                key={c.id}
-                testID={`companion-${c.id}`}
-                onPress={() => setCompanion(c.id as any)}
-                style={[styles.card, companion === c.id && styles.cardOn]}
-              >
-                <Text style={[styles.cardTitle, companion === c.id && { color: '#00E5FF' }]}>{c.name}</Text>
-                <Text style={[styles.cardDesc, companion === c.id && { color: '#D1D5DB' }]}>{c.desc}</Text>
-              </Pressable>
+              <View key={c.id} style={[styles.card, companion === c.id && styles.cardOn]}>
+                <Pressable accessibilityRole="radio" accessibilityState={{ checked: companion === c.id }}
+                  testID={`companion-${c.id}`} onPress={() => { setCompanion(c.id); void stopCompanion(); }}>
+                  <Text style={styles.cardTitle}>{c.name}</Text>
+                  <Text style={styles.cardDesc}>{c.desc}</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Preview ${c.name} voice`}
+                  onPress={() => { void speakCompanion(c.preview, c.id).catch(() => setError('Voice preview is unavailable on this device.')); }}
+                  style={{ paddingVertical: 12 }}><Text style={styles.p}>Hear {c.name}</Text></Pressable>
+              </View>
             ))}
+            <Text style={styles.p}>Preview uses this device’s available voices. Studio voice matching still needs listening approval.</Text>
           </View>
         )}
       </ScrollView>
+      {error ? <Text accessibilityRole="alert" style={[styles.p, { paddingHorizontal: 24 }]}>{error}</Text> : null}
 
-      <Pressable accessibilityRole="button" style={styles.cta} onPress={next} testID="onboarding-next-btn">
-        <Text style={styles.ctaText}>{step === 3 ? 'ENTER HUB' : 'CONTINUE'}</Text>
+      <Pressable accessibilityRole="button" disabled={saving} style={styles.cta} onPress={next} testID="onboarding-next-btn">
+        <Text style={styles.ctaText}>{saving ? 'SAVING' : step === 3 ? 'ENTER HUB' : 'CONTINUE'}</Text>
       </Pressable>
     </SafeAreaView>
   );
@@ -111,7 +118,7 @@ export default function Onboarding() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0A0B0E' },
-  kicker: { letterSpacing: 3, fontSize: 11, color: '#00E5FF', fontWeight: '800' },
+  kicker: { letterSpacing: 3, fontSize: 11, color: '#DDE3EA', fontWeight: '800' },
   h: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', marginTop: 12, marginBottom: 12, letterSpacing: 0.4 },
   p: { fontSize: 15, color: '#D1D5DB', opacity: 0.85, lineHeight: 22 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
@@ -119,19 +126,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12, borderRadius: 999,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', backgroundColor: '#15171D',
   },
-  chipOn: { backgroundColor: '#00E5FF', borderColor: '#00E5FF' },
+  chipOn: { backgroundColor: '#DDE3EA', borderColor: '#DDE3EA' },
   chipText: { color: '#F3F4F6', fontWeight: '600' },
   chipTextOn: { color: '#000000' },
   card: {
     marginTop: 12, padding: 18, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
     backgroundColor: '#15171D',
   },
-  cardOn: { backgroundColor: '#00333D', borderColor: 'rgba(0,229,255,0.6)' },
+  cardOn: { backgroundColor: '#202329', borderColor: 'rgba(220,225,233,0.6)' },
   cardTitle: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', letterSpacing: 2 },
   cardDesc: { fontSize: 13, color: '#9CA3AF', marginTop: 4 },
   cta: {
-    marginHorizontal: 24, marginBottom: 32, backgroundColor: '#00E5FF', paddingVertical: 18, borderRadius: 999,
-    alignItems: 'center', ...glow('#00E5FF', 18, 0.45), elevation: 8,
+    marginHorizontal: 24, marginBottom: 32, backgroundColor: '#DDE3EA', paddingVertical: 18, borderRadius: 999,
+    alignItems: 'center', ...glow('#DDE3EA', 18, 0.45), elevation: 8,
   },
   ctaText: { color: '#000000', fontWeight: '800', letterSpacing: 3 },
 });

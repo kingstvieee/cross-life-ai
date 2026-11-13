@@ -3,6 +3,7 @@ import * as Speech from "expo-speech";
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioSource } from "expo-audio";
 import { Platform } from "react-native";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
+import { useAuth } from '@/src/auth';
 
 import type { AmbientKey } from "@/lib/staarwardd/experience";
 
@@ -80,20 +81,20 @@ const CUES: Record<CinematicCue, AudioSource> = isWeb
     };
 
 export function StaarAudioProvider({ children }: PropsWithChildren) {
+  const { user } = useAuth();
+  const companion = user?.companion;
   const [guardianVoice, setGuardianVoice] = useState<string | undefined>();
   useEffect(() => {
     let mounted = true;
     void Speech.getAvailableVoicesAsync().then((voices) => {
       if (!mounted) return;
-      const canadian = voices.filter((voice) => voice.language.toLowerCase().replace("_", "-").startsWith("en-ca"));
-      const preferred = canadian.find((voice) => /liam/i.test(voice.name + " " + voice.identifier))
-        ?? canadian.find((voice) => /natural|enhanced|male/i.test(voice.name + " " + voice.identifier))
-        ?? canadian[0]
-        ?? voices.find((voice) => /liam/i.test(voice.name + " " + voice.identifier));
+      const language = companion === 'atlas' ? 'en-gb' : companion === 'kaia' ? 'en-us' : 'en-ca';
+      const matching = voices.filter((voice) => voice.language.toLowerCase().replace("_", "-").startsWith(language));
+      const preferred = matching.find((voice) => voice.quality === Speech.VoiceQuality.Enhanced) ?? matching[0];
       setGuardianVoice(preferred?.identifier);
     }).catch(() => { /* System voice discovery is optional. */ });
     return () => { mounted = false; };
-  }, []);
+  }, [companion]);
   const [settings, setSettings] = useState<AudioSettings>(DEFAULT_SETTINGS);
   const [speechQuiet, setSpeechQuietState] = useState(false);
   const [activeAmbient, setActiveAmbient] = useState<AmbientKey | null>(null);
@@ -272,9 +273,9 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
       if (requestId !== speechRequest.current || speechQuietRef.current || !settingsRef.current.master || !settingsRef.current.voice) return;
       if (alreadySpeaking) await Speech.stop();
       if (requestId !== speechRequest.current || speechQuietRef.current || !settingsRef.current.master || !settingsRef.current.voice) return;
-      Speech.speak(text, { language: "en-CA", voice: guardianVoice, rate: Math.min(Math.max(rate * 1.03, 0.94), 1.06), pitch: 0.96, volume: settingsRef.current.volume, useApplicationAudioSession: false });
+      Speech.speak(text, { language: companion === 'atlas' ? 'en-GB' : companion === 'kaia' ? 'en-US' : 'en-CA', voice: guardianVoice, rate: Math.min(Math.max(rate, 0.85), 1.06), pitch: companion === 'atlas' ? 0.9 : companion === 'kaia' ? 1.04 : 0.96, volume: settingsRef.current.volume, useApplicationAudioSession: false });
     } catch { /* audio is optional; fail silently without misrepresenting playback */ }
-  }, [guardianVoice]);
+  }, [guardianVoice, companion]);
 
   const value = useMemo(() => ({ ...settings, speechQuiet, activeAmbient, update, setSpeechQuiet, toggleAmbient, playAmbient, stopAmbient, playCue, speak, stopAll }), [activeAmbient, playAmbient, playCue, settings, setSpeechQuiet, speak, speechQuiet, stopAll, stopAmbient, toggleAmbient, update]);
   return <AudioContext.Provider value={value}>{children}</AudioContext.Provider>;

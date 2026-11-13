@@ -44,7 +44,7 @@ def make(monkeypatch, *, verified=True):
     }
     for key, value in env.items():
         monkeypatch.setenv(key, value)
-    db = SimpleNamespace(auth_flows=Collection(), users=Collection(), user_sessions=Collection())
+    db = SimpleNamespace(auth_flows=Collection(), auth_native_grants=Collection(), users=Collection(), user_sessions=Collection())
     requests = []
 
     def provider(request):
@@ -64,6 +64,45 @@ def begin(client, method="google"):
     assert r.status_code == 302
     params = parse_qs(urlsplit(r.headers["location"]).query)
     return r, params
+
+
+def test_native_handoff_requires_pkce_and_is_single_use(monkeypatch):
+    client, db, _ = make(monkeypatch)
+    monkeypatch.setenv("AUTH_NATIVE_REDIRECT_URL", "frontend://auth-complete")
+    verifier = "a" * 64
+    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
+    start = client.get("/api/auth/start/google", params={"native_challenge": challenge})
+    state = parse_qs(urlsplit(start.headers["location"]).query)["state"][0]
+    result = client.get("/api/auth/callback", params={"state": state, "code": "provider-code"})
+    target = urlsplit(result.headers["location"])
+    assert target.scheme == "frontend" and target.netloc == "auth-complete"
+    grant = parse_qs(target.query)["code"][0]
+    assert not db.user_sessions.docs
+    assert "session_token" not in target.query
+    bad = client.post("/api/auth/native/exchange", json={"code": grant, "verifier": "b" * 64})
+    assert bad.status_code == 401
+    good = client.post("/api/auth/native/exchange", json={"code": grant, "verifier": verifier})
+    assert good.status_code == 200
+    assert good.json()["user"]["is_demo"] is False
+    assert "no-store" in good.headers["cache-control"]
+    assert len(db.user_sessions.docs) == 1
+    assert client.post("/api/auth/native/exchange", json={"code": grant, "verifier": verifier}).status_code == 401
+
+
+def test_native_disabled_until_callback_configured(monkeypatch):
+    client, _, _ = make(monkeypatch)
+    monkeypatch.delenv("AUTH_NATIVE_REDIRECT_URL", raising=False)
+    assert client.get("/api/auth/providers").json()["nativeEnabled"] is False
+    assert client.get("/api/auth/start/google", params={"native_challenge": "a" * 43}).status_code == 503
+
+
+def test_apple_is_separately_configured(monkeypatch):
+    client, _, _ = make(monkeypatch)
+    monkeypatch.delenv("AUTH_CONNECTION_APPLE", raising=False)
+    providers = {p["id"]: p["enabled"] for p in client.get("/api/auth/providers").json()["providers"]}
+    assert providers["apple"] is False
+    monkeypatch.setenv("AUTH_CONNECTION_APPLE", "apple")
+    assert client.get("/api/auth/start/apple").status_code == 302
 
 
 @pytest.mark.parametrize("provider", ["google", "microsoft", "email"])

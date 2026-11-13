@@ -6,56 +6,73 @@ import { usePathname, useRouter } from "expo-router";
 import { useAuth } from "@/src/auth";
 import { backendUrl } from "@/src/backend-config";
 import { useStartupReplay } from "./startup-film";
-import { PORTALS } from "@/lib/staarwardd/portal-data";
+import { PORTALS, PREVIEW_WORLDS } from "@/lib/staarwardd/portal-data";
+import Onboarding from '@/app/onboarding';
+import { BlurView } from 'expo-blur';
+import { AccessField } from './access-field';
+import { speakCompanion, stopCompanion } from '@/src/companions';
 
 export function AccessBoundary({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const path = usePathname();
   if (loading) return <View style={styles.page}><ActivityIndicator accessibilityLabel="Checking session" /></View>;
-  if (user && !user.is_demo) return <Fragment key={user.user_id}>{children}</Fragment>;
+  if (user && !user.is_demo) return <Fragment key={user.user_id}>{user.onboarding_complete ? children : <Onboarding />}</Fragment>;
   // Keep every account provider unmounted in guest mode, including memory and activity.
   return path === "/guest" ? <GuestPreview /> : <SignInScreen />;
 }
 
 export function SignInScreen() {
+  const { signIn } = useAuth();
   const replay = useStartupReplay();
   const router = useRouter();
   const [enabled, setEnabled] = useState<string[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [checking, setChecking] = useState(true);
   useEffect(() => {
     let active = true;
-    if (Platform.OS === "web") {
-      try {
-        void fetch(backendUrl("/api/auth/providers")).then(r => r.ok ? r.json() : null).then(data => {
-          if (active && data) setEnabled(data.providers.filter((p: { id: string; enabled: boolean }) => p.enabled).map((p: { id: string }) => p.id));
-        }).catch(() => undefined);
-      } catch { /* Guest browsing works without a backend. */ }
-    }
+    void Promise.resolve().then(() => fetch(backendUrl("/api/auth/providers")))
+      .then(r => r.ok ? r.json() : null).then(data => {
+        if (active && data) setEnabled(data.providers.filter((p: { id: string; enabled: boolean }) => p.enabled && (Platform.OS === 'web' || data.nativeEnabled)).map((p: { id: string }) => p.id));
+        if (active && !data) setError('Account sign-in is unavailable. You can still explore the portals.');
+      }).catch(() => { if (active) setError('Account sign-in is not connected. You can still explore the portals.'); })
+      .finally(() => { if (active) setChecking(false); });
     return () => { active = false; };
   }, []);
+  const connect = async (name: string) => {
+    if (busy) return;
+    setBusy(name); setError('');
+    try {
+      if (await signIn(name.toLowerCase())) router.replace('/');
+    } catch (e) { setError(e instanceof Error ? e.message : 'Sign-in could not finish. Please try again.'); }
+    finally { setBusy(null); }
+  };
   return <ScrollView style={styles.screen} contentContainerStyle={styles.entry} showsVerticalScrollIndicator={false}>
     <View style={styles.hero}>
-      {Platform.OS === "web" ? <Image source={require("@/assets/images/staarwardd/guardian-toronto.png")} style={[styles.heroImage, { filter: "grayscale(1)" } as any]} accessibilityLabel="Guardian above cinematic Toronto" /> : <View style={styles.nativeHero}><View style={styles.orbitOuter}><View style={styles.orbitInner}><Ionicons name="shield-outline" size={72} color="#D4DAE2" /></View></View></View>}
+      <Image source={require("@/assets/images/staarwardd/guardian-toronto.png")} style={styles.heroImage} accessibilityLabel="Guardian above cinematic Toronto" />
       <LinearGradient colors={["rgba(2,3,5,0.18)", "rgba(2,3,5,0.08)", "#030405"]} locations={[0, 0.48, 1]} style={StyleSheet.absoluteFill} />
+      <AccessField />
       <View style={styles.heroHeader}><Ionicons name="shield-outline" size={19} color="#DCE2E8" /><Text style={styles.wordmark}>STAARWAARDD</Text><Text style={styles.edition}>HUB</Text></View>
       <View style={styles.heroCaption}><View style={styles.rule} /><Text style={styles.overline}>SEVEN WORLDS. ONE PRESENCE.</Text></View>
     </View>
     <LinearGradient colors={["#8D959E", "#30363D", "#A9B1BA", "#24292F"]} locations={[0, 0.28, 0.64, 1]} style={styles.chromeFrame}>
-      <View style={styles.accessPanel}>
+      <BlurView intensity={40} tint="dark" style={styles.accessPanel}>
         <View style={styles.panelTop}><Text style={styles.overline}>YOUR PRIVATE UNIVERSE</Text><Ionicons name="sparkles-outline" size={17} color="#BDC5CF" /></View>
-        <Text style={styles.entryTitle}>Step inside.</Text>
+        <Text style={styles.entryTitle}>Your universe{ '\n' }awaits.</Text>
         <Text style={styles.entryCopy}>Your life. Your worlds. All connected.</Text>
         <View style={styles.providerStack}>
-          {["Google", "Microsoft", "Email"].map(name => {
+          {["Google", "Microsoft", "Apple", "Email"].map(name => {
             const ready = enabled.includes(name.toLowerCase());
-            return <Pressable key={name} disabled={!ready} accessibilityRole="button" accessibilityLabel={"Continue with " + name + (ready ? "" : ", coming soon")} accessibilityState={{ disabled: !ready }}
+            return <Pressable key={name} disabled={!ready || Boolean(busy)} accessibilityRole="button" accessibilityLabel={"Continue with " + name + (ready ? "" : ", unavailable")} accessibilityState={{ disabled: !ready || Boolean(busy), busy: busy === name }}
               style={({ pressed }) => [styles.provider, pressed && styles.pressed]}
-              onPress={() => { if (Platform.OS === "web") window.location.assign(backendUrl("/api/auth/start/" + name.toLowerCase())); }}>
-              <View style={styles.providerIcon}>{name === "Email" ? <Ionicons name="mail-outline" size={19} color="#DDE2E9" /> : <Text style={styles.providerGlyph}>{name === "Google" ? "G" : "⊞"}</Text>}</View>
+              onPress={() => void connect(name)}>
+              <View style={styles.providerIcon}>{name === "Email" || name === "Apple" ? <Ionicons name={name === "Apple" ? "logo-apple" : "mail-outline"} size={19} color="#DDE2E9" /> : <Text style={styles.providerGlyph}>{name === "Google" ? "G" : "⊞"}</Text>}</View>
               <Text style={styles.providerLabel}>Continue with {name}</Text>
-              {!ready ? <Text style={styles.soon}>SOON</Text> : <Ionicons name="arrow-forward" size={16} color="#CFD6DE" />}
+              {busy === name ? <ActivityIndicator color="#CFD6DE" /> : !ready ? <Text style={styles.soon}>{checking ? 'CHECKING' : 'UNAVAILABLE'}</Text> : <Ionicons name="arrow-forward" size={16} color="#CFD6DE" />}
             </Pressable>;
           })}
         </View>
+        {error ? <Text accessibilityRole="alert" style={styles.copy}>{error}</Text> : null}
         <View style={styles.dividerRow}><View style={styles.divider} /><Text style={styles.dividerText}>DISCOVER FIRST</Text><View style={styles.divider} /></View>
         <Pressable accessibilityRole="button" accessibilityLabel="Explore as guest" onPress={() => router.replace("/guest")} style={({ pressed }) => [pressed && styles.pressed]}>
           <LinearGradient colors={["#F2F5F7", "#A3ADB8", "#E5E9EE"]} locations={[0, 0.53, 1]} style={styles.guestButton}>
@@ -63,7 +80,7 @@ export function SignInScreen() {
           </LinearGradient>
         </Pressable>
         <View style={styles.privateNote}><Ionicons name="lock-closed-outline" size={12} color="#858F9C" /><Text style={styles.privateText}>Guest access · sample worlds only</Text></View>
-      </View>
+      </BlurView>
     </LinearGradient>
     <View style={styles.portalStrip}>{PORTALS.slice(0, 3).map(item => <View key={item.id} style={styles.portalThumb}><Image source={item.image} style={styles.thumbImage} /><LinearGradient colors={["transparent", "rgba(0,0,0,0.88)"]} style={StyleSheet.absoluteFill} /><Text style={styles.thumbLabel}>{item.name.toUpperCase()}</Text></View>)}</View>
     <Pressable accessibilityRole="button" accessibilityLabel="Replay startup film" onPress={replay}><Text style={styles.entryFooter}>REPLAY THE ENTRANCE</Text></Pressable>
@@ -73,10 +90,18 @@ export function SignInScreen() {
 export function GuestPreview() {
   const router = useRouter();
   const [selected, setSelected] = useState<string | null>(null);
-  const portal = PORTALS.find(item => item.id === selected);
+  const portal = PREVIEW_WORLDS.find(item => item.id === selected);
+  const [speaking, setSpeaking] = useState(false);
+  useEffect(() => () => { void stopCompanion(); }, []);
+  const previewAtlas = () => {
+    setSpeaking(true);
+    void speakCompanion(`I’m Atlas. Welcome to STAARWAARDD. ${portal ? `This is ${portal.name}.` : 'Nine worlds to discover. Choose a portal and take a look around.'} This preview uses sample content; your personal system begins when you sign in.`, 'atlas', () => setSpeaking(false)).catch(() => setSpeaking(false));
+  };
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.brand}>STAARWAARDD · GUEST PREVIEW</Text>
     <Text style={styles.heading}>{portal ? portal.name : "Explore the portals"}</Text>
+    <View style={styles.panelTop}><Pressable accessibilityRole="button" accessibilityLabel="Hear Atlas guest welcome" onPress={previewAtlas} style={styles.button}><Text style={styles.label}>Hear Atlas</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Silence Atlas" onPress={() => { setSpeaking(false); void stopCompanion(); }} style={styles.button}><Text style={styles.label}>Quiet</Text></Pressable></View>
+    <Text style={styles.caption}>{speaking ? 'Device voice preview · tap Quiet to stop' : 'Meet Atlas · optional device voice preview'}</Text>
     <Text style={styles.copy}>Sample content only. Private accounts, uploads, messages, purchases and connected devices are unavailable.</Text>
     {portal ? <View style={styles.card}>
       <Image source={portal.image} style={styles.image} accessibilityLabel={portal.name + " portal artwork"} />
@@ -106,7 +131,7 @@ const styles = StyleSheet.create({
   rule: { width: 25, height: 1, backgroundColor: "#B0B8C1" },
   overline: { color: "#AAB3BE", fontSize: 9, fontWeight: "600", letterSpacing: 2.4 },
   chromeFrame: { width: "90%", maxWidth: 420, padding: 1, borderRadius: 25, marginTop: -28 },
-  accessPanel: { backgroundColor: "#0A0D12", borderRadius: 24, padding: 24 },
+  accessPanel: { backgroundColor: "rgba(10,12,16,.84)", borderRadius: 24, padding: 24, overflow: 'hidden' },
   panelTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 17 },
   entryTitle: { fontSize: 35, fontWeight: "700", letterSpacing: -1.3, color: "#F1F4F8", lineHeight: 42 },
   entryCopy: { fontSize: 13, lineHeight: 20, color: "#939EAC", marginTop: 5, marginBottom: 24 },

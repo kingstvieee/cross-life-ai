@@ -7,7 +7,7 @@ by the common backend authentication boundary. Fixture seed endpoints are disabl
 
 ## Hosted web sign-in
 
-Google, Microsoft and email use separate connections at a configured hosted
+Google, Microsoft, Apple and email use separate connections at a configured hosted
 identity broker. The backend performs the authorization-code exchange with S256
 PKCE and an expiring browser-bound, single-use state record. It reads verified
 identity from the broker's authenticated HTTPS userinfo endpoint. It does not
@@ -30,6 +30,8 @@ Configure these variables through the backend host's secret/settings UI:
 | AUTH_APP_URL | Exact HTTPS frontend return URL |
 | AUTH_CONNECTION_GOOGLE | Existing Google connection name |
 | AUTH_CONNECTION_MICROSOFT | Existing Microsoft connection name |
+| AUTH_CONNECTION_APPLE | Existing Apple connection name |
+| AUTH_NATIVE_REDIRECT_URL | Exactly frontend://auth-complete for the installed native scheme |
 | AUTH_CONNECTION_EMAIL | Existing hosted email-account connection name |
 | EXPO_PUBLIC_BACKEND_URL | Frontend's actual backend HTTPS origin |
 
@@ -38,8 +40,13 @@ verified email at userinfo. Enable each requested connection in the broker and
 register the exact callback URL. No provider account/project was created here.
 Missing or invalid configuration keeps methods disabled, with HTTP 503 on start.
 Prefer frontend/backend hosts under the same site to avoid third-party cookie
-blocking. Native OAuth callbacks and a native secure exchange are still unbuilt;
-the native screen accurately leaves account sign-in disabled.
+blocking. Native login uses the system authentication browser, app-held S256 PKCE, a fixed
+callback, and a 60-second single-use grant exchanged for a SecureStore session.
+Provider credentials remain on the backend; no bearer appears in the callback URL.
+Native methods remain unavailable until AUTH_NATIVE_REDIRECT_URL and each broker
+connection are configured. A fake-provider test does not establish live login.
+The hosted email connection must provide password registration, verification and
+recovery; those provider settings still need live acceptance testing.
 
 The legacy Emergent exchange is disabled by default. ENABLE_LEGACY_EMERGENT_AUTH
 is an explicit compatibility switch, not a replacement for the provider setup.

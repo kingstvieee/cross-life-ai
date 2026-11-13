@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { backendUrl } from './backend-config';
+import { nativeLogin } from './native-login';
 
 const KEY = 'staar_session_token';
 
@@ -23,6 +24,7 @@ type Ctx = {
   user: User | null;
   token: string | null;
   loading: boolean;
+  signIn: (provider: string) => Promise<boolean>;
   loginDemo: () => Promise<User | null>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -84,6 +86,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Compatibility only: guests never acquire an account or a server token.
   const loginDemo = useCallback(async () => null, []);
 
+  const signIn = useCallback(async (provider: string) => {
+    if (Platform.OS === 'web') {
+      window.location.assign(backendUrl('/api/auth/start/' + encodeURIComponent(provider)));
+      return false;
+    }
+    const data = await nativeLogin(provider);
+    if (!data) return false;
+    await storeToken(data.session_token);
+    setToken(data.session_token);
+    setUser(data.user);
+    return true;
+  }, []);
+
   const exchangeSessionId = useCallback(async (sessionId: string) => {
     const r = await fetch(backendUrl('/api/auth/session'), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -108,13 +123,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token]);
 
   const patchProfile = useCallback(async (patch: Partial<User>) => {
-    if (!user) return;
+    if (!user) throw new Error('Sign in before changing your profile.');
     const r = await api('/api/user/profile', { method: 'POST', body: JSON.stringify(patch) });
-    if (r.ok) setUser(await r.json());
+    if (!r.ok) throw new Error('Your preferences could not be saved. Please try again.');
+    setUser(await r.json());
   }, [api, user]);
 
-  const value = useMemo(() => ({ user, token, loading, loginDemo, logout, refresh, patchProfile, exchangeSessionId, api }),
-    [user, token, loading, loginDemo, logout, refresh, patchProfile, exchangeSessionId, api]);
+  const value = useMemo(() => ({ user, token, loading, signIn, loginDemo, logout, refresh, patchProfile, exchangeSessionId, api }),
+    [user, token, loading, signIn, loginDemo, logout, refresh, patchProfile, exchangeSessionId, api]);
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 }
