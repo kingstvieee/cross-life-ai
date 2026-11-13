@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "expo-router";
 import { useAuth } from "@/src/auth";
 import { backendUrl } from "@/src/backend-config";
 import { useStartupReplay } from "./startup-film";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CompanionPreview } from "./companion-preview";
 import { PORTALS } from "@/lib/staarwardd/portal-data";
 
 export function AccessBoundary({ children }: { children: React.ReactNode }) {
@@ -18,6 +20,7 @@ export function AccessBoundary({ children }: { children: React.ReactNode }) {
 }
 
 export function SignInScreen() {
+  const insets = useSafeAreaInsets();
   const replay = useStartupReplay();
   const router = useRouter();
   const [enabled, setEnabled] = useState<string[]>([]);
@@ -32,7 +35,7 @@ export function SignInScreen() {
     }
     return () => { active = false; };
   }, []);
-  return <ScrollView style={styles.screen} contentContainerStyle={styles.entry} showsVerticalScrollIndicator={false}>
+  return <ScrollView style={styles.screen} contentContainerStyle={[styles.entry, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 32) }]} showsVerticalScrollIndicator={false}>
     <View style={styles.hero}>
       {Platform.OS === "web" ? <Image source={require("@/assets/images/staarwardd/guardian-toronto.png")} style={[styles.heroImage, { filter: "grayscale(1)" } as any]} accessibilityLabel="Guardian above cinematic Toronto" /> : <View style={styles.nativeHero}><View style={styles.orbitOuter}><View style={styles.orbitInner}><Ionicons name="shield-outline" size={72} color="#D4DAE2" /></View></View></View>}
       <LinearGradient colors={["rgba(2,3,5,0.18)", "rgba(2,3,5,0.08)", "#030405"]} locations={[0, 0.48, 1]} style={StyleSheet.absoluteFill} />
@@ -65,25 +68,27 @@ export function SignInScreen() {
         <View style={styles.privateNote}><Ionicons name="lock-closed-outline" size={12} color="#858F9C" /><Text style={styles.privateText}>Guest access · sample worlds only</Text></View>
       </View>
     </LinearGradient>
-    <View style={styles.portalStrip}>{PORTALS.slice(0, 3).map(item => <View key={item.id} style={styles.portalThumb}><Image source={item.image} style={styles.thumbImage} /><LinearGradient colors={["transparent", "rgba(0,0,0,0.88)"]} style={StyleSheet.absoluteFill} /><Text style={styles.thumbLabel}>{item.name.toUpperCase()}</Text></View>)}</View>
     <Pressable accessibilityRole="button" accessibilityLabel="Replay startup film" onPress={replay}><Text style={styles.entryFooter}>REPLAY THE ENTRANCE</Text></Pressable>
   </ScrollView>;
 }
 
 export function GuestPreview() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [selected, setSelected] = useState<string | null>(null);
   const portal = PORTALS.find(item => item.id === selected);
-  return <ScrollView contentContainerStyle={styles.page}>
+  return <ScrollView style={styles.screen} contentContainerStyle={[styles.page, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 24 }]}>
     <Text style={styles.brand}>STAARWAARDD · GUEST PREVIEW</Text>
     <Text style={styles.heading}>{portal ? portal.name : "Explore the portals"}</Text>
     <Text style={styles.copy}>Sample content only. Private accounts, uploads, messages, purchases and connected devices are unavailable.</Text>
+    <CompanionPreview />
     {portal ? <View style={styles.card}>
-      <Image source={portal.image} style={styles.image} accessibilityLabel={portal.name + " portal artwork"} />
+      <Text style={styles.heading}>{portal.glyph}</Text>
       <Text style={styles.copy}>This is a sample view of {portal.name}. No workflow is running and no action has been executed.</Text>
       <Pressable style={styles.button} accessibilityRole="button" onPress={() => setSelected(null)}><Text style={styles.label}>Back to portals</Text></Pressable>
     </View> : PORTALS.map(item => <Pressable key={item.id} style={styles.card} accessibilityRole="button" accessibilityLabel={"Preview " + item.name} onPress={() => setSelected(item.id)}>
-      <Image source={item.image} style={styles.image} accessibilityLabel={item.name + " portal artwork"} />
+      <Text style={styles.heading}>{item.glyph}</Text>
+      <Text style={styles.overline}>{item.eyebrow}</Text>
       <Text style={styles.label}>{item.name}</Text>
       <Text style={styles.caption}>View sample</Text>
     </Pressable>)}
