@@ -1,3 +1,5 @@
+import { useAuth } from "@/src/auth";
+import { accountStorageKey } from "@/src/account-storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from "react";
 
@@ -16,11 +18,13 @@ type GuardianActivityContextValue = {
 
 const GuardianActivityContext = createContext<GuardianActivityContextValue | null>(null);
 
-function save(receipts: GuardianReceipt[]) {
-  return AsyncStorage.setItem(GUARDIAN_RECEIPTS_STORAGE_KEY, JSON.stringify(receipts)).catch(() => undefined);
+function save(receipts: GuardianReceipt[], key: string) {
+  return AsyncStorage.setItem(key, JSON.stringify(receipts)).catch(() => undefined);
 }
 
 export function GuardianActivityProvider({ children }: PropsWithChildren) {
+  const { user } = useAuth();
+  const storageKey = accountStorageKey(GUARDIAN_RECEIPTS_STORAGE_KEY, user?.user_id);
   const { memory, ready: memoryReady } = usePreferenceMemory();
   const [ready, setReady] = useState(false);
   const [receipts, setReceipts] = useState<GuardianReceipt[]>([]);
@@ -29,11 +33,11 @@ export function GuardianActivityProvider({ children }: PropsWithChildren) {
     if (!memoryReady) return;
     if (shouldClearGuardianReceipts(memory)) {
       setReceipts(clearGuardianReceipts());
-      void AsyncStorage.removeItem(GUARDIAN_RECEIPTS_STORAGE_KEY);
+      void AsyncStorage.removeItem(storageKey);
       setReady(true);
       return;
     }
-    AsyncStorage.getItem(GUARDIAN_RECEIPTS_STORAGE_KEY)
+    AsyncStorage.getItem(storageKey)
       .then((stored) => {
         if (!stored) return;
         try {
@@ -44,22 +48,22 @@ export function GuardianActivityProvider({ children }: PropsWithChildren) {
         }
       })
       .finally(() => setReady(true));
-  }, [memory, memoryReady]);
+  }, [memory, memoryReady, storageKey]);
 
   const record = useCallback((receipt: GuardianReceipt) => {
     const persisted = shouldPersistGuardianReceipts(memory);
     const nextReceipt = { ...receipt, persisted };
     setReceipts((current) => {
       const next = nextGuardianReceipts(current, nextReceipt);
-      if (persisted) void save(next);
+      if (persisted) void save(next, storageKey);
       return next;
     });
-  }, [memory]);
+  }, [memory, storageKey]);
 
   const erase = useCallback(() => {
     setReceipts(clearGuardianReceipts());
-    void AsyncStorage.removeItem(GUARDIAN_RECEIPTS_STORAGE_KEY);
-  }, []);
+    void AsyncStorage.removeItem(storageKey);
+  }, [storageKey]);
 
   const value = useMemo(() => ({ ready, receipts, record, erase }), [erase, ready, receipts, record]);
   return <GuardianActivityContext.Provider value={value}>{children}</GuardianActivityContext.Provider>;

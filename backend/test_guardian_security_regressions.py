@@ -37,3 +37,21 @@ def test_weave_revocation_removes_previously_contributed_context():
     assert arbitrate_portal_weave(w, RSF_WORKFLOW_ID)["portalWeave"]["arbitration"]["selected"]
     w["authority"]["revoked"] = True
     assert arbitrate_portal_weave(w, RSF_WORKFLOW_ID)["portalWeave"]["arbitration"]["selected"] == []
+
+def test_cancelled_worker_cannot_checkpoint_or_resume_work():
+    from guardian_workflow import claim_lease, cancel, checkpoint, recover_worker
+    w = claim_lease(new_workflow(), RSF_WORKFLOW_ID, owner="worker", fence=1)
+    w = cancel(w, RSF_WORKFLOW_ID, owner="worker", fence=1, reason="stop")
+    for operation in (
+        lambda: checkpoint(w, RSF_WORKFLOW_ID, owner="worker", fence=1, checkpoint_id="late", summary="late", idempotency_key="late"),
+        lambda: recover_worker(w, RSF_WORKFLOW_ID, owner="worker", fence=1),
+    ):
+        with pytest.raises(ValueError, match="workflow_cancelled"):
+            operation()
+
+
+def test_higher_fence_does_not_steal_live_lease():
+    from guardian_workflow import claim_lease
+    w = claim_lease(new_workflow(), RSF_WORKFLOW_ID, owner="worker-a", fence=1)
+    with pytest.raises(ValueError, match="lease_held"):
+        claim_lease(w, RSF_WORKFLOW_ID, owner="worker-b", fence=99)

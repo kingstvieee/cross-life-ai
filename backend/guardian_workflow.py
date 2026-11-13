@@ -89,6 +89,8 @@ def _approved(workflow: Dict[str, Any], scope: str) -> bool:
 
 
 def _require_lease(workflow: Dict[str, Any], owner: str, fence: int) -> None:
+    if workflow.get("status") == "cancelled" or (workflow.get("cancellation") or {}).get("kind") == "guardian-task":
+        raise ValueError("workflow_cancelled")
     lease = workflow.get("lease") or {}
     if lease.get("owner") != owner or int(lease.get("fence", -1)) != int(fence):
         raise ValueError("stale_or_missing_lease")
@@ -115,8 +117,16 @@ def claim_lease(workflow: Optional[Dict[str, Any]], workflow_id: str, *, owner: 
     if (current.get("cancellation") or {}).get("state") == "requested":
         raise ValueError("workflow_cancellation_requested")
     existing = current.get("lease")
-    if existing and existing.get("owner") != owner and int(existing.get("fence", 0)) >= fence:
-        raise ValueError("lease_held")
+    if existing:
+        try:
+            expiry = datetime.fromisoformat(str(existing.get("expiresAt")).replace("Z", "+00:00"))
+            active = expiry.tzinfo is not None and expiry > datetime.now(timezone.utc)
+        except ValueError:
+            active = False
+        if active and existing.get("owner") != owner:
+            raise ValueError("lease_held")
+        if int(fence) < int(existing.get("fence", 0)) or (not active and int(fence) <= int(existing.get("fence", 0))):
+            raise ValueError("stale_or_missing_lease")
     current["lease"] = {"owner": owner, "fence": int(fence), "state": "active", "expiresAt": (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()}
     current["status"] = "leased"
     current["worker"].update({"state": "leased", "attempt": int(current["worker"].get("attempt", 0)) + 1, "restartRecovered": False})
@@ -317,6 +327,10 @@ def reconcile(workflow: Optional[Dict[str, Any]], workflow_id: str, *, idempoten
     if requires_read and not _valid_authority(current, authority or {}, scope="read"):
         raise ValueError("read_authority_required")
     dispatch_item = next((item for item in current["dispatches"] if item.get("idempotencyKey") == idempotency_key), None)
+    if requires_read and dispatch_item:
+        read_grant = _matching_grant(current, authority or {}, scope="read")
+        if not set(dispatch_item.get("context", {}).get("portals", [])).issubset(set((read_grant or {}).get("portals", []))):
+            raise ValueError("read_authority_required")
     if outcome == "verified" and dispatch_item:
         if evidence.get("actionHash") != dispatch_item.get("actionHash") or evidence.get("inputVersion") != dispatch_item.get("actionVersion") or not evidence.get("acceptance") or not evidence.get("verifier"):
             raise ValueError("completion_evidence_required")
@@ -417,19 +431,19 @@ def render_status(workflow: Optional[Dict[str, Any]], workflow_id: str, *, reque
     """Render from canonical backend state; ignore model/caller-written completion text."""
     current = _require_workflow(workflow, workflow_id)
     status = current.get("status", "ready")
-    verified_dispatch_ids = {item.get("dispatchId") for item in current.get("dispatches", []) if item.get("state") == "verified"}
-    completion_evidence = any(
-        item.get("kind") == "effect-reconciliation"
-        and item.get("state") == "verified"
-        and item.get("dispatchId") in verified_dispatch_ids
-        and item.get("actionHash")
-        and item.get("inputVersion")
-        and item.get("acceptance")
-        and item.get("verifier")
-        for item in current.get("evidence", [])
-    )
-    unresolved_dispatch = any(item.get("state") in ("queued", "sent", "provider-reported-success", "reconciling") for item in current.get("dispatches", []))
-    if status == "completed" and (not completion_evidence or unresolved_dispatch):
+    dispatches = current.get("dispatches", [])
+    def accepted(item):
+        return item.get("state") == "verified" and any(
+            record.get("kind") == "effect-reconciliation"
+            and record.get("state") == "verified"
+            and record.get("dispatchId") == item.get("dispatchId")
+            and record.get("actionHash") == item.get("actionHash")
+            and record.get("inputVersion") == item.get("actionVersion")
+            and record.get("acceptance") and record.get("verifier")
+            and (record.get("evidence") or {}).get("effectState") in ("succeeded", "completed")
+            for record in current.get("evidence", [])
+        )
+    if status == "completed" and (not dispatches or not all(accepted(item) for item in dispatches)):
         status = "reconciling"
     if status == "cancelled" and (current.get("cancellation") or {}).get("state") != "verified":
         status = "reconciling"

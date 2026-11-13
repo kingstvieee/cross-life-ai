@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { usePathname, useRouter } from "expo-router";
 import { useAuth } from "@/src/auth";
@@ -9,7 +9,7 @@ export function AccessBoundary({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const path = usePathname();
   if (loading) return <View style={styles.page}><ActivityIndicator accessibilityLabel="Checking session" /></View>;
-  if (user && !user.is_demo) return <>{children}</>;
+  if (user && !user.is_demo) return <Fragment key={user.user_id}>{children}</Fragment>;
   // Keep every account provider unmounted in guest mode, including memory and activity.
   return path === "/guest" ? <GuestPreview /> : <SignInScreen />;
 }

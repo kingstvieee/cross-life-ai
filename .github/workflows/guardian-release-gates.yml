@@ -34,5 +34,6 @@ jobs:
           node-version: '24'
       - run: corepack enable
       - run: yarn install --frozen-lockfile --ignore-scripts
+      - run: node --test tests/account-storage.test.mjs
       - run: yarn exec tsc --noEmit
       - run: yarn expo export --platform web --no-bytecode

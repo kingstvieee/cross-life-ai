@@ -1,47 +1,40 @@
-# Guardian recovered-requirement evidence matrix
+# Guardian requirement and evidence matrix
 
-**Baseline:** `origin/main` at `bc878fd5d9648cfc20418010094d1e3e76fd619c` (2026-11-12). PR19 Guardian upgrades and PR20 Expo web repair are preserved. This matrix reconciles recovered v2.0 requirements against the newer canonical v2.2 behavior; it is not a downgrade plan.
+Canonical baseline: main at bc878fd5d9648cfc20418010094d1e3e76fd619c.
+The recovered older v2.0 source informs this reconciliation; it does not replace
+the newer v2.2 contracts. Private PDF/chat archives remain outside public Git.
 
-**Evidence labels:** `PASS` means current code/tests directly demonstrate the requirement; `PARTIAL` means a bounded slice exists but a control is missing; `GAP` means implementation/test work is required; `UNAVAILABLE` means the recovered artifact was not found in the authorized workspace and no execution result is inferred.
+| Requirement | Implemented boundary | Evidence and remaining limit |
+| --- | --- | --- |
+| Completion truth | HTTP clients cannot write completed/verified mission state; workflow rendering requires action/version-bound effect acceptance | Automated contract tests; no live workflow completion claimed |
+| Worker authority | Ordinary bearer sessions cannot lease, checkpoint, dispatch, mark sent or reconcile; worker identity is separate and default-denied | HTTP regression tests; no production worker enrollment or SCP deployment claimed |
+| Saved grants | Dispatch reads canonical scope, portal, action hash/version and revocation | Fake-provider/store regressions; grant provisioning is not exposed to clients |
+| Cancellation | Task stop is distinct from operation cancellation/compensation; late known success never becomes no-effect cancellation | Contract tests; no live cancellation/readback claimed |
+| Leases/retry | Expiry and fences checked; live lease cannot be stolen with a larger caller fence; cancelled worker cannot recover/checkpoint | State/store tests only; no continuous worker or 20-minute away proof |
+| Cross-portal privacy | Explicit access/share/enabled checks at common retrieval; pause suppresses context; policy rechecked before model dispatch; historical model context is not reused | Tests execute production definitions with fake storage; already-dispatched provider work cannot be recalled |
+| Private audio | Per-user opaque links, expiry, rotation and private no-store; missing expiry denied | Production function tests with fake TTS; live device/audio not calibrated |
+| Guest access | Explicit local sample portal route; account providers never mount; no guest user/bearer mint; legacy demo sessions denied | App compile/export, source review and backend denial tests |
+| Account isolation | Memory, activity and home preferences use account-specific keys; old unscoped values are not silently assigned or deleted | Pure storage-key tests; no guest access to these providers |
+| Web Google/Microsoft/email | Hosted code + PKCE exchange; browser-bound single-use state; authenticated userinfo; Secure HttpOnly session; exact-origin CSRF | Fake HTTPS identity-route tests; live provider connections/redirects must still be configured |
+| Native sign-in | Explicitly disabled until native callback/exchange is built and validated | No native OAuth claim |
+| Coordination | Plans are labelled prepared/not executed; fixture routes do not write device state | Production source regressions; live connectors remain unavailable |
+| Portal Weave | Canonical grants, typed private contributions, numeric version ordering, same-version conflict withholding, revocation recheck | Bounded deterministic contract; relevance-based minimal arbitration remains incomplete |
+| Speech/execution separation | Quiet fences speech without halting execution state; Toronto consent/noon policy | Deterministic tests; voice interruption/resume on device unverified |
+| Persona | Recovered 25 dialogue cases are source specifications | No model/persona pass or calibration claim |
+| T01–T12 | Some contract components covered by the automated suite | Original end-to-end acceptance tests remain NOT RUN |
+| Production SCP | Functional boundaries are in code | Production key management, immutable audit, distributed workers/queue and recovery deployment remain unbuilt |
+| Apple/TestFlight | Existing bundle identity retained | EAS owner/project/signing and device build unverified |
+| Web deployment | Existing project/repository preserved | Vercel reports account deployment blocked; backend and identity configuration absent from inspected project |
 
-| Priority | Requirement | Current evidence | File(s) | Test evidence / gap | Planned P0/P1 treatment |
-|---|---|---|---|---|---|
-| P0 | Independent speech, conversation, execution channels; Quiet cancels pending speech but never work | `speechQuiet` and speech request fencing exist; execution is not coupled to speech in backend workflow | `frontend/lib/staarwardd/audio-provider.tsx`, `backend/guardian_workflow.py` | `backend/test_guardian_workflow.py` covers lease/checkpoint only; no mute-while-work-continues assertion | Add typed channel state and explicit execution-preserving mute tests |
-| P1 | Proactive consent and Toronto-time greetings/check-ins; no routine interruption before noon | No durable proactive-consent/time-window contract found | `backend/guardian_workflow.py` (new policy contract) | No current tests | Add deterministic consent/window policy, defaulting to no proactive interruption |
-| P0 | Durable worker/queue/outbox, leases, checkpoints, retry/restart recovery | Per-user optimistic persistence, lease/checkpoint, replay-safe outbox exist; no worker attempts/restart/retry model | `backend/guardian_store.py`, `backend/guardian_workflow.py` | Existing lease/replay tests pass; restart/retry tests absent | Add durable worker attempts, retry state, restart recovery, duplicate-event tests |
-| P0 | Backend-authoritative state and completion evidence | Mission completion gate requires `VERIFIED_COMPLETE` and evidence | `backend/guardian_core.py`, `backend/guardian_routes.py` | `test_guardian_routes.py::test_completion_evidence_gate_survives_http_boundary` | Extend workflow completion to reject forged client completion/event claims |
-| P0 | Dispatch-time scoped authority, action hash/version, revocation checks | No dispatch boundary or authority version/hash model found | `backend/guardian_workflow.py` (new) | No tests | Add authority snapshot at dispatch, hash/version binding, revocation/fence checks |
-| P0 | Privacy boundaries across retrieval, dispatch, logs, caches | `filter_context` strips identity/presence/credentials/raw prompt; no dispatch/log/cache redaction contract | `backend/guardian_workflow.py` | Existing context filter test only | Reuse filter for dispatch/log/cache and test cross-user/private isolation |
-| P0 | Authenticated/private scoped audio | User-derived TTS is per-user keyed and returned as a short-lived scoped URL; fixed narration remains public by explicit visibility | `backend/server.py`, `frontend/lib/staarwardd/guardian-tts.ts` | Route logic uses expiry and private cache headers; live deployed fetch still requires a configured backend | Preserve public fixed narration while denying unclassified/expired private cache records |
-| P1 | Phone/watch continuity without claiming unbuilt watch support | Native iOS config exists; no watch target/implementation | `frontend/app.json` | No watch tests; no claim permitted | Add truthful capability contract: phone supported by native target; watch unavailable |
-| P0 | Corrections: cannot recall sent external requests; dispatch boundary persists; uncertainty reconciles | Current `cancel` queues `cancel-work`; `reconcile` allows unknown but lacks dispatch boundary/authority read gate | `backend/guardian_workflow.py` | Existing unknown test is incomplete | Separate requested-operation cancellation from task cancellation; persist boundary; require valid read authority for reconciliation; unknown remains reconciling |
-| P0 | Outbox is not exactly-once; provider receipt is not independent verification | Current outbox is a list with replay-safe checkpoint only | `backend/guardian_workflow.py` | No duplicate provider event/late success tests | Add at-least-once event dedupe and evidence provenance (`provider-receipt` not independent) |
-| P1 | Typed Portal Weave contributions/arbitration across seven domains | Seven canonical portal IDs exist; no typed weave contribution/arbitration backend contract | `backend/guardian_core.py`, `frontend/lib/staarwardd/portal-meta.ts` | No weave tests | Add typed contribution validation, privacy scope, deterministic arbitration across all seven domains |
-| P1 | Recovered package has 25 dialogue tests | The private recovery archive is now available and was source-audited; the cases are specifications, not executed model/persona evaluations | Private recovery workspace only; not copied into repository | Schema/source review complete; no claim that model/persona evaluation passed | Keep private; implement deterministic control coverage separately |
-| P1 | EAS candidate `3a21b2c8-424d-4dd6-a2fc-c3580125f64c` | No EAS auth/project metadata available in current environment | `frontend/app.json` | EAS ownership/slug/bundle cannot be verified without login | Prepare non-duplicating `eas.json` only after project ownership verification; report auth blocker |
-| P0 | Non-empty production backend configuration and actual health/routes/auth | Frontend falls back to empty backend URL; repository has no tracked env; server requires `MONGO_URL` and mounts Guardian routes through integration | `frontend/src/auth.tsx`, `frontend/lib/staarwardd/guardian-tts.ts`, `backend/server.py`, `backend/guardian_server_integration.py` | API probe requires deployed backend; local server requires private env; route tests are available | Add fail-fast backend URL resolution for native builds without inventing a host; verify route/auth via local tests and report runtime blocker |
+## Validation
 
-## Locked-surface impact
+The Guardian Release Gates workflow compiles backend modules, runs Guardian and
+identity-route tests, checks account storage isolation, runs TypeScript checking,
+and exports Expo web with --no-bytecode. Check the latest PR head's workflow result;
+earlier counts are not evidence for later commits. The test provider and fake
+storage do not establish live OAuth, database durability, or production security.
 
-This work is backend policy/state and documentation plus non-invasive native configuration validation. It does not rename portals, replace approved media, change package identity, alter audio defaults, add telemetry, create external connectors, add a watch target, publish, deploy, or change consent boundaries to permit background actions.
-
-## Verification status
-
-The recovered 25 dialogue cases are available in the private recovery workspace and were source-audited as specifications. They were not executed as model/persona evaluations, so no dialogue pass result is claimed. EAS candidate ownership and backend production reachability remain external/runtime checks until authorized credentials/configuration are available.
-
-## Branch validation evidence
-
-- Backend: `python3 -m pytest -q test_guardian_*.py` — **38 passed**; `python3 -m compileall -q .` — **passed**.
-- Frontend: `yarn exec tsc --noEmit` — **passed**; exact `yarn expo export --platform web --no-bytecode` — **passed**, generating `dist/index.html` (1,258 bytes) and 91 files after approved media copy.
-- Changed-file ESLint: `src/auth.tsx`, `src/backend-config.ts`, `src/coordination-sheet.tsx`, `app/scorecard.tsx`, and Guardian TTS files — **passed**; the auth effect was corrected without disabling the rule.
-- Native identity resolved from Expo config: name `STAAR Hub`, slug `frontend`, version `1.0.0`, iOS bundle `com.emergent.crosslifeai.z79271`, platforms `ios/android/web`.
-- EAS: `eas whoami` reports **Not logged in**; `project:info` cannot verify candidate ownership/linkage. No project was created, no candidate ID was linked, and no iOS build was started.
-- The production backend origin remains unresolved because no authorized non-empty `EXPO_PUBLIC_BACKEND_URL` was available. The new resolver fails explicitly instead of issuing misleading relative requests.
-
-## Recovered-source reconciliation completed on this branch
-
-- **Truthful renderer:** `POST /api/guardian/core/workflows/{workflow_id}/render` derives language from canonical workflow state, suppresses unverified completion, and records that caller/model text was ignored. Client mission patches cannot set `status=completed`; completion remains server-owned.
-- **Cancellation boundary:** task cancellation and operation cancellation remain separate. A task with no in-flight dispatch can be cancelled with explicit no-effect evidence. A task with queued/sent/provider-reported work remains `RECONCILING` until an evidence-backed outcome; no new lease or dispatch is accepted after cancellation is requested.
-- **Private audio:** user-derived TTS now uses per-user content keys plus short-lived scoped audio URLs and `private, no-store` headers. Fixed narration remains explicitly public. Unclassified legacy cache records are denied rather than silently treated as public.
-- **Recovered dialogue status:** all 25 dialogue cases were read as source specifications. JSON/schema presence is not model or persona execution evidence, so no dialogue case is labelled “passed.” The private PDFs/chat archive remains outside Git and the public repository.
-- **Focused new tests:** renderer forgery rejection, server-owned completion rejection, in-flight cancellation reconciliation, existing stale/revoked authority, duplicate-event, late-success, restart, privacy, mute-continuity, and seven-domain Portal Weave tests are included in the 38-test Guardian run.
+Provider and release configuration is documented in GUARDIAN_ACCESS_RELEASE.md.
+No new provider account, paid subscription, purchase, live device integration or
+App Store submission was made. Approved portal images, videos and bundle identity
+were preserved.
