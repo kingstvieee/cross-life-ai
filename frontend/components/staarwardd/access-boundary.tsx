@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { usePathname, useRouter } from "expo-router";
 import { useAuth } from "@/src/auth";
+import { backendUrl } from "@/src/backend-config";
 import { PORTALS } from "@/lib/staarwardd/portal-data";
 
 export function AccessBoundary({ children }: { children: React.ReactNode }) {
@@ -15,15 +16,32 @@ export function AccessBoundary({ children }: { children: React.ReactNode }) {
 
 export function SignInScreen() {
   const router = useRouter();
+  const [enabled, setEnabled] = useState<string[]>([]);
+  useEffect(() => {
+    let active = true;
+    if (Platform.OS === "web") {
+      try {
+        void fetch(backendUrl("/api/auth/providers")).then(r => r.ok ? r.json() : null).then(data => {
+          if (active && data) setEnabled(data.providers.filter((p: { id: string; enabled: boolean }) => p.enabled).map((p: { id: string }) => p.id));
+        }).catch(() => undefined);
+      } catch { /* Guest browsing works without a backend. */ }
+    }
+    return () => { active = false; };
+  }, []);
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.brand}>STAARWAARDD</Text>
     <Text style={styles.heading}>Your worlds. Your access.</Text>
     <Text style={styles.copy}>Sign in to your private hub, or explore the portals as a guest.</Text>
-    {["Google", "Microsoft", "Email"].map(name => <View key={name} style={styles.disabled} accessibilityLabel={name + " sign-in, setup pending"}>
-      <Text style={styles.label}>Continue with {name}</Text>
-      <Text style={styles.caption}>Setup pending</Text>
-    </View>)}
-    <Text style={styles.caption}>Account sign-in is awaiting identity-provider configuration. No account is created by this preview.</Text>
+    {["Google", "Microsoft", "Email"].map(name => {
+      const ready = enabled.includes(name.toLowerCase());
+      return <Pressable key={name} disabled={!ready} accessibilityRole="button" accessibilityState={{ disabled: !ready }}
+        style={ready ? styles.button : styles.disabled}
+        onPress={() => { if (Platform.OS === "web") window.location.assign(backendUrl("/api/auth/start/" + name.toLowerCase())); }}>
+        <Text style={styles.label}>Continue with {name}</Text>
+        {!ready && <Text style={styles.caption}>Setup pending</Text>}
+      </Pressable>;
+    })}
+    <Text style={styles.caption}>{Platform.OS === "web" ? "Sign-in methods activate when their identity-provider connections are configured. Guests can explore without an account." : "Native account sign-in is pending the app callback and signing setup. Guest previews remain available."}</Text>
     <Pressable accessibilityRole="button" style={styles.button} onPress={() => router.replace("/guest")}>
       <Text style={styles.label}>Explore as guest</Text>
     </Pressable>

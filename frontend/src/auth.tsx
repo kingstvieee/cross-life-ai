@@ -52,31 +52,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
-    if (!token) return new Response(JSON.stringify({ detail: 'sign_in_required' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+    if (!token && !user) return new Response(JSON.stringify({ detail: 'sign_in_required' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
     const headers = new Headers(init.headers);
     if (token) headers.set('Authorization', `Bearer ${token}`);
     if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-    return fetch(backendUrl(path), { ...init, headers });
-  }, [token]);
+    return fetch(backendUrl(path), { ...init, headers, credentials: 'include' });
+  }, [token, user]);
 
   const refresh = useCallback(async () => {
-    const t = await readToken();
-    if (t) {
-      try {
-        const r = await fetch(backendUrl('/api/auth/me'), { headers: { Authorization: `Bearer ${t}` } });
-        if (r.ok) {
-          const account = await r.json();
-          if (!account.is_demo && !String(account.user_id).startsWith('demo_')) {
-            setUser(account); setToken(t); setLoading(false); return;
-          }
+    try {
+      const t = await readToken();
+      const headers = new Headers();
+      if (t) headers.set('Authorization', `Bearer ${t}`);
+      const r = await fetch(backendUrl('/api/auth/me'), { headers, credentials: 'include' });
+      if (r.ok) {
+        const account = await r.json();
+        if (!account.is_demo && !String(account.user_id).startsWith('demo_')) {
+          setUser(account); setToken(t); setLoading(false); return;
         }
-        await storeToken(null);
-      } catch {
-        setUser(null); setToken(null); setLoading(false); return;
       }
-    }
-    setUser(null); setToken(null);
-    setLoading(false);
+      await storeToken(null);
+    } catch { /* A missing backend or offline session never creates a guest account. */ }
+    setUser(null); setToken(null); setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -101,22 +98,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    if (token) {
-      try { await fetch(backendUrl('/api/auth/logout'), { method: 'POST', headers: { Authorization: `Bearer ${token}` } }); } catch { /* Clear local credentials even when offline. */ }
-    }
+    try {
+      const headers = new Headers();
+      if (token) headers.set('Authorization', `Bearer ${token}`);
+      await fetch(backendUrl('/api/auth/logout'), { method: 'POST', headers, credentials: 'include' });
+    } catch { /* Local access is cleared even when the server is unavailable. */ }
     await storeToken(null);
     setToken(null); setUser(null);
   }, [token]);
 
   const patchProfile = useCallback(async (patch: Partial<User>) => {
-    if (!token) return;
-    const r = await fetch(backendUrl('/api/user/profile'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(patch),
-    });
+    if (!user) return;
+    const r = await api('/api/user/profile', { method: 'POST', body: JSON.stringify(patch) });
     if (r.ok) setUser(await r.json());
-  }, [token]);
+  }, [api, user]);
 
   const value = useMemo(() => ({ user, token, loading, loginDemo, logout, refresh, patchProfile, exchangeSessionId, api }),
     [user, token, loading, loginDemo, logout, refresh, patchProfile, exchangeSessionId, api]);

@@ -20,6 +20,7 @@ from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, Strea
 from emergentintegrations.llm.openai import OpenAITextToSpeech
 from guardian_server_integration import ensure_guardian_indexes, install_guardian_core
 from style_swap_routes import build_style_swap_router
+from identity_routes import SESSION_COOKIE, app_origin, build_identity_router, ensure_identity_indexes
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -220,6 +221,7 @@ def user_public(u: Dict[str, Any]) -> Dict[str, Any]:
 @app.on_event("startup")
 async def startup():
     await ensure_guardian_indexes(db)
+    await ensure_identity_indexes(db)
     await db.users.create_index("email", unique=True)
     await db.users.create_index("user_id", unique=True)
     await db.user_sessions.create_index("session_token", unique=True)
@@ -300,7 +302,8 @@ async def auth_me(user: Dict[str, Any] = None, authorization: Optional[str] = He
 
 
 @api_router.post("/auth/logout")
-async def auth_logout(authorization: Optional[str] = Header(None)):
+async def auth_logout(response: Response, authorization: Optional[str] = Header(None)):
+    response.delete_cookie(SESSION_COOKIE, path="/", secure=True, httponly=True, samesite="none")
     if authorization and authorization.startswith("Bearer "):
         await db.user_sessions.delete_one({"session_token": authorization[7:]})
     return {"ok": True}
@@ -1106,13 +1109,28 @@ async def root():
 
 install_guardian_core(app, db=db, get_current_user=get_current_user)
 app.include_router(build_style_swap_router(get_current_user=get_current_user, rate_limit=rate_limit), prefix="/api")
+app.include_router(build_identity_router(db=db, limiter=rate_limit), prefix="/api")
 app.include_router(api_router)
+
+@app.middleware("http")
+async def cookie_session_boundary(request: Request, call_next):
+    # Web login uses an HttpOnly cookie. Native/worker clients retain bearer auth.
+    has_bearer = any(key.lower() == b"authorization" for key, _ in request.scope["headers"])
+    cookie_token = request.cookies.get(SESSION_COOKIE)
+    if cookie_token and not has_bearer:
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            origin = app_origin()
+            if not origin or request.headers.get("origin") != origin:
+                return Response(content='{"detail":"csrf_origin_denied"}', status_code=403, media_type="application/json")
+        request.scope["headers"].append((b"authorization", ("Bearer " + cookie_token).encode()))
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,
-    # Bearer-token auth (no cookies) — wildcard origins are safe only without credentials.
-    allow_credentials=False,
-    allow_origins=["*"],
+    # Credentialed web requests are allowed only from the configured application.
+    allow_credentials=bool(app_origin()),
+    allow_origins=[app_origin()] if app_origin() else ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -20,7 +20,7 @@ SOURCE = Path(__file__).with_name("server.py")
 NAMES = {
     "_portal_share_allowed", "_authorized_portal_states", "_gather_signals",
     "_context_policy_key", "_context_for_dispatch", "_tts_cached_line", "get_tts",
-    "auth_demo", "auth_session", "reseed_demo", "load_scenario",
+    "auth_demo", "auth_session", "reseed_demo", "load_scenario", "cookie_session_boundary",
 }
 
 
@@ -153,3 +153,31 @@ def test_coordination_does_not_simulate_device_state_writes():
         if isinstance(node, ast.AsyncFunctionDef) and node.name in ("coordinate_evening", "coordinate_morning"):
             calls = [n for n in ast.walk(node) if isinstance(n, ast.Call)]
             assert not any(isinstance(n.func, ast.Attribute) and n.func.attr == "update_one" for n in calls)
+
+@pytest.mark.parametrize("origin", [None, "https://attacker.example.test"])
+def test_cookie_mutations_require_configured_origin(origin):
+    scope = {"type": "http", "method": "POST", "path": "/api/user/privacy", "headers": [(b"cookie", b"__Host-staar_session=test-token")]}
+    if origin:
+        scope["headers"].append((b"origin", origin.encode()))
+    request = Request(scope)
+    called = []
+
+    async def next_handler(_):
+        called.append(True)
+        return Response("ok")
+
+    ns = production(SESSION_COOKIE="__Host-staar_session", app_origin=lambda: "https://app.example.test")
+    assert run(ns["cookie_session_boundary"](request, next_handler)).status_code == 403
+    assert called == []
+
+
+def test_cookie_auth_is_forwarded_only_for_exact_app_origin():
+    request = Request({"type": "http", "method": "POST", "path": "/api/user/privacy",
+                       "headers": [(b"cookie", b"__Host-staar_session=test-token"), (b"origin", b"https://app.example.test")]})
+
+    async def next_handler(req):
+        assert req.headers["authorization"] == "Bearer test-token"
+        return Response("ok")
+
+    ns = production(SESSION_COOKIE="__Host-staar_session", app_origin=lambda: "https://app.example.test")
+    assert run(ns["cookie_session_boundary"](request, next_handler)).status_code == 200
