@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
 import { useAuth } from "@/src/auth";
 import { backendUrl } from "@/src/backend-config";
+import { useStartupReplay } from "./startup-film";
 import { PORTALS } from "@/lib/staarwardd/portal-data";
 
 export function AccessBoundary({ children }: { children: React.ReactNode }) {
@@ -17,6 +18,7 @@ export function AccessBoundary({ children }: { children: React.ReactNode }) {
 }
 
 export function SignInScreen() {
+  const replay = useStartupReplay();
   const router = useRouter();
   const [enabled, setEnabled] = useState<string[]>([]);
   useEffect(() => {
@@ -64,7 +66,7 @@ export function SignInScreen() {
       </View>
     </LinearGradient>
     <View style={styles.portalStrip}>{PORTALS.slice(0, 3).map(item => <View key={item.id} style={styles.portalThumb}><Image source={item.image} style={styles.thumbImage} /><LinearGradient colors={["transparent", "rgba(0,0,0,0.88)"]} style={StyleSheet.absoluteFill} /><Text style={styles.thumbLabel}>{item.name.toUpperCase()}</Text></View>)}</View>
-    <Text style={styles.entryFooter}>THE GUARDIAN IS WAITING.</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel="Replay startup film" onPress={replay}><Text style={styles.entryFooter}>REPLAY THE ENTRANCE</Text></Pressable>
   </ScrollView>;
 }
 
