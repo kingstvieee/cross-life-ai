@@ -1,6 +1,6 @@
 """Server-owned OAuth authorization-code + PKCE login for a hosted identity broker.
 
-Google, Microsoft and email are separate configured broker connections. No
+Google, Microsoft, Apple and email are separate configured broker connections. No
 provider is advertised as enabled until its server configuration is present.
 Native sessions use a short-lived, single-use grant bound to app-held PKCE.
 """
@@ -114,13 +114,25 @@ def build_identity_router(*, db, limiter=None, now=None, http_client=None):
                   "state": state, "code_challenge": challenge, "code_challenge_method": "S256",
                   "connection": cfg["connection"], "prompt": "login"}
         response = RedirectResponse(cfg["AUTH_AUTHORIZE_URL"] + ("&" if "?" in cfg["AUTH_AUTHORIZE_URL"] else "?") + urlencode(params), status_code=302)
-        response.set_cookie(FLOW_COOKIE, browser_binding, max_age=300, secure=True, httponly=True, samesite="lax", path="/")
+        response.set_cookie(FLOW_COOKIE, browser_binding, max_age=300, secure=True, httponly=True, samesite="none", path="/")
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "no-referrer"
         return response
 
     @router.get("/callback")
-    async def callback(request: Request, state: str = "", code: str = ""):
+    async def callback_get(request: Request):
+        return await _handle_callback(request)
+
+    @router.post("/callback")
+    async def callback_post(request: Request):
+        form = await request.form(max_files=0, max_fields=8)
+        return await _handle_callback(request, form_state=form.get("state"), form_code=form.get("code"))
+
+    async def _handle_callback(request: Request, *, form_state=None, form_code=None):
+        state = form_state or request.query_params.get("state", "")
+        code = form_code or request.query_params.get("code", "")
+        if not isinstance(state, str) or not isinstance(code, str):
+            raise HTTPException(401, "invalid_login_callback")
         if limiter:
             limiter("identity-callback:" + (request.client.host if request.client else "unknown"), 60, 3600)
         binding = request.cookies.get(FLOW_COOKIE)
@@ -171,7 +183,7 @@ def build_identity_router(*, db, limiter=None, now=None, http_client=None):
                 raise HTTPException(409, "existing_account_link_required")
             user = {"user_id": user_id, "email": email, "name": identity.get("name"),
                     "picture": identity.get("picture"), "onboarding_complete": False,
-                    "autonomy": "suggest", "companion": "guardian", "is_demo": False,
+                    "autonomy": "suggest", "companion": "atlas", "is_demo": False,
                     "portals_enabled": ["creativity", "work", "home", "wellbeing", "relationships", "community", "style"],
                     "portal_privacy": {p: {"access": True, "share": False, "confirm": True}
                                        for p in ("creativity", "work", "home", "wellbeing", "relationships", "community", "style")},
@@ -186,7 +198,7 @@ def build_identity_router(*, db, limiter=None, now=None, http_client=None):
                 "user_id": user_id, "expires_at": clock() + timedelta(seconds=60),
             })
             response = RedirectResponse(native_redirect() + "?" + urlencode({"code": code}), status_code=303)
-            response.delete_cookie(FLOW_COOKIE, path="/", secure=True, httponly=True, samesite="lax")
+            response.delete_cookie(FLOW_COOKIE, path="/", secure=True, httponly=True, samesite="none")
             response.headers["Cache-Control"] = "no-store"
             response.headers["Referrer-Policy"] = "no-referrer"
             return response
@@ -195,7 +207,7 @@ def build_identity_router(*, db, limiter=None, now=None, http_client=None):
                                           "created_at": clock(), "expires_at": clock() + timedelta(days=7)})
         response = RedirectResponse(cfg["AUTH_APP_URL"], status_code=303)
         response.set_cookie(SESSION_COOKIE, token, max_age=604800, secure=True, httponly=True, samesite="none", path="/")
-        response.delete_cookie(FLOW_COOKIE, path="/", secure=True, httponly=True, samesite="lax")
+        response.delete_cookie(FLOW_COOKIE, path="/", secure=True, httponly=True, samesite="none")
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "no-referrer"
         return response

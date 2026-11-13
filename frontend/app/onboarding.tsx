@@ -15,11 +15,11 @@ const AUTONOMY = [
 
 export default function Onboarding() {
   const router = useRouter();
-  const { patchProfile } = useAuth();
+  const { patchProfile, user } = useAuth();
   const [step, setStep] = useState(0);
   const [portals, setPortals] = useState<string[]>([...PORTAL_IDS]);
   const [autonomy, setAutonomy] = useState<'suggest'|'assist'|'proactive'>('assist');
-  const [companion, setCompanion] = useState<CompanionId>('atlas');
+  const [companion, setCompanion] = useState<CompanionId>(user?.companion ?? 'atlas');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => () => { void stopCompanion(); }, []);
@@ -91,6 +91,14 @@ export default function Onboarding() {
           <View>
             <Text style={styles.h}>Choose your companion.</Text>
             <Text style={styles.p}>The same abilities and account history. Two distinct presences. Guardian remains the central system.</Text>
+            {user?.companion === 'guardian' && (
+              <Pressable accessibilityRole="radio" accessibilityState={{ checked: companion === 'guardian' }}
+                onPress={() => { setCompanion('guardian'); void stopCompanion(); }}
+                style={[styles.card, companion === 'guardian' && styles.cardOn]}>
+                <Text style={styles.cardTitle}>Guardian (keep current)</Text>
+                <Text style={styles.cardDesc}>Central system only.</Text>
+              </Pressable>
+            )}
             {COMPANIONS.map((c) => (
               <View key={c.id} style={[styles.card, companion === c.id && styles.cardOn]}>
                 <Pressable accessibilityRole="radio" accessibilityState={{ checked: companion === c.id }}

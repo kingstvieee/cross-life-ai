@@ -170,3 +170,36 @@ def test_email_collision_requires_explicit_linking(monkeypatch):
     assert response.status_code == 409
     assert db.user_sessions.docs == []
     assert db.users.docs[0]["user_id"] == "legacy-user"
+
+
+def test_form_post_callback_uses_same_binding_pkce_and_single_use_state(monkeypatch):
+    client, db, requests = make(monkeypatch)
+    start, params = begin(client)
+    assert 'SameSite=none' in start.headers['set-cookie']
+    state = params['state'][0]
+    result = client.post('/api/auth/callback', data={'state': state, 'code': 'form-code'})
+    assert result.status_code == 303
+    assert len(db.user_sessions.docs) == 1
+    assert parse_qs(requests[0].content.decode())['code'] == ['form-code']
+    assert client.post('/api/auth/callback', data={'state': state, 'code': 'form-code'}).status_code == 401
+
+
+def test_form_post_without_browser_binding_cannot_consume_flow(monkeypatch):
+    client, db, requests = make(monkeypatch)
+    _, params = begin(client)
+    client.cookies.clear()
+    result = client.post('/api/auth/callback', data={'state': params['state'][0], 'code': 'form-code'})
+    assert result.status_code == 401
+    assert len(db.auth_flows.docs) == 1
+    assert db.user_sessions.docs == [] and requests == []
+
+
+def test_new_account_defaults_to_atlas_but_existing_guardian_is_preserved(monkeypatch):
+    client, db, _ = make(monkeypatch)
+    _, params = begin(client)
+    client.get('/api/auth/callback', params={'state': params['state'][0], 'code': 'code'})
+    assert db.users.docs[0]['companion'] == 'atlas'
+    db.users.docs[0]['companion'] = 'guardian'
+    _, params = begin(client)
+    client.get('/api/auth/callback', params={'state': params['state'][0], 'code': 'code'})
+    assert db.users.docs[0]['companion'] == 'guardian'

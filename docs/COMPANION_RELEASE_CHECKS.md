@@ -7,7 +7,8 @@ the existing bundle, approved app icon, startup film and seven permission domain
 ## Required server configuration
 
 Use the existing identity broker described in GUARDIAN_ACCESS_RELEASE.md. Configure
-Google, Microsoft, Apple and hosted email independently. Set the native callback
+Google, Microsoft and hosted email independently. Leave Apple disabled until its
+broker connection handles Apple client-secret JWTs and verified userinfo. Set the native callback
 to `frontend://auth-complete`. Set the Expo public backend origin to the real HTTPS
 API. No secret belongs in the frontend or repository.
 
@@ -39,3 +40,14 @@ API. No secret belongs in the frontend or repository.
 
 Source/runtime checks are useful evidence for this patch; they do not close these
 device and production gates. No hardware purchase or provider spend was made.
+
+## Turn boundary
+
+The non-streaming route delegates to the independently importable chat_turn
+module and uses the saved account companion with GPT-5.2. Existing account rate
+limits and portal authorization remain in place. Effective policy and account
+identity are rechecked before model dispatch and after the response; changed
+context, empty replies and provider errors do not save history. Tests import the
+module directly instead of compiling production function bodies from the AST.
+New broker accounts default to Atlas; re-presented onboarding preserves an
+existing Guardian choice and offers an explicit keep-current card.

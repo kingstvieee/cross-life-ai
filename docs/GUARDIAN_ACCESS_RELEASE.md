@@ -13,7 +13,13 @@ PKCE and an expiring browser-bound, single-use state record. It reads verified
 identity from the broker's authenticated HTTPS userinfo endpoint. It does not
 trust an email supplied by the app or automatically link existing accounts by
 email. Provider access tokens remain server-side. Web sessions use Secure,
-HttpOnly cookies; cookie mutations require the exact configured app Origin.
+HttpOnly cookies; account mutations require the exact configured app Origin.
+The OAuth callback accepts GET query parameters and POST form fields through the
+same handler. Its short-lived browser-binding cookie is Secure, HttpOnly and
+SameSite=None so cross-site form_post can return it. Only POST /api/auth/callback
+bypasses session-Origin checks; it still requires matching one-use state and
+browser binding, and never inherits an old session bearer. All other cookie
+mutations keep exact-origin CSRF checks.
 Bearer authentication remains available for existing native sessions and workers.
 
 Configure these variables through the backend host's secret/settings UI:
@@ -45,6 +51,12 @@ callback, and a 60-second single-use grant exchanged for a SecureStore session.
 Provider credentials remain on the backend; no bearer appears in the callback URL.
 Native methods remain unavailable until AUTH_NATIVE_REDIRECT_URL and each broker
 connection are configured. A fake-provider test does not establish live login.
+Leave AUTH_CONNECTION_APPLE unset until the hosted broker is confirmed to handle
+Apple’s JWT client-secret lifecycle (.p8/team/key ID) and verified-email userinfo.
+This backend exchanges a broker authorization code; it does not implement direct
+Apple token exchange or generate Apple client-secret JWTs. Callback-route tests
+do not establish live Apple login.
+
 The hosted email connection must provide password registration, verification and
 recovery; those provider settings still need live acceptance testing.
 

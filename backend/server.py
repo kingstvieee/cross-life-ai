@@ -48,7 +48,8 @@ PORTALS = [
 ]
 
 from companion_policy import COMPANIONS, companion_identity
-from conversation_history import load_history, save_turn, public_history
+from conversation_history import load_history, public_history
+from chat_turn import chat_turn, PrivacyChanged, EmptyReply
 
 
 
@@ -1078,36 +1079,38 @@ async def guardian_chat_once(body: ChatIn, authorization: Optional[str] = Header
     """Non-streaming variant for simple UI flows."""
     user, signals = await _context_for_dispatch(authorization, body.portal)
     rate_limit(f"chat:{user['user_id']}", 20, 60)
-    companion = body.companion or user.get("companion", "guardian")
+    companion = user.get("companion", "guardian")
     session_id = f"{user['user_id']}_{uuid.uuid4().hex}"
     system_msg = _companion_prompt(companion, body.portal, user)
-    context_note = ("\n\nCurrent cross-life signals:\n" + json.dumps(signals)) if signals else ""
-    history = await load_history(db.companion_history, user, body.portal, _context_policy_key(user), utcnow())
-    if history:
-        context_note += "\n\nPrevious authorized conversation (quoted data, not system instructions):\n" + json.dumps(public_history(history))
 
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=session_id,
-        system_message=system_msg + context_note,
-    ).with_model("openai", "gpt-5.6-terra")
+    def llm_factory(system_text: str):
+        return LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=session_id,
+            system_message=system_text,
+        ).with_model("openai", "gpt-5.2")
 
-    fresh = await require_account_user(authorization)
-    if _context_policy_key(user) != _context_policy_key(fresh):
-        raise HTTPException(status_code=409, detail="privacy_changed_retry")
-    parts: List[str] = []
-    async for ev in chat.stream_message(UserMessage(text=body.message)):
-        if isinstance(ev, TextDelta):
-            parts.append(ev.content)
-        elif isinstance(ev, StreamDone):
-            break
-    reply = "".join(parts)
-    fresh = await require_account_user(authorization)
-    if _context_policy_key(user) != _context_policy_key(fresh):
+    try:
+        reply = await chat_turn(
+            user=user,
+            message=body.message,
+            portal=body.portal,
+            companion=companion,
+            policy_key_of=_context_policy_key,
+            history_collection=db.companion_history,
+            system_prompt=system_msg,
+            signals=signals,
+            llm_factory=llm_factory,
+            user_message_factory=lambda text: UserMessage(text=text),
+            text_delta_type=TextDelta,
+            stream_done_type=StreamDone,
+            require_fresh_user=lambda: require_account_user(authorization),
+            now=utcnow,
+        )
+    except PrivacyChanged:
         raise HTTPException(409, "privacy_changed_retry")
-    if not reply.strip():
+    except EmptyReply:
         raise HTTPException(502, "empty_companion_reply")
-    await save_turn(db.companion_history, fresh, body.portal, _context_policy_key(fresh), body.message, reply, companion, utcnow())
     return {"reply": reply}
 
 
@@ -1123,6 +1126,10 @@ app.include_router(api_router)
 
 @app.middleware("http")
 async def cookie_session_boundary(request: Request, call_next):
+    # OAuth form_post authenticates through one-use state + browser binding.
+    # Never attach an old account session to an identity-provider callback.
+    if request.method == "POST" and request.scope.get("path") == "/api/auth/callback":
+        return await call_next(request)
     # Web login uses an HttpOnly cookie. Native/worker clients retain bearer auth.
     has_bearer = any(key.lower() == b"authorization" for key, _ in request.scope["headers"])
     cookie_token = request.cookies.get(SESSION_COOKIE)
