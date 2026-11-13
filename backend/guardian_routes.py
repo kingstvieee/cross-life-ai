@@ -174,7 +174,7 @@ def build_guardian_router(*, db: Any, get_current_user: Any, get_trusted_worker:
             raise HTTPException(status_code=400, detail="mission_id_is_immutable")
         if "user_id" in body.patch or "userId" in body.patch:
             raise HTTPException(status_code=400, detail="user_scope_is_immutable")
-        if body.patch.get("status") == "completed":
+        if body.patch.get("status") == "completed" or body.ledger_state == "VERIFIED_COMPLETE" or "lastVerifiedUpdate" in body.patch:
             raise HTTPException(status_code=400, detail="completion_is_server_owned")
 
         try:

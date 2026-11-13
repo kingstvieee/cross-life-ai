@@ -52,7 +52,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
-    const headers = new Headers(init.headers as any);
+    if (!token) return new Response(JSON.stringify({ detail: 'sign_in_required' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+    const headers = new Headers(init.headers);
     if (token) headers.set('Authorization', `Bearer ${token}`);
     if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
     return fetch(backendUrl(path), { ...init, headers });
@@ -63,26 +64,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (t) {
       try {
         const r = await fetch(backendUrl('/api/auth/me'), { headers: { Authorization: `Bearer ${t}` } });
-        if (r.ok) { setUser(await r.json()); setToken(t); setLoading(false); return; }
+        if (r.ok) {
+          const account = await r.json();
+          if (!account.is_demo && !String(account.user_id).startsWith('demo_')) {
+            setUser(account); setToken(t); setLoading(false); return;
+          }
+        }
         await storeToken(null);
       } catch {
         setUser(null); setToken(null); setLoading(false); return;
       }
     }
-    // No valid session — judges get an instant demo session automatically.
-    try {
-      const r = await fetch(backendUrl('/api/auth/demo'), { method: 'POST' });
-      if (r.ok) {
-        const data = await r.json();
-        await storeToken(data.session_token);
-        setToken(data.session_token);
-        setUser(data.user ?? null);
-      } else {
-        setUser(null); setToken(null);
-      }
-    } catch {
-      setUser(null); setToken(null);
-    }
+    setUser(null); setToken(null);
     setLoading(false);
   }, []);
 
@@ -91,15 +84,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timer);
   }, [refresh]);
 
-  const loginDemo = useCallback(async () => {
-    const r = await fetch(backendUrl('/api/auth/demo'), { method: 'POST' });
-    if (!r.ok) return null;
-    const data = await r.json();
-    await storeToken(data.session_token);
-    setToken(data.session_token);
-    setUser(data.user);
-    return data.user;
-  }, []);
+  // Compatibility only: guests never acquire an account or a server token.
+  const loginDemo = useCallback(async () => null, []);
 
   const exchangeSessionId = useCallback(async (sessionId: string) => {
     const r = await fetch(backendUrl('/api/auth/session'), {
@@ -115,7 +101,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    if (token) await fetch(backendUrl('/api/auth/logout'), { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+    if (token) {
+      try { await fetch(backendUrl('/api/auth/logout'), { method: 'POST', headers: { Authorization: `Bearer ${token}` } }); } catch { /* Clear local credentials even when offline. */ }
+    }
     await storeToken(null);
     setToken(null); setUser(null);
   }, [token]);

@@ -93,7 +93,11 @@ def _require_lease(workflow: Dict[str, Any], owner: str, fence: int) -> None:
     if lease.get("owner") != owner or int(lease.get("fence", -1)) != int(fence):
         raise ValueError("stale_or_missing_lease")
     expires_at = lease.get("expiresAt")
-    if expires_at and datetime.fromisoformat(str(expires_at).replace("Z", "+00:00")) <= datetime.now(timezone.utc):
+    try:
+        expiry = datetime.fromisoformat(str(expires_at).replace("Z", "+00:00"))
+        if expiry.tzinfo is None or expiry <= datetime.now(timezone.utc):
+            raise ValueError("lease_expired")
+    except (TypeError, ValueError):
         raise ValueError("lease_expired")
 
 
@@ -183,6 +187,8 @@ def _matching_grant(current: Dict[str, Any], authority: Mapping[str, Any], *, sc
     saved = current.get("authority") or {}
     if not authority or saved.get("revoked") or int(authority.get("version", -1)) != int(saved.get("version", 0)):
         return None
+    if scope not in set(saved.get("scopes", [])):
+        return None
     grants = list(saved.get("grants", []))
     if scope == "portal-weave":
         grants = list(saved.get("portalGrants", []))
@@ -200,6 +206,8 @@ def _matching_grant(current: Dict[str, Any], authority: Mapping[str, Any], *, sc
         if action_version is not None and grant.get("actionVersion") != action_version:
             continue
         if action_hash is not None and grant.get("actionHash") != action_hash:
+            continue
+        if not set(grant.get("portals", [])).issubset(set(saved.get("portals", []))):
             continue
         if sorted(authority.get("portals", [])) != sorted(grant.get("portals", [])):
             continue
@@ -356,11 +364,13 @@ def add_portal_contribution(workflow: Optional[Dict[str, Any]], workflow_id: str
 
 def arbitrate_portal_weave(workflow: Optional[Dict[str, Any]], workflow_id: str) -> Dict[str, Any]:
     current = _require_workflow(workflow, workflow_id)
-    candidates = current["portalWeave"]["contributions"]
+    saved = current.get("authority") or {}
+    valid_grants = {g.get("grantId"): g for g in saved.get("portalGrants", []) if g.get("state") == "active" and not g.get("revoked") and g.get("version") == saved.get("version")}
+    candidates = [] if saved.get("revoked") else [item for item in current["portalWeave"]["contributions"] if item.get("authorityGrantId") in valid_grants and item.get("portalId") in valid_grants[item["authorityGrantId"]].get("portals", []) and item.get("portalId") in saved.get("portals", [])]
     selected: List[Mapping[str, Any]] = []
     conflicts: List[Mapping[str, Any]] = []
     def version_key(value: Any) -> tuple:
-        return tuple(int(part) if part.isdigit() else part for part in str(value).replace("-", ".").split("."))
+        return tuple((0, int(part)) if part.isdigit() else (1, part) for part in str(value).lower().lstrip("v").replace("-", ".").split("."))
     for portal_id in PORTAL_DOMAINS:
         portal_items = [item for item in candidates if item.get("portalId") == portal_id and item.get("state") == "candidate" and item.get("privacyScope") == "private"]
         portal_items = sorted(portal_items, key=lambda item: (version_key(item.get("version", "0")), item.get("contributionId", "")), reverse=True)
