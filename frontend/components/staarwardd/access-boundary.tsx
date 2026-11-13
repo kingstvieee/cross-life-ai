@@ -32,7 +32,7 @@ export function SignInScreen() {
   }, []);
   return <ScrollView style={styles.screen} contentContainerStyle={styles.entry} showsVerticalScrollIndicator={false}>
     <View style={styles.hero}>
-      <Image source={require("@/assets/images/staarwardd/guardian-toronto.png")} style={styles.heroImage} accessibilityLabel="Guardian above cinematic Toronto" />
+      {Platform.OS === "web" ? <Image source={require("@/assets/images/staarwardd/guardian-toronto.png")} style={[styles.heroImage, { filter: "grayscale(1)" } as any]} accessibilityLabel="Guardian above cinematic Toronto" /> : <View style={styles.nativeHero}><View style={styles.orbitOuter}><View style={styles.orbitInner}><Ionicons name="shield-outline" size={72} color="#D4DAE2" /></View></View></View>}
       <LinearGradient colors={["rgba(2,3,5,0.18)", "rgba(2,3,5,0.08)", "#030405"]} locations={[0, 0.48, 1]} style={StyleSheet.absoluteFill} />
       <View style={styles.heroHeader}><Ionicons name="shield-outline" size={19} color="#DCE2E8" /><Text style={styles.wordmark}>STAARWAARDD</Text><Text style={styles.edition}>HUB</Text></View>
       <View style={styles.heroCaption}><View style={styles.rule} /><Text style={styles.overline}>SEVEN WORLDS. ONE PRESENCE.</Text></View>
@@ -93,7 +93,10 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#030405" },
   entry: { flexGrow: 1, backgroundColor: "#030405", alignItems: "center", paddingBottom: 32 },
   hero: { width: "100%", height: 300, maxWidth: 1100, overflow: "hidden", backgroundColor: "#090C11" },
-  heroImage: { width: "100%", height: "100%", resizeMode: "cover", opacity: 0.82 },
+  heroImage: { width: "100%", height: "100%", resizeMode: "contain", opacity: 0.82 },
+  nativeHero: { flex: 1, alignItems: "center", justifyContent: "center" },
+  orbitOuter: { width: 220, height: 220, borderRadius: 110, borderWidth: 1, borderColor: "#67727F", alignItems: "center", justifyContent: "center", backgroundColor: "#080C12" },
+  orbitInner: { width: 180, height: 180, borderRadius: 90, borderWidth: 2, borderColor: "#B9C3CF", alignItems: "center", justifyContent: "center" },
   heroHeader: { position: "absolute", top: 28, left: 24, right: 24, flexDirection: "row", alignItems: "center", gap: 10 },
   wordmark: { color: "#ECF0F5", fontSize: 14, fontWeight: "800", letterSpacing: 3 },
   edition: { color: "#87919C", fontSize: 9, letterSpacing: 2, marginLeft: "auto" },
