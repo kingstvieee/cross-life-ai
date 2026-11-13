@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { AuthProvider } from "@/src/auth";
+import { AccessBoundary } from "@/components/staarwardd/access-boundary";
 import { StaarAudioProvider } from "@/lib/staarwardd/audio-provider";
 import { PreferenceMemoryProvider } from "@/lib/staarwardd/preference-memory";
 import { HomeSafetyProvider } from "@/lib/staarwardd/home-safety-provider";
@@ -29,6 +30,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#080B14" }}>
       <SafeAreaProvider>
         <AuthProvider>
+          <AccessBoundary>
           <PreferenceMemoryProvider>
             <GuardianActivityProvider>
               <HomeSafetyProvider>
@@ -48,6 +50,7 @@ export default function RootLayout() {
               </HomeSafetyProvider>
             </GuardianActivityProvider>
           </PreferenceMemoryProvider>
+          </AccessBoundary>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

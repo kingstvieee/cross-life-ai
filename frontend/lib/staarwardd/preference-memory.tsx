@@ -1,3 +1,5 @@
+import { useAuth } from "@/src/auth";
+import { accountStorageKey } from "@/src/account-storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from "react";
 
@@ -19,37 +21,39 @@ type MemoryContextValue = {
 
 const MemoryContext = createContext<MemoryContextValue | null>(null);
 
-function save(memory: PreferenceMemory) {
-  return AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(memory)).catch(() => undefined);
+function save(memory: PreferenceMemory, key: string) {
+  return AsyncStorage.setItem(key, JSON.stringify(memory)).catch(() => undefined);
 }
 
 export function PreferenceMemoryProvider({ children }: PropsWithChildren) {
+  const { user } = useAuth();
+  const storageKey = accountStorageKey(STORAGE_KEY, user?.user_id);
   const [ready, setReady] = useState(false);
   const [memory, setMemory] = useState<PreferenceMemory>(DEFAULT_MEMORY);
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY)
+    AsyncStorage.getItem(storageKey)
       .then((stored) => {
         if (!stored) return;
         try { setMemory({ ...DEFAULT_MEMORY, ...JSON.parse(stored) }); } catch { setMemory(DEFAULT_MEMORY); }
       })
       .finally(() => setReady(true));
-  }, []);
+  }, [storageKey]);
 
   const setAndSave = useCallback((producer: (current: PreferenceMemory) => PreferenceMemory) => {
     setMemory((current) => {
       const next = producer(current);
-      void save(next);
+      void save(next, storageKey);
       return next;
     });
-  }, []);
+  }, [storageKey]);
 
   const enable = useCallback(() => setAndSave((current) => ({ ...current, consented: true, learnedAt: current.learnedAt ?? new Date().toISOString() })), [setAndSave]);
   const disable = useCallback(() => setAndSave((current) => ({ ...current, consented: false, autoApplyInApp: false, activityHistoryEnabled: false })), [setAndSave]);
   const update = useCallback((patch: Partial<Omit<PreferenceMemory, "consented" | "learnedAt">>) => setAndSave((current) => current.consented ? { ...current, ...patch, learnedAt: new Date().toISOString() } : current), [setAndSave]);
   const learnPortal = useCallback((preferredPortal: PortalId) => setAndSave((current) => current.consented ? { ...current, preferredPortal, learnedAt: new Date().toISOString() } : current), [setAndSave]);
   const rememberScene = useCallback((preferredRoom: RoomPreference, preferredScene: ScenePreference) => setAndSave((current) => current.consented ? { ...current, preferredRoom, preferredScene, learnedAt: new Date().toISOString() } : current), [setAndSave]);
-  const erase = useCallback(() => { setMemory(DEFAULT_MEMORY); void AsyncStorage.removeItem(STORAGE_KEY); }, []);
+  const erase = useCallback(() => { setMemory(DEFAULT_MEMORY); void AsyncStorage.removeItem(storageKey); }, [storageKey]);
 
   const value = useMemo(() => ({ ready, memory, enable, disable, update, learnPortal, rememberScene, erase }), [disable, enable, erase, learnPortal, memory, ready, rememberScene, update]);
   return <MemoryContext.Provider value={value}>{children}</MemoryContext.Provider>;

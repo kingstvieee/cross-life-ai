@@ -1,6 +1,7 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Header, Request
 from fastapi.responses import StreamingResponse, Response
 import hashlib
+import secrets
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -19,6 +20,7 @@ from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, Strea
 from emergentintegrations.llm.openai import OpenAITextToSpeech
 from guardian_server_integration import ensure_guardian_indexes, install_guardian_core
 from style_swap_routes import build_style_swap_router
+from identity_routes import SESSION_COOKIE, app_origin, build_identity_router, ensure_identity_indexes
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -164,7 +166,37 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[
     user = await db.users.find_one({"user_id": session["user_id"]}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=401, detail="user_not_found")
+    if user.get("is_demo") or str(user.get("user_id", "")).startswith("demo_"):
+        raise HTTPException(status_code=403, detail="demo_guest_read_only")
     return user
+
+
+async def require_account_user(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
+    """Require a real account for mutations and provider/model dispatch."""
+    user = await get_current_user(authorization)
+    if user.get("is_demo"):
+        raise HTTPException(status_code=403, detail="demo_guest_read_only")
+    return user
+
+
+async def _authorized_portal_states(user: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """Return only share-authorized portal state; paused users yield no context."""
+    if user.get("cross_life_paused"):
+        return {}
+    allowed = [portal["id"] for portal in PORTALS if _portal_share_allowed(user, portal["id"])]
+    states: Dict[str, Dict[str, Any]] = {}
+    for portal_id in allowed:
+        doc = await db.portal_state.find_one({"user_id": user["user_id"], "portal": portal_id}, {"_id": 0})
+        if doc:
+            states[portal_id] = doc.get("data", {})
+    return states
+
+
+def _portal_share_allowed(user: Dict[str, Any], portal_id: str) -> bool:
+    prefs = (user.get("portal_privacy", {}) or {}).get(portal_id, {}) or {}
+    return (not user.get("cross_life_paused") and not user.get("is_demo")
+            and portal_id in user.get("portals_enabled", [])
+            and prefs.get("access") is True and prefs.get("share") is True)
 
 
 def user_public(u: Dict[str, Any]) -> Dict[str, Any]:
@@ -189,6 +221,7 @@ def user_public(u: Dict[str, Any]) -> Dict[str, Any]:
 @app.on_event("startup")
 async def startup():
     await ensure_guardian_indexes(db)
+    await ensure_identity_indexes(db)
     await db.users.create_index("email", unique=True)
     await db.users.create_index("user_id", unique=True)
     await db.user_sessions.create_index("session_token", unique=True)
@@ -206,6 +239,8 @@ async def shutdown_db_client():
 # ============================================================
 @api_router.post("/auth/session")
 async def auth_session(body: SessionExchange):
+    if os.environ.get("ENABLE_LEGACY_EMERGENT_AUTH") != "true":
+        raise HTTPException(status_code=503, detail="identity_provider_not_configured")
     async with httpx.AsyncClient(timeout=15) as h:
         r = await h.get(
             "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
@@ -218,6 +253,8 @@ async def auth_session(body: SessionExchange):
     name = data.get("name")
     picture = data.get("picture")
     session_token = data.get("session_token")
+    if not isinstance(email, str) or "@" not in email or not isinstance(session_token, str) or not session_token:
+        raise HTTPException(status_code=401, detail="invalid_identity_response")
 
     existing = await db.users.find_one({"email": email}, {"_id": 0})
     if existing:
@@ -225,7 +262,7 @@ async def auth_session(body: SessionExchange):
         await db.users.update_one({"user_id": user_id}, {"$set": {"name": name, "picture": picture}})
     else:
         user_id = f"user_{uuid.uuid4().hex[:12]}"
-        default_privacy = {p["id"]: {"access": True, "share": True, "confirm": False} for p in PORTALS}
+        default_privacy = {p["id"]: {"access": True, "share": False, "confirm": True} for p in PORTALS}
         await db.users.insert_one({
             "user_id": user_id,
             "email": email,
@@ -254,36 +291,8 @@ async def auth_session(body: SessionExchange):
 
 @api_router.post("/auth/demo")
 async def auth_demo(request: Request):
-    """Create ephemeral demo session so judges can experience app instantly."""
-    rate_limit(f"demo:{client_ip(request)}", 30, 3600)
-    demo_email = f"demo_{uuid.uuid4().hex[:8]}@staar.demo"
-    user_id = f"demo_{uuid.uuid4().hex[:10]}"
-    default_privacy = {p["id"]: {"access": True, "share": True, "confirm": False} for p in PORTALS}
-    await db.users.insert_one({
-        "user_id": user_id,
-        "email": demo_email,
-        "name": "Demo Guest",
-        "picture": None,
-        "onboarding_complete": True,
-        "autonomy": "assist",
-        "companion": "guardian",
-        "portals_enabled": [p["id"] for p in PORTALS],
-        "portal_privacy": default_privacy,
-        "cross_life_paused": False,
-        "is_demo": True,
-        "created_at": utcnow(),
-    })
-    session_token = f"demo_{uuid.uuid4().hex}"
-    await db.user_sessions.insert_one({
-        "session_token": session_token,
-        "user_id": user_id,
-        "expires_at": utcnow() + timedelta(days=1),
-        "created_at": utcnow(),
-    })
-    # Seed demo data (Work overload scenario)
-    await _seed_demo_data(user_id)
-    user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
-    return {"session_token": session_token, "user": user_public(user)}
+    """Guest preview is local-only; never mint a production guest bearer."""
+    raise HTTPException(status_code=410, detail="use_local_guest_preview")
 
 
 @api_router.get("/auth/me")
@@ -293,7 +302,8 @@ async def auth_me(user: Dict[str, Any] = None, authorization: Optional[str] = He
 
 
 @api_router.post("/auth/logout")
-async def auth_logout(authorization: Optional[str] = Header(None)):
+async def auth_logout(response: Response, authorization: Optional[str] = Header(None)):
+    response.delete_cookie(SESSION_COOKIE, path="/", secure=True, httponly=True, samesite="none")
     if authorization and authorization.startswith("Bearer "):
         await db.user_sessions.delete_one({"session_token": authorization[7:]})
     return {"ok": True}
@@ -301,7 +311,7 @@ async def auth_logout(authorization: Optional[str] = Header(None)):
 
 @api_router.post("/user/profile")
 async def update_profile(update: OnboardingUpdate, authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     patch = {k: v for k, v in update.dict().items() if v is not None}
     if patch:
         await db.users.update_one({"user_id": user["user_id"]}, {"$set": patch})
@@ -311,7 +321,7 @@ async def update_profile(update: OnboardingUpdate, authorization: Optional[str] 
 
 @api_router.post("/user/privacy")
 async def update_privacy(update: PrivacyUpdate, authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     patch = {k: v for k, v in update.dict().items() if v is not None}
     if patch:
         await db.users.update_one({"user_id": user["user_id"]}, {"$set": patch})
@@ -342,7 +352,7 @@ class PortalStateUpdate(BaseModel):
 
 @api_router.post("/portal/{portal_id}/state")
 async def set_portal_state(portal_id: str, body: PortalStateUpdate, authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     if len(json.dumps(body.data)) > 20_000:
         raise HTTPException(status_code=413, detail="payload_too_large")
     await db.portal_state.update_one(
@@ -473,19 +483,14 @@ async def _seed_morning_data(user_id: str):
 
 @api_router.post("/demo/reseed")
 async def reseed_demo(authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
-    await _seed_demo_data(user["user_id"])
-    return {"ok": True}
+    await require_account_user(authorization)
+    raise HTTPException(status_code=410, detail="use_local_guest_preview")
 
 
 @api_router.post("/demo/scenario")
 async def load_scenario(body: ScenarioIn, authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
-    if body.scenario == "morning":
-        await _seed_morning_data(user["user_id"])
-    else:
-        await _seed_demo_data(user["user_id"])
-    return {"ok": True, "scenario": body.scenario}
+    await require_account_user(authorization)
+    raise HTTPException(status_code=410, detail="use_local_guest_preview")
 
 
 @api_router.get("/community/events")
@@ -496,12 +501,15 @@ async def community_events():
 # ============================================================
 # CROSS-LIFE CONTEXT ENGINE
 # ============================================================
-async def _gather_signals(user_id: str) -> List[Dict[str, Any]]:
+async def _gather_signals(user_id: str, user: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """Analyze portal state and produce structured cross-life context signals."""
+    user = user or await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    if not user or user.get("user_id") != user_id:
+        return []
+    if user.get("cross_life_paused"):
+        return []
     signals: List[Dict[str, Any]] = []
-    states = {}
-    async for doc in db.portal_state.find({"user_id": user_id}, {"_id": 0}):
-        states[doc["portal"]] = doc.get("data", {})
+    states = await _authorized_portal_states(user)
 
     work = states.get("work", {})
     if work.get("workload") == "high" or work.get("stress", 0) >= 7:
@@ -509,7 +517,7 @@ async def _gather_signals(user_id: str) -> List[Dict[str, Any]]:
             "sourcePortal": "work",
             "type": "workload",
             "severity": "high",
-            "confidence": 0.91,
+            "evidenceType": "user-reported-rule",
             "timestamp": utcnow().isoformat(),
             "suggestedTargets": ["wellbeing", "home"],
             "summary": "Work has been unusually heavy. Multiple urgent items unresolved.",
@@ -524,7 +532,7 @@ async def _gather_signals(user_id: str) -> List[Dict[str, Any]]:
                 "sourcePortal": "community",
                 "type": "upcoming_event",
                 "severity": "medium",
-                "confidence": 0.97,
+                "evidenceType": "demo-fixture",
                 "time": event["time"],
                 "location": event["location"],
                 "suggestedTargets": ["style", "home", "relationships"],
@@ -538,17 +546,17 @@ async def _gather_signals(user_id: str) -> List[Dict[str, Any]]:
             "sourcePortal": "wellbeing",
             "type": "poor_recovery",
             "severity": "high",
-            "confidence": 0.93,
+            "evidenceType": "user-reported-rule",
             "timestamp": utcnow().isoformat(),
             "suggestedTargets": ["work", "style"],
-            "summary": f"You slept {wellbeing.get('sleep_hours', 4.5)} hours. Recovery is low ahead of your 9:30 AM presentation.",
+            "summary": f"Poor sleep was reported. Recorded sleep hours: {wellbeing.get('sleep_hours', 'not supplied')}.",
         })
     elif wellbeing.get("stress", 0) >= 6:
         signals.append({
             "sourcePortal": "wellbeing",
             "type": "elevated_stress",
             "severity": "medium",
-            "confidence": 0.88,
+            "evidenceType": "user-reported-rule",
             "suggestedTargets": ["home", "work"],
             "summary": "Physiological stress is elevated. Decompression window recommended.",
         })
@@ -561,22 +569,24 @@ async def guardian_signals(authorization: Optional[str] = Header(None)):
     user = await get_current_user(authorization)
     if user.get("cross_life_paused"):
         return {"paused": True, "signals": []}
-    signals = await _gather_signals(user["user_id"])
+    signals = await _gather_signals(user["user_id"], user)
     return {"paused": False, "signals": signals}
 
 
 @api_router.post("/guardian/coordinate-evening")
 async def coordinate_evening(body: CoordinateIn, authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     user_id = user["user_id"]
-    signals = await _gather_signals(user_id)
+    if user.get("cross_life_paused"):
+        raise HTTPException(status_code=409, detail="cross_life_paused")
+    shared_states = await _authorized_portal_states(user)
+    signals = await _gather_signals(user_id, user)
 
     # Build coordinated actions across affected portals
     actions: List[Dict[str, Any]] = []
     now_iso = utcnow().isoformat()
 
-    work_state = await db.portal_state.find_one({"user_id": user_id, "portal": "work"}, {"_id": 0}) or {}
-    work_data = work_state.get("data", {})
+    work_data = shared_states.get("work", {})
     urgent = [t for t in work_data.get("tasks", []) if t.get("priority") == "urgent" and not t.get("done")]
     needs_you = [t for t in urgent if t.get("needs_you")]
     can_wait = [t for t in work_data.get("tasks", []) if t.get("priority") in ("medium", "low") and not t.get("done")]
@@ -624,49 +634,33 @@ async def coordinate_evening(body: CoordinateIn, authorization: Optional[str] = 
         actions.append({
             "portal": "community",
             "title": "Departure orchestrated",
-            "detail": "Route checked. Uber pre-booked for 7:20 PM. Doors + lights lock automatically.",
-            "items": [f"→ {event['location']}", "ETA 7:55 PM", "Weather: rain"],
+            "detail": "Departure plan prepared for review. No ride, door, or light action was sent. · DEMO FIXTURE",
+            "items": [f"→ {event['location']}", "Target departure: 7:20 PM", "Weather: rain · verify before leaving"],
         })
 
+    actions = [{**action, "state": "prepared", "execution": "not_requested",
+                "detail": "Sample proposal for review. Nothing was executed."}
+               for action in actions if _portal_share_allowed(user, action["portal"])]
     coordination = {
         "id": f"coord_{uuid.uuid4().hex[:10]}",
         "user_id": user_id,
         "created_at": utcnow(),
         "created_at_iso": now_iso,
-        "approved": body.approve,
+        "approved": False,
+        "state": "prepared",
+        "execution": "not_requested",
         "signals": signals,
         "actions": actions,
         "scenario": "evening",
         "trigger": "work_overload_with_evening_commitment",
         "spoken_summary": (
-            "Here's what I did. Work is re-sorted — only what truly needs you stays tonight, the rest waits until tomorrow. "
-            "I queued a twenty minute decompression and muted your notifications. Home is prepped, warm lights at seven. "
-            "Your eight PM with Amara at The Broadview is protected. Leave by seven twenty. Rain is likely, so I laid out the wool overcoat and waterproof boots. "
-            "Go finish that one task. I've got the rest of your evening."
+            "I prepared a review plan for this evening. Work priorities are grouped — a decompression suggestion is ready, and the departure route is a draft for your approval. "
+            "No ride, door, light, message, or external action was sent. Each connected step requires an authorized integration and your explicit approval. · DEMO FIXTURE"
         ),
     }
     await db.guardian_activity.insert_one(coordination)
 
-    # Apply state mutations (mark decompression started, delay routine, etc.)
-    if body.approve:
-        await db.portal_state.update_one(
-            {"user_id": user_id, "portal": "wellbeing"},
-            {"$set": {"data.decompression_active": True, "data.last_break": now_iso}},
-            upsert=True,
-        )
-        await db.portal_state.update_one(
-            {"user_id": user_id, "portal": "home"},
-            {"$set": {"data.routine_started": True, "data.evening_lights": "warm", "data.lights": "warm"}},
-            upsert=True,
-        )
-        await db.portal_state.update_one(
-            {"user_id": user_id, "portal": "style"},
-            {"$set": {"data.planned_outfit": {
-                "name": "Rain-ready smart casual",
-                "items": ["Charcoal knit", "Wool overcoat", "Waterproof chelsea boots"],
-            }}},
-            upsert=True,
-        )
+    # This route prepares a fixture plan only; it never mutates device or portal state.
 
     return {
         "coordination_id": coordination["id"],
@@ -677,13 +671,15 @@ async def coordinate_evening(body: CoordinateIn, authorization: Optional[str] = 
 
 @api_router.post("/guardian/coordinate-morning")
 async def coordinate_morning(body: CoordinateIn, authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     user_id = user["user_id"]
-    signals = await _gather_signals(user_id)
+    if user.get("cross_life_paused"):
+        raise HTTPException(status_code=409, detail="cross_life_paused")
+    shared_states = await _authorized_portal_states(user)
+    signals = await _gather_signals(user_id, user)
     now_iso = utcnow().isoformat()
 
-    wb_state = await db.portal_state.find_one({"user_id": user_id, "portal": "wellbeing"}, {"_id": 0}) or {}
-    sleep_hours = wb_state.get("data", {}).get("sleep_hours", 4.5)
+    sleep_hours = shared_states.get("wellbeing", {}).get("sleep_hours", 4.5)
 
     actions = [
         {
@@ -712,12 +708,17 @@ async def coordinate_morning(body: CoordinateIn, authorization: Optional[str] = 
         },
     ]
 
+    actions = [{**action, "state": "prepared", "execution": "not_requested",
+                "detail": "Sample proposal for review. Nothing was executed."}
+               for action in actions if _portal_share_allowed(user, action["portal"])]
     coordination = {
         "id": f"coord_{uuid.uuid4().hex[:10]}",
         "user_id": user_id,
         "created_at": utcnow(),
         "created_at_iso": now_iso,
-        "approved": body.approve,
+        "approved": False,
+        "state": "prepared",
+        "execution": "not_requested",
         "signals": signals,
         "actions": actions,
         "scenario": "morning",
@@ -726,30 +727,12 @@ async def coordinate_morning(body: CoordinateIn, authorization: Optional[str] = 
             "Good morning. You slept about four and a half hours, so I softened the day. "
             "Your nine thirty presentation is safe — I drafted your standup notes and pushed your first meeting by thirty minutes. "
             "Start with water and ten minutes of light stretching. I laid out a low effort outfit that still reads sharp. "
-            "Take it slow. I've got the rest."
+            "Take it slow. Each suggested step above is a prepared draft — nothing was sent or executed. · DEMO FIXTURE"
         ),
     }
     await db.guardian_activity.insert_one(coordination)
 
-    if body.approve:
-        await db.portal_state.update_one(
-            {"user_id": user_id, "portal": "wellbeing"},
-            {"$set": {"data.gentle_start_active": True}},
-            upsert=True,
-        )
-        await db.portal_state.update_one(
-            {"user_id": user_id, "portal": "style"},
-            {"$set": {"data.planned_outfit": {
-                "name": "Low-effort confidence",
-                "items": ["Soft merino crew", "Dark tapered trousers", "White leather sneakers"],
-            }}},
-            upsert=True,
-        )
-        await db.portal_state.update_one(
-            {"user_id": user_id, "portal": "home"},
-            {"$set": {"data.lights": "sunrise", "data.temperature": 22}},
-            upsert=True,
-        )
+    # This route prepares a fixture plan only; it never mutates device or portal state.
 
     return {
         "coordination_id": coordination["id"],
@@ -773,24 +756,15 @@ def _tts() -> OpenAITextToSpeech:
 
 @api_router.post("/guardian/speak")
 async def guardian_speak(body: SpeakIn, authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     rate_limit(f"tts:{user['user_id']}", 30, 60)
     coord = await db.guardian_activity.find_one(
         {"id": body.coordination_id, "user_id": user["user_id"]}, {"_id": 0}
     )
     if not coord:
         raise HTTPException(status_code=404, detail="coordination_not_found")
-    text = coord.get("spoken_summary") or "Coordination complete. Everything is handled."
-    key = hashlib.sha256(f"{text}|onyx|1.0|tts-1|mp3".encode()).hexdigest()[:32]
-    cached = await db.tts_cache.find_one({"key": key}, {"_id": 0, "key": 1})
-    if not cached:
-        try:
-            audio = await _tts().generate_speech(text=text, model="tts-1", voice="onyx")
-        except Exception:
-            logger.exception("tts generation failed")
-            raise HTTPException(status_code=502, detail="tts_failed")
-        await db.tts_cache.insert_one({"key": key, "audio": audio, "created_at": utcnow()})
-    return {"url": f"/api/tts/{key}.mp3"}
+    text = coord.get("spoken_summary") or "Coordination plan prepared. No external action was sent."
+    return await _tts_cached_line(text, private_user_id=user["user_id"])
 
 
 GREETING_TEXT = "Welcome. I am your Guardian. Seven worlds, one presence. Let us begin."
@@ -816,17 +790,41 @@ PORTAL_INTROS = {
 }
 
 
-async def _tts_cached_line(text: str) -> dict:
-    """Generate (or reuse cached) Onyx TTS for a fixed line; returns url + text."""
-    key = hashlib.sha256(f"{text}|onyx|1.0|tts-1|mp3".encode()).hexdigest()[:32]
-    cached = await db.tts_cache.find_one({"key": key}, {"_id": 0, "key": 1})
+async def _tts_cached_line(text: str, private_user_id: Optional[str] = None) -> dict:
+    """Generate TTS with public fixed narration or a short-lived private scoped link."""
+    content_key = hashlib.sha256(f"{text}|onyx|1.0|tts-1|mp3".encode()).hexdigest()[:32]
+    query = {"content_key": content_key, "private_user_id": private_user_id}
+    if private_user_id is None:
+        query = {"key": content_key, "visibility": "public"}
+    cached = await db.tts_cache.find_one(query, {"_id": 0, "key": 1, "visibility": 1, "expires_at": 1})
+    stale_private_key = None
+    if cached and private_user_id is not None:
+        expires_at = cached.get("expires_at")
+        if expires_at and expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if not expires_at or expires_at <= utcnow():
+            stale_private_key = cached.get("key")
+            cached = None
+    key = cached.get("key") if cached else (content_key if private_user_id is None else f"{content_key}.{secrets.token_urlsafe(18)}")
     if not cached:
         try:
             audio = await _tts().generate_speech(text=text, model="tts-1", voice="onyx")
         except Exception:
             logger.exception("tts generation failed")
             raise HTTPException(status_code=502, detail="tts_failed")
-        await db.tts_cache.insert_one({"key": key, "audio": audio, "created_at": utcnow()})
+        cache_doc = {
+            "key": key,
+            "content_key": content_key,
+            "audio": audio,
+            "created_at": utcnow(),
+            "visibility": "private" if private_user_id else "public",
+            "private_user_id": private_user_id,
+            "expires_at": utcnow() + timedelta(minutes=10) if private_user_id else None,
+        }
+        if stale_private_key:
+            await db.tts_cache.update_one({"key": stale_private_key, "private_user_id": private_user_id}, {"$set": cache_doc})
+        else:
+            await db.tts_cache.insert_one(cache_doc)
     return {"url": f"/api/tts/{key}.mp3", "text": text}
 
 
@@ -909,9 +907,9 @@ async def scorecard_image(
 @api_router.post("/guardian/speak-line")
 async def guardian_speak_line(body: SpeakLineIn, authorization: Optional[str] = Header(None)):
     """Speak a short Guardian line (e.g., a remembered preference). Auth + rate limited."""
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     rate_limit(f"tts:{user['user_id']}", 30, 60)
-    return await _tts_cached_line(body.text)
+    return await _tts_cached_line(body.text, private_user_id=user["user_id"])
 
 
 @api_router.get("/guardian/greeting")
@@ -967,10 +965,21 @@ async def get_tts(key: str):
     doc = await db.tts_cache.find_one({"key": key})
     if not doc:
         raise HTTPException(status_code=404, detail="not_found")
+    if doc.get("visibility") == "private":
+        expires_at = doc.get("expires_at")
+        if expires_at and expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if not expires_at or expires_at <= utcnow():
+            raise HTTPException(status_code=403, detail="audio_link_expired")
+        cache_control = "private, no-store"
+    elif doc.get("visibility") == "public" and doc.get("content_key") == key:
+        cache_control = "public, max-age=31536000"
+    else:
+        raise HTTPException(status_code=403, detail="private_audio_requires_scoped_link")
     return Response(
         content=bytes(doc["audio"]),
         media_type="audio/mpeg",
-        headers={"Cache-Control": "public, max-age=31536000"},
+        headers={"Cache-Control": cache_control},
     )
 
 
@@ -1008,15 +1017,31 @@ def _companion_prompt(companion: str, portal: Optional[str], user: Dict[str, Any
     return base
 
 
+
+def _context_policy_key(user: Dict[str, Any]) -> str:
+    return json.dumps({key: user.get(key) for key in ("cross_life_paused", "portal_privacy", "portals_enabled", "is_demo")}, sort_keys=True)
+
+
+async def _context_for_dispatch(authorization: Optional[str], portal: Optional[str] = None):
+    user = await require_account_user(authorization)
+    if portal and (portal not in user.get("portals_enabled", []) or
+                   (user.get("portal_privacy", {}).get(portal, {}).get("access") is not True)):
+        raise HTTPException(status_code=403, detail="portal_access_denied")
+    signals = await _gather_signals(user["user_id"], user)
+    fresh = await require_account_user(authorization)
+    if _context_policy_key(user) != _context_policy_key(fresh):
+        raise HTTPException(status_code=409, detail="privacy_changed_retry")
+    return fresh, signals
+
+
 @api_router.post("/guardian/chat")
 async def guardian_chat(body: ChatIn, authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
+    user, signals = await _context_for_dispatch(authorization, body.portal)
     rate_limit(f"chat:{user['user_id']}", 20, 60)
     companion = body.companion or user.get("companion", "guardian")
-    session_id = f"{user['user_id']}_{companion}_{body.portal or 'hub'}"
+    session_id = f"{user['user_id']}_{uuid.uuid4().hex}"
     system_msg = _companion_prompt(companion, body.portal, user)
 
-    signals = await _gather_signals(user["user_id"])
     context_note = ""
     if signals:
         context_note = "\n\nCurrent cross-life signals you can weave in naturally:\n" + json.dumps(signals, indent=2)
@@ -1029,6 +1054,9 @@ async def guardian_chat(body: ChatIn, authorization: Optional[str] = Header(None
 
     async def event_stream():
         try:
+            fresh = await require_account_user(authorization)
+            if _context_policy_key(user) != _context_policy_key(fresh):
+                raise HTTPException(status_code=409, detail="privacy_changed_retry")
             async for ev in chat.stream_message(UserMessage(text=body.message)):
                 if isinstance(ev, TextDelta):
                     yield f"data: {json.dumps({'delta': ev.content})}\n\n"
@@ -1049,12 +1077,11 @@ async def guardian_chat(body: ChatIn, authorization: Optional[str] = Header(None
 @api_router.post("/guardian/chat-once")
 async def guardian_chat_once(body: ChatIn, authorization: Optional[str] = Header(None)):
     """Non-streaming variant for simple UI flows."""
-    user = await get_current_user(authorization)
+    user, signals = await _context_for_dispatch(authorization, body.portal)
     rate_limit(f"chat:{user['user_id']}", 20, 60)
     companion = body.companion or user.get("companion", "guardian")
-    session_id = f"{user['user_id']}_{companion}_{body.portal or 'hub'}_once"
+    session_id = f"{user['user_id']}_{uuid.uuid4().hex}"
     system_msg = _companion_prompt(companion, body.portal, user)
-    signals = await _gather_signals(user["user_id"])
     context_note = ("\n\nCurrent cross-life signals:\n" + json.dumps(signals)) if signals else ""
 
     chat = LlmChat(
@@ -1063,6 +1090,9 @@ async def guardian_chat_once(body: ChatIn, authorization: Optional[str] = Header
         system_message=system_msg + context_note,
     ).with_model("openai", "gpt-5.6-terra")
 
+    fresh = await require_account_user(authorization)
+    if _context_policy_key(user) != _context_policy_key(fresh):
+        raise HTTPException(status_code=409, detail="privacy_changed_retry")
     parts: List[str] = []
     async for ev in chat.stream_message(UserMessage(text=body.message)):
         if isinstance(ev, TextDelta):
@@ -1079,13 +1109,28 @@ async def root():
 
 install_guardian_core(app, db=db, get_current_user=get_current_user)
 app.include_router(build_style_swap_router(get_current_user=get_current_user, rate_limit=rate_limit), prefix="/api")
+app.include_router(build_identity_router(db=db, limiter=rate_limit), prefix="/api")
 app.include_router(api_router)
+
+@app.middleware("http")
+async def cookie_session_boundary(request: Request, call_next):
+    # Web login uses an HttpOnly cookie. Native/worker clients retain bearer auth.
+    has_bearer = any(key.lower() == b"authorization" for key, _ in request.scope["headers"])
+    cookie_token = request.cookies.get(SESSION_COOKIE)
+    if cookie_token and not has_bearer:
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            origin = app_origin()
+            if not origin or request.headers.get("origin") != origin:
+                return Response(content='{"detail":"csrf_origin_denied"}', status_code=403, media_type="application/json")
+        request.scope["headers"].append((b"authorization", ("Bearer " + cookie_token).encode()))
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,
-    # Bearer-token auth (no cookies) — wildcard origins are safe only without credentials.
-    allow_credentials=False,
-    allow_origins=["*"],
+    # Credentialed web requests are allowed only from the configured application.
+    allow_credentials=bool(app_origin()),
+    allow_origins=[app_origin()] if app_origin() else ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
