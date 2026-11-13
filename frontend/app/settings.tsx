@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/src/auth';
+import { useStartupReplay } from "@/components/staarwardd/startup-film";
 import { PORTAL_IDS, portalMeta } from '@/src/theme';
 
 const AUTONOMY = [
@@ -20,6 +21,7 @@ const COMPANIONS = [
 
 export default function Settings() {
   const router = useRouter();
+  const replayStartup = useStartupReplay();
   const { user, patchProfile, api, logout, refresh } = useAuth();
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -52,8 +54,7 @@ export default function Settings() {
   };
 
   const replayIntro = async () => {
-    await AsyncStorage.removeItem('staar_intro_seen');
-    router.push('/intro');
+    replayStartup();
   };
 
   const doLogout = async () => {

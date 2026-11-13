@@ -1,31 +1,6 @@
-import { useEffect, useState } from "react";
-import { useLocalSearchParams, useRouter } from "expo-router";
-
 import { CinematicHub } from "@/components/staarwardd/cinematic-hub";
-import { LaunchSequence, useReturningUser } from "@/components/staarwardd/launch-sequence";
 
+// StartupFilmBoundary owns the entrance once per app launch.
 export default function IndexScreen() {
-  const router = useRouter();
-  const { markSeen } = useReturningUser();
-  const { reset } = useLocalSearchParams<{ reset?: string }>();
-  // The main URL always plays the complete canonical entrance on every fresh
-  // page load — the opening-seen flag never short-circuits it. Direct /hub
-  // stays available as the fast path.
-  const [sessionEntered, setSessionEntered] = useState(false);
-
-  // Judge Reset (native path): a fresh reset param drops session state so the
-  // full entrance replays even though this screen stayed mounted.
-  useEffect(() => {
-    if (reset) setSessionEntered(false);
-  }, [reset]);
-
-  if (!sessionEntered) {
-    return (
-      <LaunchSequence
-        onComplete={() => { markSeen(); setSessionEntered(true); }}
-        onSelectPortal={(id) => { markSeen(); router.replace({ pathname: "/portal/[id]", params: { id } }); }}
-      />
-    );
-  }
-  return <CinematicHub greet />;
+  return <CinematicHub />;
 }
