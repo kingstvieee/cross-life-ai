@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "STAAR Hub",
-    "slug": "frontend",
+    "slug": "stevieeedon",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -47,6 +47,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "owner": "staarwarddceos-team",
+    "extra": {
+      "eas": {
+        "projectId": "d3485a8e-6746-4383-999e-0907fc4d86a7"
+      }
     }
   }
 }
