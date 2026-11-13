@@ -27,7 +27,7 @@ This work is backend policy/state and documentation plus non-invasive native con
 
 ## Verification status
 
-The recovered 25 dialogue tests are **unavailable** in the authorized workspace. The implementation PR must report this explicitly and must not claim those tests ran. EAS candidate ownership and backend production reachability remain external/runtime checks until authorized credentials/configuration are available.
+The recovered 25 dialogue cases are available in the private recovery workspace and were source-audited as specifications. They were not executed as model/persona evaluations, so no dialogue pass result is claimed. EAS candidate ownership and backend production reachability remain external/runtime checks until authorized credentials/configuration are available.
 
 ## Branch validation evidence
 
