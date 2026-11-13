@@ -17,12 +17,19 @@ def make_app():
     db = FakeDB()
 
     async def get_current_user(authorization):
-        if not authorization or not authorization.startswith("Bearer user-"):
+        if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="invalid_session")
-        return {"user_id": authorization.removeprefix("Bearer ")}
+        user_id = authorization.removeprefix("Bearer ")
+        return {"user_id": user_id, "is_demo": user_id.startswith("demo_")}
+
+    async def get_trusted_worker(token):
+        if token != "worker-test":
+            raise HTTPException(status_code=403, detail="trusted_worker_required")
+        return {"workerId": "worker-test"}
 
     app = FastAPI()
-    app.include_router(build_guardian_router(db=db, get_current_user=get_current_user), prefix="/api")
+    app.state.guardian_db = db.guardian_core_state
+    app.include_router(build_guardian_router(db=db, get_current_user=get_current_user, get_trusted_worker=get_trusted_worker), prefix="/api")
     return app
 
 
@@ -30,6 +37,15 @@ def test_routes_require_authentication():
     client = TestClient(make_app())
     assert client.get("/api/guardian/core/briefing").status_code == 401
     assert client.get("/api/guardian/core/missions").status_code == 401
+
+
+def test_legacy_demo_sessions_are_read_only_for_guardian_mutations():
+    client = TestClient(make_app())
+    headers = {"Authorization": "Bearer demo_fixture", "X-Guardian-Worker-Token": "worker-test"}
+    assert client.get("/api/guardian/core/workflows/rsf-fabric-sourcing", headers=headers).status_code == 200
+    response = client.post("/api/guardian/core/workflows/rsf-fabric-sourcing/lease", headers=headers, json={"owner": "worker-a", "fence": 1})
+    assert response.status_code == 403
+    assert response.json()["detail"] == "demo_guest_read_only"
 
 
 def test_briefing_is_durable_and_scoped_to_authenticated_user():
@@ -136,14 +152,14 @@ def test_rsf_workflow_routes_are_authenticated_scoped_and_fenced():
 
     assert client.get(path).status_code == 401
     assert client.get(path, headers=a).json()["source_manifest"]["status"] == "fixture-only"
-    leased = client.post(path + "/lease", headers=a, json={"owner": "worker-a", "fence": 4})
+    leased = client.post(path + "/lease", headers={**a, "X-Guardian-Worker-Token": "worker-test"}, json={"owner": "worker-a", "fence": 4})
     assert leased.status_code == 200
     assert client.get(path, headers=b).json()["lease"] is None
 
-    stale = client.post(path + "/checkpoints", headers=a, json={"owner": "worker-a", "fence": 3, "checkpoint_id": "stale", "summary": "No", "idempotency_key": "stale"})
+    stale = client.post(path + "/checkpoints", headers={**a, "X-Guardian-Worker-Token": "worker-test"}, json={"owner": "worker-a", "fence": 3, "checkpoint_id": "stale", "summary": "No", "idempotency_key": "stale"})
     assert stale.status_code == 409
-    checkpoint = client.post(path + "/checkpoints", headers=a, json={"owner": "worker-a", "fence": 4, "checkpoint_id": "review", "summary": "Fixture-only review", "idempotency_key": "review:v1"})
+    checkpoint = client.post(path + "/checkpoints", headers={**a, "X-Guardian-Worker-Token": "worker-test"}, json={"owner": "worker-a", "fence": 4, "checkpoint_id": "review", "summary": "Fixture-only review", "idempotency_key": "review:v1"})
     assert checkpoint.status_code == 200
-    replay = client.post(path + "/checkpoints", headers=a, json={"owner": "worker-a", "fence": 4, "checkpoint_id": "review", "summary": "Duplicate", "idempotency_key": "review:v1"})
+    replay = client.post(path + "/checkpoints", headers={**a, "X-Guardian-Worker-Token": "worker-test"}, json={"owner": "worker-a", "fence": 4, "checkpoint_id": "review", "summary": "Duplicate", "idempotency_key": "review:v1"})
     assert replay.status_code == 200
     assert len(replay.json()["checkpoints"]) == 1

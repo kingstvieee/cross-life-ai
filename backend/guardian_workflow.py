@@ -6,7 +6,7 @@ receipt is evidence of what a provider reported, not independent verification.
 """
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime, time
+from datetime import datetime, timedelta, time, timezone
 from hashlib import sha256
 import json
 from typing import Any, Dict, Iterable, List, Mapping, Optional
@@ -68,7 +68,7 @@ def new_workflow() -> Dict[str, Any]:
         "proactiveConsent": {"greetings": False, "checkIns": False, "timezone": PROACTIVE_TIMEZONE, "beforeNoon": "silent"},
         "worker": {"state": "ready", "attempt": 0, "maxAttempts": 3, "lastError": None, "restartRecovered": False},
         "dispatches": [],
-        "authority": {"version": 1, "scopes": [], "revoked": False},
+        "authority": {"version": 1, "scopes": [], "portals": [], "revoked": False, "grants": [], "portalGrants": []},
         "portalWeave": {"contributions": [], "arbitration": None},
     }
 
@@ -92,6 +92,9 @@ def _require_lease(workflow: Dict[str, Any], owner: str, fence: int) -> None:
     lease = workflow.get("lease") or {}
     if lease.get("owner") != owner or int(lease.get("fence", -1)) != int(fence):
         raise ValueError("stale_or_missing_lease")
+    expires_at = lease.get("expiresAt")
+    if expires_at and datetime.fromisoformat(str(expires_at).replace("Z", "+00:00")) <= datetime.now(timezone.utc):
+        raise ValueError("lease_expired")
 
 
 def _canonical_hash(payload: Mapping[str, Any]) -> str:
@@ -110,7 +113,7 @@ def claim_lease(workflow: Optional[Dict[str, Any]], workflow_id: str, *, owner: 
     existing = current.get("lease")
     if existing and existing.get("owner") != owner and int(existing.get("fence", 0)) >= fence:
         raise ValueError("lease_held")
-    current["lease"] = {"owner": owner, "fence": int(fence), "state": "active"}
+    current["lease"] = {"owner": owner, "fence": int(fence), "state": "active", "expiresAt": (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()}
     current["status"] = "leased"
     current["worker"].update({"state": "leased", "attempt": int(current["worker"].get("attempt", 0)) + 1, "restartRecovered": False})
     return current
@@ -176,36 +179,66 @@ def proactive_decision(workflow: Optional[Dict[str, Any]], workflow_id: str, *, 
     return {"kind": kind, "allowed": allowed, "reason": "consent_and_after_noon" if allowed else ("before_noon_quiet" if local.time() < time(12, 0) else "proactive_consent_required"), "timezone": PROACTIVE_TIMEZONE, "localTime": local.isoformat()}
 
 
-def _valid_authority(current: Dict[str, Any], authority: Mapping[str, Any], *, scope: str) -> bool:
+def _matching_grant(current: Dict[str, Any], authority: Mapping[str, Any], *, scope: str, action: Optional[str] = None, action_version: Optional[str] = None, action_hash: Optional[str] = None) -> Optional[Dict[str, Any]]:
     saved = current.get("authority") or {}
-    return bool(authority and not authority.get("revoked") and int(authority.get("version", -1)) == int(saved.get("version", 0)) and scope in set(authority.get("scopes", [])))
+    if not authority or saved.get("revoked") or int(authority.get("version", -1)) != int(saved.get("version", 0)):
+        return None
+    grants = list(saved.get("grants", []))
+    if scope == "portal-weave":
+        grants = list(saved.get("portalGrants", []))
+    for grant in grants:
+        if grant.get("state", "active") != "active" or grant.get("revoked"):
+            continue
+        if int(grant.get("version", -1)) != int(saved.get("version", 0)):
+            continue
+        if scope not in set(grant.get("scopes", [])) and scope != "portal-weave":
+            continue
+        if authority.get("grantId") != grant.get("grantId"):
+            continue
+        if action is not None and grant.get("action") != action:
+            continue
+        if action_version is not None and grant.get("actionVersion") != action_version:
+            continue
+        if action_hash is not None and grant.get("actionHash") != action_hash:
+            continue
+        if sorted(authority.get("portals", [])) != sorted(grant.get("portals", [])):
+            continue
+        return deepcopy(grant)
+    return None
+
+
+def _valid_authority(current: Dict[str, Any], authority: Mapping[str, Any], *, scope: str) -> bool:
+    return _matching_grant(current, authority, scope=scope) is not None
 
 
 def revoke_authority(workflow: Optional[Dict[str, Any]], workflow_id: str, *, reason: str) -> Dict[str, Any]:
     current = _require_workflow(workflow, workflow_id)
-    current["authority"].update({"version": int(current["authority"].get("version", 0)) + 1, "revoked": True, "reason": reason.strip()})
+    current["authority"].update({"version": int(current["authority"].get("version", 0)) + 1, "revoked": True, "reason": reason.strip(), "grants": [], "portalGrants": [], "scopes": [], "portals": []})
     return current
 
 
-def dispatch(workflow: Optional[Dict[str, Any]], workflow_id: str, *, owner: str, fence: int, action: str, action_version: str, authority: Mapping[str, Any], context: Mapping[str, Any], idempotency_key: str) -> Dict[str, Any]:
+def dispatch(workflow: Optional[Dict[str, Any]], workflow_id: str, *, owner: str, fence: int, action: str, action_version: str, action_hash: str, authority: Mapping[str, Any], context: Mapping[str, Any], idempotency_key: str) -> Dict[str, Any]:
     current = _require_workflow(workflow, workflow_id)
     _require_lease(current, owner, fence)
     if current.get("status") == "cancelled":
         raise ValueError("workflow_cancelled")
     if (current.get("cancellation") or {}).get("state") == "requested":
         raise ValueError("workflow_cancellation_requested")
-    if not action.strip() or not action_version.strip() or not idempotency_key.strip():
+    if not action.strip() or not action_version.strip() or not action_hash.strip() or not idempotency_key.strip():
         raise ValueError("dispatch_identity_required")
-    if not _valid_authority(current, authority, scope="execute"):
+    grant = _matching_grant(current, authority, scope="execute", action=action.strip(), action_version=action_version.strip(), action_hash=action_hash.strip())
+    if not grant:
         raise ValueError("authority_revoked_or_stale")
-    safe_context = filter_context(context, allowed_portals=authority.get("portals", []), private=True)
-    action_hash = _canonical_hash({"action": action.strip(), "version": action_version.strip(), "context": safe_context})
+    safe_context = filter_context(context, allowed_portals=grant.get("portals", []), private=True)
+    computed_hash = _canonical_hash({"action": action.strip(), "version": action_version.strip(), "context": safe_context})
+    if computed_hash != grant.get("actionHash") or action_hash.strip() != grant.get("actionHash"):
+        raise ValueError("action_hash_mismatch")
     for item in current["dispatches"]:
         if item.get("idempotencyKey") == idempotency_key:
             return current
     dispatch_id = f"dispatch:{idempotency_key}"
     boundary = {"dispatchId": dispatch_id, "idempotencyKey": idempotency_key, "state": "persisted", "sentAt": None, "cannotRecall": True}
-    current["dispatches"].append({"dispatchId": dispatch_id, "idempotencyKey": idempotency_key, "action": action.strip(), "actionVersion": action_version.strip(), "actionHash": action_hash, "authorityVersion": int(authority["version"]), "authorityScopes": sorted(authority.get("scopes", [])), "context": safe_context, "boundary": boundary, "state": "queued"})
+    current["dispatches"].append({"dispatchId": dispatch_id, "idempotencyKey": idempotency_key, "action": action.strip(), "actionVersion": action_version.strip(), "actionHash": computed_hash, "authorityVersion": int(grant["version"]), "authorityGrantId": grant["grantId"], "authorityScopes": sorted(grant.get("scopes", [])), "context": safe_context, "boundary": boundary, "state": "queued"})
     current["outbox"].append({"idempotencyKey": idempotency_key, "dispatchId": dispatch_id, "effect": "external-operation", "state": "queued", "verified": False, "delivery": "at-least-once", "requiresReadAuthority": True})
     current["channels"]["execution"].update({"state": "running", "requestVersion": int(current["channels"]["execution"].get("requestVersion", 0)) + 1})
     current["worker"].update({"state": "running"})
@@ -275,18 +308,28 @@ def reconcile(workflow: Optional[Dict[str, Any]], workflow_id: str, *, idempoten
     requires_read = any(bool(item.get("requiresReadAuthority")) for item in matches)
     if requires_read and not _valid_authority(current, authority or {}, scope="read"):
         raise ValueError("read_authority_required")
+    dispatch_item = next((item for item in current["dispatches"] if item.get("idempotencyKey") == idempotency_key), None)
+    if outcome == "verified" and dispatch_item:
+        if evidence.get("actionHash") != dispatch_item.get("actionHash") or evidence.get("inputVersion") != dispatch_item.get("actionVersion") or not evidence.get("acceptance") or not evidence.get("verifier"):
+            raise ValueError("completion_evidence_required")
     for item in matches:
         item.update({"state": outcome, "verified": outcome == "verified", "evidence": dict(evidence), "evidenceType": "independent-read" if outcome == "verified" else "reconciliation-record"})
-    current["evidence"].append({"kind": "effect-reconciliation", "idempotencyKey": idempotency_key, "state": outcome, "evidence": dict(evidence), "authorityVersion": (authority or {}).get("version")})
-    dispatch_item = next((item for item in current["dispatches"] if item.get("idempotencyKey") == idempotency_key), None)
+    current["evidence"].append({"kind": "effect-reconciliation", "idempotencyKey": idempotency_key, "dispatchId": dispatch_item.get("dispatchId") if dispatch_item else None, "state": outcome, "evidence": dict(evidence), "actionHash": evidence.get("actionHash"), "inputVersion": evidence.get("inputVersion"), "acceptance": evidence.get("acceptance"), "verifier": evidence.get("verifier"), "authorityVersion": (authority or {}).get("version")})
     if dispatch_item:
         dispatch_item["state"] = "verified" if outcome == "verified" else ("rejected" if outcome == "rejected" else "reconciling")
     cancellation = current.get("cancellation") or {}
     if cancellation.get("kind") == "guardian-task" and cancellation.get("state") == "requested":
-        if outcome == "verified":
+        effect_state = str(evidence.get("effectState", evidence.get("effect", ""))).lower()
+        if outcome == "verified" and effect_state in {"prevented", "not-sent", "cancelled"}:
             current["cancellation"].update({"state": "verified", "evidence": dict(evidence)})
             current["status"] = "cancelled"
             current["channels"]["execution"]["state"] = "cancelled"
+        elif outcome == "verified" and effect_state in {"succeeded", "completed"}:
+            current["cancellation"].update({"state": "reconciling", "externalOutcome": "succeeded", "compensationRequired": True, "evidence": dict(evidence)})
+            current["status"] = "reconciling"
+            current["channels"]["execution"]["state"] = "reconciling"
+        elif outcome == "verified":
+            raise ValueError("cancellation_outcome_required")
         elif outcome in ("unknown", "rejected"):
             current["cancellation"].update({"state": "reconciling", "blocker": "cancellation_effect_not_verified"})
     if outcome == "unknown":
@@ -300,12 +343,14 @@ def add_portal_contribution(workflow: Optional[Dict[str, Any]], workflow_id: str
         raise ValueError("unknown_portal")
     if not all(str(value).strip() for value in (contribution_id, kind, summary, version, privacy_scope, idempotency_key)):
         raise ValueError("contribution_identity_required")
-    if portal_id not in set(authority_scopes):
+    saved = current.get("authority") or {}
+    portal_grant = next((grant for grant in saved.get("portalGrants", []) if grant.get("state", "active") == "active" and portal_id in set(grant.get("portals", [])) and privacy_scope in set(grant.get("privacyScopes", ["private"]))), None)
+    if not portal_grant or portal_id not in set(saved.get("portals") or portal_grant.get("portals", [])):
         raise ValueError("portal_scope_required")
     contributions = current["portalWeave"]["contributions"]
     if any(item.get("idempotencyKey") == idempotency_key for item in contributions):
         return current
-    contributions.append({"contributionId": contribution_id, "portalId": portal_id, "kind": kind, "summary": summary.strip(), "version": version, "privacyScope": privacy_scope, "idempotencyKey": idempotency_key, "state": "candidate"})
+    contributions.append({"contributionId": contribution_id, "portalId": portal_id, "kind": kind, "summary": summary.strip(), "version": version, "privacyScope": privacy_scope, "authorityGrantId": portal_grant.get("grantId"), "idempotencyKey": idempotency_key, "state": "candidate"})
     return current
 
 
@@ -313,11 +358,20 @@ def arbitrate_portal_weave(workflow: Optional[Dict[str, Any]], workflow_id: str)
     current = _require_workflow(workflow, workflow_id)
     candidates = current["portalWeave"]["contributions"]
     selected: List[Mapping[str, Any]] = []
+    conflicts: List[Mapping[str, Any]] = []
+    def version_key(value: Any) -> tuple:
+        return tuple(int(part) if part.isdigit() else part for part in str(value).replace("-", ".").split("."))
     for portal_id in PORTAL_DOMAINS:
-        portal_items = sorted((item for item in candidates if item.get("portalId") == portal_id), key=lambda item: (item.get("version", ""), item.get("contributionId", "")))
+        portal_items = [item for item in candidates if item.get("portalId") == portal_id and item.get("state") == "candidate" and item.get("privacyScope") == "private"]
+        portal_items = sorted(portal_items, key=lambda item: (version_key(item.get("version", "0")), item.get("contributionId", "")), reverse=True)
         if portal_items:
-            selected.append(portal_items[-1])
-    current["portalWeave"]["arbitration"] = {"state": "prepared", "domains": list(PORTAL_DOMAINS), "selected": deepcopy(selected), "conflicts": [], "execution": "not_requested"}
+            top_version = version_key(portal_items[0].get("version", "0"))
+            same_version = [item for item in portal_items if version_key(item.get("version", "0")) == top_version]
+            if len(same_version) > 1:
+                conflicts.append({"portalId": portal_id, "contributionIds": [item.get("contributionId") for item in same_version], "reason": "same-version-conflict"})
+            else:
+                selected.append(portal_items[0])
+    current["portalWeave"]["arbitration"] = {"state": "prepared", "domains": list(PORTAL_DOMAINS), "selected": deepcopy(selected), "conflicts": conflicts, "privacy": "private-only", "execution": "not_requested", "bounded": True}
     return current
 
 
@@ -353,7 +407,19 @@ def render_status(workflow: Optional[Dict[str, Any]], workflow_id: str, *, reque
     """Render from canonical backend state; ignore model/caller-written completion text."""
     current = _require_workflow(workflow, workflow_id)
     status = current.get("status", "ready")
-    if status == "completed" and not any(item.get("state") == "verified" for item in current.get("evidence", [])):
+    verified_dispatch_ids = {item.get("dispatchId") for item in current.get("dispatches", []) if item.get("state") == "verified"}
+    completion_evidence = any(
+        item.get("kind") == "effect-reconciliation"
+        and item.get("state") == "verified"
+        and item.get("dispatchId") in verified_dispatch_ids
+        and item.get("actionHash")
+        and item.get("inputVersion")
+        and item.get("acceptance")
+        and item.get("verifier")
+        for item in current.get("evidence", [])
+    )
+    unresolved_dispatch = any(item.get("state") in ("queued", "sent", "provider-reported-success", "reconciling") for item in current.get("dispatches", []))
+    if status == "completed" and (not completion_evidence or unresolved_dispatch):
         status = "reconciling"
     if status == "cancelled" and (current.get("cancellation") or {}).get("state") != "verified":
         status = "reconciling"

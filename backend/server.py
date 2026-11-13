@@ -168,6 +168,33 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[
     return user
 
 
+async def require_account_user(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
+    """Require a real account for mutations and provider/model dispatch."""
+    user = await get_current_user(authorization)
+    if user.get("is_demo"):
+        raise HTTPException(status_code=403, detail="demo_guest_read_only")
+    return user
+
+
+async def _authorized_portal_states(user: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """Return only share-authorized portal state; paused users yield no context."""
+    if user.get("cross_life_paused"):
+        return {}
+    privacy = user.get("portal_privacy", {}) or {}
+    allowed = [portal["id"] for portal in PORTALS if _portal_share_allowed(user, portal["id"])]
+    states: Dict[str, Dict[str, Any]] = {}
+    for portal_id in allowed:
+        doc = await db.portal_state.find_one({"user_id": user["user_id"], "portal": portal_id}, {"_id": 0})
+        if doc:
+            states[portal_id] = doc.get("data", {})
+    return states
+
+
+def _portal_share_allowed(user: Dict[str, Any], portal_id: str) -> bool:
+    prefs = (user.get("portal_privacy", {}) or {}).get(portal_id, {}) or {}
+    return prefs.get("access", True) is not False and prefs.get("share", True) is not False
+
+
 def user_public(u: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "user_id": u.get("user_id"),
@@ -302,7 +329,7 @@ async def auth_logout(authorization: Optional[str] = Header(None)):
 
 @api_router.post("/user/profile")
 async def update_profile(update: OnboardingUpdate, authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     patch = {k: v for k, v in update.dict().items() if v is not None}
     if patch:
         await db.users.update_one({"user_id": user["user_id"]}, {"$set": patch})
@@ -312,7 +339,7 @@ async def update_profile(update: OnboardingUpdate, authorization: Optional[str] 
 
 @api_router.post("/user/privacy")
 async def update_privacy(update: PrivacyUpdate, authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     patch = {k: v for k, v in update.dict().items() if v is not None}
     if patch:
         await db.users.update_one({"user_id": user["user_id"]}, {"$set": patch})
@@ -343,7 +370,7 @@ class PortalStateUpdate(BaseModel):
 
 @api_router.post("/portal/{portal_id}/state")
 async def set_portal_state(portal_id: str, body: PortalStateUpdate, authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     if len(json.dumps(body.data)) > 20_000:
         raise HTTPException(status_code=413, detail="payload_too_large")
     await db.portal_state.update_one(
@@ -497,12 +524,13 @@ async def community_events():
 # ============================================================
 # CROSS-LIFE CONTEXT ENGINE
 # ============================================================
-async def _gather_signals(user_id: str) -> List[Dict[str, Any]]:
+async def _gather_signals(user_id: str, user: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """Analyze portal state and produce structured cross-life context signals."""
+    user = user or await db.users.find_one({"user_id": user_id}, {"_id": 0}) or {"user_id": user_id}
+    if user.get("cross_life_paused"):
+        return []
     signals: List[Dict[str, Any]] = []
-    states = {}
-    async for doc in db.portal_state.find({"user_id": user_id}, {"_id": 0}):
-        states[doc["portal"]] = doc.get("data", {})
+    states = await _authorized_portal_states(user)
 
     work = states.get("work", {})
     if work.get("workload") == "high" or work.get("stress", 0) >= 7:
@@ -562,22 +590,24 @@ async def guardian_signals(authorization: Optional[str] = Header(None)):
     user = await get_current_user(authorization)
     if user.get("cross_life_paused"):
         return {"paused": True, "signals": []}
-    signals = await _gather_signals(user["user_id"])
+    signals = await _gather_signals(user["user_id"], user)
     return {"paused": False, "signals": signals}
 
 
 @api_router.post("/guardian/coordinate-evening")
 async def coordinate_evening(body: CoordinateIn, authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     user_id = user["user_id"]
-    signals = await _gather_signals(user_id)
+    if user.get("cross_life_paused"):
+        raise HTTPException(status_code=409, detail="cross_life_paused")
+    shared_states = await _authorized_portal_states(user)
+    signals = await _gather_signals(user_id, user)
 
     # Build coordinated actions across affected portals
     actions: List[Dict[str, Any]] = []
     now_iso = utcnow().isoformat()
 
-    work_state = await db.portal_state.find_one({"user_id": user_id, "portal": "work"}, {"_id": 0}) or {}
-    work_data = work_state.get("data", {})
+    work_data = shared_states.get("work", {})
     urgent = [t for t in work_data.get("tasks", []) if t.get("priority") == "urgent" and not t.get("done")]
     needs_you = [t for t in urgent if t.get("needs_you")]
     can_wait = [t for t in work_data.get("tasks", []) if t.get("priority") in ("medium", "low") and not t.get("done")]
@@ -625,8 +655,8 @@ async def coordinate_evening(body: CoordinateIn, authorization: Optional[str] = 
         actions.append({
             "portal": "community",
             "title": "Departure orchestrated",
-            "detail": "Route checked. Uber pre-booked for 7:20 PM. Doors + lights lock automatically.",
-            "items": [f"→ {event['location']}", "ETA 7:55 PM", "Weather: rain"],
+            "detail": "Departure plan prepared for review. No ride, door, or light action was sent. · DEMO FIXTURE",
+            "items": [f"→ {event['location']}", "Target departure: 7:20 PM", "Weather: rain · verify before leaving"],
         })
 
     coordination = {
@@ -640,34 +670,35 @@ async def coordinate_evening(body: CoordinateIn, authorization: Optional[str] = 
         "scenario": "evening",
         "trigger": "work_overload_with_evening_commitment",
         "spoken_summary": (
-            "Here's what I did. Work is re-sorted — only what truly needs you stays tonight, the rest waits until tomorrow. "
-            "I queued a twenty minute decompression and muted your notifications. Home is prepped, warm lights at seven. "
-            "Your eight PM with Amara at The Broadview is protected. Leave by seven twenty. Rain is likely, so I laid out the wool overcoat and waterproof boots. "
-            "Go finish that one task. I've got the rest of your evening."
+            "I prepared a review plan for this evening. Work priorities are grouped — a decompression suggestion is ready, and the departure route is a draft for your approval. "
+            "No ride, door, light, message, or external action was sent. Each connected step requires an authorized integration and your explicit approval. · DEMO FIXTURE"
         ),
     }
     await db.guardian_activity.insert_one(coordination)
 
     # Apply state mutations (mark decompression started, delay routine, etc.)
     if body.approve:
-        await db.portal_state.update_one(
-            {"user_id": user_id, "portal": "wellbeing"},
-            {"$set": {"data.decompression_active": True, "data.last_break": now_iso}},
-            upsert=True,
-        )
-        await db.portal_state.update_one(
-            {"user_id": user_id, "portal": "home"},
-            {"$set": {"data.routine_started": True, "data.evening_lights": "warm", "data.lights": "warm"}},
-            upsert=True,
-        )
-        await db.portal_state.update_one(
-            {"user_id": user_id, "portal": "style"},
-            {"$set": {"data.planned_outfit": {
-                "name": "Rain-ready smart casual",
-                "items": ["Charcoal knit", "Wool overcoat", "Waterproof chelsea boots"],
-            }}},
-            upsert=True,
-        )
+        if _portal_share_allowed(user, "wellbeing"):
+            await db.portal_state.update_one(
+                {"user_id": user_id, "portal": "wellbeing"},
+                {"$set": {"data.decompression_active": True, "data.last_break": now_iso}},
+                upsert=True,
+            )
+        if _portal_share_allowed(user, "home"):
+            await db.portal_state.update_one(
+                {"user_id": user_id, "portal": "home"},
+                {"$set": {"data.routine_started": True, "data.evening_lights": "warm", "data.lights": "warm"}},
+                upsert=True,
+            )
+        if _portal_share_allowed(user, "style"):
+            await db.portal_state.update_one(
+                {"user_id": user_id, "portal": "style"},
+                {"$set": {"data.planned_outfit": {
+                    "name": "Rain-ready smart casual",
+                    "items": ["Charcoal knit", "Wool overcoat", "Waterproof chelsea boots"],
+                }}},
+                upsert=True,
+            )
 
     return {
         "coordination_id": coordination["id"],
@@ -678,13 +709,15 @@ async def coordinate_evening(body: CoordinateIn, authorization: Optional[str] = 
 
 @api_router.post("/guardian/coordinate-morning")
 async def coordinate_morning(body: CoordinateIn, authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     user_id = user["user_id"]
-    signals = await _gather_signals(user_id)
+    if user.get("cross_life_paused"):
+        raise HTTPException(status_code=409, detail="cross_life_paused")
+    shared_states = await _authorized_portal_states(user)
+    signals = await _gather_signals(user_id, user)
     now_iso = utcnow().isoformat()
 
-    wb_state = await db.portal_state.find_one({"user_id": user_id, "portal": "wellbeing"}, {"_id": 0}) or {}
-    sleep_hours = wb_state.get("data", {}).get("sleep_hours", 4.5)
+    sleep_hours = shared_states.get("wellbeing", {}).get("sleep_hours", 4.5)
 
     actions = [
         {
@@ -727,30 +760,33 @@ async def coordinate_morning(body: CoordinateIn, authorization: Optional[str] = 
             "Good morning. You slept about four and a half hours, so I softened the day. "
             "Your nine thirty presentation is safe — I drafted your standup notes and pushed your first meeting by thirty minutes. "
             "Start with water and ten minutes of light stretching. I laid out a low effort outfit that still reads sharp. "
-            "Take it slow. I've got the rest."
+            "Take it slow. Each suggested step above is a prepared draft — nothing was sent or executed. · DEMO FIXTURE"
         ),
     }
     await db.guardian_activity.insert_one(coordination)
 
     if body.approve:
-        await db.portal_state.update_one(
-            {"user_id": user_id, "portal": "wellbeing"},
-            {"$set": {"data.gentle_start_active": True}},
-            upsert=True,
-        )
-        await db.portal_state.update_one(
-            {"user_id": user_id, "portal": "style"},
-            {"$set": {"data.planned_outfit": {
-                "name": "Low-effort confidence",
-                "items": ["Soft merino crew", "Dark tapered trousers", "White leather sneakers"],
-            }}},
-            upsert=True,
-        )
-        await db.portal_state.update_one(
-            {"user_id": user_id, "portal": "home"},
-            {"$set": {"data.lights": "sunrise", "data.temperature": 22}},
-            upsert=True,
-        )
+        if _portal_share_allowed(user, "wellbeing"):
+            await db.portal_state.update_one(
+                {"user_id": user_id, "portal": "wellbeing"},
+                {"$set": {"data.gentle_start_active": True}},
+                upsert=True,
+            )
+        if _portal_share_allowed(user, "style"):
+            await db.portal_state.update_one(
+                {"user_id": user_id, "portal": "style"},
+                {"$set": {"data.planned_outfit": {
+                    "name": "Low-effort confidence",
+                    "items": ["Soft merino crew", "Dark tapered trousers", "White leather sneakers"],
+                }}},
+                upsert=True,
+            )
+        if _portal_share_allowed(user, "home"):
+            await db.portal_state.update_one(
+                {"user_id": user_id, "portal": "home"},
+                {"$set": {"data.lights": "sunrise", "data.temperature": 22}},
+                upsert=True,
+            )
 
     return {
         "coordination_id": coordination["id"],
@@ -774,14 +810,14 @@ def _tts() -> OpenAITextToSpeech:
 
 @api_router.post("/guardian/speak")
 async def guardian_speak(body: SpeakIn, authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     rate_limit(f"tts:{user['user_id']}", 30, 60)
     coord = await db.guardian_activity.find_one(
         {"id": body.coordination_id, "user_id": user["user_id"]}, {"_id": 0}
     )
     if not coord:
         raise HTTPException(status_code=404, detail="coordination_not_found")
-    text = coord.get("spoken_summary") or "Coordination complete. Everything is handled."
+    text = coord.get("spoken_summary") or "Coordination plan prepared. No external action was sent."
     return await _tts_cached_line(text, private_user_id=user["user_id"])
 
 
@@ -815,6 +851,14 @@ async def _tts_cached_line(text: str, private_user_id: Optional[str] = None) -> 
     if private_user_id is None:
         query = {"key": content_key, "visibility": "public"}
     cached = await db.tts_cache.find_one(query, {"_id": 0, "key": 1, "visibility": 1, "expires_at": 1})
+    stale_private_key = None
+    if cached and private_user_id is not None:
+        expires_at = cached.get("expires_at")
+        if expires_at and expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if not expires_at or expires_at <= utcnow():
+            stale_private_key = cached.get("key")
+            cached = None
     key = cached.get("key") if cached else (content_key if private_user_id is None else f"{content_key}.{secrets.token_urlsafe(18)}")
     if not cached:
         try:
@@ -822,7 +866,7 @@ async def _tts_cached_line(text: str, private_user_id: Optional[str] = None) -> 
         except Exception:
             logger.exception("tts generation failed")
             raise HTTPException(status_code=502, detail="tts_failed")
-        await db.tts_cache.insert_one({
+        cache_doc = {
             "key": key,
             "content_key": content_key,
             "audio": audio,
@@ -830,7 +874,11 @@ async def _tts_cached_line(text: str, private_user_id: Optional[str] = None) -> 
             "visibility": "private" if private_user_id else "public",
             "private_user_id": private_user_id,
             "expires_at": utcnow() + timedelta(minutes=10) if private_user_id else None,
-        })
+        }
+        if stale_private_key:
+            await db.tts_cache.update_one({"key": stale_private_key, "private_user_id": private_user_id}, {"$set": cache_doc})
+        else:
+            await db.tts_cache.insert_one(cache_doc)
     return {"url": f"/api/tts/{key}.mp3", "text": text}
 
 
@@ -913,7 +961,7 @@ async def scorecard_image(
 @api_router.post("/guardian/speak-line")
 async def guardian_speak_line(body: SpeakLineIn, authorization: Optional[str] = Header(None)):
     """Speak a short Guardian line (e.g., a remembered preference). Auth + rate limited."""
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     rate_limit(f"tts:{user['user_id']}", 30, 60)
     return await _tts_cached_line(body.text, private_user_id=user["user_id"])
 
@@ -1025,13 +1073,13 @@ def _companion_prompt(companion: str, portal: Optional[str], user: Dict[str, Any
 
 @api_router.post("/guardian/chat")
 async def guardian_chat(body: ChatIn, authorization: Optional[str] = Header(None)):
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     rate_limit(f"chat:{user['user_id']}", 20, 60)
     companion = body.companion or user.get("companion", "guardian")
     session_id = f"{user['user_id']}_{companion}_{body.portal or 'hub'}"
     system_msg = _companion_prompt(companion, body.portal, user)
 
-    signals = await _gather_signals(user["user_id"])
+    signals = await _gather_signals(user["user_id"], user) if not user.get("cross_life_paused") else []
     context_note = ""
     if signals:
         context_note = "\n\nCurrent cross-life signals you can weave in naturally:\n" + json.dumps(signals, indent=2)
@@ -1064,12 +1112,12 @@ async def guardian_chat(body: ChatIn, authorization: Optional[str] = Header(None
 @api_router.post("/guardian/chat-once")
 async def guardian_chat_once(body: ChatIn, authorization: Optional[str] = Header(None)):
     """Non-streaming variant for simple UI flows."""
-    user = await get_current_user(authorization)
+    user = await require_account_user(authorization)
     rate_limit(f"chat:{user['user_id']}", 20, 60)
     companion = body.companion or user.get("companion", "guardian")
     session_id = f"{user['user_id']}_{companion}_{body.portal or 'hub'}_once"
     system_msg = _companion_prompt(companion, body.portal, user)
-    signals = await _gather_signals(user["user_id"])
+    signals = await _gather_signals(user["user_id"], user) if not user.get("cross_life_paused") else []
     context_note = ("\n\nCurrent cross-life signals:\n" + json.dumps(signals)) if signals else ""
 
     chat = LlmChat(

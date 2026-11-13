@@ -4,11 +4,16 @@ from datetime import datetime, timezone
 import pytest
 
 from guardian_store import GuardianStore
+from guardian_workflow import _canonical_hash, filter_context
 from test_guardian_store import FakeCollection
 
 
 WORKFLOW = "rsf-fabric-sourcing"
-AUTH = {"version": 1, "scopes": ["execute", "read"], "revoked": False, "portals": ["work", "style"]}
+DISPATCH_CONTEXT = {"portals": {"work": {"title": "safe"}, "home": {"private": "drop"}}, "identity": "drop"}
+EXECUTE_GRANT = {"grantId": "execute-rsf-v1", "version": 1, "state": "active", "scopes": ["execute"], "portals": ["work", "style"], "action": "prepare supplier review", "actionVersion": "v2"}
+EXECUTE_GRANT["actionHash"] = _canonical_hash({"action": EXECUTE_GRANT["action"], "version": EXECUTE_GRANT["actionVersion"], "context": filter_context(DISPATCH_CONTEXT, allowed_portals=EXECUTE_GRANT["portals"], private=True)})
+AUTH = {"grantId": EXECUTE_GRANT["grantId"], "version": 1, "scopes": ["execute"], "revoked": False, "portals": EXECUTE_GRANT["portals"], "actionVersion": EXECUTE_GRANT["actionVersion"], "actionHash": EXECUTE_GRANT["actionHash"]}
+READ_AUTH = {"grantId": "read-rsf-v1", "version": 1, "scopes": ["read"], "revoked": False, "portals": ["work", "style"]}
 
 
 def run(coro):
@@ -16,7 +21,14 @@ def run(coro):
 
 
 def leased_store():
-    store = GuardianStore(FakeCollection())
+    collection = FakeCollection()
+    store = GuardianStore(collection)
+    run(store.briefing("user-a"))
+    collection.documents["user-a"]["workflows"][WORKFLOW]["authority"].update({
+        "scopes": ["execute", "read"], "portals": ["work", "style", "creativity", "home", "wellbeing", "relationships", "community"],
+        "grants": [EXECUTE_GRANT, {"grantId": "read-rsf-v1", "version": 1, "state": "active", "scopes": ["read"], "portals": ["work", "style"]}],
+        "portalGrants": [{"grantId": "portal-rsf-v1", "version": 1, "state": "active", "portals": ["creativity", "work", "home", "wellbeing", "relationships", "community", "style"], "privacyScopes": ["private"], "scopes": ["portal-weave"]}],
+    })
     run(store.claim_workflow_lease("user-a", WORKFLOW, owner="worker-a", fence=1))
     return store
 
@@ -25,7 +37,7 @@ def dispatch(store, key="op-1"):
     return run(store.dispatch_workflow(
         "user-a", WORKFLOW, owner="worker-a", fence=1,
         action="prepare supplier review", action_version="v2",
-        authority=AUTH, context={"portals": {"work": {"title": "safe"}, "home": {"private": "drop"}}, "identity": "drop"},
+        action_hash=EXECUTE_GRANT["actionHash"], authority=AUTH, context=DISPATCH_CONTEXT,
         idempotency_key=key,
     ))
 
@@ -54,7 +66,7 @@ def test_stale_and_revoked_authority_cannot_dispatch():
     store = leased_store()
     stale = {**AUTH, "version": 0}
     with pytest.raises(ValueError, match="authority_revoked_or_stale"):
-        dispatch_kwargs = dict(owner="worker-a", fence=1, action="send", action_version="v2", authority=stale, context={}, idempotency_key="stale")
+        dispatch_kwargs = dict(owner="worker-a", fence=1, action="send", action_version="v2", action_hash="forged", authority=stale, context={}, idempotency_key="stale")
         run(store.dispatch_workflow("user-a", WORKFLOW, **dispatch_kwargs))
     run(store.revoke_workflow_authority("user-a", WORKFLOW, reason="Founder revoked scope"))
     with pytest.raises(ValueError, match="authority_revoked_or_stale"):
@@ -67,7 +79,7 @@ def test_dispatch_boundary_unknown_requires_read_authority_and_cannot_be_forged_
     run(store.mark_workflow_sent("user-a", WORKFLOW, idempotency_key="op-1"))
     with pytest.raises(ValueError, match="read_authority_required"):
         run(store.reconcile_workflow_with_authority("user-a", WORKFLOW, authority={"version": 1, "scopes": ["execute"], "revoked": False}, idempotency_key="op-1", outcome="unknown", evidence={"claim": "done"}))
-    reconciling = run(store.reconcile_workflow_with_authority("user-a", WORKFLOW, authority=AUTH, idempotency_key="op-1", outcome="unknown", evidence={"source": "no-read"}))
+    reconciling = run(store.reconcile_workflow_with_authority("user-a", WORKFLOW, authority=READ_AUTH, idempotency_key="op-1", outcome="unknown", evidence={"source": "no-read"}))
     assert reconciling["status"] == "reconciling"
     assert reconciling["dispatches"][0]["state"] == "reconciling"
     assert not reconciling["outbox"][0]["verified"]
@@ -81,7 +93,7 @@ def test_in_flight_task_cancellation_stays_reconciling_until_evidence_arrives():
     assert requested["cancellation"]["state"] == "requested"
     assert requested["cancellation"]["requiresReconciliation"] is True
     assert "cancelled" not in run(store.render_workflow_status("user-a", WORKFLOW, requested_text="Done"))["text"].lower()
-    verified = run(store.reconcile_workflow_with_authority("user-a", WORKFLOW, authority=AUTH, idempotency_key="op-1", outcome="verified", evidence={"source": "independent-read", "effect": "none"}))
+    verified = run(store.reconcile_workflow_with_authority("user-a", WORKFLOW, authority=READ_AUTH, idempotency_key="op-1", outcome="verified", evidence={"source": "independent-read", "effectState": "prevented", "actionHash": EXECUTE_GRANT["actionHash"], "inputVersion": "v2", "acceptance": "no external mutation", "verifier": "readback"}))
     assert verified["status"] == "cancelled"
     assert verified["cancellation"]["state"] == "verified"
 
@@ -94,7 +106,7 @@ def test_duplicate_provider_event_and_late_success_are_not_exactly_once_or_verif
     duplicate = run(store.record_provider_event("user-a", WORKFLOW, event_id="evt-1", idempotency_key="op-1", outcome="success", receipt={"provider": "duplicate"}))
     assert len(first["provider_events"]) == len(duplicate["provider_events"]) == 1
     assert duplicate["provider_events"][0]["independentVerification"] is False
-    unknown = run(store.reconcile_workflow_with_authority("user-a", WORKFLOW, authority=AUTH, idempotency_key="op-1", outcome="unknown", evidence={"source": "late-read"}))
+    unknown = run(store.reconcile_workflow_with_authority("user-a", WORKFLOW, authority=READ_AUTH, idempotency_key="op-1", outcome="unknown", evidence={"source": "late-read"}))
     assert unknown["status"] == "reconciling"
 
 
