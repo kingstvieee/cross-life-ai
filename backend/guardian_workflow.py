@@ -105,6 +105,8 @@ def claim_lease(workflow: Optional[Dict[str, Any]], workflow_id: str, *, owner: 
         raise ValueError("lease_owner_required")
     if current.get("status") == "cancelled":
         raise ValueError("workflow_cancelled")
+    if (current.get("cancellation") or {}).get("state") == "requested":
+        raise ValueError("workflow_cancellation_requested")
     existing = current.get("lease")
     if existing and existing.get("owner") != owner and int(existing.get("fence", 0)) >= fence:
         raise ValueError("lease_held")
@@ -190,6 +192,8 @@ def dispatch(workflow: Optional[Dict[str, Any]], workflow_id: str, *, owner: str
     _require_lease(current, owner, fence)
     if current.get("status") == "cancelled":
         raise ValueError("workflow_cancelled")
+    if (current.get("cancellation") or {}).get("state") == "requested":
+        raise ValueError("workflow_cancellation_requested")
     if not action.strip() or not action_version.strip() or not idempotency_key.strip():
         raise ValueError("dispatch_identity_required")
     if not _valid_authority(current, authority, scope="execute"):
@@ -233,10 +237,14 @@ def cancel(workflow: Optional[Dict[str, Any]], workflow_id: str, *, owner: str, 
     """Cancel the Guardian task, not a possibly-sent external operation."""
     current = _require_workflow(workflow, workflow_id)
     _require_lease(current, owner, fence)
-    current["cancellation"] = {"kind": "guardian-task", "requestedBy": owner, "fence": int(fence), "reason": reason.strip(), "state": "requested"}
-    current["status"] = "cancelled"
-    current["channels"]["execution"].update({"state": "cancelled", "requestVersion": int(current["channels"]["execution"].get("requestVersion", 0)) + 1})
-    current["worker"].update({"state": "cancelled"})
+    in_flight = any(item.get("state") in ("queued", "sent", "provider-reported-success", "reconciling") for item in current["dispatches"])
+    current["cancellation"] = {"kind": "guardian-task", "requestedBy": owner, "fence": int(fence), "reason": reason.strip(), "state": "requested", "requiresReconciliation": in_flight}
+    current["status"] = "reconciling" if in_flight else "cancelled"
+    current["channels"]["execution"].update({"state": "reconciling" if in_flight else "cancelled", "requestVersion": int(current["channels"]["execution"].get("requestVersion", 0)) + 1})
+    current["worker"].update({"state": "reconciling" if in_flight else "cancelled"})
+    if not in_flight:
+        current["cancellation"].update({"state": "verified", "evidence": {"kind": "task-cancellation", "effect": "no-dispatch-in-flight"}})
+        current["evidence"].append({"kind": "task-cancellation", "state": "verified", "reason": "no-dispatch-in-flight"})
     current["outbox"].append({"idempotencyKey": f"cancel:{workflow_id}:{fence}", "effect": "cancel-guardian-task", "state": "queued", "verified": False, "delivery": "at-least-once"})
     return current
 
@@ -273,6 +281,14 @@ def reconcile(workflow: Optional[Dict[str, Any]], workflow_id: str, *, idempoten
     dispatch_item = next((item for item in current["dispatches"] if item.get("idempotencyKey") == idempotency_key), None)
     if dispatch_item:
         dispatch_item["state"] = "verified" if outcome == "verified" else ("rejected" if outcome == "rejected" else "reconciling")
+    cancellation = current.get("cancellation") or {}
+    if cancellation.get("kind") == "guardian-task" and cancellation.get("state") == "requested":
+        if outcome == "verified":
+            current["cancellation"].update({"state": "verified", "evidence": dict(evidence)})
+            current["status"] = "cancelled"
+            current["channels"]["execution"]["state"] = "cancelled"
+        elif outcome in ("unknown", "rejected"):
+            current["cancellation"].update({"state": "reconciling", "blocker": "cancellation_effect_not_verified"})
     if outcome == "unknown":
         current["status"] = "reconciling" if dispatch_item else "unknown"
     return current
@@ -320,6 +336,28 @@ def select_portals(*, requested: str, candidates: Iterable[str], limit: int = 2)
     terms = {part.lower() for part in requested.split() if part.strip()}
     ranked = sorted(normalized, key=lambda item: (0 if item.lower() in terms else 1, item.lower()))
     return ranked[: max(1, min(limit, len(ranked)))]
+
+
+STATUS_TEMPLATES = {
+    "ready": "Ready—not started.",
+    "leased": "In progress; the outcome is not yet verified.",
+    "checkpointed": "In progress; the outcome is not yet verified.",
+    "unknown": "Outcome uncertain. Further checking is required before completion can be claimed.",
+    "reconciling": "Outcome uncertain. Further checking is required before completion can be claimed.",
+    "cancelled": "Guardian's task was stopped; its intended effect did not occur.",
+    "completed": "The workflow completed successfully.",
+}
+
+
+def render_status(workflow: Optional[Dict[str, Any]], workflow_id: str, *, requested_text: Optional[str] = None) -> Dict[str, Any]:
+    """Render from canonical backend state; ignore model/caller-written completion text."""
+    current = _require_workflow(workflow, workflow_id)
+    status = current.get("status", "ready")
+    if status == "completed" and not any(item.get("state") == "verified" for item in current.get("evidence", [])):
+        status = "reconciling"
+    if status == "cancelled" and (current.get("cancellation") or {}).get("state") != "verified":
+        status = "reconciling"
+    return {"workflowId": workflow_id, "state": status, "text": STATUS_TEMPLATES[status], "modelTextIgnored": bool(requested_text)}
 
 
 def view(workflow: Optional[Dict[str, Any]], workflow_id: str) -> WorkflowView:

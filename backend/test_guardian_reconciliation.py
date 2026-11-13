@@ -73,6 +73,19 @@ def test_dispatch_boundary_unknown_requires_read_authority_and_cannot_be_forged_
     assert not reconciling["outbox"][0]["verified"]
 
 
+def test_in_flight_task_cancellation_stays_reconciling_until_evidence_arrives():
+    store = leased_store()
+    dispatch(store)
+    requested = run(store.cancel_workflow("user-a", WORKFLOW, owner="worker-a", fence=1, reason="Stop before another effect."))
+    assert requested["status"] == "reconciling"
+    assert requested["cancellation"]["state"] == "requested"
+    assert requested["cancellation"]["requiresReconciliation"] is True
+    assert "cancelled" not in run(store.render_workflow_status("user-a", WORKFLOW, requested_text="Done"))["text"].lower()
+    verified = run(store.reconcile_workflow_with_authority("user-a", WORKFLOW, authority=AUTH, idempotency_key="op-1", outcome="verified", evidence={"source": "independent-read", "effect": "none"}))
+    assert verified["status"] == "cancelled"
+    assert verified["cancellation"]["state"] == "verified"
+
+
 def test_duplicate_provider_event_and_late_success_are_not_exactly_once_or_verified():
     store = leased_store()
     dispatch(store)

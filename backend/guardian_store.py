@@ -17,6 +17,7 @@ from guardian_workflow import (
     reconcile,
     record_provider_event,
     request_operation_cancellation,
+    render_status,
     revoke_authority,
     set_proactive_consent,
     set_speech_quiet,
@@ -243,3 +244,7 @@ class GuardianStore:
 
     async def arbitrate_portal_weave(self, user_id: str, workflow_id: str) -> Dict[str, Any]:
         return await self._workflow_mutation(user_id, workflow_id, lambda workflow: arbitrate_portal_weave(workflow, workflow_id))
+
+    async def render_workflow_status(self, user_id: str, workflow_id: str, *, requested_text: Optional[str] = None) -> Dict[str, Any]:
+        document = await self.ensure_user(user_id)
+        return render_status(document.get("workflows", {}).get(workflow_id), workflow_id, requested_text=requested_text)

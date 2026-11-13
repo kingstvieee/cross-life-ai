@@ -86,7 +86,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    const timer = setTimeout(() => { void refresh(); }, 0);
+    return () => clearTimeout(timer);
+  }, [refresh]);
 
   const loginDemo = useCallback(async () => {
     const r = await fetch(backendUrl('/api/auth/demo'), { method: 'POST' });

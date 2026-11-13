@@ -87,7 +87,7 @@ def test_completion_evidence_gate_survives_http_boundary():
     )
     assert rejected.status_code == 400
 
-    accepted = client.patch(
+    client_claim = client.patch(
         path,
         headers=headers,
         json={
@@ -97,9 +97,21 @@ def test_completion_evidence_gate_survives_http_boundary():
             "evidence": {"ci": "passed"},
         },
     )
-    assert accepted.status_code == 200
-    assert accepted.json()["status"] == "completed"
-    assert accepted.json()["lastVerifiedUpdate"]
+    assert client_claim.status_code == 400
+    assert client_claim.json()["detail"] == "completion_is_server_owned"
+
+
+def test_renderer_ignores_forged_completion_text_and_uses_canonical_state():
+    client = TestClient(make_app())
+    rendered = client.post(
+        "/api/guardian/core/workflows/rsf-fabric-sourcing/render",
+        headers={"Authorization": "Bearer user-a"},
+        json={"requested_text": "Done — the work completed successfully."},
+    )
+    assert rendered.status_code == 200
+    assert rendered.json()["state"] == "ready"
+    assert "Done" not in rendered.json()["text"]
+    assert rendered.json()["modelTextIgnored"] is True
 
 
 def test_unknown_mission_and_invalid_portal_are_safe_client_errors():

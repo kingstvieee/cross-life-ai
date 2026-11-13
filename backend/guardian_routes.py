@@ -93,6 +93,10 @@ class GuardianContributionRequest(BaseModel):
     idempotency_key: str = Field(min_length=1)
 
 
+class GuardianRenderRequest(BaseModel):
+    requested_text: Optional[str] = None
+
+
 def build_guardian_router(*, db: Any, get_current_user: Any) -> APIRouter:
     """Build authenticated Guardian Core routes against the app's Mongo database.
 
@@ -153,6 +157,8 @@ def build_guardian_router(*, db: Any, get_current_user: Any) -> APIRouter:
             raise HTTPException(status_code=400, detail="mission_id_is_immutable")
         if "user_id" in body.patch or "userId" in body.patch:
             raise HTTPException(status_code=400, detail="user_scope_is_immutable")
+        if body.patch.get("status") == "completed":
+            raise HTTPException(status_code=400, detail="completion_is_server_owned")
 
         try:
             return await store.update_mission(
@@ -259,6 +265,14 @@ def build_guardian_router(*, db: Any, get_current_user: Any) -> APIRouter:
     async def workflow_speech(workflow_id: str, body: GuardianSpeechRequest, authorization: Optional[str] = Header(None)):
         user = await current_user(authorization)
         return await store.set_speech_quiet(user["user_id"], workflow_id, quiet=body.quiet)
+
+    @router.post("/workflows/{workflow_id}/render")
+    async def workflow_render(workflow_id: str, body: GuardianRenderRequest, authorization: Optional[str] = Header(None)):
+        user = await current_user(authorization)
+        try:
+            return await store.render_workflow_status(user["user_id"], workflow_id, requested_text=body.requested_text)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="workflow_not_found") from exc
 
     @router.post("/workflows/{workflow_id}/proactive-consent")
     async def workflow_proactive_consent(workflow_id: str, body: GuardianConsentRequest, authorization: Optional[str] = Header(None)):

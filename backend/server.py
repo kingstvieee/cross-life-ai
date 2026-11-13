@@ -1,6 +1,7 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Header, Request
 from fastapi.responses import StreamingResponse, Response
 import hashlib
+import secrets
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -781,16 +782,7 @@ async def guardian_speak(body: SpeakIn, authorization: Optional[str] = Header(No
     if not coord:
         raise HTTPException(status_code=404, detail="coordination_not_found")
     text = coord.get("spoken_summary") or "Coordination complete. Everything is handled."
-    key = hashlib.sha256(f"{text}|onyx|1.0|tts-1|mp3".encode()).hexdigest()[:32]
-    cached = await db.tts_cache.find_one({"key": key}, {"_id": 0, "key": 1})
-    if not cached:
-        try:
-            audio = await _tts().generate_speech(text=text, model="tts-1", voice="onyx")
-        except Exception:
-            logger.exception("tts generation failed")
-            raise HTTPException(status_code=502, detail="tts_failed")
-        await db.tts_cache.insert_one({"key": key, "audio": audio, "created_at": utcnow()})
-    return {"url": f"/api/tts/{key}.mp3"}
+    return await _tts_cached_line(text, private_user_id=user["user_id"])
 
 
 GREETING_TEXT = "Welcome. I am your Guardian. Seven worlds, one presence. Let us begin."
@@ -816,17 +808,29 @@ PORTAL_INTROS = {
 }
 
 
-async def _tts_cached_line(text: str) -> dict:
-    """Generate (or reuse cached) Onyx TTS for a fixed line; returns url + text."""
-    key = hashlib.sha256(f"{text}|onyx|1.0|tts-1|mp3".encode()).hexdigest()[:32]
-    cached = await db.tts_cache.find_one({"key": key}, {"_id": 0, "key": 1})
+async def _tts_cached_line(text: str, private_user_id: Optional[str] = None) -> dict:
+    """Generate TTS with public fixed narration or a short-lived private scoped link."""
+    content_key = hashlib.sha256(f"{text}|onyx|1.0|tts-1|mp3".encode()).hexdigest()[:32]
+    query = {"content_key": content_key, "private_user_id": private_user_id}
+    if private_user_id is None:
+        query = {"key": content_key, "visibility": "public"}
+    cached = await db.tts_cache.find_one(query, {"_id": 0, "key": 1, "visibility": 1, "expires_at": 1})
+    key = cached.get("key") if cached else (content_key if private_user_id is None else f"{content_key}.{secrets.token_urlsafe(18)}")
     if not cached:
         try:
             audio = await _tts().generate_speech(text=text, model="tts-1", voice="onyx")
         except Exception:
             logger.exception("tts generation failed")
             raise HTTPException(status_code=502, detail="tts_failed")
-        await db.tts_cache.insert_one({"key": key, "audio": audio, "created_at": utcnow()})
+        await db.tts_cache.insert_one({
+            "key": key,
+            "content_key": content_key,
+            "audio": audio,
+            "created_at": utcnow(),
+            "visibility": "private" if private_user_id else "public",
+            "private_user_id": private_user_id,
+            "expires_at": utcnow() + timedelta(minutes=10) if private_user_id else None,
+        })
     return {"url": f"/api/tts/{key}.mp3", "text": text}
 
 
@@ -911,7 +915,7 @@ async def guardian_speak_line(body: SpeakLineIn, authorization: Optional[str] = 
     """Speak a short Guardian line (e.g., a remembered preference). Auth + rate limited."""
     user = await get_current_user(authorization)
     rate_limit(f"tts:{user['user_id']}", 30, 60)
-    return await _tts_cached_line(body.text)
+    return await _tts_cached_line(body.text, private_user_id=user["user_id"])
 
 
 @api_router.get("/guardian/greeting")
@@ -967,10 +971,21 @@ async def get_tts(key: str):
     doc = await db.tts_cache.find_one({"key": key})
     if not doc:
         raise HTTPException(status_code=404, detail="not_found")
+    if doc.get("visibility") == "private":
+        expires_at = doc.get("expires_at")
+        if expires_at and expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at and expires_at < utcnow():
+            raise HTTPException(status_code=403, detail="audio_link_expired")
+        cache_control = "private, no-store"
+    elif doc.get("visibility") == "public" and doc.get("content_key") == key:
+        cache_control = "public, max-age=31536000"
+    else:
+        raise HTTPException(status_code=403, detail="private_audio_requires_scoped_link")
     return Response(
         content=bytes(doc["audio"]),
         media_type="audio/mpeg",
-        headers={"Cache-Control": "public, max-age=31536000"},
+        headers={"Cache-Control": cache_control},
     )
 
 
