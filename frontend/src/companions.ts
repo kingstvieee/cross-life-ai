@@ -1,4 +1,6 @@
 import * as Speech from 'expo-speech';
+import { playServerSpeech, stopServerSpeech } from './server-speech';
+import { backendUrl } from './backend-config';
 
 export type CompanionId = 'guardian' | 'atlas' | 'kaia';
 export const COMPANIONS = [
@@ -6,18 +8,9 @@ export const COMPANIONS = [
   { id: 'kaia' as const, name: 'Kaia', desc: 'Warm, soft and assured. Elegant, with a little wit.', preview: 'I’m Kaia. Come in, get comfortable, and let’s make room for what matters to you.' },
 ];
 
-let speechGeneration = 0;
-export async function speakCompanion(text: string, companion: CompanionId, onDone?: () => void) {
-  const generation = ++speechGeneration;
-  await Speech.stop();
-  const voices = await Speech.getAvailableVoicesAsync();
-  // Use only a voice actually installed on the device. Never claim that a
-  // system fallback is the approved studio voice or infer gender from a name.
-  const language = companion === 'atlas' ? 'en-GB' : 'en-US';
-  const voice = voices.find(v => v.language === language && v.quality === Speech.VoiceQuality.Enhanced)
-    ?? voices.find(v => v.language === language);
-  if (generation !== speechGeneration) return;
-  Speech.speak(text, { voice: voice?.identifier, language, rate: companion === 'atlas' ? 0.93 : 0.96, pitch: companion === 'atlas' ? 0.9 : 1.04, onDone, onStopped: onDone, onError: onDone });
+// Public preview is fixed server narration, never arbitrary guest text.
+export async function speakCompanion(_text: string, companion: CompanionId, onDone?: () => void) {
+  if (companion === 'guardian') throw new Error('Choose Atlas or Kaia for a voice preview.');
+  return playServerSpeech(() => fetch(backendUrl('/api/companion/voice-preview/' + companion)), { onDone });
 }
-
-export const stopCompanion = () => { speechGeneration += 1; return Speech.stop(); };
+export const stopCompanion = async () => { stopServerSpeech(); await Speech.stop(); };
