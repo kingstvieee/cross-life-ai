@@ -11,6 +11,6 @@ export const COMPANIONS = [
 // Public preview is fixed server narration, never arbitrary guest text.
 export async function speakCompanion(_text: string, companion: CompanionId, onDone?: () => void) {
   if (companion === 'guardian') throw new Error('Choose Atlas or Kaia for a voice preview.');
-  return playServerSpeech(() => fetch(backendUrl('/api/companion/voice-preview/' + companion)), { onDone });
+  return playServerSpeech(signal => fetch(backendUrl('/api/companion/voice-preview/' + companion), { signal }), { onDone });
 }
 export const stopCompanion = async () => { stopServerSpeech(); await Speech.stop(); };

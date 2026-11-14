@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { backendUrl } from './backend-config';
+import { AppState } from 'react-native';
+import { shareWithWatch } from './watch';
 import { nativeLogin } from './native-login';
 
 const KEY = 'staar_session_token';
@@ -52,6 +54,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Every account change starts with sharing disabled. No token crosses WCSession.
+    void shareWithWatch(false, user?.companion || 'atlas').catch(() => {});
+    const sub = AppState.addEventListener('change', state => {
+      if (state !== 'active') void shareWithWatch(false, user?.companion || 'atlas').catch(() => {});
+    });
+    return () => { sub.remove(); void shareWithWatch(false, 'atlas').catch(() => {}); };
+  }, [user?.user_id, user?.companion]);
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
     if (!token && !user) return new Response(JSON.stringify({ detail: 'sign_in_required' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
