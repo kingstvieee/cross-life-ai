@@ -265,8 +265,8 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     if (!settingsRef.current.master || !settingsRef.current.voice || speechQuietRef.current || !text.trim()) return;
     setVoiceNotice('');
     try {
-      await playServerSpeech(async () => {
-        const response = await api('/api/companion/speak', { method: 'POST', body: JSON.stringify({ text: text.slice(0, 2000) }) });
+      await playServerSpeech(async signal => {
+        const response = await api('/api/companion/speak', { method: 'POST', signal, body: JSON.stringify({ text: text.slice(0, 2000) }) });
         return response;
       }, { volume: settingsRef.current.volume });
     } catch {
