@@ -1,7 +1,7 @@
 name: Submit approved STAAR Hub build 104
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 concurrency:
   group: staar-hub-submit-auth-104
