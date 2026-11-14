@@ -29,6 +29,12 @@ final class WatchConnection: NSObject, ObservableObject, WCSessionDelegate {
       abs(Date().timeIntervalSince1970 - sentAt) < 120 else { verified = false; status = "Verify again on your iPhone."; return }
     companion = enabled && ["atlas", "kaia", "guardian"].contains(name) ? name.capitalized : ""
     verified = live && enabled && !companion.isEmpty
+    if verified {
+      timer?.invalidate()
+      timer = Timer.scheduledTimer(withTimeInterval: 120, repeats: false) { [weak self] _ in
+        self?.verified = false; self?.status = "Verification expired. Tap Verify iPhone."
+      }
+    }
     status = enabled ? (live ? "iPhone connection verified" : "Tap Verify for a live check") : "Enable Watch sharing in STAAR Hub on iPhone"
   }
   func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {

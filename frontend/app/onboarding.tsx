@@ -111,7 +111,7 @@ export default function Onboarding() {
                   style={{ paddingVertical: 12 }}><Text style={styles.p}>Hear {c.name}</Text></Pressable>
               </View>
             ))}
-            <Text style={styles.p}>Preview uses this device’s available voices. Studio voice matching still needs listening approval.</Text>
+            <Text style={styles.p}>Preview uses an AI companion voice. Listen before choosing; voice quality still needs your approval.</Text>
           </View>
         )}
       </ScrollView>

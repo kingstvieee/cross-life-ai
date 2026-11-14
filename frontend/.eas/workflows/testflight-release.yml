@@ -8,7 +8,7 @@ on:
         description: Confirm the approved production TestFlight candidate
         required: true
         options:
-          - 1.0.1 (103)
+          - 1.0.2 (103)
 
 concurrency:
   group: staar-hub-testflight-release
@@ -16,12 +16,12 @@ concurrency:
 
 jobs:
   build_ios:
-    name: Build STAAR Hub 1.0.1 (103)
+    name: Build STAAR Hub 1.0.2 (103)
     type: build
     params:
       platform: ios
       profile: production
-      message: STAAR Hub 1.0.1 (103) corrected nine-world release
+      message: STAAR Hub 1.0.2 (103) corrected nine-world release
 
   submit_ios:
     name: Submit build 103 to TestFlight
