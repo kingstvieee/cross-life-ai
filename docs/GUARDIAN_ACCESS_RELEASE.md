@@ -66,9 +66,12 @@ the managed detector selected `backups/canonical-f68171a` instead of `frontend`.
 The archived package manifest was preserved as `package.json.archived`, leaving
 only `frontend` eligible for app detection. The correction is committed on the
 integration checkout and PR branch. Corrected Publish 9 (`97b8028`) is live;
-the owner authenticated again and the version 1.0.1 retry is now running.
-Upload and installation are not yet verified. App Store Connect last showed only
-version 1.0.0 builds 1 and 2. Apple capability changes invalidated existing provisioning profiles, so
+the owner authenticated again and the version 1.0.1 retry succeeded.
+App Store Connect received version 1.0.1 build 102 at 9:44 PM Toronto and finished
+processing it. Build 102 is assigned to the existing Team (Expo) internal group
+with one tester. Test instructions were saved. Installation and complete native
+Apple/email login are still awaiting device verification; the last observed
+installed build was 1.0.0 (2). Apple capability changes invalidated existing provisioning profiles, so
 the managed build must regenerate them. No public App Store release is authorized.
 
 Google's Cloud Console is currently unavailable in this cloud browser; the Auth0
