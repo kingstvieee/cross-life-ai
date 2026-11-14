@@ -21,7 +21,8 @@
       "distribution": "store",
       "ios": {
         "simulator": false
-      }
+      },
+      "environment": "production"
     }
   },
   "submit": {
