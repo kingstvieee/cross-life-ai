@@ -9,6 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/src/auth';
 import { theme, portalMeta } from '@/src/theme';
 import { stopCompanion } from '@/src/companions';
+import { GuardianPresence } from '@/components/staarwardd/guardian-presence';
+import { VoiceInput } from '@/components/staarwardd/voice-input';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
 
 const COMPANION_NAMES: Record<string, string> = { guardian: 'Guardian', kaia: 'Kaia', atlas: 'Atlas' };
@@ -27,6 +29,7 @@ export default function Chat() {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState(() => typeof draft === 'string' ? draft.slice(0, 4000) : '');
   useEffect(() => { if (typeof draft === 'string') setInput(draft.slice(0, 4000)); }, [draft]);
+  const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
   const voiceOn = audio.master && audio.voice && !audio.speechQuiet;
   const [historyReady, setHistoryReady] = useState(false);
@@ -54,7 +57,7 @@ export default function Chat() {
 
   const send = async (text?: string) => {
     const message = (text ?? input).trim();
-    if (!message || pending.current || !historyReady) return;
+    if (!message || pending.current || !historyReady || listening) return;
     pending.current = true;
     setInput('');
     setMsgs((m) => [...m, { role: 'user', text: message }]);
@@ -92,6 +95,7 @@ export default function Chat() {
         <Pressable accessibilityRole="button" accessibilityLabel={voiceOn ? 'Mute companion' : 'Enable spoken replies'} onPress={() => { audio.setSpeechQuiet(voiceOn); if (!voiceOn) audio.update({ master: true, voice: true }); }}><Ionicons name={voiceOn ? 'volume-high-outline' : 'volume-mute-outline'} size={22} color="#DCE2E9" /></Pressable>
       </View>
 
+      {user?.companion === 'guardian' && <GuardianPresence listening={listening} thinking={busy} />}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -133,6 +137,7 @@ export default function Chat() {
           )}
         </ScrollView>
 
+        <VoiceInput onListening={setListening} onTranscript={setInput} disabled={busy || !historyReady} />
         <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <TextInput
             style={styles.input}
@@ -144,7 +149,7 @@ export default function Chat() {
             returnKeyType="send"
             testID="chat-input"
           />
-          <Pressable accessibilityRole="button" style={[styles.sendBtn, (!input.trim() || busy) && { opacity: 0.4 }]} onPress={() => send()} disabled={!input.trim() || busy} accessibilityLabel="Send message" testID="send-btn">
+          <Pressable accessibilityRole="button" style={[styles.sendBtn, (!input.trim() || busy) && { opacity: 0.4 }]} onPress={() => send()} disabled={!input.trim() || busy || listening} accessibilityLabel="Send message" testID="send-btn">
             <Ionicons name="arrow-up" size={20} color="#000000" />
           </Pressable>
         </View>
