@@ -44,7 +44,8 @@ are not implemented by this text-to-speech bridge.
 
 ## Verification and remaining work
 
-TypeScript and bundling checks validate source integration, not physical devices.
+Passed: 92 backend tests, 2 account-storage isolation tests, TypeScript, and combined web/iOS exports.
+These checks validate source integration, not physical devices.
 New synthesis tests use a fake HTTP provider and exercise real dispatch code.
 No new TestFlight binary is claimed. Device layout, microphone speech recognition,
 real-time interruption, audio quality, live Apple/email login, production identity
