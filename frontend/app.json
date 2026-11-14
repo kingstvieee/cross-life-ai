@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.emergent.crosslifeai.z79271",
-      "buildNumber": "103",
+      "buildNumber": "104",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },

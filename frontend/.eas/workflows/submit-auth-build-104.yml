@@ -1,0 +1,17 @@
+name: Submit approved STAAR Hub build 104
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: staar-hub-submit-auth-104
+  cancel_in_progress: false
+
+jobs:
+  submit_ios:
+    name: Submit existing build 104 to TestFlight
+    type: submit
+    params:
+      build_id: 4e52c89d-d2df-428e-a4b1-7e6d8f314b1f
+      profile: production
+      groups: ['Team (Expo)']

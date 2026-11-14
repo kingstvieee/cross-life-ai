@@ -120,3 +120,29 @@ separate Vercel project was not made deployment-ready by this work. Emergent sho
 exhausted agent credits and a failed subscription renewal; no payment, upgrade
 or extra build allocation was purchased. Do not paste credentials into chat or
 commit environment files.
+
+## TestFlight sign-in connectivity correction — 2026-11-14
+
+The device screenshot's “Account sign-in is not connected” message comes from
+failure to fetch or parse `/api/auth/providers`; it does not prove all five broker
+connections are absent. The app requires `EXPO_PUBLIC_BACKEND_URL` at bundle time.
+No backend origin or EAS environment values are stored in this checkout, and no
+live EAS/Emergent authenticated session was available for this correction.
+
+The production EAS profile now explicitly selects the production environment.
+Its post-install gate rejects a missing/non-HTTPS backend origin, unreachable or
+invalid provider endpoint, disabled native callback, or zero enabled supported
+providers before compilation. Local verification: set the actual backend origin
+and run `yarn check:auth-release` from `frontend`. This checks configuration, not
+a completed login. Do not replace the origin with an unverified preview URL.
+
+The sign-in screen now times out stalled checks after 12 seconds, distinguishes
+missing bundle configuration from service/connectivity failures, and offers a
+retry for configured backends. Disabled identity providers remain disabled.
+
+Outstanding operational work: inspect the installed build's EAS production
+environment and actual backend deployment; restore its existing backend origin
+and native/provider settings as needed, build and distribute a corrected binary,
+and verify Apple/email login and session restoration on the device. Google,
+Microsoft and Yahoo still require their separately documented provider setup.
+No live settings or installed binary were changed by this patch.

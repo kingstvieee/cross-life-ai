@@ -4,7 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
 import { useAuth } from "@/src/auth";
-import { backendUrl } from "@/src/backend-config";
+import { backendUrl, hasConfiguredBackend } from "@/src/backend-config";
 import { useStartupReplay } from "./startup-film";
 import { PORTALS, PREVIEW_WORLDS } from "@/lib/staarwardd/portal-data";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -31,16 +31,38 @@ export function SignInScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(true);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let active = true;
-    void Promise.resolve().then(() => fetch(backendUrl("/api/auth/providers")))
-      .then(r => r.ok ? r.json() : null).then(data => {
-        if (active && data) setEnabled(data.providers.filter((p: { id: string; enabled: boolean }) => p.enabled && (Platform.OS === 'web' || data.nativeEnabled)).map((p: { id: string }) => p.id));
-        if (active && !data) setError('Account sign-in is unavailable. You can still explore the portals.');
-      }).catch(() => { if (active) setError('Account sign-in is not connected. You can still explore the portals.'); })
-      .finally(() => { if (active) setChecking(false); });
-    return () => { active = false; };
-  }, []);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
+    setChecking(true); setEnabled([]); setError('');
+    void (async () => {
+      try {
+        if (!hasConfiguredBackend) throw new Error('This app build is missing its sign-in connection. An updated build is required.');
+        const response = await fetch(backendUrl('/api/auth/providers'), { signal: controller.signal });
+        if (!response.ok) throw new Error('The sign-in service is temporarily unavailable. Please retry.');
+        const data = await response.json();
+        if (!Array.isArray(data?.providers) || data.providers.some((p: { id?: unknown; enabled?: unknown } | null) => !p || typeof p.id !== 'string' || typeof p.enabled !== 'boolean')) {
+          throw new Error('The sign-in service returned an invalid response. Please retry.');
+        }
+        const ready = data.providers.filter((p: { id: string; enabled: boolean }) => p.enabled && (Platform.OS === 'web' || data.nativeEnabled === true)).map((p: { id: string }) => p.id);
+        if (active) {
+          setEnabled(ready);
+          if (!ready.length) setError(Platform.OS !== 'web' && data.nativeEnabled !== true
+            ? 'Account sign-in has not been enabled for this app yet.'
+            : 'Account providers have not been connected yet.');
+        }
+      } catch (e) {
+        if (active) setError(e instanceof Error && !['TypeError', 'AbortError'].includes(e.name)
+          ? e.message : 'Cannot reach sign-in. Check your connection and retry.');
+      } finally {
+        clearTimeout(timer);
+        if (active) setChecking(false);
+      }
+    })();
+    return () => { active = false; clearTimeout(timer); controller.abort(); };
+  }, [attempt]);
   const connect = async (name: string) => {
     if (busy) return;
     setBusy(name); setError('');
@@ -80,7 +102,9 @@ export function SignInScreen() {
             </Pressable>;
           })}
         </View>
-        {error ? <Text accessibilityRole="alert" style={styles.copy}>{error}</Text> : null}
+        {error ? <View style={{ gap: 8 }}><Text accessibilityRole="alert" style={styles.copy}>{error}</Text>
+          {hasConfiguredBackend ? <Pressable accessibilityRole="button" disabled={checking} onPress={() => setAttempt(value => value + 1)} style={styles.button}><Text style={styles.label}>{checking ? 'Checking sign-in…' : 'Retry sign-in connection'}</Text></Pressable> : null}
+        </View> : null}
         <View style={styles.dividerRow}><View style={styles.divider} /><Text style={styles.dividerText}>DISCOVER FIRST</Text><View style={styles.divider} /></View>
         <Pressable accessibilityRole="button" accessibilityLabel="Explore as guest" onPress={() => router.replace("/guest")} style={({ pressed }) => [pressed && styles.pressed]}>
           <LinearGradient colors={["#F2F5F7", "#A3ADB8", "#E5E9EE"]} locations={[0, 0.53, 1]} style={styles.guestButton}>
