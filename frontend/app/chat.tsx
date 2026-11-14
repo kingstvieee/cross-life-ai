@@ -18,18 +18,20 @@ type Msg = { role: 'user' | 'assistant'; text: string };
 export default function Chat() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { portal } = useLocalSearchParams<{ portal?: string }>();
+  const { portal, draft } = useLocalSearchParams<{ portal?: string; draft?: string }>();
   const { api, user } = useAuth();
   const audio = useStaarAudio();
   const companion = COMPANION_NAMES[user?.companion || 'guardian'];
   const scrollRef = useRef<ScrollView>(null);
 
   const [msgs, setMsgs] = useState<Msg[]>([]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(() => typeof draft === 'string' ? draft.slice(0, 4000) : '');
+  useEffect(() => { if (typeof draft === 'string') setInput(draft.slice(0, 4000)); }, [draft]);
   const [busy, setBusy] = useState(false);
   const voiceOn = audio.master && audio.voice && !audio.speechQuiet;
   const [historyReady, setHistoryReady] = useState(false);
   const [notice, setNotice] = useState('');
+  useEffect(() => { if (audio.voiceNotice) setNotice(audio.voiceNotice); }, [audio.voiceNotice]);
   const pending = useRef(false);
   useEffect(() => {
     let active = true;
@@ -47,8 +49,8 @@ export default function Chat() {
   }, [api, portal]);
 
   const suggestions = portal
-    ? [portalMeta[portal]?.tagline || 'What should I focus on?', 'What did you coordinate for me?']
-    : ["What's my evening looking like?", 'What did you notice across my life today?', 'Help me protect my 8 PM plan'];
+    ? [portalMeta[portal]?.tagline || 'What should I focus on?', 'Help me choose a practical next step']
+    : ['Help me set up my worlds', 'Plan my next priority', 'What can you help me prepare?'];
 
   const send = async (text?: string) => {
     const message = (text ?? input).trim();
@@ -85,7 +87,7 @@ export default function Chat() {
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={styles.h}>{companion}</Text>
-          <Text style={styles.sub}>{portal ? `${portalMeta[portal]?.name?.toUpperCase()} PORTAL CONTEXT` : 'CROSS-LIFE CONTEXT ACTIVE'}</Text>
+          <Text style={styles.sub}>{portal ? `${portalMeta[portal]?.name?.toUpperCase()} PORTAL CONTEXT` : 'PRIVATE CONVERSATION'}</Text>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel={voiceOn ? 'Mute companion' : 'Enable spoken replies'} onPress={() => { audio.setSpeechQuiet(voiceOn); if (!voiceOn) audio.update({ master: true, voice: true }); }}><Ionicons name={voiceOn ? 'volume-high-outline' : 'volume-mute-outline'} size={22} color="#DCE2E9" /></Pressable>
       </View>

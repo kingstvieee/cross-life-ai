@@ -1,5 +1,2 @@
-import { CinematicHub } from "@/components/staarwardd/cinematic-hub";
-
-export default function HubScreen() {
-  return <CinematicHub />;
-}
+import { WorldHub } from "@/components/staarwardd/world-hub";
+export default function HubScreen() { return <WorldHub />; }

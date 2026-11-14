@@ -1,6 +1,2 @@
-import { CinematicHub } from "@/components/staarwardd/cinematic-hub";
-
-// StartupFilmBoundary owns the entrance once per app launch.
-export default function IndexScreen() {
-  return <CinematicHub />;
-}
+import { WorldHub } from "@/components/staarwardd/world-hub";
+export default function HubScreen() { return <WorldHub />; }
