@@ -1,57 +1,122 @@
-import { useCallback, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, AppState, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AccessField } from './access-field';
+import { GuardianCharacter, type GuardianState } from './guardian-character';
 import { WORLDS } from '@/lib/staarwardd/world-directory';
 import { useAuth } from '@/src/auth';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
+import { SceneSurface } from './liquid/scene-surface';
+import { HUB_CROP, HUB_MASTER, WORLD_ART } from '@/lib/staarwardd/world-art';
+import { getHubLayout } from '@/lib/staarwardd/hub-layout';
+import { observeSpeech } from '@/src/server-speech';
+
+// Separate animated layers leave the actual hit target stationary and accessible.
+function LiquidPortal({ index, size, reducedMotion, disabled, onPress }: { index: number; size: number; reducedMotion: boolean; disabled: boolean; onPress: () => void }) {
+  const [phase] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    if (reducedMotion) { phase.setValue(0); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(phase, { toValue: 1, duration: 2200 + index * 170, easing: Easing.inOut(Easing.sin), useNativeDriver: true, isInteraction: false }),
+      Animated.timing(phase, { toValue: 0, duration: 2200 + index * 170, easing: Easing.inOut(Easing.sin), useNativeDriver: true, isInteraction: false }),
+    ]));
+    loop.start(); return () => loop.stop();
+  }, [index, phase, reducedMotion]);
+  const world = WORLDS[index];
+  const art = WORLD_ART[world.id as keyof typeof WORLD_ART];
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Enter ${world.name}`} disabled={disabled} onPress={onPress} testID={`hub-portal-${world.id}`} style={({ pressed }) => [{ width: size, height: size + 26, alignItems: 'center', opacity: pressed ? .65 : 1 }]}>
+    <Animated.View style={[s.bubble, { width: size, height: size, transform: [
+      { translateY: phase.interpolate({ inputRange: [0, 1], outputRange: [-3, 4] }) },
+      { scaleX: phase.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) },
+      { scaleY: phase.interpolate({ inputRange: [0, 1], outputRange: [1.035, 1] }) },
+    ] }]}>
+      <SceneSurface source={art.source} crop={art.crop} width={size} height={size} mode="bubble" moving={!reducedMotion} />
+    </Animated.View>
+    <Text numberOfLines={2} style={s.portalName}>{world.name}</Text>
+  </Pressable>;
+}
 
 export function WorldHub() {
   const router = useRouter();
   const { user } = useAuth();
-  const audio = useStaarAudio();
-  const { width } = useWindowDimensions();
+  const { speak, stopAll, settingsReady, claimArrival, master, voice, speechQuiet, setSpeechQuiet, update, voiceNotice } = useStaarAudio();
+  const { width, height } = useWindowDimensions();
+  const [viewport, setViewport] = useState({ width, height });
+  const [stageHeight, setStageHeight] = useState(Math.max(180, height - 300));
+  const [focused, setFocused] = useState(false);
+  const [active, setActive] = useState(AppState.currentState === 'active');
   const [selected, setSelected] = useState<string | null>(null);
-  const columns = width >= 900 ? 3 : width >= 600 ? 2 : 1;
-  const companion = user?.companion === 'kaia' ? 'Kaia' : user?.companion === 'guardian' ? 'Guardian' : 'Atlas';
-  useFocusEffect(useCallback(() => { setSelected(null); return () => audio.stopAll(); }, [audio.stopAll]));
-  return <View style={s.root}>
-    <LinearGradient colors={['#171A1E', '#030405', '#111418']} style={StyleSheet.absoluteFill} />
+  const [guardianState, setGuardianState] = useState<GuardianState>('flying');
+  const [reducedMotion, setReducedMotion] = useState(true);
+  const [motionReady, setMotionReady] = useState(false);
+  const [greeting, setGreeting] = useState('');
+  const greeted = useRef<string | null>(null);
+  const companion = user?.companion === 'kaia' ? 'Kaia' : user?.companion === 'atlas' ? 'Atlas' : 'Guardian';
+  useEffect(() => {
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (mounted) { setReducedMotion(value); setMotionReady(true); } }).catch(() => { if (mounted) setMotionReady(true); });
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReducedMotion);
+    const app = AppState.addEventListener('change', value => { setActive(value === 'active'); if (value !== 'active') stopAll(); });
+    return () => { mounted = false; sub.remove(); app.remove(); };
+  }, [stopAll]);
+  useFocusEffect(useCallback(() => { setFocused(true); setSelected(null); return () => { setFocused(false); stopAll(); }; }, [stopAll]));
+  useEffect(() => observeSpeech(state => { if (state === 'speaking') setGuardianState('speaking'); else if (state === 'idle' || state === 'failed') setGuardianState(current => current === 'speaking' ? 'hover' : current); }), []);
+  useEffect(() => {
+    if (!user || !focused || !active || !settingsReady || !motionReady || greeted.current === user.user_id) return;
+    setGuardianState(reducedMotion ? 'hover' : 'flying');
+    const timer = setTimeout(() => {
+      greeted.current = user.user_id;
+      if (!claimArrival()) { setGuardianState('hover'); return; }
+      setGuardianState('hover');
+      const line = `Welcome back${user.name?.trim() ? `, ${user.name.trim()}` : ''}. The field is awake. Where shall we begin?`;
+      setGreeting(line);
+      void speak(line);
+    }, reducedMotion ? 0 : 1400);
+    return () => clearTimeout(timer);
+  }, [active, claimArrival, focused, motionReady, reducedMotion, settingsReady, speak, user]);
+
+  const stageWidth = Math.min(width, 1000);
+  const { size: bubble, centerX, centerY, guardianSize, portals } = getHubLayout(stageWidth, stageHeight);
+  const muted = !master || !voice || speechQuiet;
+  return <View style={s.root} onLayout={event => setViewport(event.nativeEvent.layout)}>
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}><SceneSurface source={HUB_MASTER} crop={HUB_CROP} width={viewport.width} height={viewport.height} mode="background" moving={!reducedMotion && focused && active} /></View>
+    <LinearGradient colors={['rgba(0,0,0,.3)', 'rgba(0,0,0,.12)', 'rgba(0,0,0,.8)']} style={StyleSheet.absoluteFill} />
     <SafeAreaView style={s.safe}>
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        <View style={s.header}><View><Text style={s.brand}>STAARWARDD</Text><Text style={s.micro}>YOUR CONNECTED UNIVERSE</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => router.push('/settings')} style={s.icon}><Ionicons name="options-outline" size={22} color="#E4E8EE" /></Pressable></View>
-        <View style={s.stage}>
-          <AccessField />
-          <View style={s.stageCopy}><Text style={s.micro}>{companion.toUpperCase()} · YOUR COMPANION</Text><Text style={s.title}>Where shall{ '\n' }we begin?</Text><Text style={s.description}>Nine worlds. Your direction.</Text></View>
+      <View style={s.header}><View><Text style={s.brand}>STAARWAARDD</Text><Text style={s.micro}>YOUR CONNECTED UNIVERSE</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => router.push('/settings')} style={s.control}><Ionicons name="options-outline" size={22} color="#F5F6FA" /></Pressable></View>
+      <View testID="liquid-portal-universe" onLayout={event => setStageHeight(event.nativeEvent.layout.height)} style={{ width: stageWidth, flex: 1, minHeight: width > height ? 160 : 300, alignSelf: 'center' }}>
+        <View pointerEvents="none" style={[s.platform, { width: guardianSize * 1.3, left: centerX - guardianSize * .65, top: centerY + guardianSize * .47 }]} />
+        <View pointerEvents="none" style={{ position: 'absolute', left: centerX - guardianSize / 2, top: centerY - guardianSize * .63 }}>
+          <GuardianCharacter state={guardianState} size={guardianSize} reducedMotion={reducedMotion || !focused || !active} />
         </View>
-        <LinearGradient colors={['#BBC2CB', '#3A414A', '#8B949F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.frame}>
-          <BlurView intensity={35} tint="dark" style={s.companion}>
-            <View style={{ flex: 1, gap: 7 }}><Text style={s.panelTitle}>Speak with {companion}</Text><Text style={s.description}>Bring an idea, a question, or a plan.</Text></View>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Open conversation with ${companion}`} onPress={() => router.push('/chat')} style={s.primary}><Ionicons name="chatbubble-ellipses-outline" size={23} color="#101317" /></Pressable>
-          </BlurView>
-        </LinearGradient>
-        <View style={s.section}><Text style={s.micro}>EXPLORE YOUR WORLDS</Text><Text style={s.count}>09</Text></View>
-        <View style={s.grid}>{WORLDS.map((world, index) => <Pressable key={world.id} accessibilityRole="button" accessibilityLabel={`Open ${world.name}`} disabled={selected !== null} onPress={() => { setSelected(world.id); router.push({ pathname: '/world/[id]', params: { id: world.id } } as never); }} style={({ pressed }) => [s.world, { width: `${100 / columns - (columns > 1 ? 1.4 : 0)}%` }, pressed && s.pressed]}>
-          <Image source={world.image} style={s.art} accessibilityLabel={`${world.name} approved portal artwork`} />
-          <LinearGradient colors={['transparent', 'rgba(3,4,5,.65)', '#080A0D']} locations={[0, .45, 1]} style={StyleSheet.absoluteFill} />
-          <View style={s.worldTop}><Text style={s.number}>{String(index + 1).padStart(2, '0')}</Text><Ionicons name="arrow-forward-outline" size={18} color="#DDE3EB" /></View>
-          <View style={s.worldCopy}><Text style={s.worldName}>{world.name}</Text><Text style={s.worldDetail}>{world.title}</Text></View>
-        </Pressable>)}</View>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/device-checks')} style={s.icon}><Text style={s.panelTitle}>Voice & device checks</Text></Pressable>
-        <Text style={s.footer}>GUARDIAN AT THE HEART. YOU IN CONTROL.</Text>
-      </ScrollView>
+        {WORLDS.map((world, index) => {
+          return <View key={world.id} style={{ position: 'absolute', ...portals[index] }}>
+            <LiquidPortal index={index} size={bubble} reducedMotion={reducedMotion || !focused || !active} disabled={selected !== null} onPress={() => { setSelected(world.id); stopAll(); router.push({ pathname: '/world/[id]', params: { id: world.id } } as never); }} />
+          </View>;
+        })}
+      </View>
+      <BlurView intensity={35} tint="dark" style={s.dock}>
+        <Text style={s.presence}>{companion.toUpperCase()} · {guardianState === 'speaking' ? 'SPEAKING' : 'WITH YOU'}</Text>
+        <Text accessibilityLiveRegion="polite" numberOfLines={3} style={s.greeting}>{voiceNotice || greeting || 'Your worlds are ready.'}</Text>
+        <View style={s.actions}>
+          <Pressable accessibilityRole="button" accessibilityLabel={muted ? 'Resume spoken replies' : 'Silence companion'} onPress={() => { if (muted) { update({ master: true, voice: true }); setSpeechQuiet(false); } else setSpeechQuiet(true); }} style={s.control}><Ionicons name={muted ? 'volume-mute-outline' : 'volume-high-outline'} size={22} color="#F5F6FA" /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Open phone microphone conversation" onPress={() => router.push('/chat')} style={s.talk}><Ionicons name="mic-outline" size={21} color="#F5F6FA" /><Text style={s.talkText}>Talk with {companion}</Text></Pressable>
+        </View>
+      </BlurView>
     </SafeAreaView>
   </View>;
 }
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#030405' }, safe: { flex: 1 }, content: { padding: 22, paddingBottom: 38, width: '100%', maxWidth: 1200, alignSelf: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, brand: { color: '#F3F5F8', fontSize: 18, letterSpacing: 4, fontWeight: '700' }, micro: { color: '#B2BAC5', fontSize: 10, letterSpacing: 2, lineHeight: 17 }, icon: { padding: 12, borderWidth: 1, borderColor: '#4D555F', borderRadius: 16 },
-  stage: { height: 285, overflow: 'hidden', marginVertical: 12 }, stageCopy: { paddingTop: 63, paddingHorizontal: 12, gap: 10 }, title: { color: '#F1F3F7', fontSize: 44, lineHeight: 49, letterSpacing: -1.5, fontWeight: '600' }, description: { color: '#B3BCC9', fontSize: 13, lineHeight: 21 },
-  frame: { borderRadius: 21, padding: 1 }, companion: { borderRadius: 20, overflow: 'hidden', padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: 'rgba(10,13,17,.8)' }, panelTitle: { color: '#F1F3F6', fontSize: 18, fontWeight: '600' }, primary: { padding: 15, borderRadius: 18, backgroundColor: '#D4DAE2' },
-  section: { marginTop: 30, marginBottom: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, count: { color: '#858E9A', fontSize: 20 }, grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 16 },
-  world: { height: 225, borderRadius: 23, overflow: 'hidden', borderWidth: 1, borderColor: '#5D6570', backgroundColor: '#12161B' }, art: { width: '100%', height: '100%', resizeMode: 'cover' }, worldTop: { position: 'absolute', top: 17, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between' }, number: { color: '#E3E8EF', fontSize: 11, letterSpacing: 3 }, worldCopy: { position: 'absolute', bottom: 18, left: 20, right: 20, gap: 6 }, worldName: { color: '#F4F6F9', fontSize: 24, fontWeight: '600', letterSpacing: .3 }, worldDetail: { color: '#C0C8D2', fontSize: 13, lineHeight: 19 }, pressed: { opacity: .7 }, footer: { color: '#7F8996', fontSize: 9, letterSpacing: 2, textAlign: 'center', marginTop: 30 },
+  root: { flex: 1, backgroundColor: '#030405' }, safe: { flex: 1 },
+  header: { paddingHorizontal: 20, paddingTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  brand: { color: '#F4F5F9', fontSize: 18, letterSpacing: 3, fontWeight: '700' }, micro: { color: '#CED2DB', fontSize: 9, letterSpacing: 2, marginTop: 5 },
+  control: { padding: 12, borderRadius: 25, borderWidth: 1, borderColor: '#AEB5C066', backgroundColor: '#08090D55', minWidth: 46, minHeight: 46, alignItems: 'center', justifyContent: 'center' },
+  bubble: { borderRadius: 999, overflow: 'visible', backgroundColor: 'transparent', shadowColor: '#FFFFFF', shadowOpacity: .28, shadowRadius: 14, shadowOffset: { width: 0, height: 0 } },
+  portalName: { color: '#F4F6FA', fontSize: 10, lineHeight: 13, fontWeight: '600', textAlign: 'center', marginTop: 6, textShadowColor: '#000', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
+  platform: { position: 'absolute', height: 32, borderRadius: 999, borderWidth: 2, borderColor: '#EAF0F9AA', backgroundColor: '#C4CFDD22', transform: [{ scaleY: .6 }] },
+  dock: { marginHorizontal: 16, marginBottom: 8, padding: 12, borderRadius: 22, overflow: 'hidden', borderWidth: 1, borderColor: '#DAE0EC55', backgroundColor: '#06080C99', gap: 6 },
+  presence: { color: '#CCD3DE', fontSize: 9, letterSpacing: 2 }, greeting: { color: '#F4F6FA', fontSize: 12, lineHeight: 17 }, actions: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  talk: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, padding: 12, minHeight: 46, borderRadius: 24, backgroundColor: '#B8C4D522', borderWidth: 1, borderColor: '#E5EBF755' }, talkText: { color: '#F4F6FA', fontSize: 13 },
 });
