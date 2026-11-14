@@ -16,7 +16,10 @@ export const PORTAL_BY_ID = Object.fromEntries(PORTALS.map((portal) => [portal.i
 export const INTERACTION_MODES = ["Listen", "Coach", "Plan", "Create", "Operate"] as const;
 
 // Music and games are artwork previews, not new permission or workflow domains.
-export const PREVIEW_WORLDS = [...PORTALS,
+const previewWorlds = [...PORTALS,
   { id: "staarsonic", name: "STAARSONIC", image: require("@/assets/images/staarwardd/portal-staarsonic-chrome.webp") },
-  { id: "staarverse", name: "STAARVERSE", image: require("@/assets/images/staarwardd/portal-staarverse-chrome.webp") },
+  { id: "staarverse", name: "STARVERSE", image: require("@/assets/images/staarwardd/portal-staarverse-chrome.webp") },
 ];
+
+const approvedOrder = ["home", "work", "creativity", "wellbeing", "relationships", "events", "style", "staarverse", "staarsonic"];
+export const PREVIEW_WORLDS = approvedOrder.map(id => previewWorlds.find(world => world.id === id)!);
