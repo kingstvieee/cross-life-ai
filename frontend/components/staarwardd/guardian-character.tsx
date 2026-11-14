@@ -1,5 +1,5 @@
 import { glow } from "@/lib/staarwardd/shadow";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, ImageSourcePropType, Platform, StyleSheet, View } from "react-native";
 
 import { GuardianMotionVideo, type GuardianMotionClip } from "@/components/staarwardd/guardian-motion-video";
@@ -46,6 +46,8 @@ export function GuardianCharacter({ state, mood = "neutral", portalMode = "hub",
   const [previousSource, setPreviousSource] = useState<ImageSourcePropType | null>(null);
   const [videoReady, setVideoReady] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
+  const onVideoReady = useCallback(() => setVideoReady(true), []);
+  const onVideoFailure = useCallback(() => setVideoFailed(true), []);
   const tint = moodColors[mood];
   const label = useMemo(() => `Guardian ${state.replace(/([A-Z])/g, " $1").toLowerCase()} in ${portalMode}`, [portalMode, state]);
   // Web preview: expo-video renders an opaque black rectangle here, which
@@ -118,7 +120,7 @@ export function GuardianCharacter({ state, mood = "neutral", portalMode = "hub",
   return <View accessible accessibilityLabel={label} style={[styles.root, { width: size, height: size * 1.18, pointerEvents: "none" }]}>
     <Animated.View style={[styles.halo, { backgroundColor: tint, opacity: haloOpacity, transform: [{ scale: haloScale }] }]} />
     {isHandAction(state) && <><Animated.View style={[styles.handEnergy, { backgroundColor: tint, opacity: actionOpacity, transform: [{ translateX: leftX }, { translateY: handY }, { scale: haloScale }] }]} /><Animated.View style={[styles.handEnergy, { backgroundColor: tint, opacity: actionOpacity, transform: [{ translateX: rightX }, { translateY: handY }, { scale: haloScale }] }]} /><Animated.View style={[styles.energyArc, { borderColor: tint, opacity: actionOpacity, transform: [{ scale: haloScale }, { rotate: rotation }] }]} /></>}
-    {motionClip && !reducedMotion && !videoFailed && <Animated.View style={[styles.motionLayer, { opacity, transform: [{ translateX: x }, { translateY: y }, { scale }, { rotate: rotation }] }]}><GuardianMotionVideo key={motionClip} clip={motionClip} size={size} onReady={() => setVideoReady(true)} onFailure={() => setVideoFailed(true)} /></Animated.View>}
+    {motionClip && !reducedMotion && !videoFailed && <Animated.View style={[styles.motionLayer, { opacity, transform: [{ translateX: x }, { translateY: y }, { scale }, { rotate: rotation }] }]}><GuardianMotionVideo key={motionClip} clip={motionClip} size={size} onReady={onVideoReady} onFailure={onVideoFailure} /></Animated.View>}
     {previousSource && <Animated.Image source={previousSource} resizeMode="contain" style={[styles.character, { opacity: videoReady ? 0 : poseMix.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }]} />}
     <Animated.Image source={visibleSource} resizeMode="contain" style={[styles.character, { opacity: videoReady ? 0 : (previousSource ? poseMix : opacity), transform: [{ translateX: x }, { translateY: y }, { scale }, { rotate: rotation }] }]} />
   </View>;

@@ -6,6 +6,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useAuth } from '@/src/auth';
 import { playServerSpeech, stopServerSpeech } from '@/src/server-speech';
 
+import { createArrivalSession } from './arrival-session';
+
 import type { AmbientKey } from "@/lib/staarwardd/experience";
 
 export type CinematicCue = "opening" | "flight" | "shield" | "portal" | "transition" | "traverse" | "storm";
@@ -19,6 +21,8 @@ type AudioSettings = {
 };
 
 type AudioContextValue = AudioSettings & {
+  settingsReady: boolean;
+  claimArrival: () => boolean;
   speechQuiet: boolean;
   voiceNotice: string;
   activeAmbient: AmbientKey | null;
@@ -33,7 +37,7 @@ type AudioContextValue = AudioSettings & {
 };
 
 const STORAGE_KEY = "staarwardd.v13.audio-settings";
-const DEFAULT_SETTINGS: AudioSettings = { master: false, music: false, ambience: false, voice: true, volume: 0.28 };
+const DEFAULT_SETTINGS: AudioSettings = { master: true, music: false, ambience: false, voice: true, volume: 0.28 };
 const AudioContext = createContext<AudioContextValue | null>(null);
 
 // On web, browsers need real URLs with an audio/mpeg MIME type; the same files are
@@ -87,6 +91,10 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   const [voiceNotice, setVoiceNotice] = useState("");
   const companion = user?.companion;
   useEffect(() => { stopServerSpeech(); return stopServerSpeech; }, [companion]);
+  const [arrivalSession] = useState(createArrivalSession);
+  const accountId = user?.user_id;
+  const claimArrival = useCallback(() => arrivalSession.claim(accountId), [arrivalSession, accountId]);
+  const [settingsReady, setSettingsReady] = useState(false);
   const [settings, setSettings] = useState<AudioSettings>(DEFAULT_SETTINGS);
   const [speechQuiet, setSpeechQuietState] = useState(false);
   const [activeAmbient, setActiveAmbient] = useState<AmbientKey | null>(null);
@@ -134,7 +142,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     AsyncStorage.getItem(STORAGE_KEY).then((saved) => {
       if (!saved) return;
       try { setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) }); } catch { /* preserve safe defaults */ }
-    }).catch(() => undefined);
+    }).catch(() => undefined).finally(() => setSettingsReady(true));
     return () => {
       off?.();
       Object.values(ambientPlayers.current).forEach((p) => { try { p?.remove(); } catch { /* noop */ } });
@@ -274,7 +282,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     }
   }, [api]);
 
-  const value = useMemo(() => ({ ...settings, speechQuiet, voiceNotice, activeAmbient, update, setSpeechQuiet, toggleAmbient, playAmbient, stopAmbient, playCue, speak, stopAll }), [activeAmbient, playAmbient, playCue, settings, setSpeechQuiet, speak, speechQuiet, voiceNotice, stopAll, stopAmbient, toggleAmbient, update]);
+  const value = useMemo(() => ({ ...settings, settingsReady, claimArrival, speechQuiet, voiceNotice, activeAmbient, update, setSpeechQuiet, toggleAmbient, playAmbient, stopAmbient, playCue, speak, stopAll }), [activeAmbient, claimArrival, playAmbient, playCue, settings, settingsReady, setSpeechQuiet, speak, speechQuiet, voiceNotice, stopAll, stopAmbient, toggleAmbient, update]);
   return <AudioContext.Provider value={value}>{children}</AudioContext.Provider>;
 }
 
