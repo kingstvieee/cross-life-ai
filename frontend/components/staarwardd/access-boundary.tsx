@@ -7,10 +7,11 @@ import { useAuth } from "@/src/auth";
 import { backendUrl } from "@/src/backend-config";
 import { useStartupReplay } from "./startup-film";
 import { PORTALS, PREVIEW_WORLDS } from "@/lib/staarwardd/portal-data";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Onboarding from '@/app/onboarding';
 import { BlurView } from 'expo-blur';
 import { AccessField } from './access-field';
-import { speakCompanion, stopCompanion } from '@/src/companions';
+import { COMPANIONS, speakCompanion, stopCompanion } from '@/src/companions';
 
 export function AccessBoundary({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -22,6 +23,7 @@ export function AccessBoundary({ children }: { children: React.ReactNode }) {
 }
 
 export function SignInScreen() {
+  const insets = useSafeAreaInsets();
   const { signIn } = useAuth();
   const replay = useStartupReplay();
   const router = useRouter();
@@ -47,13 +49,13 @@ export function SignInScreen() {
     } catch (e) { setError(e instanceof Error ? e.message : 'Sign-in could not finish. Please try again.'); }
     finally { setBusy(null); }
   };
-  return <ScrollView style={styles.screen} contentContainerStyle={styles.entry} showsVerticalScrollIndicator={false}>
+  return <ScrollView style={styles.screen} contentContainerStyle={[styles.entry, { paddingTop: insets.top }]} showsVerticalScrollIndicator={false}>
     <View style={styles.hero}>
       <Image source={require("@/assets/images/staarwardd/guardian-toronto.png")} style={styles.heroImage} accessibilityLabel="Guardian above cinematic Toronto" />
       <LinearGradient colors={["rgba(2,3,5,0.18)", "rgba(2,3,5,0.08)", "#030405"]} locations={[0, 0.48, 1]} style={StyleSheet.absoluteFill} />
       <AccessField />
       <View style={styles.heroHeader}><Ionicons name="shield-outline" size={19} color="#DCE2E8" /><Text style={styles.wordmark}>STAARWAARDD</Text><Text style={styles.edition}>HUB</Text></View>
-      <View style={styles.heroCaption}><View style={styles.rule} /><Text style={styles.overline}>SEVEN WORLDS. ONE PRESENCE.</Text></View>
+      <View style={styles.heroCaption}><View style={styles.rule} /><Text style={styles.overline}>NINE WORLDS. ONE PRESENCE.</Text></View>
     </View>
     <LinearGradient colors={["#8D959E", "#30363D", "#A9B1BA", "#24292F"]} locations={[0, 0.28, 0.64, 1]} style={styles.chromeFrame}>
       <BlurView intensity={40} tint="dark" style={styles.accessPanel}>
@@ -94,26 +96,32 @@ export function SignInScreen() {
 }
 
 export function GuestPreview() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [selected, setSelected] = useState<string | null>(null);
   const portal = PREVIEW_WORLDS.find(item => item.id === selected);
   const [speaking, setSpeaking] = useState(false);
+  const [voiceError, setVoiceError] = useState('');
+  const [guestCompanion, setGuestCompanion] = useState<'atlas' | 'kaia'>('atlas');
   useEffect(() => () => { void stopCompanion(); }, []);
   const previewAtlas = () => {
-    setSpeaking(true);
-    void speakCompanion(`I’m Atlas. Welcome to STAARWAARDD. ${portal ? `This is ${portal.name}.` : 'Nine worlds to discover. Choose a portal and take a look around.'} This preview uses sample content; your personal system begins when you sign in.`, 'atlas', () => setSpeaking(false)).catch(() => setSpeaking(false));
+    setVoiceError(''); setSpeaking(true);
+    void speakCompanion(`I’m Atlas. Welcome to STAARWAARDD. ${portal ? `This is ${portal.name}.` : 'Nine worlds to discover. Choose a portal and take a look around.'} This preview uses sample content; your personal system begins when you sign in.`, guestCompanion, () => setSpeaking(false)).catch(() => { setSpeaking(false); setVoiceError('Natural voice preview is unavailable. You can still explore every world.'); });
   };
-  return <ScrollView contentContainerStyle={styles.page}>
+  return <ScrollView style={styles.screen} contentContainerStyle={[styles.page, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 24 }]}>
     <Text style={styles.brand}>STAARWAARDD · GUEST PREVIEW</Text>
     <Text style={styles.heading}>{portal ? portal.name : "Explore the portals"}</Text>
-    <View style={styles.panelTop}><Pressable accessibilityRole="button" accessibilityLabel="Hear Atlas guest welcome" onPress={previewAtlas} style={styles.button}><Text style={styles.label}>Hear Atlas</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Silence Atlas" onPress={() => { setSpeaking(false); void stopCompanion(); }} style={styles.button}><Text style={styles.label}>Quiet</Text></Pressable></View>
-    <Text style={styles.caption}>{speaking ? 'Device voice preview · tap Quiet to stop' : 'Meet Atlas · optional device voice preview'}</Text>
+    <Image source={require("@/assets/images/staarwardd/atlas-kaia-locked.jpeg")} resizeMode="contain" style={{ width: '100%', aspectRatio: 1134 / 648, borderRadius: 18 }} accessibilityLabel="Approved Atlas on the left and Kaia on the right" />
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{COMPANIONS.map(companion => <Pressable key={companion.id} accessibilityRole="button" accessibilityState={{ selected: guestCompanion === companion.id }} onPress={() => { void stopCompanion(); setSpeaking(false); setGuestCompanion(companion.id); }} style={[styles.button, guestCompanion === companion.id && { borderColor: '#ECF0F5' }]}><Text style={styles.label}>{companion.name}</Text></Pressable>)}</View>
+    <View style={styles.panelTop}><Pressable accessibilityRole="button" accessibilityLabel={`Hear ${guestCompanion} guest welcome`} onPress={previewAtlas} style={styles.button}><Text style={styles.label}>Hear {guestCompanion === 'atlas' ? 'Atlas' : 'Kaia'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Silence Atlas" onPress={() => { setSpeaking(false); void stopCompanion(); }} style={styles.button}><Text style={styles.label}>Quiet</Text></Pressable></View>
+    <Text style={styles.caption}>{speaking ? 'AI voice preview · tap Quiet to stop' : 'Meet Atlas · optional AI voice preview'}</Text>
+    {voiceError ? <Text accessibilityRole="alert" style={styles.copy}>{voiceError}</Text> : null}
     <Text style={styles.copy}>Sample content only. Private accounts, uploads, messages, purchases and connected devices are unavailable.</Text>
     {portal ? <View style={styles.card}>
       <Image source={portal.image} style={styles.image} accessibilityLabel={portal.name + " portal artwork"} />
       <Text style={styles.copy}>This is a sample view of {portal.name}. No workflow is running and no action has been executed.</Text>
       <Pressable style={styles.button} accessibilityRole="button" onPress={() => setSelected(null)}><Text style={styles.label}>Back to portals</Text></Pressable>
-    </View> : PORTALS.map(item => <Pressable key={item.id} style={styles.card} accessibilityRole="button" accessibilityLabel={"Preview " + item.name} onPress={() => setSelected(item.id)}>
+    </View> : PREVIEW_WORLDS.map(item => <Pressable key={item.id} style={styles.card} accessibilityRole="button" accessibilityLabel={"Preview " + item.name} onPress={() => setSelected(item.id)}>
       <Image source={item.image} style={styles.image} accessibilityLabel={item.name + " portal artwork"} />
       <Text style={styles.label}>{item.name}</Text>
       <Text style={styles.caption}>View sample</Text>
