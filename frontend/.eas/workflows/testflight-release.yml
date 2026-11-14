@@ -1,0 +1,33 @@
+name: STAAR Hub TestFlight Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        type: choice
+        description: Confirm the approved production TestFlight candidate
+        required: true
+        options:
+          - 1.0.1 (103)
+
+concurrency:
+  group: staar-hub-testflight-release
+  cancel_in_progress: false
+
+jobs:
+  build_ios:
+    name: Build STAAR Hub 1.0.1 (103)
+    type: build
+    params:
+      platform: ios
+      profile: production
+      message: STAAR Hub 1.0.1 (103) corrected nine-world release
+
+  submit_ios:
+    name: Submit build 103 to TestFlight
+    needs: [build_ios]
+    type: testflight
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: production
+      changelog: Corrected black, chrome and silver nine-world Hub; removed the crisis demo; added STAARSONIC, STAARVERSE and Atlas/Kaia continuity.
