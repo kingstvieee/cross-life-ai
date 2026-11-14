@@ -2,7 +2,7 @@
   "expo": {
     "name": "STAAR Hub",
     "slug": "stevieeedon",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "frontend",
@@ -10,9 +10,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.emergent.crosslifeai.z79271",
-      "buildNumber": "103",
+      "buildNumber": "104",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocalNetworkUsageDescription": "STAAR Hub connects to the Home Assistant server you choose to read your home devices and send light commands you request."
       },
       "appleTeamId": "R9BPDSU4BW"
     },
