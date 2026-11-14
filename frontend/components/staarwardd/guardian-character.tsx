@@ -13,7 +13,7 @@ const FLYING = require("@/assets/images/staarwardd/guardian-poses/flying.png") a
 const SUMMON = require("@/assets/images/staarwardd/guardian-poses/summon.png") as ImageSourcePropType;
 const GUIDE = require("@/assets/images/staarwardd/guardian-poses/guide.png") as ImageSourcePropType;
 
-const moodColors: Record<GuardianMood, string> = { neutral: "#D8C6FF", witty: "#8FE6FF", focused: "#6CB4FF", calm: "#74E4CA", empathetic: "#F3A6C1", excited: "#F0D47C", stylish: "#D6A26E" };
+const moodColors: Record<GuardianMood, string> = { neutral: "#DDE3EA", witty: "#EBEEF2", focused: "#C7D0DA", calm: "#B4BDC7", empathetic: "#E5E8EC", excited: "#F5F7FA", stylish: "#D3DAE2" };
 
 function sourceFor(state: GuardianState) {
   if (["flying", "approaching", "accelerating", "portalEntry", "transitionExit"].includes(state)) return FLYING;

@@ -41,6 +41,7 @@ export function WorldHub() {
           <View style={s.worldTop}><Text style={s.number}>{String(index + 1).padStart(2, '0')}</Text><Ionicons name="arrow-forward-outline" size={18} color="#DDE3EB" /></View>
           <View style={s.worldCopy}><Text style={s.worldName}>{world.name}</Text><Text style={s.worldDetail}>{world.title}</Text></View>
         </Pressable>)}</View>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/device-checks')} style={s.icon}><Text style={s.panelTitle}>Voice & device checks</Text></Pressable>
         <Text style={s.footer}>GUARDIAN AT THE HEART. YOU IN CONTROL.</Text>
       </ScrollView>
     </SafeAreaView>
