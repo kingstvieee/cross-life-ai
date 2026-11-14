@@ -3,6 +3,8 @@ import * as Speech from "expo-speech";
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioSource } from "expo-audio";
 import { Platform } from "react-native";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
+import { useAuth } from '@/src/auth';
+import { playServerSpeech, stopServerSpeech } from '@/src/server-speech';
 
 import type { AmbientKey } from "@/lib/staarwardd/experience";
 
@@ -18,6 +20,7 @@ type AudioSettings = {
 
 type AudioContextValue = AudioSettings & {
   speechQuiet: boolean;
+  voiceNotice: string;
   activeAmbient: AmbientKey | null;
   update: (patch: Partial<AudioSettings>) => void;
   setSpeechQuiet: (quiet: boolean) => void;
@@ -80,20 +83,10 @@ const CUES: Record<CinematicCue, AudioSource> = isWeb
     };
 
 export function StaarAudioProvider({ children }: PropsWithChildren) {
-  const [guardianVoice, setGuardianVoice] = useState<string | undefined>();
-  useEffect(() => {
-    let mounted = true;
-    void Speech.getAvailableVoicesAsync().then((voices) => {
-      if (!mounted) return;
-      const canadian = voices.filter((voice) => voice.language.toLowerCase().replace("_", "-").startsWith("en-ca"));
-      const preferred = canadian.find((voice) => /liam/i.test(voice.name + " " + voice.identifier))
-        ?? canadian.find((voice) => /natural|enhanced|male/i.test(voice.name + " " + voice.identifier))
-        ?? canadian[0]
-        ?? voices.find((voice) => /liam/i.test(voice.name + " " + voice.identifier));
-      setGuardianVoice(preferred?.identifier);
-    }).catch(() => { /* System voice discovery is optional. */ });
-    return () => { mounted = false; };
-  }, []);
+  const { user, api } = useAuth();
+  const [voiceNotice, setVoiceNotice] = useState("");
+  const companion = user?.companion;
+  useEffect(() => { stopServerSpeech(); return stopServerSpeech; }, [companion]);
   const [settings, setSettings] = useState<AudioSettings>(DEFAULT_SETTINGS);
   const [speechQuiet, setSpeechQuietState] = useState(false);
   const [activeAmbient, setActiveAmbient] = useState<AmbientKey | null>(null);
@@ -146,7 +139,8 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
       off?.();
       Object.values(ambientPlayers.current).forEach((p) => { try { p?.remove(); } catch { /* noop */ } });
       Object.values(cuePlayers.current).forEach((p) => { try { p?.remove(); } catch { /* noop */ } });
-      void Speech.stop();
+      stopServerSpeech();
+    void Speech.stop();
     };
   }, []);
 
@@ -154,8 +148,9 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     setSettings((current) => {
       const next = { ...current, ...patch };
       void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      if (!next.voice) {
+      if (!next.voice || !next.master) {
         speechRequest.current += 1;
+        stopServerSpeech();
         void Speech.stop();
       }
       if (!next.master || (!next.music && !next.ambience)) {
@@ -171,6 +166,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     Object.values(cuePlayers.current).forEach((p) => { try { p?.pause(); } catch { /* noop */ } });
     setActiveAmbient(null);
     speechRequest.current += 1;
+    stopServerSpeech();
     void Speech.stop();
   }, []);
 
@@ -178,7 +174,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     speechQuietRef.current = quiet;
     setSpeechQuietState(quiet);
     speechRequest.current += 1;
-    if (quiet) void Speech.stop();
+    if (quiet) { stopServerSpeech(); void Speech.stop(); }
   }, []);
 
   // Each world's soundscape fades in softly on entry (non-toggling variant).
@@ -264,19 +260,21 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     } catch { /* controlled cinematic audio remains optional and may fail gracefully */ }
   }, [settings.ambience, settings.master, settings.music, settings.volume]);
 
-  const speak = useCallback(async (text: string, rate = 0.95) => {
+  const speak = useCallback(async (text: string, _rate = 0.95) => {
     const requestId = ++speechRequest.current;
     if (!settingsRef.current.master || !settingsRef.current.voice || speechQuietRef.current || !text.trim()) return;
+    setVoiceNotice('');
     try {
-      const alreadySpeaking = await Speech.isSpeakingAsync();
-      if (requestId !== speechRequest.current || speechQuietRef.current || !settingsRef.current.master || !settingsRef.current.voice) return;
-      if (alreadySpeaking) await Speech.stop();
-      if (requestId !== speechRequest.current || speechQuietRef.current || !settingsRef.current.master || !settingsRef.current.voice) return;
-      Speech.speak(text, { language: "en-CA", voice: guardianVoice, rate: Math.min(Math.max(rate * 1.03, 0.94), 1.06), pitch: 0.96, volume: settingsRef.current.volume, useApplicationAudioSession: false });
-    } catch { /* audio is optional; fail silently without misrepresenting playback */ }
-  }, [guardianVoice]);
+      await playServerSpeech(async signal => {
+        const response = await api('/api/companion/speak', { method: 'POST', signal, body: JSON.stringify({ text: text.slice(0, 2000) }) });
+        return response;
+      }, { volume: settingsRef.current.volume });
+    } catch {
+      if (requestId === speechRequest.current) setVoiceNotice('Natural voice is unavailable. Your text conversation is still available.');
+    }
+  }, [api]);
 
-  const value = useMemo(() => ({ ...settings, speechQuiet, activeAmbient, update, setSpeechQuiet, toggleAmbient, playAmbient, stopAmbient, playCue, speak, stopAll }), [activeAmbient, playAmbient, playCue, settings, setSpeechQuiet, speak, speechQuiet, stopAll, stopAmbient, toggleAmbient, update]);
+  const value = useMemo(() => ({ ...settings, speechQuiet, voiceNotice, activeAmbient, update, setSpeechQuiet, toggleAmbient, playAmbient, stopAmbient, playCue, speak, stopAll }), [activeAmbient, playAmbient, playCue, settings, setSpeechQuiet, speak, speechQuiet, voiceNotice, stopAll, stopAmbient, toggleAmbient, update]);
   return <AudioContext.Provider value={value}>{children}</AudioContext.Provider>;
 }
 

@@ -19,6 +19,7 @@ import json
 from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
 from emergentintegrations.llm.openai import OpenAITextToSpeech
 from guardian_server_integration import ensure_guardian_indexes, install_guardian_core
+from companion_speech import MODEL as COMPANION_SPEECH_MODEL, PROFILES as SPEECH_PROFILES, PREVIEWS as SPEECH_PREVIEWS, synthesize as synthesize_companion
 from style_swap_routes import build_style_swap_router
 from identity_routes import SESSION_COOKIE, app_origin, build_identity_router, ensure_identity_indexes
 
@@ -47,20 +48,10 @@ PORTALS = [
     {"id": "style", "name": "Style", "prompt": "What are you wearing?", "accent": "#D4AF37"},
 ]
 
-COMPANIONS = {
-    "guardian": {
-        "name": "Guardian",
-        "voice": "Protective, intelligent, observant, grounded, confident. Direct without being cold. Never a customer-service chatbot.",
-    },
-    "kaia": {
-        "name": "Kaia",
-        "voice": "Warm without being sweet, emotionally perceptive, patient, conversational.",
-    },
-    "atlas": {
-        "name": "Atlas",
-        "voice": "Direct, grounded, concise, protective, practical, calm.",
-    },
-}
+from companion_policy import COMPANIONS, companion_identity
+from conversation_history import load_history, public_history
+from chat_turn import chat_turn, PrivacyChanged, EmptyReply
+
 
 
 def utcnow():
@@ -222,6 +213,8 @@ def user_public(u: Dict[str, Any]) -> Dict[str, Any]:
 async def startup():
     await ensure_guardian_indexes(db)
     await ensure_identity_indexes(db)
+    await db.companion_history.create_index("expires_at", expireAfterSeconds=0)
+    await db.companion_history.create_index([("user_id", 1), ("portal", 1), ("policy_key", 1), ("created_at", -1)])
     await db.users.create_index("email", unique=True)
     await db.users.create_index("user_id", unique=True)
     await db.user_sessions.create_index("session_token", unique=True)
@@ -790,9 +783,11 @@ PORTAL_INTROS = {
 }
 
 
-async def _tts_cached_line(text: str, private_user_id: Optional[str] = None) -> dict:
+async def _tts_cached_line(text: str, private_user_id: Optional[str] = None, companion: Optional[str] = None) -> dict:
     """Generate TTS with public fixed narration or a short-lived private scoped link."""
     content_key = hashlib.sha256(f"{text}|onyx|1.0|tts-1|mp3".encode()).hexdigest()[:32]
+    if companion is not None:
+        content_key = hashlib.sha256(json.dumps([text, companion, COMPANION_SPEECH_MODEL, SPEECH_PROFILES[companion]], sort_keys=True).encode()).hexdigest()[:32]
     query = {"content_key": content_key, "private_user_id": private_user_id}
     if private_user_id is None:
         query = {"key": content_key, "visibility": "public"}
@@ -808,7 +803,9 @@ async def _tts_cached_line(text: str, private_user_id: Optional[str] = None) -> 
     key = cached.get("key") if cached else (content_key if private_user_id is None else f"{content_key}.{secrets.token_urlsafe(18)}")
     if not cached:
         try:
-            audio = await _tts().generate_speech(text=text, model="tts-1", voice="onyx")
+            audio = await synthesize_companion(text, companion) if companion else await _tts().generate_speech(text=text, model="tts-1", voice="onyx")
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("tts generation failed")
             raise HTTPException(status_code=502, detail="tts_failed")
@@ -912,6 +909,49 @@ async def guardian_speak_line(body: SpeakLineIn, authorization: Optional[str] = 
     return await _tts_cached_line(body.text, private_user_id=user["user_id"])
 
 
+@api_router.get("/companion/voice-preview/{companion}")
+async def companion_voice_preview(companion: str, request: Request):
+    rate_limit(f"voice-preview:{client_ip(request)}", 6, 60)
+    if companion not in SPEECH_PREVIEWS:
+        raise HTTPException(404, "unknown_companion")
+    return await _tts_cached_line(SPEECH_PREVIEWS[companion], companion=companion)
+
+
+class CompanionSpeechIn(BaseModel):
+    text: str = Field(..., min_length=1, max_length=2000)
+
+
+@api_router.post("/companion/speak")
+async def companion_speak(body: CompanionSpeechIn, authorization: Optional[str] = Header(None)):
+    user = await require_account_user(authorization)
+    rate_limit(f"companion-speech:{user['user_id']}", 10, 60)
+    companion = user.get("companion", "atlas")
+    if companion not in SPEECH_PROFILES:
+        raise HTTPException(422, "unknown_companion")
+    return await _tts_cached_line(body.text, private_user_id=user["user_id"], companion=companion)
+
+
+@api_router.post("/companion/transcribe")
+async def companion_transcribe(request: Request, authorization: Optional[str] = Header(None)):
+    user = await require_account_user(authorization)
+    rate_limit(f"voice-input:{user['user_id']}", 10, 60)
+    raw = bytearray()
+    async for chunk in request.stream():
+        if len(raw) + len(chunk) > 7 * 1024 * 1024:
+            raise HTTPException(413, "recording_too_large")
+        raw.extend(chunk)
+    import json
+    from voice_input import transcribe
+    try:
+        body = json.loads(raw)
+        encoded, mime = body['audio'], body['mime']
+    except (ValueError, KeyError, TypeError):
+        raise HTTPException(422, "invalid_recording") from None
+    text = await transcribe(encoded, mime)
+    await require_account_user(authorization)
+    return Response(content=json.dumps({"text": text}), media_type="application/json", headers={"Cache-Control": "no-store"})
+
+
 @api_router.get("/guardian/greeting")
 async def guardian_greeting(request: Request):
     """Short spoken hub welcome in the Guardian's Onyx voice (cached)."""
@@ -997,12 +1037,10 @@ async def guardian_view(authorization: Optional[str] = Header(None), limit: int 
 # GUARDIAN CHAT
 # ============================================================
 def _companion_prompt(companion: str, portal: Optional[str], user: Dict[str, Any]) -> str:
-    voice = COMPANIONS.get(companion, COMPANIONS["guardian"])["voice"]
     base = (
-        f"You are {COMPANIONS.get(companion, COMPANIONS['guardian'])['name']}, the central intelligence of STAAR Hub, an AI Life House. "
-        f"Voice: {voice} "
-        "STAAR Hub organizes the user's life into seven portals: Creativity, Work, Home, Wellbeing, Relationships, Community, Style. "
-        "Your unique capability is Cross-Life Context Intelligence — you observe how something in one portal affects others and coordinate a response. "
+        companion_identity(companion) +
+        "The seven life portals are STAAR Dreams (creativity), STAAR Work, STAAR Hub (home), STAAR Health, STAAR Love, STAAR Village and STAAR Closet. "
+        "Use only supplied, authorized context to reason about relationships between portals and prepare a coordinated response. "
         "Speak like a real person, not a customer-service bot. Never say 'How can I assist you today?' Be direct, human-aware, and confident. "
         "Keep replies concise (2–4 short sentences) unless the user asks for depth. "
     )
@@ -1074,32 +1112,54 @@ async def guardian_chat(body: ChatIn, authorization: Optional[str] = Header(None
     )
 
 
+@api_router.get("/guardian/history")
+async def guardian_history(portal: Optional[str] = None, authorization: Optional[str] = Header(None)):
+    user, _ = await _context_for_dispatch(authorization, portal)
+    rows = await load_history(db.companion_history, user, portal, _context_policy_key(user), utcnow())
+    fresh = await require_account_user(authorization)
+    if _context_policy_key(user) != _context_policy_key(fresh):
+        raise HTTPException(409, "privacy_changed_retry")
+    return {"turns": public_history(rows)}
+
+
 @api_router.post("/guardian/chat-once")
 async def guardian_chat_once(body: ChatIn, authorization: Optional[str] = Header(None)):
     """Non-streaming variant for simple UI flows."""
     user, signals = await _context_for_dispatch(authorization, body.portal)
     rate_limit(f"chat:{user['user_id']}", 20, 60)
-    companion = body.companion or user.get("companion", "guardian")
+    companion = user.get("companion", "guardian")
     session_id = f"{user['user_id']}_{uuid.uuid4().hex}"
     system_msg = _companion_prompt(companion, body.portal, user)
-    context_note = ("\n\nCurrent cross-life signals:\n" + json.dumps(signals)) if signals else ""
 
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=session_id,
-        system_message=system_msg + context_note,
-    ).with_model("openai", "gpt-5.6-terra")
+    def llm_factory(system_text: str):
+        return LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=session_id,
+            system_message=system_text,
+        ).with_model("openai", "gpt-5.2")
 
-    fresh = await require_account_user(authorization)
-    if _context_policy_key(user) != _context_policy_key(fresh):
-        raise HTTPException(status_code=409, detail="privacy_changed_retry")
-    parts: List[str] = []
-    async for ev in chat.stream_message(UserMessage(text=body.message)):
-        if isinstance(ev, TextDelta):
-            parts.append(ev.content)
-        elif isinstance(ev, StreamDone):
-            break
-    return {"reply": "".join(parts)}
+    try:
+        reply = await chat_turn(
+            user=user,
+            message=body.message,
+            portal=body.portal,
+            companion=companion,
+            policy_key_of=_context_policy_key,
+            history_collection=db.companion_history,
+            system_prompt=system_msg,
+            signals=signals,
+            llm_factory=llm_factory,
+            user_message_factory=lambda text: UserMessage(text=text),
+            text_delta_type=TextDelta,
+            stream_done_type=StreamDone,
+            require_fresh_user=lambda: require_account_user(authorization),
+            now=utcnow,
+        )
+    except PrivacyChanged:
+        raise HTTPException(409, "privacy_changed_retry")
+    except EmptyReply:
+        raise HTTPException(502, "empty_companion_reply")
+    return {"reply": reply}
 
 
 @api_router.get("/")
@@ -1114,6 +1174,10 @@ app.include_router(api_router)
 
 @app.middleware("http")
 async def cookie_session_boundary(request: Request, call_next):
+    # OAuth form_post authenticates through one-use state + browser binding.
+    # Never attach an old account session to an identity-provider callback.
+    if request.method == "POST" and request.scope.get("path") == "/api/auth/callback":
+        return await call_next(request)
     # Web login uses an HttpOnly cookie. Native/worker clients retain bearer auth.
     has_bearer = any(key.lower() == b"authorization" for key, _ in request.scope["headers"])
     cookie_token = request.cookies.get(SESSION_COOKIE)

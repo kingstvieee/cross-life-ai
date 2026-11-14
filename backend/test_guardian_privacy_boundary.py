@@ -181,3 +181,17 @@ def test_cookie_auth_is_forwarded_only_for_exact_app_origin():
 
     ns = production(SESSION_COOKIE="__Host-staar_session", app_origin=lambda: "https://app.example.test")
     assert run(ns["cookie_session_boundary"](request, next_handler)).status_code == 200
+
+
+def test_form_post_callback_defers_to_its_state_binding_instead_of_session_csrf():
+    request = Request({'type': 'http', 'method': 'POST', 'path': '/api/auth/callback',
+                       'headers': [(b'cookie', b'__Host-staar_session=old-session'),
+                                   (b'origin', b'https://identity.example.test')]})
+    called = []
+    async def next_handler(req):
+        called.append(True)
+        assert req.headers.get('authorization') is None
+        return Response('callback state validation runs here')
+    ns = production(SESSION_COOKIE='__Host-staar_session', app_origin=lambda: 'https://app.example.test')
+    assert run(ns['cookie_session_boundary'](request, next_handler)).status_code == 200
+    assert called == [True]
