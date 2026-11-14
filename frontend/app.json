@@ -2,7 +2,7 @@
   "expo": {
     "name": "STAAR Hub",
     "slug": "stevieeedon",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "frontend",
@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.emergent.crosslifeai.z79271",
-      "buildNumber": "2",
+      "buildNumber": "103",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
