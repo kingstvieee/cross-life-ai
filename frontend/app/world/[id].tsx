@@ -16,6 +16,7 @@ export default function WorldScreen() {
     {!world ? <Text style={s.title}>World unavailable.</Text> : <>
       <View style={s.hero}><Image source={world.image} style={StyleSheet.absoluteFill} resizeMode="cover" /><LinearGradient colors={['transparent', '#06080B']} style={StyleSheet.absoluteFill} /><Text style={s.name}>{world.name}</Text></View>
       <Text style={s.title}>{world.title}</Text><Text style={s.detail}>{world.detail}</Text>
+      <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/connections', params: { world: id } } as never)} style={s.option}><Text style={s.optionText}>Set up devices & tools</Text><Ionicons name="link-outline" size={20} color="#D9E0E9" /></Pressable>
       <Text style={s.small}>WHAT WOULD YOU LIKE TO DO?</Text>
       {world.choices.map(choice => <Pressable key={choice} accessibilityRole="button" onPress={() => { const conversation = worldConversation(id, choice); if (conversation) router.push({ pathname: '/chat', params: conversation } as never); }} style={s.option}><Text style={s.optionText}>{choice}</Text><Ionicons name="arrow-forward" size={20} color="#D9E0E9" /></Pressable>)}
       <Text style={s.note}>Choose an option to prepare a conversation with {name}. You review the request before sending. Connections, purchases and messages require their own setup and approval.</Text>

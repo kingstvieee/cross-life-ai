@@ -21,6 +21,9 @@
       "distribution": "store",
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_BACKEND_URL": "https://cross-life-ai.emergent.host"
       }
     }
   },
