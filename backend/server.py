@@ -19,6 +19,7 @@ import json
 from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
 from emergentintegrations.llm.openai import OpenAITextToSpeech
 from guardian_server_integration import ensure_guardian_indexes, install_guardian_core
+from companion_speech import MODEL as COMPANION_SPEECH_MODEL, PROFILES as SPEECH_PROFILES, PREVIEWS as SPEECH_PREVIEWS, synthesize as synthesize_companion
 from style_swap_routes import build_style_swap_router
 from identity_routes import SESSION_COOKIE, app_origin, build_identity_router, ensure_identity_indexes
 
@@ -782,9 +783,11 @@ PORTAL_INTROS = {
 }
 
 
-async def _tts_cached_line(text: str, private_user_id: Optional[str] = None) -> dict:
+async def _tts_cached_line(text: str, private_user_id: Optional[str] = None, companion: Optional[str] = None) -> dict:
     """Generate TTS with public fixed narration or a short-lived private scoped link."""
     content_key = hashlib.sha256(f"{text}|onyx|1.0|tts-1|mp3".encode()).hexdigest()[:32]
+    if companion is not None:
+        content_key = hashlib.sha256(json.dumps([text, companion, COMPANION_SPEECH_MODEL, SPEECH_PROFILES[companion]], sort_keys=True).encode()).hexdigest()[:32]
     query = {"content_key": content_key, "private_user_id": private_user_id}
     if private_user_id is None:
         query = {"key": content_key, "visibility": "public"}
@@ -800,7 +803,9 @@ async def _tts_cached_line(text: str, private_user_id: Optional[str] = None) -> 
     key = cached.get("key") if cached else (content_key if private_user_id is None else f"{content_key}.{secrets.token_urlsafe(18)}")
     if not cached:
         try:
-            audio = await _tts().generate_speech(text=text, model="tts-1", voice="onyx")
+            audio = await synthesize_companion(text, companion) if companion else await _tts().generate_speech(text=text, model="tts-1", voice="onyx")
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("tts generation failed")
             raise HTTPException(status_code=502, detail="tts_failed")
@@ -902,6 +907,28 @@ async def guardian_speak_line(body: SpeakLineIn, authorization: Optional[str] = 
     user = await require_account_user(authorization)
     rate_limit(f"tts:{user['user_id']}", 30, 60)
     return await _tts_cached_line(body.text, private_user_id=user["user_id"])
+
+
+@api_router.get("/companion/voice-preview/{companion}")
+async def companion_voice_preview(companion: str, request: Request):
+    rate_limit(f"voice-preview:{client_ip(request)}", 6, 60)
+    if companion not in SPEECH_PREVIEWS:
+        raise HTTPException(404, "unknown_companion")
+    return await _tts_cached_line(SPEECH_PREVIEWS[companion], companion=companion)
+
+
+class CompanionSpeechIn(BaseModel):
+    text: str = Field(..., min_length=1, max_length=2000)
+
+
+@api_router.post("/companion/speak")
+async def companion_speak(body: CompanionSpeechIn, authorization: Optional[str] = Header(None)):
+    user = await require_account_user(authorization)
+    rate_limit(f"companion-speech:{user['user_id']}", 10, 60)
+    companion = user.get("companion", "atlas")
+    if companion not in SPEECH_PROFILES:
+        raise HTTPException(422, "unknown_companion")
+    return await _tts_cached_line(body.text, private_user_id=user["user_id"], companion=companion)
 
 
 @api_router.get("/guardian/greeting")
