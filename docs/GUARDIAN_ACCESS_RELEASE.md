@@ -7,7 +7,7 @@ by the common backend authentication boundary. Fixture seed endpoints are disabl
 
 ## Hosted web sign-in
 
-Google, Microsoft, Apple and email use separate connections at a configured hosted
+Google, Microsoft, Apple, Yahoo and email use separate connections at a configured hosted
 identity broker. The backend performs the authorization-code exchange with S256
 PKCE and an expiring browser-bound, single-use state record. It reads verified
 identity from the broker's authenticated HTTPS userinfo endpoint. It does not
@@ -40,6 +40,7 @@ Configure these variables through the backend host's secret/settings UI:
 | AUTH_CONNECTION_APPLE | Existing Apple connection name |
 | AUTH_NATIVE_REDIRECT_URL | Exactly frontend://auth-complete for the installed native scheme |
 | AUTH_CONNECTION_EMAIL | Existing hosted email-account connection name |
+| EXPO_PUBLIC_BACKEND_URL | Frontend's actual backend HTTPS origin |
 
 Microsoft / Outlook shares the `microsoft` provider ID. Configure that broker
 connection to accept personal Microsoft accounts (including Outlook/Hotmail);
@@ -50,18 +51,36 @@ Regular email login uses the broker's hosted account flow and must return
 `email_verified: true` before this backend creates a session. The app never
 collects a person's Google, Microsoft, Apple or Yahoo password.
 
-Operational checkpoint, 2026-11-13: Sign in with Apple was enabled and persisted
-as a primary App ID for `com.emergent.crosslifeai.z79271` in Apple Developer.
-Apple warned that existing provisioning profiles were invalidated and require
-regeneration. This is only the Apple capability prerequisite, not proof of a
-working broker connection or deployed login. The inspected Emergent live secrets
-contained no AUTH_* broker configuration. App Store Connect showed TestFlight
-builds 1 and 2, without these new changes. No new binary was uploaded.
-| EXPO_PUBLIC_BACKEND_URL | Frontend's actual backend HTTPS origin |
+Operational checkpoint, 2026-11-13 (Toronto): Apple Developer's primary App ID,
+web Services ID and app-restricted signing key are configured for the Auth0 Apple
+connection. Auth0's connection test reported a successful Apple transaction.
+The confidential broker client and Apple/email connection settings are deployed
+on the Emergent backend. The backend client secret was corrected after the first
+full Hub exchange failed; a complete Hub session after that correction is still
+unverified. `/api/auth/providers` reports Apple/email enabled, native enabled,
+and Google/Microsoft/Yahoo disabled. Enabled configuration is not login proof.
+
+After the owner completed Apple Developer authentication, Emergent's iOS build
+panel started version 1.0.1. That attempt failed before compilation because
+the managed detector selected `backups/canonical-f68171a` instead of `frontend`.
+The archived package manifest was preserved as `package.json.archived`, leaving
+only `frontend` eligible for app detection. The correction is committed on the
+integration checkout and PR branch. Corrected Publish 9 (`97b8028`) is live;
+the owner authenticated again and the version 1.0.1 retry is now running.
+Upload and installation are not yet verified. App Store Connect last showed only
+version 1.0.0 builds 1 and 2. Apple capability changes invalidated existing provisioning profiles, so
+the managed build must regenerate them. No public App Store release is authorized.
+
+Google's Cloud Console is currently unavailable in this cloud browser; the Auth0
+Google connection still uses development credentials. Microsoft Entra requires
+interactive session recovery. Yahoo's selected sign-in reached account creation
+and was stopped before accepting terms. These providers remain disabled until
+owned production credentials and actual login are verified.
 
 The broker must support authorization-code PKCE, the connection selector, and
 verified email at userinfo. Enable each requested connection in the broker and
-register the exact callback URL. No provider account/project was created here.
+register the exact callback URL. Auth0 registration and Apple configuration were
+completed with owner approval; Google/Microsoft/Yahoo setup remains incomplete.
 Missing or invalid configuration keeps methods disabled, with HTTP 503 on start.
 Prefer frontend/backend hosts under the same site to avoid third-party cookie
 blocking. Native login uses the system authentication browser, app-held S256 PKCE, a fixed
@@ -90,8 +109,11 @@ It does not prove live provider login, a production security control plane,
 20-minute away continuation, device readback, ambient calibration, or TestFlight.
 The older 25 dialogue cases remain source specifications, not executed evaluations.
 
-Release blockers: the Vercel checks report the account deployment is blocked;
-backend origin/database/provider configuration is absent from the inspected
-Vercel project; Apple/EAS ownership and signing remain unverified. No invoice
-amount is inferred. Resolve provider/billing/signing in their respective consoles;
-do not paste credentials into chat or commit environment files.
+Release blockers: verify the corrected Apple exchange through the complete Hub
+session, complete Google/Microsoft/Yahoo configuration, and verify the new iOS
+binary in TestFlight on a real device. The Emergent mobile backend is deployed;
+its root path returns 404 and is not evidence of a hosted web frontend. The
+separate Vercel project was not made deployment-ready by this work. Emergent shows
+exhausted agent credits and a failed subscription renewal; no payment, upgrade
+or extra build allocation was purchased. Do not paste credentials into chat or
+commit environment files.
