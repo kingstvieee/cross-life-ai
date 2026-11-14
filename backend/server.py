@@ -931,6 +931,27 @@ async def companion_speak(body: CompanionSpeechIn, authorization: Optional[str] 
     return await _tts_cached_line(body.text, private_user_id=user["user_id"], companion=companion)
 
 
+@api_router.post("/companion/transcribe")
+async def companion_transcribe(request: Request, authorization: Optional[str] = Header(None)):
+    user = await require_account_user(authorization)
+    rate_limit(f"voice-input:{user['user_id']}", 10, 60)
+    raw = bytearray()
+    async for chunk in request.stream():
+        if len(raw) + len(chunk) > 7 * 1024 * 1024:
+            raise HTTPException(413, "recording_too_large")
+        raw.extend(chunk)
+    import json
+    from voice_input import transcribe
+    try:
+        body = json.loads(raw)
+        encoded, mime = body['audio'], body['mime']
+    except (ValueError, KeyError, TypeError):
+        raise HTTPException(422, "invalid_recording") from None
+    text = await transcribe(encoded, mime)
+    await require_account_user(authorization)
+    return Response(content=json.dumps({"text": text}), media_type="application/json", headers={"Cache-Control": "no-store"})
+
+
 @api_router.get("/guardian/greeting")
 async def guardian_greeting(request: Request):
     """Short spoken hub welcome in the Guardian's Onyx voice (cached)."""
