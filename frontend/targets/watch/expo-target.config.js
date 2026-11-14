@@ -1,6 +1,6 @@
 module.exports = {
   type: 'watch',
-  name: 'STAAR Watch',
+  name: 'STAARWatch',
   bundleIdentifier: '.watchkitapp',
   deploymentTarget: '10.0',
   frameworks: ['SwiftUI', 'WatchConnectivity'],
