@@ -1,0 +1,16 @@
+name: Upload verified build 105 to TestFlight
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: staar-hub-testflight-upload-105
+  cancel_in_progress: false
+
+jobs:
+  upload_verified_ios:
+    name: Upload existing 1.0.4 (105) for internal TestFlight testing
+    type: submit
+    params:
+      build_id: f287540b-03ed-48d8-87de-89bf17a71621
+      profile: production
