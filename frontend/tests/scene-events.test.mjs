@@ -152,3 +152,17 @@ test('Guardian Life Map never displays a late response for a different portal', 
   assert.match(tools, /loadEpoch\.current\+\+;setNotes\(\[\]\);setEvents\(\[\]\);setOverview\(null\)/);
   assert.match(tools, /return\(\)=>\{active=false;loadEpoch\.current\+\+;\}/);
 });
+
+test('master mute immediately stops cinematic cues and ambient fade', () => {
+  const audio = fs.readFileSync(path.join('lib', 'staarwardd', 'audio-provider.tsx'), 'utf8');
+  const start = audio.indexOf('const update = useCallback(');
+  const end = audio.indexOf('const stopAll = useCallback(', start);
+  const update = audio.slice(start, end);
+  assert.ok(start > 0 && end > start);
+  assert.match(update, /if \(!next\.master \|\| \(!next\.music && !next\.ambience\)\)/);
+  assert.match(update, /clearInterval\(fadeTimer\.current\)/);
+  assert.match(update, /Object\.values\(cuePlayers\.current\)\.forEach\(player =>/);
+  assert.match(update, /lastCue\.current = null/);
+  assert.match(update, /pauseAllAmbient\(\)/);
+  assert.match(update, /setActiveAmbient\(null\)/);
+});
