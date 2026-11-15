@@ -42,6 +42,7 @@ test('Hub welcome preference is account scoped and never reads the shared legacy
   assert.match(hub, /!user\.is_demo/);
   assert.match(hub, /AsyncStorage\.getItem\(greetingKey\)/);
   assert.match(hub, /AsyncStorage\.setItem\(greetingKey/);
-  assert.match(hub, /disabled=\{!greetingKey \|\| !preferenceReady\}/);
+  assert.match(hub, /disabled=\{!greetingKey \|\| !preferenceReady \|\| loadedGreetingKey !== greetingKey\}/);
+  assert.match(hub, /loadedGreetingKey !== greetingKey \|\| !greetingKey/);
   assert.doesNotMatch(hub, /AsyncStorage\.(getItem|setItem)\('staarwardd\.guardian\.proactive-greeting\.v1'/);
 });
