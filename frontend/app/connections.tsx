@@ -20,16 +20,16 @@ export default function Connections() {
     return () => { active = false; };
   }, [key]);
   const button = (label: string, action: () => void, disabled = false) => <Pressable accessibilityRole="button" disabled={disabled} onPress={action} style={{ padding: 16, borderRadius: 14, borderWidth: 1, borderColor: '#758195', opacity: disabled ? .4 : 1 }}><Text style={{ color: '#F1F4F8', fontSize: 16 }}>{label}</Text></Pressable>;
-  async function open(url: string) { try { await Linking.openURL(url); setNotice('Opened the provider. Its account and data are not linked to STAAR Hub.'); } catch { setNotice('Could not open the provider. Try again.'); } }
+  async function open(url: string) { try { await Linking.openURL(url); setNotice('External website opened. No account, data or tool permissions were connected to STAAR Hub.'); } catch { setNotice('Could not open the provider. Try again.'); } }
   return <SafeAreaView style={{ flex: 1, backgroundColor: '#080B10' }}><ScrollView contentContainerStyle={{ padding: 24, gap: 18, maxWidth: 850, width: '100%', alignSelf: 'center' }}>
     {button('Back', () => router.back())}
     <Text style={{ color: '#F1F4F8', fontSize: 30 }}>{WORLD_BY_ID[world]?.name || 'Portal'} connections</Text>
     {!entry || !key ? <Text style={{ color: '#C0CAD7' }}>Sign in with your own account and choose a portal to set up connections.</Text> : <>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{entry.areas.map(area => <Text key={area} style={{ color: '#D9E1EC', backgroundColor: '#1A2230', padding: 12, borderRadius: 12 }}>{area}</Text>)}</View>
       {world === 'home' && <HomeConnection key={user?.user_id} />}
-      {!!entry.tools.length && <Text style={{ color: '#F1F4F8', fontSize: 22 }}>Open your tools</Text>}
-      {!!entry.tools.length && <Text style={{ color: '#BBC5D3', lineHeight: 22 }}>These buttons open the provider’s website. They do not establish an API connection, sync accounts or start a purchase.</Text>}
-      {entry.tools.map(tool => <View key={tool.name} style={{ gap: 5 }}>{button('Open ' + tool.name, () => { void open(tool.url); })}<Text style={{ color: '#96A4B8' }}>External tool · {new URL(tool.url).hostname}</Text></View>)}
+      {!!entry.tools.length && <Text style={{ color: '#F1F4F8', fontSize: 22 }}>External websites — not connected</Text>}
+      {!!entry.tools.length && <Text style={{ color: '#BBC5D3', lineHeight: 22 }}>These are website shortcuts, not STAARWAARDD integrations. They cannot access your provider data, submit generation jobs, or complete purchases. A provider is connected only after its authenticated in-app action succeeds.</Text>}
+      {entry.tools.filter(tool => tool.kind === 'external-website').map(tool => <View key={tool.name} style={{ gap: 5 }}>{button('Open external website: ' + tool.name, () => { void open(tool.url); })}<Text style={{ color: '#96A4B8' }}>External website · no API connection · {new URL(tool.url).hostname}</Text></View>)}
       <Text style={{ color: '#F1F4F8', fontSize: 22 }}>Connections still to establish</Text><Text style={{ color: '#BCC6D4', lineHeight: 23 }}>{entry.pending}</Text>
       <Text style={{ color: '#F1F4F8', fontSize: 22 }}>Your setup checklist</Text>
       <Text style={{ color: '#A5B2C4', lineHeight: 21 }}>List the rooms, tools or equipment you want to add. Saved on this device for your account. Keep passwords, tokens and private records in their provider apps.</Text>
