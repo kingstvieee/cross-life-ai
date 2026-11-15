@@ -2,8 +2,7 @@
 
 Both `/api/guardian/chat` and `/api/guardian/chat-once` now use the server-owned
 chat transport. With `OPENAI_API_KEY` set, requests go directly to OpenAI's
-Responses API. `OPENAI_CHAT_MODEL` selects the model (default: existing chat-once
-model `gpt-5.2`). `GUARDIAN_CHAT_PROVIDER=openai` forces the direct transport;
+Responses API. `OPENAI_CHAT_MODEL` selects the model (default: the endpoint's existing model, `gpt-5.2` for chat-once and `gpt-5.6-terra` for streaming). `GUARDIAN_CHAT_PROVIDER=openai` forces the direct transport;
 `emergent` explicitly retains the old relay. With neither a direct key nor an
 explicit provider, the existing relay is retained for compatibility.
 
@@ -14,7 +13,7 @@ been verified in this continuation.
 
 Direct requests disable response storage, cap output at 2048 tokens, use a fixed
 HTTPS provider endpoint, reject redirects, and have bounded connection/read
-timeouts. There are no tools, provider-side history IDs, automatic retries or
+timeouts plus an independent 60-second whole-request deadline. There are no tools, provider-side history IDs, automatic retries or
 post-failure provider failover. Existing per-account history and dispatch-time
 privacy checks remain in place. Failed, malformed, incomplete and severed streams
 cannot emit a completion event or be stored by chat-once as a finished reply.
@@ -27,7 +26,9 @@ migrate those endpoints or replace companion speech with Realtime.
 
 ## Validation
 
-403 backend regression tests passed, including 10 new direct-transport tests.
+405 backend regression tests passed, including 12 new direct-transport tests.
+The review fixes preserve endpoint-specific models and terminate trickling streams
+at the whole-request deadline; the deadline test verifies transport cleanup.
 Tests use fake HTTP transport and dummy credentials; they make no paid requests.
 Backend Python compilation and `git diff --check` passed.
 

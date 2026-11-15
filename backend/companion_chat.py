@@ -3,6 +3,7 @@
 Direct OpenAI uses the Responses API with storage disabled. The legacy relay is
 selected only before dispatch, never after a failed/partial paid request.
 """
+import asyncio
 import json
 import os
 from dataclasses import dataclass
@@ -34,17 +35,39 @@ def chat_provider():
 
 
 class DirectChat:
-    def __init__(self, system_message, client_factory=None):
+    def __init__(self, system_message, client_factory=None, *, model='gpt-5.2', deadline_seconds=60):
         self.system_message = system_message
+        self.model = model
+        self.deadline_seconds = deadline_seconds
         self.client_factory = client_factory or (lambda: httpx.AsyncClient(
             timeout=httpx.Timeout(60, connect=10), follow_redirects=False))
 
     async def stream_message(self, message):
+        # httpx read timeouts reset for every chunk. Enforce an independent
+        # whole-request deadline even when the provider keeps sending heartbeats.
+        events = self._stream_message(message)
+        deadline = asyncio.get_running_loop().time() + self.deadline_seconds
+        try:
+            while True:
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    raise HTTPException(504, 'companion_chat_timed_out')
+                try:
+                    event = await asyncio.wait_for(anext(events), timeout=remaining)
+                except StopAsyncIteration:
+                    return
+                except TimeoutError:
+                    raise HTTPException(504, 'companion_chat_timed_out') from None
+                yield event
+        finally:
+            await events.aclose()
+
+    async def _stream_message(self, message):
         key = os.environ.get('OPENAI_API_KEY', '').strip()
         if not key:
             raise HTTPException(503, 'companion_chat_not_configured')
         payload = {
-            'model': os.environ.get('OPENAI_CHAT_MODEL', 'gpt-5.2').strip() or 'gpt-5.2',
+            'model': os.environ.get('OPENAI_CHAT_MODEL', self.model).strip() or self.model,
             'instructions': self.system_message, 'input': message.text,
             'store': False, 'stream': True, 'max_output_tokens': 2048,
         }
@@ -104,5 +127,5 @@ class RelayChat:
 
 def make_chat(system_message, session_id, relay_model='gpt-5.2'):
     if chat_provider() == 'openai':
-        return DirectChat(system_message)
+        return DirectChat(system_message, model=relay_model)
     return RelayChat(system_message, session_id, relay_model)

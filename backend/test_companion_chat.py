@@ -80,3 +80,34 @@ def test_provider_selection_and_missing_configuration_do_not_dispatch(monkeypatc
                 pass
         assert error.value.status_code == 503
     asyncio.run(run())
+
+
+def test_direct_provider_preserves_each_endpoint_model_unless_explicitly_overridden(monkeypatch):
+    monkeypatch.setenv('OPENAI_API_KEY', 'test-only-not-a-real-key')
+    monkeypatch.delenv('GUARDIAN_CHAT_PROVIDER', raising=False)
+    monkeypatch.delenv('OPENAI_CHAT_MODEL', raising=False)
+    assert make_chat('system', 'session').model == 'gpt-5.2'
+    assert make_chat('system', 'session', relay_model='gpt-5.6-terra').model == 'gpt-5.6-terra'
+
+
+def test_whole_request_deadline_stops_trickling_stream_and_closes_transport(monkeypatch):
+    monkeypatch.setenv('OPENAI_API_KEY', 'test-only-not-a-real-key')
+    closed = []
+    class Heartbeats(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            while True:
+                await asyncio.sleep(.005)
+                yield b': heartbeat\n\n'
+        async def aclose(self):
+            closed.append(True)
+    def handler(request):
+        return httpx.Response(200, stream=Heartbeats())
+    async def run():
+        client = lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        with pytest.raises(HTTPException) as error:
+            async for _ in DirectChat('system', client, deadline_seconds=.03).stream_message(UserMessage('hello')):
+                pytest.fail('heartbeats are not content')
+        assert error.value.status_code == 504
+        assert error.value.detail == 'companion_chat_timed_out'
+        assert closed == [True]
+    asyncio.run(run())
