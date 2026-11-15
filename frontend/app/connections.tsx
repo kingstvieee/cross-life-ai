@@ -16,7 +16,7 @@ export default function Connections() {
   const [note, setNote] = useState(''); const [notice, setNotice] = useState(''); const [loaded, setLoaded] = useState(false);
   const key = user && !user.is_demo && entry ? accountStorageKey('staar.connection-plan.' + world, user.user_id) : null;
   useEffect(() => { let active = true; setLoaded(false); setNote(''); setNotice('');
-    if (key) void AsyncStorage.getItem(key).then(value => { if (active) { setNote(value || ''); setLoaded(true); } }).catch(() => { if (active) setNotice('Could not load your setup checklist.'); });
+    if (key) void AsyncStorage.getItem(key).then(value => { if (active) { setNote(value || ''); setLoaded(true); } }).catch(() => { if (active) { setLoaded(true); setNotice('Could not load your saved setup checklist. You can prepare a new note, but saving may still fail until device storage recovers.'); } });
     return () => { active = false; };
   }, [key]);
   const button = (label: string, action: () => void, disabled = false) => <Pressable accessibilityRole="button" disabled={disabled} onPress={action} style={{ padding: 16, borderRadius: 14, borderWidth: 1, borderColor: '#758195', opacity: disabled ? .4 : 1 }}><Text style={{ color: '#F1F4F8', fontSize: 16 }}>{label}</Text></Pressable>;
