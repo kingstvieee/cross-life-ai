@@ -71,7 +71,8 @@ export function VoiceInput({ onTranscript, disabled, onListening }: { onTranscri
         const blob = await (await fetch(uri)).blob(); mime = blob.type.split(';')[0] || 'audio/webm';
         encoded = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1]); reader.onerror = reject; reader.readAsDataURL(blob); });
       } else { encoded = await new File(uri).base64(); }
-      if (id !== generation.current) return;
+      // Never upload a recording after the session was disabled, backgrounded or cancelled.
+      if (id !== generation.current || disabledRef.current || !sessionEnabledRef.current || !foregroundRef.current) return;
       controller.current = new AbortController();
       const result = await api('/api/companion/transcribe', { method: 'POST', signal: controller.current.signal, body: JSON.stringify({ audio: encoded, mime }) });
       if (!result.ok) throw new Error(result.status === 503 ? 'Voice input is not configured on the server yet.' : 'Could not transcribe. Please try again.');
