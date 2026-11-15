@@ -55,7 +55,7 @@ export function WorldHub() {
     try { await audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.'); }
     finally { if (focused.current && epoch === voiceEpoch.current) { setGuardianSpeaking(false); setGuardianState('hover'); } }
   }, [audio.master, audio.voice, audio.speechQuiet, audio.speak]);
-  useFocusEffect(useCallback(() => { focused.current = true; greeted.current = false; return () => { focused.current = false; greeted.current = true; voiceEpoch.current += 1; }; }, []));
+  useFocusEffect(useCallback(() => { focused.current = true; return () => { focused.current = false; voiceEpoch.current += 1; }; }, []));
   useEffect(() => {
     if (!focused.current || !preferenceReady || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || greeted.current) return;
     greeted.current = true;
