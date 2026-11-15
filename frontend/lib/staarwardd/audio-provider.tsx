@@ -113,6 +113,16 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     settingsRef.current = DEFAULT_SETTINGS;
     setSettings(DEFAULT_SETTINGS);
     speechRequest.current += 1;
+    // Changing accounts immediately invalidates all audio from the previous session,
+    // including ambient loops and queued cinematic effects, before preferences load.
+    if (fadeTimer.current) { clearInterval(fadeTimer.current); fadeTimer.current = null; }
+    Object.values(ambientPlayers.current).forEach(player => { try { player?.pause(); } catch { /* audio teardown is best effort */ } });
+    Object.values(cuePlayers.current).forEach(player => { try { player?.pause(); } catch { /* audio teardown is best effort */ } });
+    lastCue.current = null;
+    setActiveAmbient(null);
+    speechQuietRef.current = false;
+    setSpeechQuietState(false);
+    setVoiceNotice('');
     stopServerSpeech();
     void Speech.stop();
     if (storageKey) {
