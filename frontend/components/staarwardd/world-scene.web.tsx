@@ -4,16 +4,26 @@ import { sceneAction, sceneFallbackActions } from '@/src/scene-events';
 
 export function WorldScene({ world, variant = 'realm', onAction }: { world: string; variant?: 'realm' | 'singles'; onAction: (action: string) => void }) {
   const iframe = useRef<HTMLIFrameElement | null>(null);
+  const sceneReady = useRef(false);
   const html = useMemo(() => worldSceneHtml(world, variant), [world, variant]);
   const [failedScene, setFailedScene] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const sceneKey = `${world}:${variant}`;
   const failed = failedScene === sceneKey;
   useEffect(() => {
+    sceneReady.current = false;
+    const watchdog = setTimeout(() => { if (!sceneReady.current) setFailedScene(sceneKey); }, 15000);
+    return () => clearTimeout(watchdog);
+  }, [sceneKey, retryCount]);
+  useEffect(() => {
     const receive = (event: MessageEvent) => {
       if (event.source !== iframe.current?.contentWindow) return;
       if (event.data?.source === 'staar-scene-v1' && event.data.type === 'unavailable' && event.data.world === world) {
         setFailedScene(sceneKey);
+        return;
+      }
+      if (event.data?.source === 'staar-scene-v1' && event.data.type === 'ready' && event.data.world === world) {
+        sceneReady.current = true;
         return;
       }
       const action = sceneAction(event.data, world);
