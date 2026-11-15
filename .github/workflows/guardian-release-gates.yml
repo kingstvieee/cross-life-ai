@@ -4,6 +4,7 @@ on:
     paths:
       - 'backend/**'
       - 'frontend/**'
+      - 'hosting/**'
       - '.github/workflows/guardian-release-gates.yml'
 permissions:
   contents: read
@@ -34,7 +35,7 @@ jobs:
           node-version: '24'
       - run: corepack enable
       - run: yarn install --frozen-lockfile --ignore-scripts
-      - run: node --test tests/account-storage.test.mjs tests/home-assistant.test.mjs
+      - run: node --test tests/account-storage.test.mjs tests/home-assistant.test.mjs tests/guardian-worker.test.mjs
       - run: yarn exec tsc --noEmit
       - run: yarn expo export --platform web --no-bytecode
       - run: yarn expo prebuild --platform ios --no-install

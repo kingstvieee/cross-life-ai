@@ -247,3 +247,31 @@ def test_multipart_parser_is_installed_and_parses_apple_form_post():
         )
     assert response.status_code == 200, response.text
     assert response.json() == {'state': 'state-value', 'code': 'code-value'}
+
+
+def test_web_pkce_handoff_is_bound_single_use_and_separate_from_native(monkeypatch):
+    client, db, _ = make(monkeypatch)
+    monkeypatch.delenv('AUTH_NATIVE_REDIRECT_URL', raising=False)
+    verifier = 'w' * 64
+    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip('=')
+    start = client.get('/api/auth/start/email', params={'web_challenge': challenge})
+    assert start.status_code == 302
+    state = parse_qs(urlsplit(start.headers['location']).query)['state'][0]
+    result = client.get('/api/auth/callback', params={'state': state, 'code': 'provider-code'})
+    target = urlsplit(result.headers['location'])
+    assert target.scheme + '://' + target.netloc == 'https://app.example.test'
+    grant = parse_qs(target.fragment)['guardian_code'][0]
+    assert not db.user_sessions.docs
+    assert 'session_token' not in result.headers['location']
+    assert client.post('/api/auth/web/exchange', json={'code': grant, 'verifier': 'x' * 64}).status_code == 401
+    monkeypatch.setenv('AUTH_NATIVE_REDIRECT_URL', 'frontend://auth-complete')
+    assert client.post('/api/auth/native/exchange', json={'code': grant, 'verifier': verifier}).status_code == 401
+    good = client.post('/api/auth/web/exchange', json={'code': grant, 'verifier': verifier})
+    assert good.status_code == 200 and good.json()['user']['email'] == 'test@example.test'
+    assert client.post('/api/auth/web/exchange', json={'code': grant, 'verifier': verifier}).status_code == 401
+
+
+def test_web_handoff_rejects_mixed_or_invalid_challenges(monkeypatch):
+    client, _, _ = make(monkeypatch)
+    assert client.get('/api/auth/start/email', params={'web_challenge': 'bad'}).status_code == 400
+    assert client.get('/api/auth/start/email', params={'web_challenge': 'a' * 43, 'native_challenge': 'a' * 43}).status_code == 400

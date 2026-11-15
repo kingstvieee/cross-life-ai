@@ -28,7 +28,7 @@ type AudioContextValue = AudioSettings & {
   playAmbient: (key: AmbientKey) => void;
   stopAmbient: () => void;
   playCue: (cue: CinematicCue) => void;
-  speak: (text: string, rate?: number) => Promise<void>;
+  speak: (text: string, rate?: number) => Promise<boolean>;
   stopAll: () => void;
 };
 
@@ -262,15 +262,26 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
 
   const speak = useCallback(async (text: string, _rate = 0.95) => {
     const requestId = ++speechRequest.current;
-    if (!settingsRef.current.master || !settingsRef.current.voice || speechQuietRef.current || !text.trim()) return;
+    if (!settingsRef.current.master || !settingsRef.current.voice || speechQuietRef.current || !text.trim()) return false;
     setVoiceNotice('');
     try {
+      let completed = false;
       await playServerSpeech(async signal => {
         const response = await api('/api/companion/speak', { method: 'POST', signal, body: JSON.stringify({ text: text.slice(0, 2000) }) });
         return response;
-      }, { volume: settingsRef.current.volume });
+      }, { volume: settingsRef.current.volume, onDone: () => { completed = true; } });
+      return completed && requestId === speechRequest.current;
     } catch {
-      if (requestId === speechRequest.current) setVoiceNotice('Natural voice is unavailable. Your text conversation is still available.');
+      if (requestId !== speechRequest.current || speechQuietRef.current) return false;
+      setVoiceNotice('Using installed device speech. Server voice is unavailable.');
+      const voices = await Speech.getAvailableVoicesAsync().catch(() => []);
+      if (requestId !== speechRequest.current || speechQuietRef.current) return false;
+      const installed = voices.find(voice => voice.language === 'en-GB');
+      return new Promise<boolean>(resolve => {
+        const timer = setTimeout(() => { void Speech.stop(); resolve(false); }, 120000);
+        const finish = (played:boolean) => { clearTimeout(timer); resolve(played && requestId === speechRequest.current); };
+        Speech.speak(text.slice(0,2000), {language:'en-GB',voice:installed?.identifier,rate:0.95,volume:settingsRef.current.volume,onDone:()=>finish(true),onStopped:()=>finish(false),onError:()=>{setVoiceNotice('Speech could not play. The message remains in your inbox.');finish(false);}});
+      });
     }
   }, [api]);
 

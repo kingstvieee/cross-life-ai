@@ -28,3 +28,31 @@ def test_account_scoped_api_lifecycle():
     assert client.get(root + '/poppy/discovery?host=example.com', headers=headers).status_code == 400
     # Default consent is off: requesting a notification never enables it.
     assert client.post(root + '/notifications', headers=headers, json={'kind': 'greetings'}).json()['queued'] is False
+
+
+def test_overview_and_receipt_do_not_claim_provider_execution():
+    import asyncio
+    from guardian_life_map import LifeMapStore
+    db = FakeDB()
+    async def authenticate(header):
+        if header not in ('Bearer owner', 'Bearer other'):
+            raise HTTPException(401, 'invalid_session')
+        return {'user_id':header.split()[1], 'portals_enabled':['work']}
+    app = FastAPI()
+    install_guardian_core(app, db=db, get_current_user=authenticate)
+    client = TestClient(app)
+    root = '/api/guardian/life-map'
+    headers = {'Authorization':'Bearer owner'}
+    overview = client.get(root + '/overview', headers=headers)
+    assert overview.status_code == 200
+    assert overview.json()['consent'].get('greetings') is False
+    store = LifeMapStore(db.guardian_life_map)
+    event = asyncio.run(store.enqueue('owner', key='receipt', kind='greetings', decision={'allowed':True}))['event']
+    key = event['key']
+    assert client.post(root + '/notifications/' + key + '/claim', headers={'Authorization':'Bearer other'}).status_code == 404
+    assert client.post(root + '/notifications/' + key + '/claim', headers=headers).json()['claimed'] is False
+    grant = asyncio.run(store.claim_notification('owner', key, {'allowed':True}))
+    response = client.post(root + '/notifications/' + key + '/receipt', headers=headers, json={'token':grant['token'], 'outcome':'played'})
+    assert response.json() == {'state':'played', 'evidence':'client-playback-report'}
+    inbox = client.get(root + '/notifications', headers=headers).json()
+    assert 'deliveryTokenHash' not in inbox['events'][0]

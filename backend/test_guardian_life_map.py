@@ -65,3 +65,38 @@ def test_notification_replay_and_reopen():
     assert len(run(store.snapshot('owner'))['events']) == 1
     blocked = run(store.enqueue('owner', key='session-2', kind='greetings', decision={'allowed': False, 'reason': 'speech_quiet'}))
     assert blocked == {'queued': False, 'reason': 'speech_quiet'}
+
+
+def test_claim_is_single_owner_and_uncertain_delivery_is_not_auto_replayed():
+    from datetime import datetime, timedelta, timezone
+    store = LifeMapStore(FakeCollection())
+    event = run(store.enqueue('owner', key='session', kind='greetings', decision={'allowed': True}))['event']
+    at = datetime.fromisoformat(event['createdAt'])
+    grant = run(store.claim_notification('owner', event['key'], {'allowed': True}, at))
+    assert grant['claimed']
+    assert not run(store.claim_notification('owner', event['key'], {'allowed': True}, at))['claimed']
+    assert run(store.claim_notification('owner', event['key'], {'allowed': True}, at + timedelta(seconds=61)))['reason'] == 'uncertain'
+    with pytest.raises(ValueError, match='invalid_delivery'):
+        run(store.finish_notification('other', event['key'], grant['token'], 'played'))
+    assert run(store.finish_notification('owner', event['key'], grant['token'], 'played'))['state'] == 'played'
+
+
+def test_memory_context_respects_privacy_and_corrections_invalidate_history_epoch():
+    store = LifeMapStore(FakeCollection())
+    user = {'user_id':'owner','portals_enabled':['work'],'portal_privacy':{'work':{'access':True,'share':True}}}
+    args = dict(fact_id='note',portal='work',text='meeting Tuesday',source_id='user',source_span='meeting Tuesday')
+    run(store.save('owner', **args))
+    assert run(store.context(user, 'meeting'))[0]['revision'] == 1
+    assert run(store.context({**user,'cross_life_paused':True}, 'meeting')) == []
+    before = run(store.snapshot('owner'))['memoryVersion']
+    run(store.delete('owner', 'note'))
+    assert run(store.snapshot('owner'))['memoryVersion'] > before
+    assert run(store.context(user, 'meeting')) == []
+
+
+def test_stale_greeting_expires_without_playback():
+    from datetime import datetime, timedelta
+    store = LifeMapStore(FakeCollection())
+    event = run(store.enqueue('owner', key='stale', kind='greetings', decision={'allowed':True}))['event']
+    at = datetime.fromisoformat(event['createdAt']) + timedelta(minutes=11)
+    assert run(store.claim_notification('owner', event['key'], {'allowed':True}, at)) == {'claimed':False, 'reason':'expired'}
