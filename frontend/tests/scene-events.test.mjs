@@ -33,3 +33,13 @@ test('all nine worlds have an opt-in 3D preview entry without replacing locked a
   assert.match(scene, /Locked artwork, facial animation/);
   assert.match(page, /source=\{world\.image\}/);
 });
+
+test('a lost WebGL context restores accessible portal navigation', () => {
+  const renderer = fs.readFileSync(path.join('scene-src', 'worlds.js'), 'utf8');
+  assert.match(renderer, /const addNavigationFallback = \(\) =>/);
+  assert.match(renderer, /actions\.replaceChildren\(\)/);
+  assert.match(renderer, /webglcontextlost/);
+  assert.match(renderer, /addNavigationFallback\(\);report\('unavailable'\)/);
+  assert.match(renderer, /#reset'\)\.hidden=true/);
+  assert.equal(fallbackActions('hub').length, 9);
+});
