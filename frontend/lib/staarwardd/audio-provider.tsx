@@ -22,6 +22,8 @@ type AudioSettings = {
 type AudioContextValue = AudioSettings & {
   speechQuiet: boolean;
   voiceNotice: string;
+  speechPhase: "idle" | "speaking" | "waiting" | "muted";
+  stopSpeech: () => void;
   activeAmbient: AmbientKey | null;
   update: (patch: Partial<AudioSettings>) => void;
   setSpeechQuiet: (quiet: boolean) => void;
@@ -86,6 +88,7 @@ const CUES: Record<CinematicCue, AudioSource> = isWeb
 export function StaarAudioProvider({ children }: PropsWithChildren) {
   const { user, api } = useAuth();
   const [voiceNotice, setVoiceNotice] = useState("");
+  const [speechPhase, setSpeechPhase] = useState<"idle" | "speaking" | "waiting" | "muted">("idle");
   const companion = user?.companion;
   useEffect(() => { stopServerSpeech(); return stopServerSpeech; }, [companion]);
   const [settings, setSettings] = useState<AudioSettings>(DEFAULT_SETTINGS);
@@ -102,6 +105,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   const guardianSpeech = useRef({ ...initialGuardianSpeechState });
   const dispatchGuardianSpeech = (event: GuardianSpeechEvent) => {
     guardianSpeech.current = transitionGuardianSpeech(guardianSpeech.current, event).state;
+    setSpeechPhase(guardianSpeech.current.phase);
   };
   const speechQuietRef = useRef(false);
   const settingsRef = useRef(settings);
@@ -167,15 +171,19 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     });
   }, []);
 
+  const stopSpeech = useCallback(() => {
+    speechRequest.current += 1;
+    dispatchGuardianSpeech({ type: "STOP" });
+    stopServerSpeech();
+    void Speech.stop();
+  }, []);
+
   const stopAll = useCallback(() => {
     pauseAllAmbient();
     Object.values(cuePlayers.current).forEach((p) => { try { p?.pause(); } catch { /* noop */ } });
     setActiveAmbient(null);
-    speechRequest.current += 1;
-    dispatchGuardianSpeech({ type: 'STOP' });
-    stopServerSpeech();
-    void Speech.stop();
-  }, []);
+    stopSpeech();
+  }, [stopSpeech]);
 
   const setSpeechQuiet = useCallback((quiet: boolean) => {
     speechQuietRef.current = quiet;
@@ -273,6 +281,9 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     if (!settingsRef.current.master || !settingsRef.current.voice || speechQuietRef.current || !text.trim()) return false;
     const taskId = `guardian-task-${requestId}`;
     const utteranceId = `guardian-utterance-${requestId}`;
+    // New speech replaces any prior utterance, but navigation never cancels it.
+    stopServerSpeech();
+    void Speech.stop();
     dispatchGuardianSpeech({ type: 'START', taskId, utteranceId });
     setVoiceNotice('');
     try {
@@ -291,14 +302,14 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
       if (requestId !== speechRequest.current || speechQuietRef.current) return false;
       const installed = voices.find(voice => voice.language === 'en-GB');
       return new Promise<boolean>(resolve => {
-        const timer = setTimeout(() => { void Speech.stop(); resolve(false); }, 120000);
+        const timer = setTimeout(() => { void Speech.stop(); dispatchGuardianSpeech({ type: 'UTTERANCE_ENDED', utteranceId }); resolve(false); }, 120000);
         const finish = (played:boolean) => { clearTimeout(timer); dispatchGuardianSpeech({ type: 'TASK_COMPLETED', taskId }); dispatchGuardianSpeech({ type: 'UTTERANCE_ENDED', utteranceId }); resolve(played && requestId === speechRequest.current); };
         Speech.speak(text.slice(0,2000), {language:'en-GB',voice:installed?.identifier,rate:0.95,volume:settingsRef.current.volume,onDone:()=>finish(true),onStopped:()=>finish(false),onError:()=>{setVoiceNotice('Speech could not play. The message remains in your inbox.');finish(false);}});
       });
     }
   }, [api]);
 
-  const value = useMemo(() => ({ ...settings, speechQuiet, voiceNotice, activeAmbient, update, setSpeechQuiet, toggleAmbient, playAmbient, stopAmbient, playCue, speak, stopAll }), [activeAmbient, playAmbient, playCue, settings, setSpeechQuiet, speak, speechQuiet, voiceNotice, stopAll, stopAmbient, toggleAmbient, update]);
+  const value = useMemo(() => ({ ...settings, speechQuiet, speechPhase, voiceNotice, activeAmbient, update, setSpeechQuiet, toggleAmbient, playAmbient, stopAmbient, playCue, speak, stopSpeech, stopAll }), [activeAmbient, playAmbient, playCue, settings, setSpeechQuiet, speak, speechQuiet, speechPhase, voiceNotice, stopSpeech, stopAll, stopAmbient, toggleAmbient, update]);
   return <AudioContext.Provider value={value}>{children}</AudioContext.Provider>;
 }
 
