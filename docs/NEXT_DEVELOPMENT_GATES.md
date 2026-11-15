@@ -42,8 +42,12 @@ ownership/verification/tenant policies and user consent are external gates.
 
 ## Unfinished visual/runtime requirements
 
-The repository contains locked PNGs and Guardian MP4s/pose PNGs but no GLB, GLTF,
-FBX, VRM, USDZ or Blend production models. A focused Library search returned
+The original repository contained locked PNGs and Guardian MP4s/pose PNGs but no
+GLB, GLTF, FBX, VRM, USDZ or Blend production models. This branch now includes
+eleven locally authored geometry blockouts, an offline review viewer, allowlisted
+console actions and a reproducible Blender source script. These are not final
+approved replicas of the locked masters. The review route does not replace the
+current Hub. A focused Library search returned
 image/video production references rather than those model files. The locked
 facial identity cannot be preserved by substituting a generic avatar. Required
 production source assets are:
