@@ -42,6 +42,8 @@ export function transitionGuardianSpeech(
       return { state: { ...state, muted: false, phase: "idle" }, effect: "none" };
     case "START":
       if (state.muted || !event.taskId || !event.utteranceId) return { state, effect: "none" };
+      // A new utterance replaces the old one only after the transport cancels it.
+      // The caller must stop the prior audio before honoring start-audio.
       return {
         state: { ...state, activeTaskId: event.taskId, utteranceId: event.utteranceId, phase: "speaking" },
         effect: "start-audio",
