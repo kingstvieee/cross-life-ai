@@ -7,9 +7,9 @@ type Event = { id: string; title: string; start: string; end: string };
 export function ProviderConnections() {
   const { user, api } = useAuth(); const generation = useRef(0); const controller = useRef<AbortController | null>(null);
   const [providers, setProviders] = useState<Provider[]>([]); const [flow, setFlow] = useState<{ provider: string; id: string } | null>(null);
-  const [events, setEvents] = useState<Event[]>([]); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false);
-  useEffect(() => { generation.current++; setProviders([]); setEvents([]); setFlow(null); setMessage(''); setBusy(false); void load();
-    const sub = AppState.addEventListener('change', s => { if (s !== 'active') { controller.current?.abort(); generation.current++; setEvents([]); setBusy(false); } });
+  const [events, setEvents] = useState<Event[]>([]); const [eventsProvider, setEventsProvider] = useState<string | null>(null); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false);
+  useEffect(() => { generation.current++; setProviders([]); setEvents([]); setEventsProvider(null); setFlow(null); setMessage(''); setBusy(false); void load();
+    const sub = AppState.addEventListener('change', s => { if (s !== 'active') { controller.current?.abort(); generation.current++; setEvents([]); setEventsProvider(null); setBusy(false); } });
     return () => { generation.current++; controller.current?.abort(); sub.remove(); };
   }, [user?.user_id]);
   async function request(path: string, method = 'GET') {
@@ -32,11 +32,12 @@ export function ProviderConnections() {
         if (url.protocol !== 'https:' || url.hostname !== expected || typeof result.flow !== 'string') throw new Error('Invalid provider authorization destination.');
         setFlow({ provider: p.id, id: result.flow }); await WebBrowser.openBrowserAsync(result.url); }, !p.configured)}
       {flow?.provider === p.id && button('Finish connection after provider consent', async () => { await request('/' + p.id + '/finish/' + encodeURIComponent(flow.id), 'POST'); setFlow(null); await load(); setMessage('Calendar account connected. Choose Refresh to read events.'); })}
-      {p.connected && button('Refresh next seven days', async () => { setEvents([]); const data = await request('/' + p.id + '/calendar'); setEvents(data.events || []); setMessage('Read from ' + p.id + ' at ' + new Date(data.read_at).toLocaleTimeString()); })}
-      {p.connected && button('Disconnect ' + p.id, async () => { await request('/' + p.id, 'DELETE'); setEvents([]); setFlow(null); await load(); setMessage('Saved connection removed. You may also revoke access in your provider account.'); })}
+      {p.connected && button('Refresh next seven days', async () => { setEvents([]); setEventsProvider(null); const data = await request('/' + p.id + '/calendar'); setEvents(Array.isArray(data.events) ? data.events : []); setEventsProvider(p.id); setMessage('Read from ' + p.id + ' at ' + new Date(data.read_at).toLocaleTimeString()); })}
+      {p.connected && button('Disconnect ' + p.id, async () => { await request('/' + p.id, 'DELETE'); setEvents([]); setEventsProvider(null); setFlow(null); await load(); setMessage('Saved connection removed. You may also revoke access in your provider account.'); })}
     </View>)}
     {button('Refresh connection status', load)}
     {!!message && <Text accessibilityRole="alert" style={{ color: '#D7E1EF', lineHeight: 22 }}>{message}</Text>}
+    {!!eventsProvider && <Text style={{ color: '#D7E1EF', fontWeight: '700' }}>Showing read-only events from {eventsProvider === 'google' ? 'Google Calendar' : 'Microsoft Calendar'}. No changes have been made.</Text>}
     {events.map((event, i) => <View key={event.id || i} style={{ padding: 12, gap: 8 }}><Text style={{ color: '#EDF2FA', fontSize: 16 }}>{event.title}</Text><Text style={{ color: '#A8B7CA' }}>{event.start} — {event.end}</Text></View>)}
   </View>;
 }
