@@ -156,7 +156,7 @@ export default function Chat() {
           <Text style={styles.h}>{companion}</Text>
           <Text style={styles.sub}>{portal ? `${portalMeta[portal]?.name?.toUpperCase()} PORTAL CONTEXT` : 'PRIVATE CONVERSATION'}</Text>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel={voiceOn ? 'Mute companion' : 'Enable spoken replies'} onPress={() => { audio.setSpeechQuiet(voiceOn); if (!voiceOn) audio.update({ master: true, voice: true }); }}><Ionicons name={voiceOn ? 'volume-high-outline' : 'volume-mute-outline'} size={22} color="#DCE2E9" /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={voiceOn ? 'Mute companion' : 'Enable spoken replies'} onPress={() => { if (voiceOn) audio.setSpeechQuiet(true); else { audio.update({ master: true, voice: true }); audio.setSpeechQuiet(false); } }}><Ionicons name={voiceOn ? 'volume-high-outline' : 'volume-mute-outline'} size={22} color="#DCE2E9" /></Pressable>
       </View>
 
       {user?.companion === 'guardian' && <GuardianPresence listening={listening} thinking={busy} />}
