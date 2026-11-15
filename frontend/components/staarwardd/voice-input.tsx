@@ -4,9 +4,11 @@ import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, 
 import { File } from 'expo-file-system';
 import { useAuth } from '@/src/auth';
 import { stopCompanion } from '@/src/companions';
+import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
 
 export function VoiceInput({ onTranscript, disabled, onListening }: { onTranscript: (text: string) => void; disabled: boolean; onListening?: (listening: boolean) => void }) {
   const { api } = useAuth();
+  const audio = useStaarAudio();
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const status = useAudioRecorderState(recorder, 250);
   const [phase, setPhase] = useState<'idle' | 'starting' | 'listening' | 'transcribing'>('idle');
@@ -19,14 +21,23 @@ export function VoiceInput({ onTranscript, disabled, onListening }: { onTranscri
   const active = useRef(false);
   const locked = useRef(false);
   const preparing = useRef(false);
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
   async function discard() {
     generation.current++; controller.current?.abort();
-    if (timer.current) clearTimeout(timer.current);
+    controller.current = null;
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
     try { if (recorder.isRecording) await recorder.stop(); } catch { /* interrupted */ }
     active.current = false; locked.current = false;
     if (Platform.OS !== 'web' && recorder.uri) { try { new File(recorder.uri).delete(); } catch { /* already removed */ } }
     await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {});
   }
+  useEffect(() => {
+    if (disabled && (active.current || preparing.current || phase === 'transcribing')) {
+      void discard(); setPhase('idle'); setNotice('Microphone stopped while Guardian was processing another action.');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [disabled]);
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => { if (state === 'background' || (state === 'inactive' && active.current)) { void discard(); setPhase('idle'); setNotice('Microphone stopped when the app left the foreground.'); } });
     return () => { sub.remove(); void discard(); };
@@ -55,23 +66,25 @@ export function VoiceInput({ onTranscript, disabled, onListening }: { onTranscri
       const result = await api('/api/companion/transcribe', { method: 'POST', signal: controller.current.signal, body: JSON.stringify({ audio: encoded, mime }) });
       if (!result.ok) throw new Error(result.status === 503 ? 'Voice input is not configured on the server yet.' : 'Could not transcribe. Please try again.');
       const data = await result.json();
-      if (id === generation.current) { onTranscript(data.text); setNotice(data.text ? 'Review your words, then press Send.' : 'No words detected. Try again.'); }
+      if (id === generation.current && !disabledRef.current) { onTranscript(data.text); setNotice(data.text ? 'Review your words, then press Send.' : 'No words detected. Try again.'); }
     } catch (e) { if (id === generation.current) setNotice(e instanceof Error ? e.message : 'Microphone interrupted.'); }
     finally { if (id === generation.current) { await discard(); setPhase('idle'); } }
   }
   async function start() {
-    if (locked.current || preparing.current) return;
+    if (disabledRef.current || locked.current || preparing.current) return;
     preparing.current = true;
     locked.current = true;
     const id = ++generation.current; setPhase('starting'); setNotice('');
     try {
+      // Recording is a user-requested interruption; never record over Guardian's voice.
+      audio.stopSpeech();
       await stopCompanion();
       const permission = await requestRecordingPermissionsAsync();
-      if (id !== generation.current) return;
+      if (id !== generation.current || disabledRef.current) return;
       if (!permission.granted) throw new Error('Microphone permission is off. Enable it in device settings to speak.');
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
-      if (id !== generation.current) { await discard(); return; }
+      if (id !== generation.current || disabledRef.current) { await discard(); return; }
       recorder.record(); active.current = true; setPhase('listening');
       timer.current = setTimeout(() => { void finish(); }, 60000);
     } catch (e) { if (id === generation.current) { await discard(); setPhase('idle'); setNotice(e instanceof Error ? e.message : 'Microphone unavailable.'); } }
