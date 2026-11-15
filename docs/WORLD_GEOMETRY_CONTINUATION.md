@@ -10,7 +10,7 @@ pause rendering; controls and GPU resources are disposed on page exit.
 
 The locked PNGs, existing homepage and existing world screens are preserved.
 The added `/environment?world=...` route is separate; this branch does not declare
-visual parity with the locked artwork. The Love Singles variant, full production
+visual parity with the locked artwork. Full production
 set dressing, Guardian identity mesh/facial rig, viseme synchronization and
 physical-device rendering acceptance remain unfinished. It must not replace the
 approved default screens before those gates pass.
@@ -38,7 +38,17 @@ Validated locally: scene bundling, JavaScript syntax, whitespace/diff checks, an
 8 account-storage, home-adapter and renderer-navigation tests. TypeScript/export
 and visual checks must be recorded separately when completed.
 
-The browser's file-URL policy disallowed the local file preview; its separate
-network could not reach the localhost-only HTTP preview. Neither attempt is
-evidence of rendering success. Public upload was stopped by automatic approval
-review, so these geometry files are not published or merged.
+The initial source is published in draft PR #36, head 00db5a2. Its security,
+TypeScript, web export and unsigned iOS/Watch simulator compilation passed.
+Vercel reports an account block; no deployment or signed IPA is claimed.
+
+November 15 continuation adds a separate Singles Lounge variant to the Love
+route, selected explicitly through a visible switch, without inferring personal
+relationship status. Its obsidian leather lounge, ultraviolet stage, chandelier,
+circular fire and mirrored bar are mesh geometry. Human figures, lion sculpture,
+Guardian identity rig and full reference-art fidelity remain unfinished.
+
+The desktop preview loaded the offline page but WebGL initialization failed.
+This is not visual acceptance. Devices without WebGL now retain allowlisted
+navigation controls instead of an empty scene. No security flags were weakened.
+The original renderer and host navigation regression tests remain required.

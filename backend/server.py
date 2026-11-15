@@ -736,13 +736,16 @@ async def coordinate_morning(body: CoordinateIn, authorization: Optional[str] = 
 
 
 # ============================================================
-# GUARDIAN VOICE (OpenAI TTS via Emergent key)
+# GUARDIAN VOICE (server-owned direct transport or explicit legacy relay)
 # ============================================================
 _tts_client = None
 
 
 def _tts():
     global _tts_client
+    from guardian_speech import DirectNarration, speech_provider
+    if speech_provider() == 'openai':
+        return DirectNarration()
     if _tts_client is None:
         from emergentintegrations.llm.openai import OpenAITextToSpeech
         _tts_client = OpenAITextToSpeech(api_key=EMERGENT_LLM_KEY)
