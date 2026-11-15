@@ -143,3 +143,12 @@ test('ambient and cinematic playback remain locked until the signed-in account s
   assert.match(audio, /const stopAll = useCallback\(\(\) => \{\s*clearFade\(\);/);
   assert.match(audio, /if \(activeAmbient === key\) \{\s*clearFade\(\);/);
 });
+
+test('Guardian Life Map never displays a late response for a different portal', () => {
+  const tools = fs.readFileSync(path.join('app', 'guardian-tools.tsx'), 'utf8');
+  assert.match(tools, /const loadEpoch = useRef\(0\)/);
+  assert.match(tools, /const epoch = \+\+loadEpoch\.current/);
+  assert.match(tools, /if \(epoch !== loadEpoch\.current\) return/);
+  assert.match(tools, /loadEpoch\.current\+\+;setNotes\(\[\]\);setEvents\(\[\]\);setOverview\(null\)/);
+  assert.match(tools, /return\(\)=>\{active=false;loadEpoch\.current\+\+;\}/);
+});
