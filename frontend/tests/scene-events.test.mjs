@@ -131,3 +131,15 @@ test('audio session changes never inherit or continue the prior account playback
   assert.match(audio, /void Speech\.stop\(\);/);
   assert.doesNotMatch(audio, /AsyncStorage\.getItem\(['"]staarwardd\.v14\.audio-settings['"]\)/);
 });
+
+test('ambient and cinematic playback remain locked until the signed-in account settings load', () => {
+  const audio = fs.readFileSync(path.join('lib', 'staarwardd', 'audio-provider.tsx'), 'utf8');
+  for (const fn of ['playAmbient', 'toggleAmbient', 'playCue']) {
+    const start = audio.indexOf('const ' + fn + ' = useCallback(');
+    assert.ok(start > 0, fn + ' missing');
+    const body = audio.slice(start, start + 250);
+    assert.match(body, /!storageKey \|\| activeStorageKey\.current !== storageKey/, fn + ' must require current account');
+  }
+  assert.match(audio, /const stopAll = useCallback\(\(\) => \{\s*clearFade\(\);/);
+  assert.match(audio, /if \(activeAmbient === key\) \{\s*clearFade\(\);/);
+});
