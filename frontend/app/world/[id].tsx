@@ -16,6 +16,14 @@ export default function WorldScreen() {
     {!world ? <Text style={s.title}>World unavailable.</Text> : <>
       <View style={s.hero}><Image source={world.image} style={StyleSheet.absoluteFill} resizeMode="cover" /><LinearGradient colors={['transparent', '#06080B']} style={StyleSheet.absoluteFill} /><Text style={s.name}>{world.name}</Text></View>
       <Text style={s.title}>{world.title}</Text><Text style={s.detail}>{world.detail}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Explore ${world.name} experimental 3D preview`}
+        onPress={() => router.push({ pathname: '/environment', params: { world: id } } as never)}
+        style={s.previewOption}>
+        <Ionicons name="cube-outline" size={22} color="#E8D8AE" />
+        <View style={{ flex: 1 }}><Text style={s.previewTitle}>Explore 3D environment preview</Text>
+          <Text style={s.previewDetail}>Interactive offline geometry; visual design and Guardian animation are still being refined. Your approved portal artwork remains unchanged.</Text></View>
+        <Ionicons name="arrow-forward" size={18} color="#E8D8AE" />
+      </Pressable>
       <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/connections', params: { world: id } } as never)} style={s.option}><Text style={s.optionText}>Set up devices & tools</Text><Ionicons name="link-outline" size={20} color="#D9E0E9" /></Pressable>
       <Text style={s.small}>WHAT WOULD YOU LIKE TO DO?</Text>
       {world.choices.map(choice => <Pressable key={choice} accessibilityRole="button" onPress={() => { const conversation = worldConversation(id, choice); if (conversation) router.push({ pathname: '/chat', params: conversation } as never); }} style={s.option}><Text style={s.optionText}>{choice}</Text><Ionicons name="arrow-forward" size={20} color="#D9E0E9" /></Pressable>)}
@@ -23,4 +31,6 @@ export default function WorldScreen() {
     </>}
   </ScrollView></SafeAreaView>;
 }
-const s = StyleSheet.create({ root: { flex: 1, backgroundColor: '#06080B' }, content: { padding: 24, gap: 20, maxWidth: 850, width: '100%', alignSelf: 'center' }, back: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 }, small: { color: '#A6B0BE', fontSize: 10, letterSpacing: 2, lineHeight: 18 }, hero: { height: 250, borderRadius: 23, borderWidth: 1, borderColor: '#59636F', overflow: 'hidden', justifyContent: 'flex-end', padding: 22 }, name: { color: '#F1F4F8', fontSize: 27, fontWeight: '600' }, title: { color: '#F0F3F7', fontSize: 32, lineHeight: 39, fontWeight: '600', letterSpacing: -.8 }, detail: { color: '#B8C2CE', fontSize: 15, lineHeight: 24 }, option: { minHeight: 64, padding: 18, backgroundColor: '#141A21', borderRadius: 16, borderWidth: 1, borderColor: '#697480', flexDirection: 'row', alignItems: 'center', gap: 15 }, optionText: { flex: 1, color: '#E6ECF3', fontSize: 16, lineHeight: 24 }, note: { color: '#929EAE', fontSize: 12, lineHeight: 20, marginBottom: 24 } });
+const s = StyleSheet.create({
+  previewOption: { minHeight: 82, padding: 16, borderWidth: 1, borderColor: '#998A69', borderRadius: 16, backgroundColor: '#171A20', flexDirection: 'row', alignItems: 'center', gap: 12 }, previewTitle: { color: '#F2E7C9', fontSize: 16, fontWeight: '700', marginBottom: 5 }, previewDetail: { color: '#C5C9D0', fontSize: 12, lineHeight: 19 },
+ root: { flex: 1, backgroundColor: '#06080B' }, content: { padding: 24, gap: 20, maxWidth: 850, width: '100%', alignSelf: 'center' }, back: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 }, small: { color: '#A6B0BE', fontSize: 10, letterSpacing: 2, lineHeight: 18 }, hero: { height: 250, borderRadius: 23, borderWidth: 1, borderColor: '#59636F', overflow: 'hidden', justifyContent: 'flex-end', padding: 22 }, name: { color: '#F1F4F8', fontSize: 27, fontWeight: '600' }, title: { color: '#F0F3F7', fontSize: 32, lineHeight: 39, fontWeight: '600', letterSpacing: -.8 }, detail: { color: '#B8C2CE', fontSize: 15, lineHeight: 24 }, option: { minHeight: 64, padding: 18, backgroundColor: '#141A21', borderRadius: 16, borderWidth: 1, borderColor: '#697480', flexDirection: 'row', alignItems: 'center', gap: 15 }, optionText: { flex: 1, color: '#E6ECF3', fontSize: 16, lineHeight: 24 }, note: { color: '#929EAE', fontSize: 12, lineHeight: 20, marginBottom: 24 } });
