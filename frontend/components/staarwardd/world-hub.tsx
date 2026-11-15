@@ -50,13 +50,13 @@ export function WorldHub() {
     setGuardianMessage('Welcome back. Your nine worlds are ready.');
     try { await audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.'); }
     finally { setGuardianSpeaking(false); setGuardianState('hover'); }
-  }, [audio.master, audio.voice, audio.speechQuiet, greet]);
+  }, [audio.master, audio.voice, audio.speechQuiet, audio.speak]);
   useFocusEffect(useCallback(() => { greeted.current = false; return () => { greeted.current = true; audio.stopAll(); }; }, [audio.stopAll]));
   useEffect(() => {
     if (!preferenceReady || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || greeted.current) return;
     greeted.current = true;
     void greet();
-  }, [preferenceReady, greetingEnabled, audio.master, audio.voice, audio.speechQuiet, audio.speak]);
+  }, [preferenceReady, greetingEnabled, audio.master, audio.voice, audio.speechQuiet, greet]);
   const setGreeting = (enabled: boolean) => { setGreetingEnabled(enabled); greeted.current = !enabled; void AsyncStorage.setItem('staarwardd.guardian.proactive-greeting.v1', enabled ? 'enabled' : 'disabled'); };
   const companion = user?.companion === 'kaia' ? 'Kaia' : user?.companion === 'guardian' ? 'Guardian' : 'Atlas';
   useFocusEffect(useCallback(() => { setSelected(null); setGuardianState('flying'); }, []));
