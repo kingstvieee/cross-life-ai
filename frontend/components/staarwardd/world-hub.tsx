@@ -7,6 +7,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AccessField } from './access-field';
+import { GuardianCharacter, type GuardianState } from './guardian-character';
 import { WORLDS } from '@/lib/staarwardd/world-directory';
 import { useAuth } from '@/src/auth';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
@@ -17,15 +18,18 @@ export function WorldHub() {
   const audio = useStaarAudio();
   const { width } = useWindowDimensions();
   const [selected, setSelected] = useState<string | null>(null);
+  const [guardianState, setGuardianState] = useState<GuardianState>('flying');
+  const [guardianMessage, setGuardianMessage] = useState('Guardian standing by.');
+  const [guardianSpeaking, setGuardianSpeaking] = useState(false);
   const portalSize = width >= 900 ? 225 : width >= 600 ? 185 : Math.max(96, Math.floor((width - 68) / 3));
   const drift = useRef(new Animated.Value(0)).current;
   const arrival = useRef(new Animated.Value(0)).current;
-  const [greetingEnabled, setGreetingEnabled] = useState(false);
+  const [greetingEnabled, setGreetingEnabled] = useState(true);
   const [preferenceReady, setPreferenceReady] = useState(false);
   const [motionReduced, setMotionReduced] = useState(true);
   useEffect(() => {
     let alive = true;
-    void AsyncStorage.getItem('staarwardd.guardian.proactive-greeting.v1').then(value => { if (alive) { setGreetingEnabled(value === 'enabled'); setPreferenceReady(true); } }).catch(() => { if (alive) setPreferenceReady(true); });
+    void AsyncStorage.getItem('staarwardd.guardian.proactive-greeting.v1').then(value => { if (alive) { setGreetingEnabled(value !== 'disabled'); setPreferenceReady(true); } }).catch(() => { if (alive) setPreferenceReady(true); });
     void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (alive) setMotionReduced(value); }).catch(() => undefined);
     const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setMotionReduced);
     return () => { alive = false; sub.remove(); };
@@ -40,24 +44,34 @@ export function WorldHub() {
     return () => { loop.stop(); arrival.stopAnimation(); };
   }, [arrival, drift, motionReduced]);
   const greeted = useRef(false);
+  const greet = useCallback(async () => {
+    if (!audio.master || !audio.voice || audio.speechQuiet) { setGuardianMessage('Voice is muted or disabled. Use settings to enable audio.'); return; }
+    setGuardianState('speaking'); setGuardianSpeaking(true);
+    setGuardianMessage('Welcome back. Your nine worlds are ready.');
+    try { await audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.'); }
+    finally { setGuardianSpeaking(false); setGuardianState('hover'); }
+  }, [audio.master, audio.voice, audio.speechQuiet, audio.speak]);
   useFocusEffect(useCallback(() => { greeted.current = false; return () => { greeted.current = true; audio.stopAll(); }; }, [audio.stopAll]));
   useEffect(() => {
     if (!preferenceReady || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || greeted.current) return;
     greeted.current = true;
-    void audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.');
-  }, [preferenceReady, greetingEnabled, audio.master, audio.voice, audio.speechQuiet, audio.speak]);
+    void greet();
+  }, [preferenceReady, greetingEnabled, audio.master, audio.voice, audio.speechQuiet, greet]);
   const setGreeting = (enabled: boolean) => { setGreetingEnabled(enabled); greeted.current = !enabled; void AsyncStorage.setItem('staarwardd.guardian.proactive-greeting.v1', enabled ? 'enabled' : 'disabled'); };
   const companion = user?.companion === 'kaia' ? 'Kaia' : user?.companion === 'guardian' ? 'Guardian' : 'Atlas';
-  useFocusEffect(useCallback(() => { setSelected(null); }, []));
+  useFocusEffect(useCallback(() => { setSelected(null); setGuardianState('flying'); }, []));
   return <View style={s.root}>
     <LinearGradient colors={['#171A1E', '#030405', '#111418']} style={StyleSheet.absoluteFill} />
     <SafeAreaView style={s.safe}>
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <View style={s.header}><View><Text style={s.brand}>STAARWAARDD</Text><Text style={s.micro}>YOUR CONNECTED UNIVERSE</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => router.push('/settings')} style={s.icon}><Ionicons name="options-outline" size={22} color="#E4E8EE" /></Pressable></View>
         <View style={s.stage}>
+          <Image source={require('@/assets/images/staarwardd/toronto-skyline-pan.png')} resizeMode="cover" style={s.skyline} />
           <AccessField />
-          <Animated.View style={[s.stageCopy, { opacity: arrival, transform: [{ translateY: arrival.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }] }]}><Text style={s.micro}>{companion.toUpperCase()} · YOUR COMPANION</Text><Text style={s.title}>Welcome to{ '\n' }STAARWAARDD</Text><Text style={s.description}>Your Guardian. Your nine worlds. Your command.</Text></Animated.View>
+          <View style={s.guardianFigure}><GuardianCharacter state={guardianState} size={Math.min(width * 0.56, 285)} reducedMotion={motionReduced} onMotionEnd={() => setGuardianState('hover')} /></View>
+          <Animated.View style={[s.stageCopy, { opacity: arrival, transform: [{ translateY: arrival.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }] }]}><Text style={s.micro}>{companion.toUpperCase()} · YOUR COMPANION</Text><Text style={s.title}>STAARWAARDD</Text><Text style={s.description}>{guardianMessage}</Text></Animated.View>
         </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian welcome" disabled={guardianSpeaking} onPress={() => { void greet(); }} style={s.greetButton}><Ionicons name="volume-high-outline" size={18} color="#F1F3F7" /><Text style={s.greetLabel}>{guardianSpeaking ? 'GUARDIAN SPEAKING' : 'HEAR GUARDIAN'}</Text></Pressable>
         <LinearGradient colors={['#BBC2CB', '#3A414A', '#8B949F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.frame}>
           <BlurView intensity={35} tint="dark" style={s.companion}>
             <View style={{ flex: 1, gap: 7 }}><Text style={s.panelTitle}>Speak with {companion}</Text><Text style={s.description}>Bring an idea, a question, or a plan.</Text></View>
@@ -83,7 +97,7 @@ export function WorldHub() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#030405' }, safe: { flex: 1 }, content: { padding: 22, paddingBottom: 38, width: '100%', maxWidth: 1200, alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, brand: { color: '#F3F5F8', fontSize: 18, letterSpacing: 4, fontWeight: '700' }, micro: { color: '#B2BAC5', fontSize: 10, letterSpacing: 2, lineHeight: 17 }, icon: { padding: 12, borderWidth: 1, borderColor: '#4D555F', borderRadius: 16 },
-  stage: { height: 285, overflow: 'hidden', marginVertical: 12 }, stageCopy: { paddingTop: 63, paddingHorizontal: 12, gap: 10 }, title: { color: '#F1F3F7', fontSize: 44, lineHeight: 49, letterSpacing: -1.5, fontWeight: '600' }, description: { color: '#B3BCC9', fontSize: 13, lineHeight: 21 },
+  stage: { height: 380, overflow: 'hidden', marginVertical: 12, borderRadius: 26, borderWidth: 1, borderColor: '#747F8C' }, skyline: { position: 'absolute', width: '100%', height: '100%', opacity: 0.35 }, guardianFigure: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' }, stageCopy: { position: 'absolute', bottom: 12, left: 12, right: 12, padding: 12, borderRadius: 14, backgroundColor: 'rgba(3,4,6,.78)', gap: 4 }, greetButton: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#7F8995', padding: 12, borderRadius: 20, marginBottom: 12 }, greetLabel: { color: '#F1F3F7', fontSize: 11, letterSpacing: 1.2, fontWeight: '700' }, title: { color: '#F1F3F7', fontSize: 28, lineHeight: 34, letterSpacing: -1.5, fontWeight: '600' }, description: { color: '#B3BCC9', fontSize: 13, lineHeight: 21 },
   frame: { borderRadius: 21, padding: 1 }, companion: { borderRadius: 20, overflow: 'hidden', padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: 'rgba(10,13,17,.8)' }, panelTitle: { color: '#F1F3F6', fontSize: 18, fontWeight: '600' }, primary: { padding: 15, borderRadius: 18, backgroundColor: '#D4DAE2' },
   voiceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, padding: 12, borderRadius: 18, borderColor: '#747B85', borderWidth: 1, backgroundColor: '#101318' }, toggle: { paddingHorizontal: 13, paddingVertical: 10, borderRadius: 18, borderWidth: 1, borderColor: '#AAB2BD' }, toggleOn: { backgroundColor: '#CFD5DF' }, toggleText: { color: '#F3F4F6', fontWeight: '800' }, toggleTextOn: { color: '#101317' }, silence: { padding: 10 }, glassRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 3, borderColor: 'rgba(235,240,248,.72)', borderTopColor: 'rgba(255,255,255,.95)', borderBottomColor: 'rgba(125,135,149,.55)' },
   section: { marginTop: 30, marginBottom: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, count: { color: '#858E9A', fontSize: 20 }, grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', gap: 8 },
