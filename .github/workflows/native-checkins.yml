@@ -25,6 +25,7 @@ jobs:
           node-version: '24'
       - run: corepack enable
       - run: yarn install --frozen-lockfile --ignore-scripts
+      - run: node node_modules/@shopify/react-native-skia/scripts/install-libs.js
       - run: yarn exec tsc --noEmit
       - run: yarn expo prebuild --platform ios --no-install
       - run: pod install
