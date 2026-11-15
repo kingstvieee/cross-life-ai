@@ -1,0 +1,24 @@
+name: Guardian speech lifecycle tests
+on:
+  pull_request:
+    paths:
+      - 'frontend/lib/staarwardd/guardian-speech-*.ts'
+      - 'frontend/tests/guardian-speech-*.test.mjs'
+      - '.github/workflows/guardian-speech-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/lib/staarwardd/guardian-speech-*.ts'
+      - 'frontend/tests/guardian-speech-*.test.mjs'
+      - '.github/workflows/guardian-speech-ci.yml'
+jobs:
+  speech-lifecycle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify speech reducer and controller
+        working-directory: frontend
+        run: node --experimental-strip-types --experimental-specifier-resolution=node --test tests/guardian-speech-lifecycle.test.mjs tests/guardian-speech-controller.test.mjs
