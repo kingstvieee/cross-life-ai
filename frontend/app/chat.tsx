@@ -30,16 +30,16 @@ export default function Chat() {
   const scrollRef = useRef<ScrollView>(null);
 
   const sessionKey = conversationKey(typeof portal === 'string' ? portal : null);
-  const userKey = String(user?.id ?? 'signed-out');
+  const userKey = String(user?.user_id ?? 'signed-out');
   const savedSession = conversationCacheByUser.get(userKey)?.[sessionKey];
   const [msgs, setMsgs] = useState<Msg[]>(() => savedSession?.turns ?? []);
   const [input, setInput] = useState(() => typeof draft === 'string' ? draft.slice(0, 4000) : savedSession?.draft ?? '');
   useEffect(() => { if (typeof draft === 'string') setInput(draft.slice(0, 4000)); }, [draft]);
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.user_id) return;
     const sessions = conversationCacheByUser.get(userKey) ?? {};
     conversationCacheByUser.set(userKey, rememberConversation(sessions, sessionKey, { turns: msgs, draft: input }));
-  }, [user?.id, userKey, sessionKey, msgs, input]);
+  }, [user?.user_id, userKey, sessionKey, msgs, input]);
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
   const voiceOn = audio.master && audio.voice && !audio.speechQuiet;
