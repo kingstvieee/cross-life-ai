@@ -22,7 +22,7 @@ const conversationCacheByUser = new Map<string, ConversationSessions>();
 export default function Chat() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { portal, draft } = useLocalSearchParams<{ portal?: string; draft?: string }>();
+  const { portal, draft, voiceIntent } = useLocalSearchParams<{ portal?: string; draft?: string; voiceIntent?: string }>();
   const { api, user } = useAuth();
   const audio = useStaarAudio();
   const companion = COMPANION_NAMES[user?.companion || 'guardian'];
@@ -208,6 +208,7 @@ export default function Chat() {
         </ScrollView>
 
         {busy && <Pressable accessibilityRole="button" accessibilityLabel="Cancel pending Guardian reply" onPress={() => { const cancelledMessage = pendingMessage.current; requestGeneration.current++; requestAbort.current?.abort(); requestAbort.current = null; pendingMessage.current = null; pending.current = false; setBusy(false); if (cancelledMessage) setRetryMessage(cancelledMessage); setNotice('Reply cancelled. You can retry the message or send another.'); }} style={{ paddingHorizontal: 20, paddingVertical: 8 }}><Text style={{ color: '#F1DFA7' }}>Cancel pending reply</Text></Pressable>}
+        {voiceIntent === 'microphone' && <Text accessibilityRole="text" style={{ color: '#F1DFA7', paddingHorizontal: 20, paddingTop: 8, fontSize: 12 }}>Microphone ready. Tap Speak below to begin recording; nothing is recorded automatically.</Text>}
         <VoiceInput onListening={setListening} onTranscript={setInput} disabled={busy || !historyReady} />
         <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <TextInput
