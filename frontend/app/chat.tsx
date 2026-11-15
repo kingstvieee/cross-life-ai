@@ -8,7 +8,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/src/auth';
 import { theme, portalMeta } from '@/src/theme';
-import { stopCompanion } from '@/src/companions';
 import { GuardianPresence } from '@/components/staarwardd/guardian-presence';
 import { VoiceInput } from '@/components/staarwardd/voice-input';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
@@ -100,7 +99,7 @@ export default function Chat() {
       }).catch(e => { if (active) setNotice(e.message); })
       .finally(() => { if (active) setHistoryReady(true); });
     }, 0);
-    return () => { active = false; clearTimeout(timer); void stopCompanion(); };
+    return () => { active = false; clearTimeout(timer); };
   }, [api, portal, sessionKey, userKey]);
 
   const suggestions = portal
