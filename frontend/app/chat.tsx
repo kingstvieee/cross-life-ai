@@ -51,8 +51,22 @@ export default function Chat() {
   const voiceOn = audio.master && audio.voice && !audio.speechQuiet;
   const [historyReady, setHistoryReady] = useState(false);
   const [notice, setNotice] = useState('');
+  const [retryMessage, setRetryMessage] = useState<string | null>(null);
   useEffect(() => { if (audio.voiceNotice) setNotice(audio.voiceNotice); }, [audio.voiceNotice]);
   const pending = useRef(false);
+  const requestContext = useRef(`${userKey}:${sessionKey}`);
+  useEffect(() => {
+    const identity = `${userKey}:${sessionKey}`;
+    if (requestContext.current !== identity) {
+      requestContext.current = identity;
+      requestGeneration.current++;
+      requestAbort.current?.abort();
+      requestAbort.current = null;
+      pending.current = false;
+      setBusy(false);
+      setRetryMessage(null);
+    }
+  }, [userKey, sessionKey]);
   const requestGeneration = useRef(0);
   const requestAbort = useRef<AbortController | null>(null);
   const mounted = useRef(true);
@@ -85,15 +99,16 @@ export default function Chat() {
     ? [portalMeta[portal]?.tagline || 'What should I focus on?', 'Help me choose a practical next step']
     : ['Help me set up my worlds', 'Plan my next priority', 'What can you help me prepare?'];
 
-  const send = async (text?: string) => {
+  const send = async (text?: string, retry = false) => {
     const message = (text ?? input).trim();
     if (!message || pending.current || !historyReady || listening) return;
     pending.current = true;
+    setRetryMessage(null);
     const requestId = ++requestGeneration.current;
     const abort = new AbortController();
     requestAbort.current = abort;
     setInput('');
-    setMsgs((m) => [...m, { role: 'user', text: message }]);
+    if (!retry) setMsgs((m) => [...m, { role: 'user', text: message }]);
     setBusy(true);
     try {
       const r = await api('/api/guardian/chat-once', {
@@ -108,11 +123,13 @@ export default function Chat() {
         setMsgs((m) => [...m, { role: 'assistant', text: data.reply || '…' }]);
         if (voiceOn) void audio.speak(data.reply);
       } else {
-        setMsgs((m) => [...m, { role: 'assistant', text: 'I lost the thread for a second. Try that again.' }]);
+        setRetryMessage(message);
+        setNotice('Guardian could not complete that request. Retry when ready.');
       }
     } catch {
       if (requestId === requestGeneration.current && mounted.current && !abort.signal.aborted) {
-        setMsgs((m) => [...m, { role: 'assistant', text: 'Connection dropped. Try again.' }]);
+        setRetryMessage(message);
+        setNotice('Connection dropped. Your message is available to retry.');
       }
     } finally {
       if (requestId === requestGeneration.current && mounted.current) {
@@ -171,6 +188,7 @@ export default function Chat() {
               <Text style={[styles.bubbleText, m.role === 'user' && { color: '#FFFFFF' }]}>{m.text}</Text>
             </View>
           ))}
+          {retryMessage && !busy && <Pressable accessibilityRole="button" accessibilityLabel="Retry failed Guardian message" onPress={() => { if (retryMessage) void send(retryMessage, true); }} style={styles.suggestion}><Text style={styles.suggestionText}>Retry last message</Text></Pressable>}
           {busy && (
             <View style={[styles.bubble, styles.aiBubble, { flexDirection: 'row', gap: 8, alignItems: 'center' }]}>
               <ActivityIndicator size="small" color="#DDE3EA" />
