@@ -3,7 +3,7 @@ import {
   transitionGuardianSpeech,
   type GuardianSpeechEvent,
   type GuardianSpeechState,
-} from "./guardian-speech-lifecycle";
+} from "./guardian-speech-lifecycle.ts";
 
 /**
  * Transport adapter for a provider mounted above portal navigation.
