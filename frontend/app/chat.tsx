@@ -62,6 +62,7 @@ export default function Chat() {
       requestGeneration.current++;
       requestAbort.current?.abort();
       requestAbort.current = null;
+      pendingMessage.current = null;
       pending.current = false;
       setBusy(false);
       setRetryMessage(null);
@@ -69,6 +70,7 @@ export default function Chat() {
   }, [userKey, sessionKey]);
   const requestGeneration = useRef(0);
   const requestAbort = useRef<AbortController | null>(null);
+  const pendingMessage = useRef<string | null>(null);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -104,9 +106,11 @@ export default function Chat() {
     if (!message || pending.current || !historyReady || listening) return;
     pending.current = true;
     setRetryMessage(null);
+    setNotice('');
     const requestId = ++requestGeneration.current;
     const abort = new AbortController();
     requestAbort.current = abort;
+    pendingMessage.current = message;
     setInput('');
     if (!retry) setMsgs((m) => [...m, { role: 'user', text: message }]);
     setBusy(true);
@@ -136,6 +140,7 @@ export default function Chat() {
         setBusy(false);
         pending.current = false;
         requestAbort.current = null;
+        pendingMessage.current = null;
         setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
       }
     }
@@ -197,7 +202,7 @@ export default function Chat() {
           )}
         </ScrollView>
 
-        {busy && <Pressable accessibilityRole="button" accessibilityLabel="Cancel pending Guardian reply" onPress={() => { requestGeneration.current++; requestAbort.current?.abort(); requestAbort.current = null; pending.current = false; setBusy(false); setNotice('Reply cancelled. You can send another message.'); }} style={{ paddingHorizontal: 20, paddingVertical: 8 }}><Text style={{ color: '#F1DFA7' }}>Cancel pending reply</Text></Pressable>}
+        {busy && <Pressable accessibilityRole="button" accessibilityLabel="Cancel pending Guardian reply" onPress={() => { const cancelledMessage = pendingMessage.current; requestGeneration.current++; requestAbort.current?.abort(); requestAbort.current = null; pendingMessage.current = null; pending.current = false; setBusy(false); if (cancelledMessage) setRetryMessage(cancelledMessage); setNotice('Reply cancelled. You can retry the message or send another.'); }} style={{ paddingHorizontal: 20, paddingVertical: 8 }}><Text style={{ color: '#F1DFA7' }}>Cancel pending reply</Text></Pressable>}
         <VoiceInput onListening={setListening} onTranscript={setInput} disabled={busy || !historyReady} />
         <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <TextInput
