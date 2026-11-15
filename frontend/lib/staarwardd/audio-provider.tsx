@@ -36,6 +36,7 @@ type AudioContextValue = AudioSettings & {
 };
 
 const STORAGE_KEY = "staarwardd.v13.audio-settings";
+const QUIET_KEY = "staarwardd.guardian.voice-quiet.v1";
 const DEFAULT_SETTINGS: AudioSettings = { master: false, music: false, ambience: false, voice: true, volume: 0.28 };
 const AudioContext = createContext<AudioContextValue | null>(null);
 
@@ -140,6 +141,9 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
       window.addEventListener("unhandledrejection", handler);
       off = () => window.removeEventListener("unhandledrejection", handler);
     }
+    AsyncStorage.getItem(QUIET_KEY).then((saved) => {
+      if (saved === 'true') { speechQuietRef.current = true; setSpeechQuietState(true); dispatchGuardianSpeech({ type: 'MUTE' }); }
+    }).catch(() => undefined);
     AsyncStorage.getItem(STORAGE_KEY).then((saved) => {
       if (!saved) return;
       try { setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) }); } catch { /* preserve safe defaults */ }
@@ -188,6 +192,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   const setSpeechQuiet = useCallback((quiet: boolean) => {
     speechQuietRef.current = quiet;
     setSpeechQuietState(quiet);
+    void AsyncStorage.setItem(QUIET_KEY, quiet ? 'true' : 'false');
     speechRequest.current += 1;
     dispatchGuardianSpeech({ type: quiet ? 'MUTE' : 'UNMUTE' });
     if (quiet) { stopServerSpeech(); void Speech.stop(); }
