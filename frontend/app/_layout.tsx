@@ -14,6 +14,7 @@ import { PreferenceMemoryProvider } from "@/lib/staarwardd/preference-memory";
 import { HomeSafetyProvider } from "@/lib/staarwardd/home-safety-provider";
 import { GuardianActivityProvider } from "@/lib/staarwardd/guardian-activity";
 import { GuardianNotifications } from "@/components/staarwardd/guardian-notifications";
+import { GuardianVoiceDock } from "@/components/staarwardd/guardian-voice-dock";
 import { DemoTimerBadge, DemoTimerProvider } from "@/lib/staarwardd/demo-timer";
 
 LogBox.ignoreAllLogs(true);
@@ -49,6 +50,7 @@ export default function RootLayout() {
                     />
                     <DemoTimerBadge />
                     <GuardianNotifications />
+                    <GuardianVoiceDock />
                   </DemoTimerProvider>
                 </StaarAudioProvider>
               </HomeSafetyProvider>
