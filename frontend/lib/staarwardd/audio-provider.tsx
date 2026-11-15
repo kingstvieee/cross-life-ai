@@ -202,7 +202,10 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
         void Speech.stop();
       }
       if (!next.master || (!next.music && !next.ambience)) {
+        if (fadeTimer.current) { clearInterval(fadeTimer.current); fadeTimer.current = null; }
         pauseAllAmbient();
+        Object.values(cuePlayers.current).forEach(player => { try { player?.pause(); } catch { /* ignore teardown errors */ } });
+        lastCue.current = null;
         setActiveAmbient(null);
       }
       return next;
