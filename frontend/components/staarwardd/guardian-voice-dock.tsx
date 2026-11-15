@@ -1,4 +1,4 @@
-import { usePathname, useRouter } from 'expo-router';
+import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '@/src/auth';
@@ -10,6 +10,9 @@ export function GuardianVoiceDock() {
   const audio = useStaarAudio();
   const router = useRouter();
   const pathname = usePathname();
+  const route = useLocalSearchParams<{ id?: string }>();
+  const worldId = pathname.startsWith('/world/') ? (typeof route.id === 'string' ? route.id : pathname.split('/')[2]) : undefined;
+  const conversationRoute = worldId ? { pathname: '/chat' as const, params: { portal: worldId } } : '/chat';
   if (!user || pathname === '/chat' || pathname.startsWith('/auth')) return null;
   const audible = audio.master && audio.voice && !audio.speechQuiet;
   const speaking = audio.speechPhase === 'speaking';
@@ -22,7 +25,8 @@ export function GuardianVoiceDock() {
         else { audio.update({ master: true, voice: true }); audio.setSpeechQuiet(false); }
       }} style={s.action}><Ionicons name={audible ? 'volume-high-outline' : 'volume-mute-outline'} size={21} color="#E9EDF2" /></Pressable>
       {speaking && <Pressable accessibilityRole="button" accessibilityLabel="Stop Guardian speech" onPress={audio.stopSpeech} style={s.action}><Ionicons name="stop-circle-outline" size={21} color="#E9EDF2" /></Pressable>}
-      <Pressable accessibilityRole="button" accessibilityLabel="Open Guardian conversation" onPress={() => router.push('/chat')} style={s.action}><Ionicons name="chatbubble-ellipses-outline" size={21} color="#E9EDF2" /></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open microphone for Guardian conversation" onPress={() => router.push(conversationRoute)} style={s.action}><Ionicons name="mic-outline" size={21} color="#E9EDF2" /></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open Guardian conversation" onPress={() => router.push(conversationRoute)} style={s.action}><Ionicons name="chatbubble-ellipses-outline" size={21} color="#E9EDF2" /></Pressable>
     </View>
   </View>;
 }
