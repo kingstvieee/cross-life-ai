@@ -187,6 +187,10 @@ def proactive_decision(workflow: Optional[Dict[str, Any]], workflow_id: str, *, 
     current = _require_workflow(workflow, workflow_id)
     if kind not in ("greetings", "checkIns"):
         raise ValueError("invalid_proactive_kind")
+    if at.tzinfo is None or at.utcoffset() is None:
+        raise ValueError("timezone_required")
+    if current["channels"]["speech"].get("quiet"):
+        return {"kind": kind, "allowed": False, "reason": "speech_quiet", "timezone": PROACTIVE_TIMEZONE, "localTime": at.astimezone(ZoneInfo(PROACTIVE_TIMEZONE)).isoformat()}
     local = at.astimezone(ZoneInfo(PROACTIVE_TIMEZONE))
     consented = bool(current["proactiveConsent"].get(kind))
     allowed = consented and local.time() >= time(12, 0)
@@ -263,12 +267,31 @@ def dispatch(workflow: Optional[Dict[str, Any]], workflow_id: str, *, owner: str
     return current
 
 
-def mark_sent(workflow: Optional[Dict[str, Any]], workflow_id: str, *, idempotency_key: str) -> Dict[str, Any]:
+def authorize_send(workflow: Optional[Dict[str, Any]], workflow_id: str, *, idempotency_key: str) -> Dict[str, Any]:
     current = _require_workflow(workflow, workflow_id)
     matches = [item for item in current["dispatches"] if item.get("idempotencyKey") == idempotency_key]
     if not matches:
         raise ValueError("dispatch_not_found")
     for item in matches:
+        if item.get("state") != "queued":
+            raise ValueError("dispatch_not_queued")
+        if (current.get("cancellation") or {}).get("state") == "requested":
+            raise ValueError("workflow_cancellation_requested")
+        authority = {"version": item.get("authorityVersion"), "grantId": item.get("authorityGrantId"), "portals": item.get("context", {}).get("portals", [])}
+        if not _matching_grant(current, authority, scope="execute", action=item["action"], action_version=item["actionVersion"], action_hash=item["actionHash"]):
+            raise ValueError("authority_revoked_or_stale")
+    return current
+
+
+def mark_sent(workflow: Optional[Dict[str, Any]], workflow_id: str, *, idempotency_key: str) -> Dict[str, Any]:
+    """Record an already-crossed boundary even if authority was subsequently revoked."""
+    current = _require_workflow(workflow, workflow_id)
+    matches = [item for item in current["dispatches"] if item.get("idempotencyKey") == idempotency_key]
+    if not matches:
+        raise ValueError("dispatch_not_found")
+    for item in matches:
+        if item.get("state") != "queued":
+            raise ValueError("dispatch_not_queued")
         item["state"] = "sent"
         item["boundary"].update({"state": "sent", "sentAt": datetime.now().astimezone().isoformat(), "cannotRecall": True})
     return current
