@@ -22,6 +22,7 @@ from guardian_server_integration import ensure_guardian_indexes, install_guardia
 from companion_speech import MODEL as COMPANION_SPEECH_MODEL, PROFILES as SPEECH_PROFILES, PREVIEWS as SPEECH_PREVIEWS, synthesize as synthesize_companion
 from style_swap_routes import build_style_swap_router
 from identity_routes import SESSION_COOKIE, app_origin, build_identity_router, ensure_identity_indexes
+from provider_connections import build_provider_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -213,6 +214,8 @@ def user_public(u: Dict[str, Any]) -> Dict[str, Any]:
 async def startup():
     await ensure_guardian_indexes(db)
     await ensure_identity_indexes(db)
+    await db.provider_flows.create_index("expires_at", expireAfterSeconds=0)
+    await db.provider_connections.create_index([("user_id", 1), ("provider", 1)], unique=True)
     await db.companion_history.create_index("expires_at", expireAfterSeconds=0)
     await db.companion_history.create_index([("user_id", 1), ("portal", 1), ("policy_key", 1), ("created_at", -1)])
     await db.users.create_index("email", unique=True)
@@ -1170,6 +1173,7 @@ async def root():
 install_guardian_core(app, db=db, get_current_user=get_current_user)
 app.include_router(build_style_swap_router(get_current_user=get_current_user, rate_limit=rate_limit), prefix="/api")
 app.include_router(build_identity_router(db=db, limiter=rate_limit), prefix="/api")
+app.include_router(build_provider_router(db=db, require_account_user=require_account_user, limiter=rate_limit), prefix="/api")
 app.include_router(api_router)
 
 @app.middleware("http")

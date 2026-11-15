@@ -5,6 +5,9 @@ public class StaarWatchModule: Module {
   private let bridge = PhoneWatchBridge()
   public func definition() -> ModuleDefinition {
     Name("StaarWatch")
+    AsyncFunction("checkinStatus") { () async -> [String: Any] in await GuardianCheckins.status() }
+    AsyncFunction("cancelCheckins") { () async in await GuardianCheckins.cancel() }
+    AsyncFunction("scheduleCheckin") { (hour: Int, minute: Int) async throws in try await GuardianCheckins.schedule(hour: hour, minute: minute) }
     AsyncFunction("status") { () -> [String: Any] in self.bridge.status() }
     AsyncFunction("share") { (enabled: Bool, companion: String) in
       try self.bridge.share(enabled: enabled, companion: companion)

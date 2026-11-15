@@ -14,6 +14,7 @@ import { PreferenceMemoryProvider } from "@/lib/staarwardd/preference-memory";
 import { HomeSafetyProvider } from "@/lib/staarwardd/home-safety-provider";
 import { GuardianActivityProvider } from "@/lib/staarwardd/guardian-activity";
 import { DemoTimerBadge, DemoTimerProvider } from "@/lib/staarwardd/demo-timer";
+import { CheckinBoundary } from '@/components/staarwardd/checkin-boundary';
 
 LogBox.ignoreAllLogs(true);
 SplashScreen.preventAutoHideAsync();
@@ -32,6 +33,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <StartupFilmBoundary>
         <AuthProvider>
+          <CheckinBoundary />
           <AccessBoundary>
           <PreferenceMemoryProvider>
             <GuardianActivityProvider>
