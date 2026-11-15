@@ -166,3 +166,14 @@ test('master mute immediately stops cinematic cues and ambient fade', () => {
   assert.match(update, /pauseAllAmbient\(\)/);
   assert.match(update, /setActiveAmbient\(null\)/);
 });
+
+test('native 3D preview responds to renderer unavailability with accessible fallback', () => {
+  const native = fs.readFileSync(path.join('components', 'staarwardd', 'world-scene.tsx'), 'utf8');
+  const web = fs.readFileSync(path.join('components', 'staarwardd', 'world-scene.web.tsx'), 'utf8');
+  assert.match(native, /message\.source === 'staar-scene-v1'/);
+  assert.match(native, /message\.type === 'unavailable'/);
+  assert.match(native, /message\.world === world/);
+  assert.match(native, /setLoadFailed\(true\)/);
+  assert.match(native, /sceneFallbackActions\(world\)/);
+  assert.match(web, /event\.data\.type === 'unavailable'/);
+});
