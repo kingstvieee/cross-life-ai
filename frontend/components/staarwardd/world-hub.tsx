@@ -11,6 +11,7 @@ import { GuardianCharacter, type GuardianState } from './guardian-character';
 import { WORLDS } from '@/lib/staarwardd/world-directory';
 import { useAuth } from '@/src/auth';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
+import { accountStorageKey } from '@/src/account-storage';
 
 export function WorldHub() {
   const router = useRouter();
@@ -27,9 +28,26 @@ export function WorldHub() {
   const [greetingEnabled, setGreetingEnabled] = useState(false);
   const [preferenceReady, setPreferenceReady] = useState(false);
   const [motionReduced, setMotionReduced] = useState(true);
+  // Do not reuse a previous account's welcome preference, including the legacy device-wide key.
+  const greetingKey = user && !user.is_demo
+    ? accountStorageKey('staarwardd.guardian.proactive-greeting.v2', user.user_id)
+    : null;
   useEffect(() => {
     let alive = true;
-    void AsyncStorage.getItem('staarwardd.guardian.proactive-greeting.v1').then(value => { if (alive) { setGreetingEnabled(value === 'enabled'); setPreferenceReady(true); } }).catch(() => { if (alive) setPreferenceReady(true); });
+    setPreferenceReady(false);
+    setGreetingEnabled(false);
+    if (!greetingKey) {
+      setPreferenceReady(true);
+    } else {
+      void AsyncStorage.getItem(greetingKey)
+        .then(value => { if (alive) setGreetingEnabled(value === 'enabled'); })
+        .catch(() => { if (alive) setGreetingEnabled(false); })
+        .finally(() => { if (alive) setPreferenceReady(true); });
+    }
+    return () => { alive = false; };
+  }, [greetingKey]);
+  useEffect(() => {
+    let alive = true;
     void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (alive) setMotionReduced(value); }).catch(() => undefined);
     const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setMotionReduced);
     return () => { alive = false; sub.remove(); };
@@ -61,7 +79,7 @@ export function WorldHub() {
     greeted.current = true;
     void greet();
   }, [preferenceReady, greetingEnabled, audio.master, audio.voice, audio.speechQuiet, greet]);
-  const setGreeting = (enabled: boolean) => { setGreetingEnabled(enabled); greeted.current = !enabled; if (!enabled) { /* Disable future automatic greetings without interrupting an active conversation. */ } void AsyncStorage.setItem('staarwardd.guardian.proactive-greeting.v1', enabled ? 'enabled' : 'disabled'); };
+  const setGreeting = (enabled: boolean) => { if (!greetingKey || !preferenceReady) return; setGreetingEnabled(enabled); greeted.current = !enabled; void AsyncStorage.setItem(greetingKey, enabled ? 'enabled' : 'disabled').catch(() => { setGreetingEnabled(false); }); };
   const companion = user?.companion === 'kaia' ? 'Kaia' : user?.companion === 'guardian' ? 'Guardian' : 'Atlas';
   useFocusEffect(useCallback(() => { setSelected(null); setGuardianState('flying'); setGuardianMessage('Guardian standing by.'); }, []));
   return <View style={s.root}>
@@ -82,7 +100,7 @@ export function WorldHub() {
             <Pressable accessibilityRole="button" accessibilityLabel={`Open conversation with ${companion}`} onPress={() => router.push('/chat')} style={s.primary}><Ionicons name="chatbubble-ellipses-outline" size={23} color="#101317" /></Pressable>
           </BlurView>
         </LinearGradient>
-        <View style={s.voiceRow}><View style={{ flex: 1 }}><Text style={s.panelTitle}>Guardian welcome</Text><Text style={s.description}>{!audio.master ? 'Enable master audio in settings to hear greetings.' : greetingEnabled ? 'Greets on entry when enabled. Conversation continues across all portals.' : 'Automatic welcome off. Voice remains available throughout the Hub.'}</Text></View><Pressable accessibilityRole="switch" accessibilityState={{ checked: greetingEnabled }} accessibilityLabel="Proactive Guardian greeting" onPress={() => setGreeting(!greetingEnabled)} style={[s.toggle, greetingEnabled && s.toggleOn]}><Text style={[s.toggleText, greetingEnabled && s.toggleTextOn]}>{greetingEnabled ? 'ON' : 'OFF'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Silence Guardian" onPress={() => { voiceEpoch.current += 1; audio.setSpeechQuiet(true); audio.stopAll(); setGuardianSpeaking(false); setGuardianState('hover'); }} style={s.silence}><Ionicons name="volume-mute-outline" size={21} color="#F3F4F6" /></Pressable></View>
+        <View style={s.voiceRow}><View style={{ flex: 1 }}><Text style={s.panelTitle}>Guardian welcome</Text><Text style={s.description}>{!audio.master ? 'Enable master audio in settings to hear greetings.' : greetingEnabled ? 'Greets on entry when enabled. Conversation continues across all portals.' : 'Automatic welcome off. Voice remains available throughout the Hub.'}</Text></View><Pressable accessibilityRole="switch" accessibilityState={{ checked: greetingEnabled }} accessibilityLabel="Proactive Guardian greeting" disabled={!greetingKey || !preferenceReady} onPress={() => setGreeting(!greetingEnabled)} style={[s.toggle, greetingEnabled && s.toggleOn]}><Text style={[s.toggleText, greetingEnabled && s.toggleTextOn]}>{greetingEnabled ? 'ON' : 'OFF'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Silence Guardian" onPress={() => { voiceEpoch.current += 1; audio.setSpeechQuiet(true); audio.stopAll(); setGuardianSpeaking(false); setGuardianState('hover'); }} style={s.silence}><Ionicons name="volume-mute-outline" size={21} color="#F3F4F6" /></Pressable></View>
         <View style={s.section}><Text style={s.micro}>ENTER YOUR NINE WORLDS</Text><Text style={s.count}>09</Text></View>
         <View style={s.grid}>{WORLDS.map((world, index) => <Pressable key={world.id} accessibilityRole="button" accessibilityLabel={`Open ${world.name}`} disabled={selected !== null} onPress={() => { setSelected(world.id); router.push({ pathname: '/world/[id]', params: { id: world.id } } as never); }} style={({ pressed }) => [s.world, { width: portalSize, height: portalSize, borderRadius: portalSize / 2 }, pressed && s.pressed]}>
           <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [index % 2 ? 4 : -4, index % 2 ? -4 : 4] }) }, { scale: drift.interpolate({ inputRange: [0, 1], outputRange: [1.02, 1.08] }) }] }]}><Image source={world.image} style={s.art} accessibilityLabel={`${world.name} approved portal artwork`} /></Animated.View>
