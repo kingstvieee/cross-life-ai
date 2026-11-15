@@ -92,7 +92,7 @@ class PrivacyUpdate(BaseModel):
 
 
 class ChatIn(BaseModel):
-    message: str = Field(..., min_length=1, max_length=2000)
+    message: str = Field(..., min_length=1, max_length=50000)
     portal: Optional[str] = None
     companion: Optional[str] = "guardian"
 
