@@ -210,6 +210,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   }, [storageKey]);
 
   const stopAll = useCallback(() => {
+    clearFade();
     pauseAllAmbient();
     Object.values(cuePlayers.current).forEach((p) => { try { p?.pause(); } catch { /* noop */ } });
     setActiveAmbient(null);
@@ -227,6 +228,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
 
   // Each world's soundscape fades in softly on entry (non-toggling variant).
   const playAmbient = useCallback((key: AmbientKey) => {
+    if (!storageKey || activeStorageKey.current !== storageKey) return;
     if (activeAmbient === key) return;
     if (!settings.master || (!settings.music && !settings.ambience)) return;
     try {
@@ -256,7 +258,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     } catch {
       setActiveAmbient(null);
     }
-  }, [activeAmbient, settings.ambience, settings.master, settings.music, settings.volume]);
+  }, [activeAmbient, settings.ambience, settings.master, settings.music, settings.volume, storageKey]);
 
   const stopAmbient = useCallback(() => {
     clearFade();
@@ -265,7 +267,9 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   }, []);
 
   const toggleAmbient = useCallback((key: AmbientKey) => {
+    if (!storageKey || activeStorageKey.current !== storageKey) return;
     if (activeAmbient === key) {
+      clearFade();
       ambientPlayers.current[key]?.pause();
       setActiveAmbient(null);
       return;
@@ -287,9 +291,10 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     } catch {
       setActiveAmbient(null);
     }
-  }, [activeAmbient, settings.ambience, settings.master, settings.music, settings.volume]);
+  }, [activeAmbient, settings.ambience, settings.master, settings.music, settings.volume, storageKey]);
 
   const playCue = useCallback((cue: CinematicCue) => {
+    if (!storageKey || activeStorageKey.current !== storageKey) return;
     if (!settings.master || (!settings.music && !settings.ambience)) return;
     try {
       void setAudioModeAsync({ playsInSilentMode: false });
@@ -306,7 +311,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
       player.play();
       lastCue.current = cue;
     } catch { /* controlled cinematic audio remains optional and may fail gracefully */ }
-  }, [settings.ambience, settings.master, settings.music, settings.volume]);
+  }, [settings.ambience, settings.master, settings.music, settings.volume, storageKey]);
 
   const speak = useCallback(async (text: string, _rate = 0.95) => {
     const requestId = ++speechRequest.current;
