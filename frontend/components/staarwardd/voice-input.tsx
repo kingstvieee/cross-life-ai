@@ -98,7 +98,10 @@ export function VoiceInput({ onTranscript, disabled, onListening }: { onTranscri
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
       if (id !== generation.current || disabledRef.current || !sessionEnabledRef.current || !foregroundRef.current) { await discard(); return; }
-      recorder.record(); active.current = true; setPhase('listening');
+      recorder.record();
+      // A cancelled session must not be revived by a late native recorder completion.
+      if (id !== generation.current || disabledRef.current || !sessionEnabledRef.current || !foregroundRef.current) { await discard(); return; }
+      active.current = true; setPhase('listening');
       timer.current = setTimeout(() => { void finish(); }, 60000);
     } catch (e) { if (id === generation.current) { await discard(); setPhase('idle'); setNotice(e instanceof Error ? e.message : 'Microphone unavailable.'); } }
     finally { preparing.current = false; }
