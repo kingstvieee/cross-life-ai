@@ -1,1 +1,1 @@
-{"platforms":["ios"],"ios":{"modules":["StaarWatchModule"]}}
+{"platforms":["ios"],"ios":{"modules":["StaarWatchModule","StaarCheckinsModule"]}}

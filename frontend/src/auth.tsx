@@ -1,3 +1,4 @@
+import { bindCheckinAccount } from './checkins';
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
@@ -94,6 +95,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timer);
   }, [refresh]);
 
+  useEffect(() => {
+    if (!loading) void bindCheckinAccount(user && !user.is_demo && !user.cross_life_paused ? user.user_id : '').catch(() => { /* No private data is stored in notifications. */ });
+  }, [loading, user?.user_id, user?.is_demo, user?.cross_life_paused]);
+
   // Compatibility only: guests never acquire an account or a server token.
   const loginDemo = useCallback(async () => null, []);
 
@@ -124,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    await bindCheckinAccount('');
     try {
       const headers = new Headers();
       if (token) headers.set('Authorization', `Bearer ${token}`);
