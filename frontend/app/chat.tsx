@@ -31,6 +31,12 @@ export default function Chat() {
 
   const sessionKey = conversationKey(typeof portal === 'string' ? portal : null);
   const userKey = String(user?.user_id ?? 'signed-out');
+  // Keep only the active authenticated user's volatile conversation cache.
+  useEffect(() => {
+    for (const key of conversationCacheByUser.keys()) {
+      if (key !== userKey) conversationCacheByUser.delete(key);
+    }
+  }, [userKey]);
   const savedSession = conversationCacheByUser.get(userKey)?.[sessionKey];
   const lastSessionIdentity = useRef(`${userKey}:${sessionKey}`);
   const [msgs, setMsgs] = useState<Msg[]>(() => savedSession?.turns ?? []);
