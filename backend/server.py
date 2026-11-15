@@ -16,8 +16,7 @@ import httpx
 import asyncio
 import json
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
-from emergentintegrations.llm.openai import OpenAITextToSpeech
+from companion_chat import make_chat, UserMessage, TextDelta, StreamDone
 from guardian_server_integration import ensure_guardian_indexes, install_guardian_core
 from companion_speech import MODEL as COMPANION_SPEECH_MODEL, PROFILES as SPEECH_PROFILES, PREVIEWS as SPEECH_PREVIEWS, synthesize as synthesize_companion
 from style_swap_routes import build_style_swap_router
@@ -740,9 +739,10 @@ async def coordinate_morning(body: CoordinateIn, authorization: Optional[str] = 
 _tts_client = None
 
 
-def _tts() -> OpenAITextToSpeech:
+def _tts():
     global _tts_client
     if _tts_client is None:
+        from emergentintegrations.llm.openai import OpenAITextToSpeech
         _tts_client = OpenAITextToSpeech(api_key=EMERGENT_LLM_KEY)
     return _tts_client
 
@@ -1084,11 +1084,7 @@ async def guardian_chat(body: ChatIn, authorization: Optional[str] = Header(None
     if signals:
         context_note = "\n\nCurrent cross-life signals you can weave in naturally:\n" + json.dumps(signals, indent=2)
 
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=session_id,
-        system_message=system_msg + context_note,
-    ).with_model("openai", "gpt-5.6-terra")
+    chat = make_chat(system_msg + context_note, session_id, relay_model="gpt-5.6-terra")
 
     async def event_stream():
         try:
@@ -1132,11 +1128,7 @@ async def guardian_chat_once(body: ChatIn, authorization: Optional[str] = Header
     system_msg = _companion_prompt(companion, body.portal, user)
 
     def llm_factory(system_text: str):
-        return LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=session_id,
-            system_message=system_text,
-        ).with_model("openai", "gpt-5.2")
+        return make_chat(system_text, session_id)
 
     try:
         reply = await chat_turn(
