@@ -59,3 +59,19 @@ test('native 3D load failures retain nine permission-limited portal routes', () 
   }
   assert.deepEqual(sceneFallbackActions('unlisted-world'), []);
 });
+
+test('browser iframe failures preserve safe navigation without tool execution', () => {
+  const web = fs.readFileSync(path.join('components', 'staarwardd', 'world-scene.web.tsx'), 'utf8');
+  assert.match(web, /event\.source !== iframe\.current\?\.contentWindow/);
+  assert.match(web, /event\.data\.type === 'unavailable'/);
+  assert.match(web, /event\.data\.world === world/);
+  assert.match(web, /onError=\{\(\) => setFailedScene\(sceneKey\)\}/);
+  assert.match(web, /sceneFallbackActions\(world\)/);
+  assert.match(web, /sandbox="allow-scripts"/);
+  for (const world of ['hub', ...worldIds]) {
+    for (const [, action] of sceneFallbackActions(world)) {
+      assert.equal(sceneAction(event(world, action), world), action);
+      assert.equal(action.startsWith('execute:'), false);
+    }
+  }
+});
