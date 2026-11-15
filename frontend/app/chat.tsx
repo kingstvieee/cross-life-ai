@@ -32,11 +32,17 @@ export default function Chat() {
   const sessionKey = conversationKey(typeof portal === 'string' ? portal : null);
   const userKey = String(user?.user_id ?? 'signed-out');
   const savedSession = conversationCacheByUser.get(userKey)?.[sessionKey];
+  const lastSessionIdentity = useRef(`${userKey}:${sessionKey}`);
   const [msgs, setMsgs] = useState<Msg[]>(() => savedSession?.turns ?? []);
   const [input, setInput] = useState(() => typeof draft === 'string' ? draft.slice(0, 4000) : savedSession?.draft ?? '');
   useEffect(() => { if (typeof draft === 'string') setInput(draft.slice(0, 4000)); }, [draft]);
   useEffect(() => {
     if (!user?.user_id) return;
+    const identity = `${userKey}:${sessionKey}`;
+    if (lastSessionIdentity.current !== identity) {
+      lastSessionIdentity.current = identity;
+      return; // Prevent old portal's turns being written into a new portal.
+    }
     const sessions = conversationCacheByUser.get(userKey) ?? {};
     conversationCacheByUser.set(userKey, rememberConversation(sessions, sessionKey, { turns: msgs, draft: input }));
   }, [user?.user_id, userKey, sessionKey, msgs, input]);
