@@ -563,7 +563,7 @@ async def guardian_signals(authorization: Optional[str] = Header(None)):
     user = await get_current_user(authorization)
     if user.get("cross_life_paused"):
         return {"paused": True, "signals": []}
-    signals = await _gather_signals(user["user_id"], user)
+    signals = [] if user.get("_guardian_private") else await _gather_signals(user["user_id"], user)
     return {"paused": False, "signals": signals}
 
 
@@ -1074,7 +1074,7 @@ async def _context_for_dispatch(authorization: Optional[str], portal: Optional[s
     if portal and (portal not in user.get("portals_enabled", []) or
                    (user.get("portal_privacy", {}).get(portal, {}).get("access") is not True)):
         raise HTTPException(status_code=403, detail="portal_access_denied")
-    signals = await _gather_signals(user["user_id"], user)
+    signals = [] if user.get("_guardian_private") else await _gather_signals(user["user_id"], user)
     fresh = await require_chat_user(authorization)
     if _context_policy_key(user) != _context_policy_key(fresh):
         raise HTTPException(status_code=409, detail="privacy_changed_retry")

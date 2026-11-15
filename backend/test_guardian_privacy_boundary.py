@@ -195,3 +195,13 @@ def test_form_post_callback_defers_to_its_state_binding_instead_of_session_csrf(
     ns = production(SESSION_COOKIE='__Host-staar_session', app_origin=lambda: 'https://app.example.test')
     assert run(ns['cookie_session_boundary'](request, next_handler)).status_code == 200
     assert called == [True]
+
+
+def test_private_mode_skips_portal_reads_before_chat_dispatch():
+    async def auth(_):
+        return account(_guardian_private=True)
+    rows = Rows([{'user_id':'u', 'portal':'work', 'data':{'stress':10}}])
+    ns = production(db=SimpleNamespace(portal_state=rows), require_chat_user=auth)
+    user, signals = run(ns['_context_for_dispatch']('Bearer u'))
+    assert signals == []
+    assert rows.reads == []

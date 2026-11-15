@@ -85,8 +85,8 @@ def life_map_router(*, db, get_current_user):
     @router.get('/notifications')
     async def inbox(authorization: Optional[str] = Header(None)):
         current = await user(authorization)
-        state = await memory().snapshot(current['user_id'])
-        return {'events': [{k:v for k,v in e.items() if k != 'deliveryTokenHash'} for e in state['events']], 'delivery': 'client-playback-reports'}
+        events = await memory().notifications(current['user_id'])
+        return {'events': [{k:v for k,v in e.items() if k != 'deliveryTokenHash'} for e in events], 'delivery': 'client-playback-reports'}
 
     @router.get('/overview')
     async def overview(authorization: Optional[str] = Header(None)):

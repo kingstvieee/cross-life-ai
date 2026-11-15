@@ -114,6 +114,17 @@ class LifeMapStore:
             return {'claimed': True, 'token': token, 'kind': event['kind'], 'key': key}
         return await self._change(user_id, operation)
 
+    async def notifications(self, user_id, at=None):
+        at = at or datetime.now(timezone.utc)
+        def operation(state):
+            for event in state['events']:
+                if event['state'] == 'claimed' and datetime.fromisoformat(event['claimUntil']) <= at:
+                    event['state'] = 'uncertain'
+                if event['state'] == 'pending' and datetime.fromisoformat(event.get('retryAt', event['createdAt'])) + timedelta(minutes=10 if event['kind'] == 'greetings' else 60) <= at:
+                    event['state'] = 'expired'
+            return state['events']
+        return await self._change(user_id, operation)
+
     async def finish_notification(self, user_id, key, token, outcome):
         if outcome not in ('played', 'failed'):
             raise ValueError('invalid_delivery_outcome')
