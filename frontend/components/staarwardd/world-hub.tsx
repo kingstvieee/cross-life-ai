@@ -42,6 +42,7 @@ export function WorldHub() {
           <View style={s.worldCopy}><Text style={s.worldName}>{world.name}</Text><Text style={s.worldDetail}>{world.title}</Text></View>
         </Pressable>)}</View>
         <Pressable accessibilityRole="button" onPress={() => router.push('/device-checks')} style={s.icon}><Text style={s.panelTitle}>Voice & device checks</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/guardian-tools')} style={s.icon}><Text style={s.panelTitle}>Life Map & Guardian controls</Text></Pressable>
         <Text style={s.footer}>GUARDIAN AT THE HEART. YOU IN CONTROL.</Text>
       </ScrollView>
     </SafeAreaView>

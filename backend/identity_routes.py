@@ -88,12 +88,14 @@ def build_identity_router(*, db, limiter=None, now=None, http_client=None):
                 "nativeEnabled": native_redirect() is not None, "guest": "local-read-only"}
 
     @router.get("/start/{provider}")
-    async def start(provider: str, request: Request, native_challenge: str | None = None):
+    async def start(provider: str, request: Request, native_challenge: str | None = None, web_challenge: str | None = None):
         if limiter:
             limiter("identity-start:" + (request.client.host if request.client else "unknown"), 30, 3600)
         cfg = config(provider)
         if not cfg:
             raise HTTPException(503, "identity_provider_not_configured")
+        if web_challenge is not None and (native_challenge is not None or not re.fullmatch(r"[A-Za-z0-9_-]{43}", web_challenge)):
+            raise HTTPException(400, "invalid_web_challenge")
         if native_challenge is not None:
             if not native_redirect():
                 raise HTTPException(503, "native_identity_not_configured")
@@ -105,6 +107,7 @@ def build_identity_router(*, db, limiter=None, now=None, http_client=None):
             "state_hash": digest(state), "browser_hash": digest(browser_binding),
             "provider": provider, "verifier": verifier, "native_challenge": native_challenge,
             "native_redirect": native_redirect() if native_challenge else None,
+            "web_challenge": web_challenge,
             "expires_at": clock() + timedelta(minutes=5),
         })
         # Return locations and provider endpoints are configured by the server,
@@ -189,12 +192,23 @@ def build_identity_router(*, db, limiter=None, now=None, http_client=None):
                                        for p in ("creativity", "work", "home", "wellbeing", "relationships", "community", "style")},
                     "cross_life_paused": False, "created_at": clock()}
             await db.users.insert_one(user)
+        if flow.get("web_challenge"):
+            code = secrets.token_urlsafe(32)
+            await db.auth_native_grants.insert_one({
+                "code_hash": digest(code), "challenge": flow["web_challenge"], "mode": "web",
+                "user_id": user_id, "expires_at": clock() + timedelta(seconds=60),
+            })
+            response = RedirectResponse(cfg["AUTH_APP_URL"].rstrip("/") + "/#" + urlencode({"guardian_code": code}), status_code=303)
+            response.delete_cookie(FLOW_COOKIE, path="/", secure=True, httponly=True, samesite="none")
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Referrer-Policy"] = "no-referrer"
+            return response
         if flow.get("native_challenge"):
             if flow.get("native_redirect") != native_redirect() or not native_redirect():
                 raise HTTPException(503, "native_identity_not_configured")
             code = secrets.token_urlsafe(32)
             await db.auth_native_grants.insert_one({
-                "code_hash": digest(code), "challenge": flow["native_challenge"],
+                "code_hash": digest(code), "challenge": flow["native_challenge"], "mode": "native",
                 "user_id": user_id, "expires_at": clock() + timedelta(seconds=60),
             })
             response = RedirectResponse(native_redirect() + "?" + urlencode({"code": code}), status_code=303)
@@ -214,16 +228,23 @@ def build_identity_router(*, db, limiter=None, now=None, http_client=None):
 
     @router.post("/native/exchange")
     async def exchange(body: NativeExchange, request: Request):
+        return await exchange_grant(body, request, "native")
+
+    @router.post("/web/exchange")
+    async def web_exchange(body: NativeExchange, request: Request):
+        return await exchange_grant(body, request, "web")
+
+    async def exchange_grant(body: NativeExchange, request: Request, mode: str):
         if limiter:
             limiter("identity-exchange:" + (request.client.host if request.client else "unknown"), 30, 3600)
-        if not native_redirect():
+        if mode == "native" and not native_redirect():
             raise HTTPException(503, "native_identity_not_configured")
         if not re.fullmatch(r"[A-Za-z0-9_-]{40,128}", body.code) or not re.fullmatch(r"[A-Za-z0-9._~-]{43,128}", body.verifier):
             raise HTTPException(401, "invalid_native_grant")
         challenge = base64.urlsafe_b64encode(hashlib.sha256(body.verifier.encode()).digest()).decode().rstrip("=")
         # A wrong verifier cannot consume another app's valid grant. Correct
         # concurrent exchanges still race through one atomic consume.
-        grant = await db.auth_native_grants.find_one_and_delete({"code_hash": digest(body.code), "challenge": challenge})
+        grant = await db.auth_native_grants.find_one_and_delete({"code_hash": digest(body.code), "challenge": challenge, "mode": mode})
         if not grant:
             raise HTTPException(401, "invalid_or_replayed_native_grant")
         expiry = grant.get("expires_at")

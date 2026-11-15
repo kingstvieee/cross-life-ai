@@ -99,7 +99,7 @@ def test_revocation_during_retrieval_blocks_provider_context():
         return next(users)
 
     rows = Rows()
-    ns = production(db=SimpleNamespace(portal_state=rows), require_account_user=auth)
+    ns = production(db=SimpleNamespace(portal_state=rows), require_chat_user=auth)
     with pytest.raises(HTTPException) as error:
         run(ns["_context_for_dispatch"]("Bearer u"))
     assert error.value.status_code == 409

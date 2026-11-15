@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { backendUrl } from './backend-config';
+import { backendUrl, sameOriginApi, identityBackend } from './backend-config';
+import { beginWebLogin, finishWebLogin } from './web-session';
 import { AppState } from 'react-native';
 import { shareWithWatch } from './watch';
 import { nativeLogin } from './native-login';
@@ -46,6 +47,7 @@ async function storeToken(t: string | null) {
 }
 
 async function readToken(): Promise<string | null> {
+  if (Platform.OS === 'web' && sameOriginApi) { window.localStorage.removeItem(KEY); return null; }
   if (Platform.OS === 'web') return window.localStorage.getItem(KEY);
   return await SecureStore.getItemAsync(KEY);
 }
@@ -74,6 +76,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
+      if (Platform.OS === 'web' && sameOriginApi) {
+        const signedIn = await finishWebLogin();
+        if (signedIn) { setUser(signedIn); setToken(null); setLoading(false); return; }
+      }
       const t = await readToken();
       const headers = new Headers();
       if (t) headers.set('Authorization', `Bearer ${t}`);
@@ -98,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginDemo = useCallback(async () => null, []);
 
   const signIn = useCallback(async (provider: string) => {
+    if (Platform.OS === 'web' && sameOriginApi) { await beginWebLogin(provider, identityBackend()); return false; }
     if (Platform.OS === 'web') {
       window.location.assign(backendUrl('/api/auth/start/' + encodeURIComponent(provider)));
       return false;
@@ -129,9 +136,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (token) headers.set('Authorization', `Bearer ${token}`);
       await fetch(backendUrl('/api/auth/logout'), { method: 'POST', headers, credentials: 'include' });
     } catch { /* Local access is cleared even when the server is unavailable. */ }
+    if (Platform.OS === 'web' && user) { try { sessionStorage.removeItem(`staar-arrival:${user.user_id}`); } catch {} }
     await storeToken(null);
     setToken(null); setUser(null);
-  }, [token]);
+  }, [token, user]);
 
   const patchProfile = useCallback(async (patch: Partial<User>) => {
     if (!user) throw new Error('Sign in before changing your profile.');
