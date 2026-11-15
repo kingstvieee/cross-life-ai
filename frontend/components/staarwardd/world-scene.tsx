@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { worldSceneHtml } from '@/generated/world-runtime';
@@ -8,6 +8,12 @@ export function WorldScene({ world, variant = 'realm', onAction }: { world: stri
   const html = useMemo(() => worldSceneHtml(world, variant), [world, variant]);
   const [loadFailed, setLoadFailed] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const sceneReady = useRef(false);
+  useEffect(() => {
+    sceneReady.current = false;
+    const watchdog = setTimeout(() => { if (!sceneReady.current) setLoadFailed(true); }, 15000);
+    return () => clearTimeout(watchdog);
+  }, [world, variant, retryCount]);
   useEffect(() => { setLoadFailed(false); setRetryCount(0); }, [world, variant]);
   const fallback = sceneFallbackActions(world);
   if (loadFailed) return <ScrollView contentContainerStyle={{ padding: 22, gap: 12, backgroundColor: '#030713', minHeight: 420 }}>
@@ -28,7 +34,7 @@ export function WorldScene({ world, variant = 'realm', onAction }: { world: stri
       onError={() => setLoadFailed(true)}
       onRenderProcessGone={() => setLoadFailed(true)}
       onContentProcessDidTerminate={() => setLoadFailed(true)}
-      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } const action = sceneAction(message, world); if (action) onAction(action); } catch { /* Invalid renderer messages are ignored. */ } }}
+      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'ready' && message.world === world) { sceneReady.current = true; return; } const action = sceneAction(message, world); if (action) onAction(action); } catch { /* Invalid renderer messages are ignored. */ } }}
       style={{ backgroundColor: '#030713' }} />
   </View>;
 }
