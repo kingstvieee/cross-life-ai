@@ -12,10 +12,13 @@ import { stopCompanion } from '@/src/companions';
 import { GuardianPresence } from '@/components/staarwardd/guardian-presence';
 import { VoiceInput } from '@/components/staarwardd/voice-input';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
+import { conversationKey, rememberConversation, type ConversationSessions } from '@/lib/staarwardd/conversation-session';
 
 const COMPANION_NAMES: Record<string, string> = { guardian: 'Guardian', kaia: 'Kaia', atlas: 'Atlas' };
 
 type Msg = { role: 'user' | 'assistant'; text: string };
+// Cache survives chat-screen navigation but never persists to disk.
+const conversationCacheByUser = new Map<string, ConversationSessions>();
 
 export default function Chat() {
   const router = useRouter();
@@ -26,9 +29,23 @@ export default function Chat() {
   const companion = COMPANION_NAMES[user?.companion || 'guardian'];
   const scrollRef = useRef<ScrollView>(null);
 
-  const [msgs, setMsgs] = useState<Msg[]>([]);
-  const [input, setInput] = useState(() => typeof draft === 'string' ? draft.slice(0, 4000) : '');
+  const sessionKey = conversationKey(typeof portal === 'string' ? portal : null);
+  const userKey = String(user?.user_id ?? 'signed-out');
+  const savedSession = conversationCacheByUser.get(userKey)?.[sessionKey];
+  const lastSessionIdentity = useRef(`${userKey}:${sessionKey}`);
+  const [msgs, setMsgs] = useState<Msg[]>(() => savedSession?.turns ?? []);
+  const [input, setInput] = useState(() => typeof draft === 'string' ? draft.slice(0, 4000) : savedSession?.draft ?? '');
   useEffect(() => { if (typeof draft === 'string') setInput(draft.slice(0, 4000)); }, [draft]);
+  useEffect(() => {
+    if (!user?.user_id) return;
+    const identity = `${userKey}:${sessionKey}`;
+    if (lastSessionIdentity.current !== identity) {
+      lastSessionIdentity.current = identity;
+      return; // Prevent old portal's turns being written into a new portal.
+    }
+    const sessions = conversationCacheByUser.get(userKey) ?? {};
+    conversationCacheByUser.set(userKey, rememberConversation(sessions, sessionKey, { turns: msgs, draft: input }));
+  }, [user?.user_id, userKey, sessionKey, msgs, input]);
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
   const voiceOn = audio.master && audio.voice && !audio.speechQuiet;
@@ -39,17 +56,23 @@ export default function Chat() {
   useEffect(() => {
     let active = true;
     const timer = setTimeout(() => {
-    setHistoryReady(false); setMsgs([]); setNotice('');
+    setHistoryReady(false); setNotice('');
+    const cached = conversationCacheByUser.get(userKey)?.[sessionKey];
+    setMsgs(cached?.turns ?? []);
+    setInput(cached?.draft ?? '');
     void api('/api/guardian/history' + (portal ? '?portal=' + encodeURIComponent(portal) : ''))
       .then(async r => {
         if (!r.ok) throw new Error('Conversation history could not be loaded.');
         const data = await r.json();
-        if (active) setMsgs(data.turns.flatMap((t: { message: string; reply: string }) => [{ role: 'user', text: t.message }, { role: 'assistant', text: t.reply }]));
+        if (active) {
+          const history: Msg[] = data.turns.flatMap((t: { message: string; reply: string }) => [{ role: 'user' as const, text: t.message }, { role: 'assistant' as const, text: t.reply }]);
+          setMsgs(current => current.length > history.length ? current : history);
+        }
       }).catch(e => { if (active) setNotice(e.message); })
       .finally(() => { if (active) setHistoryReady(true); });
     }, 0);
     return () => { active = false; clearTimeout(timer); void stopCompanion(); };
-  }, [api, portal]);
+  }, [api, portal, sessionKey, userKey]);
 
   const suggestions = portal
     ? [portalMeta[portal]?.tagline || 'What should I focus on?', 'Help me choose a practical next step']
