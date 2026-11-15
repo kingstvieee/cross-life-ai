@@ -99,7 +99,7 @@ export default function Chat() {
     ? [portalMeta[portal]?.tagline || 'What should I focus on?', 'Help me choose a practical next step']
     : ['Help me set up my worlds', 'Plan my next priority', 'What can you help me prepare?'];
 
-  const send = async (text?: string) => {
+  const send = async (text?: string, retry = false) => {
     const message = (text ?? input).trim();
     if (!message || pending.current || !historyReady || listening) return;
     pending.current = true;
@@ -108,7 +108,7 @@ export default function Chat() {
     const abort = new AbortController();
     requestAbort.current = abort;
     setInput('');
-    setMsgs((m) => [...m, { role: 'user', text: message }]);
+    if (!retry) setMsgs((m) => [...m, { role: 'user', text: message }]);
     setBusy(true);
     try {
       const r = await api('/api/guardian/chat-once', {
@@ -188,7 +188,7 @@ export default function Chat() {
               <Text style={[styles.bubbleText, m.role === 'user' && { color: '#FFFFFF' }]}>{m.text}</Text>
             </View>
           ))}
-          {retryMessage && !busy && <Pressable accessibilityRole="button" accessibilityLabel="Retry failed Guardian message" onPress={() => { if (retryMessage) void send(retryMessage); }} style={styles.suggestion}><Text style={styles.suggestionText}>Retry last message</Text></Pressable>}
+          {retryMessage && !busy && <Pressable accessibilityRole="button" accessibilityLabel="Retry failed Guardian message" onPress={() => { if (retryMessage) void send(retryMessage, true); }} style={styles.suggestion}><Text style={styles.suggestionText}>Retry last message</Text></Pressable>}
           {busy && (
             <View style={[styles.bubble, styles.aiBubble, { flexDirection: 'row', gap: 8, alignItems: 'center' }]}>
               <ActivityIndicator size="small" color="#DDE3EA" />
