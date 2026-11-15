@@ -28,3 +28,10 @@ test('every declared provider URL is explicitly classified as a website shortcut
   assert.equal(typedCount, urlCount);
   assert.match(source, /tool.kind === 'external-website'/);
 });
+
+test('Guardian greeting consent cannot silently override mute or voice preferences', () => {
+  const guardian = fs.readFileSync(path.join(__dirname, '..', 'app', 'guardian-tools.tsx'), 'utf8');
+  assert.match(guardian, /proactive-consent/);
+  assert.doesNotMatch(guardian, /if\(value\)audio\.update\(\{master:true,voice:true\}\)/);
+  assert.match(guardian, /Enabling greetings never overrides your master audio/);
+});
