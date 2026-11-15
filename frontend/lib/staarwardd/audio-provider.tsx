@@ -7,6 +7,7 @@ import { useAuth } from '@/src/auth';
 import { playServerSpeech, stopServerSpeech } from '@/src/server-speech';
 
 import type { AmbientKey } from "@/lib/staarwardd/experience";
+import { initialGuardianSpeechState, transitionGuardianSpeech, type GuardianSpeechEvent } from "./guardian-speech-lifecycle";
 
 export type CinematicCue = "opening" | "flight" | "shield" | "portal" | "transition" | "traverse" | "storm";
 
@@ -98,6 +99,10 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   const lastCue = useRef<CinematicCue | null>(null);
   const fadeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const speechRequest = useRef(0);
+  const guardianSpeech = useRef({ ...initialGuardianSpeechState });
+  const dispatchGuardianSpeech = (event: GuardianSpeechEvent) => {
+    guardianSpeech.current = transitionGuardianSpeech(guardianSpeech.current, event).state;
+  };
   const speechQuietRef = useRef(false);
   const settingsRef = useRef(settings);
 
@@ -150,6 +155,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
       void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       if (!next.voice || !next.master) {
         speechRequest.current += 1;
+        dispatchGuardianSpeech({ type: 'REVOKE' });
         stopServerSpeech();
         void Speech.stop();
       }
@@ -166,6 +172,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     Object.values(cuePlayers.current).forEach((p) => { try { p?.pause(); } catch { /* noop */ } });
     setActiveAmbient(null);
     speechRequest.current += 1;
+    dispatchGuardianSpeech({ type: 'STOP' });
     stopServerSpeech();
     void Speech.stop();
   }, []);
@@ -174,6 +181,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     speechQuietRef.current = quiet;
     setSpeechQuietState(quiet);
     speechRequest.current += 1;
+    dispatchGuardianSpeech({ type: quiet ? 'MUTE' : 'UNMUTE' });
     if (quiet) { stopServerSpeech(); void Speech.stop(); }
   }, []);
 
@@ -263,6 +271,9 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   const speak = useCallback(async (text: string, _rate = 0.95) => {
     const requestId = ++speechRequest.current;
     if (!settingsRef.current.master || !settingsRef.current.voice || speechQuietRef.current || !text.trim()) return false;
+    const taskId = `guardian-task-${requestId}`;
+    const utteranceId = `guardian-utterance-${requestId}`;
+    dispatchGuardianSpeech({ type: 'START', taskId, utteranceId });
     setVoiceNotice('');
     try {
       let completed = false;
@@ -270,6 +281,8 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
         const response = await api('/api/companion/speak', { method: 'POST', signal, body: JSON.stringify({ text: text.slice(0, 2000) }) });
         return response;
       }, { volume: settingsRef.current.volume, onDone: () => { completed = true; } });
+      dispatchGuardianSpeech({ type: 'TASK_COMPLETED', taskId });
+      dispatchGuardianSpeech({ type: 'UTTERANCE_ENDED', utteranceId });
       return completed && requestId === speechRequest.current;
     } catch {
       if (requestId !== speechRequest.current || speechQuietRef.current) return false;
@@ -279,7 +292,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
       const installed = voices.find(voice => voice.language === 'en-GB');
       return new Promise<boolean>(resolve => {
         const timer = setTimeout(() => { void Speech.stop(); resolve(false); }, 120000);
-        const finish = (played:boolean) => { clearTimeout(timer); resolve(played && requestId === speechRequest.current); };
+        const finish = (played:boolean) => { clearTimeout(timer); dispatchGuardianSpeech({ type: 'TASK_COMPLETED', taskId }); dispatchGuardianSpeech({ type: 'UTTERANCE_ENDED', utteranceId }); resolve(played && requestId === speechRequest.current); };
         Speech.speak(text.slice(0,2000), {language:'en-GB',voice:installed?.identifier,rate:0.95,volume:settingsRef.current.volume,onDone:()=>finish(true),onStopped:()=>finish(false),onError:()=>{setVoiceNotice('Speech could not play. The message remains in your inbox.');finish(false);}});
       });
     }
