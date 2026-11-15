@@ -13,6 +13,11 @@ export function VoiceInput({ onTranscript, disabled, onListening }: { onTranscri
   const status = useAudioRecorderState(recorder, 250);
   const [phase, setPhase] = useState<'idle' | 'starting' | 'listening' | 'transcribing'>('idle');
   const [notice, setNotice] = useState('');
+  const [sessionEnabled, setSessionEnabled] = useState(true);
+  const sessionEnabledRef = useRef(true);
+  const foregroundRef = useRef(AppState.currentState === 'active');
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
   useEffect(() => { onListening?.(phase !== 'idle'); }, [phase, onListening]);
   useEffect(() => () => { onListening?.(false); }, [onListening]);
   const generation = useRef(0);
@@ -33,13 +38,18 @@ export function VoiceInput({ onTranscript, disabled, onListening }: { onTranscri
     await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {});
   }
   useEffect(() => {
-    if (disabled && (active.current || preparing.current || phase === 'transcribing')) {
+    if ((disabled || !sessionEnabled) && (active.current || preparing.current || phase === 'transcribing')) {
       void discard(); setPhase('idle'); setNotice('Microphone stopped while Guardian was processing another action.');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [disabled]);
+  }, [disabled, sessionEnabled]);
   useEffect(() => {
-    const sub = AppState.addEventListener('change', state => { if (state === 'background' || (state === 'inactive' && active.current)) { void discard(); setPhase('idle'); setNotice('Microphone stopped when the app left the foreground.'); } });
+    const sub = AppState.addEventListener('change', state => {
+      foregroundRef.current = state === 'active';
+      if (state !== 'active' && (active.current || preparing.current || phaseRef.current === 'transcribing')) {
+        void discard(); setPhase('idle'); setNotice('Microphone stopped when the app left the foreground.');
+      }
+    });
     return () => { sub.remove(); void discard(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recorder]);
@@ -66,12 +76,12 @@ export function VoiceInput({ onTranscript, disabled, onListening }: { onTranscri
       const result = await api('/api/companion/transcribe', { method: 'POST', signal: controller.current.signal, body: JSON.stringify({ audio: encoded, mime }) });
       if (!result.ok) throw new Error(result.status === 503 ? 'Voice input is not configured on the server yet.' : 'Could not transcribe. Please try again.');
       const data = await result.json();
-      if (id === generation.current && !disabledRef.current) { onTranscript(data.text); setNotice(data.text ? 'Review your words, then press Send.' : 'No words detected. Try again.'); }
+      if (id === generation.current && !disabledRef.current && sessionEnabledRef.current && foregroundRef.current) { onTranscript(data.text); setNotice(data.text ? 'Review your words, then press Send.' : 'No words detected. Try again.'); }
     } catch (e) { if (id === generation.current) setNotice(e instanceof Error ? e.message : 'Microphone interrupted.'); }
     finally { if (id === generation.current) { await discard(); setPhase('idle'); } }
   }
   async function start() {
-    if (disabledRef.current || locked.current || preparing.current) return;
+    if (disabledRef.current || !sessionEnabledRef.current || !foregroundRef.current || locked.current || preparing.current) return;
     preparing.current = true;
     locked.current = true;
     const id = ++generation.current; setPhase('starting'); setNotice('');
@@ -80,22 +90,24 @@ export function VoiceInput({ onTranscript, disabled, onListening }: { onTranscri
       audio.stopSpeech();
       await stopCompanion();
       const permission = await requestRecordingPermissionsAsync();
-      if (id !== generation.current || disabledRef.current) return;
+      if (id !== generation.current || disabledRef.current || !sessionEnabledRef.current || !foregroundRef.current) return;
       if (!permission.granted) throw new Error('Microphone permission is off. Enable it in device settings to speak.');
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
-      if (id !== generation.current || disabledRef.current) { await discard(); return; }
+      if (id !== generation.current || disabledRef.current || !sessionEnabledRef.current || !foregroundRef.current) { await discard(); return; }
       recorder.record(); active.current = true; setPhase('listening');
       timer.current = setTimeout(() => { void finish(); }, 60000);
     } catch (e) { if (id === generation.current) { await discard(); setPhase('idle'); setNotice(e instanceof Error ? e.message : 'Microphone unavailable.'); } }
     finally { preparing.current = false; }
   }
   return <View style={{ paddingHorizontal: 20, paddingVertical: 8, gap: 8 }}>
-    <Text style={{ color: '#AEB5C0', fontSize: 12 }}>Microphone runs only while this screen is listening. Audio is sent for transcription when you stop; review before sending.</Text>
+    <Text style={{ color: '#AEB5C0', fontSize: 12 }}>Microphone is off by default until you tap Speak. It runs only in the foreground, for up to 60 seconds. Stopping sends audio for transcription; review before sending.</Text>
+    <Text accessibilityRole="text" style={{ color: phase === 'listening' ? '#F1DFA7' : '#AEB5C0', fontSize: 12 }}>{!sessionEnabled ? 'VOICE SESSION OFF' : phase === 'listening' ? 'MICROPHONE ACTIVE · RECORDING' : phase === 'transcribing' ? 'MICROPHONE OFF · TRANSCRIBING' : phase === 'starting' ? 'REQUESTING MICROPHONE' : 'MICROPHONE OFF · READY'}</Text>
     <View style={{ flexDirection: 'row', gap: 20 }}>
-      <Pressable accessibilityRole="button" disabled={disabled || phase === 'starting' || phase === 'transcribing'} onPress={() => { void (phase === 'listening' ? finish() : start()); }}><Text style={{ color: '#F3F4F6', paddingVertical: 10 }}>{phase === 'listening' ? `Stop listening · ${Math.floor(status.durationMillis / 1000)}s` : phase === 'transcribing' ? 'Transcribing…' : phase === 'starting' ? 'Opening microphone…' : 'Speak · up to 60 seconds'}</Text></Pressable>
-      {phase !== 'idle' && <Pressable accessibilityRole="button" onPress={() => { void discard(); setPhase('idle'); setNotice('Recording discarded.'); }}><Text style={{ color: '#DDE3EA', paddingVertical: 10 }}>Cancel</Text></Pressable>}
+      <Pressable accessibilityRole="button" accessibilityLabel={phase === 'listening' ? 'Stop recording and transcribe' : 'Start recording with microphone'} disabled={disabled || !sessionEnabled || phase === 'starting' || phase === 'transcribing'} onPress={() => { void (phase === 'listening' ? finish() : start()); }}><Text style={{ color: '#F3F4F6', paddingVertical: 10 }}>{phase === 'listening' ? `Stop listening · ${Math.floor(status.durationMillis / 1000)}s` : phase === 'transcribing' ? 'Transcribing…' : phase === 'starting' ? 'Opening microphone…' : 'Speak · up to 60 seconds'}</Text></Pressable>
+      {phase !== 'idle' && <Pressable accessibilityRole="button" accessibilityLabel="Discard recording without transcription" onPress={() => { void discard(); setPhase('idle'); setNotice('Recording discarded.'); }}><Text style={{ color: '#DDE3EA', paddingVertical: 10 }}>Cancel</Text></Pressable>}
     </View>
+    <Pressable accessibilityRole="button" accessibilityLabel={sessionEnabled ? 'Disable Guardian microphone session' : 'Enable Guardian microphone session'} onPress={() => { const next = !sessionEnabledRef.current; sessionEnabledRef.current = next; setSessionEnabled(next); if (!next) { void discard(); setPhase('idle'); setNotice('Voice session ended. Microphone off.'); } }}><Text style={{ color: '#F3F4F6', paddingVertical: 8 }}>{sessionEnabled ? 'End voice session' : 'Enable voice session'}</Text></Pressable>
     {!!notice && <Text accessibilityRole="alert" style={{ color: '#DDE3EA', fontSize: 12 }}>{notice}</Text>}
   </View>;
 }
