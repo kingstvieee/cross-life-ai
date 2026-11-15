@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { sceneAction } from '../src/scene-events.ts';
+import { sceneAction, sceneFallbackActions } from '../src/scene-events.ts';
 import { fallbackActions, worldIds } from '../scene-src/navigation.js';
 const event = (world, action) => ({ source: 'staar-scene-v1', type: 'select', world, action });
 test('renderer requests cannot escape their current-world navigation boundary', () => {
@@ -42,4 +42,20 @@ test('a lost WebGL context restores accessible portal navigation', () => {
   assert.match(renderer, /addNavigationFallback\(\);report\('unavailable'\)/);
   assert.match(renderer, /#reset'\)\.hidden=true/);
   assert.equal(fallbackActions('hub').length, 9);
+});
+
+test('native 3D load failures retain nine permission-limited portal routes', () => {
+  const native = fs.readFileSync(path.join('components', 'staarwardd', 'world-scene.tsx'), 'utf8');
+  assert.match(native, /onError=\{\(\) => setLoadFailed\(true\)\}/);
+  assert.match(native, /3D preview unavailable/);
+  assert.match(native, /sceneFallbackActions\(world\)/);
+  assert.equal(sceneFallbackActions('hub').length, 9);
+  for (const world of ['hub', ...worldIds]) {
+    assert.deepEqual(sceneFallbackActions(world), fallbackActions(world));
+    for (const [, action] of sceneFallbackActions(world)) {
+      assert.equal(sceneAction(event(world, action), world), action);
+      assert.equal(action.startsWith('execute:'), false);
+    }
+  }
+  assert.deepEqual(sceneFallbackActions('unlisted-world'), []);
 });
