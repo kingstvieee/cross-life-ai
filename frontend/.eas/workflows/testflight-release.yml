@@ -8,7 +8,7 @@ on:
         description: Confirm the approved production TestFlight candidate
         required: true
         options:
-          - 1.0.3 (104)
+          - 1.0.4 (105)
 
 concurrency:
   group: staar-hub-testflight-release
@@ -16,18 +16,18 @@ concurrency:
 
 jobs:
   build_ios:
-    name: Build STAAR Hub 1.0.3 (104)
+    name: Build STAAR Hub 1.0.4 (105)
     type: build
     params:
       platform: ios
       profile: production
-      message: STAAR Hub 1.0.3 (104) portal connections and device checks
+      message: STAAR Hub 1.0.4 (105) portal connections and device checks
 
   submit_ios:
-    name: Submit build 104 to TestFlight
+    name: Submit build 105 to TestFlight
     needs: [build_ios]
     type: testflight
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
       profile: production
-      changelog: Portal connection setup, external tool handoffs, Home Assistant readback and explicit light controls, secure on-device home credentials, and clearer voice/microphone checks. Voice server credentials and physical-device verification remain required. Other provider buttons open external tools and do not claim account sync.
+      changelog: Life Map notes with provenance and correction/deletion, privacy-aware Guardian context, opt-in arrival greetings with delivery receipts, quiet/private controls, native daily check-ins, and existing Home Assistant light readback. Voice server credentials and physical-device verification remain required. Other provider buttons open external tools and do not claim account sync.
