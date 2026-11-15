@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -26,16 +26,20 @@ function GuardianToolsAccount() {
   const [removing,setRemoving] = useState<string|null>(null);
   const [busy,setBusy] = useState(false);
   const [notice,setNotice] = useState('');
+  // Invalidate late Life Map responses on portal changes or unmount.
+  const loadEpoch = useRef(0);
   const checked = useCallback(async(path:string,init?:RequestInit)=>{
     const response=await api(path,init);
     if(!response.ok) { const data=await response.json().catch(()=>({})); throw new Error(data.detail === 'memory_revision_conflict' ? 'This note changed elsewhere. Reload before correcting it.' : `Guardian could not complete this request (${response.status}).`); }
     return response.json();
   },[api]);
   const load=useCallback(async()=>{
+    const epoch = ++loadEpoch.current;
     const [memory,inbox,state]=await Promise.all([checked(`/api/guardian/life-map/records?portal=${encodeURIComponent(portal)}`),checked('/api/guardian/life-map/notifications'),checked('/api/guardian/life-map/overview')]);
+    if (epoch !== loadEpoch.current) return;
     setNotes(memory.records);setEvents(inbox.events);setOverview(state);
   },[checked,portal]);
-  useEffect(()=>{let active=true;setBusy(true);load().catch(e=>{if(active)setNotice(e.message);}).finally(()=>{if(active)setBusy(false);});return()=>{active=false;};},[load]);
+  useEffect(()=>{let active=true;setBusy(true);load().catch(e=>{if(active)setNotice(e.message);}).finally(()=>{if(active)setBusy(false);});return()=>{active=false;loadEpoch.current++;};},[load]);
   async function perform(task:()=>Promise<unknown>) {setBusy(true);setNotice('');try{await task();await load();}catch(e){setNotice(e instanceof Error?e.message:'The request failed.');}finally{setBusy(false);}}
   const save=()=>perform(async()=>{
     if(!text.trim() || !source.trim()) throw new Error('Add the note and its source first.');
@@ -56,7 +60,7 @@ function GuardianToolsAccount() {
       <Text style={s.copy}>{overview?.voiceConfigured ? 'Server voice is configured; playback is verified per attempt.' : 'Server voice is not configured. Installed device speech is available as a labelled fallback.'}</Text>
       {!!audio.voiceNotice && <Text style={s.notice}>{audio.voiceNotice}</Text>}
     </View>
-    <View style={s.card}><Text style={s.heading}>Life Map</Text><View style={s.tabs}>{PORTALS.map(p=><Pressable key={p} accessibilityRole="button" accessibilityState={{selected:portal===p}} disabled={busy || !user?.portals_enabled.includes(p)} onPress={()=>{setPortal(p);setEditing(null);setText('');setRemoving(null);}} style={[s.tab,portal===p && s.selected]}><Text style={s.label}>{p === 'community' ? 'Village' : p}</Text></Pressable>)}</View>
+    <View style={s.card}><Text style={s.heading}>Life Map</Text><View style={s.tabs}>{PORTALS.map(p=><Pressable key={p} accessibilityRole="button" accessibilityState={{selected:portal===p}} disabled={busy || !user?.portals_enabled.includes(p)} onPress={()=>{loadEpoch.current++;setNotes([]);setEvents([]);setOverview(null);setNotice('');setPortal(p);setEditing(null);setText('');setRemoving(null);}} style={[s.tab,portal===p && s.selected]}><Text style={s.label}>{p === 'community' ? 'Village' : p}</Text></Pressable>)}</View>
       <Text style={s.copy}>These are your recorded claims, with sources—not automatically verified facts. Corrections replace old context; deleting a note removes its content from Life Map retrieval.</Text>
       <TextInput accessibilityLabel="Life Map note" placeholder="What should Guardian remember?" placeholderTextColor="#858F9D" multiline value={text} onChangeText={setText} maxLength={8000} style={[s.input,{minHeight:90}]}/>
       <TextInput accessibilityLabel="Note source" placeholder="Source" placeholderTextColor="#858F9D" value={source} onChangeText={setSource} maxLength={200} style={s.input}/>
