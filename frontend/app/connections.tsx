@@ -13,12 +13,12 @@ export default function Connections() {
   const { world: raw } = useLocalSearchParams<{ world: string }>();
   const world = typeof raw === 'string' ? raw : ''; const entry = CONNECTIONS[world];
   const router = useRouter(); const { user } = useAuth();
-  const [note, setNote] = useState(''); const [notice, setNotice] = useState(''); const [loaded, setLoaded] = useState(false);
+  const [note, setNote] = useState(''); const [notice, setNotice] = useState(''); const [loaded, setLoaded] = useState(false); const [readFailed, setReadFailed] = useState(false); const [readAttempt, setReadAttempt] = useState(0);
   const key = user && !user.is_demo && entry ? accountStorageKey('staar.connection-plan.' + world, user.user_id) : null;
-  useEffect(() => { let active = true; setLoaded(false); setNote(''); setNotice('');
-    if (key) void AsyncStorage.getItem(key).then(value => { if (active) { setNote(value || ''); setLoaded(true); } }).catch(() => { if (active) { setLoaded(true); setNotice('Could not load your saved setup checklist. You can prepare a new note, but saving may still fail until device storage recovers.'); } });
+  useEffect(() => { let active = true; setLoaded(false); setReadFailed(false); setNote(''); setNotice('');
+    if (key) void AsyncStorage.getItem(key).then(value => { if (active) { setNote(value || ''); setReadFailed(false); setLoaded(true); } }).catch(() => { if (active) { setLoaded(true); setReadFailed(true); setNotice('Could not load your saved setup checklist. Editing is available, but saving is disabled to protect the existing note until storage reload succeeds.'); } });
     return () => { active = false; };
-  }, [key]);
+  }, [key, readAttempt]);
   const button = (label: string, action: () => void, disabled = false) => <Pressable accessibilityRole="button" disabled={disabled} onPress={action} style={{ padding: 16, borderRadius: 14, borderWidth: 1, borderColor: '#758195', opacity: disabled ? .4 : 1 }}><Text style={{ color: '#F1F4F8', fontSize: 16 }}>{label}</Text></Pressable>;
   async function open(url: string) { try { await Linking.openURL(url); setNotice('Opened external website. No account, data or tool permissions were connected to STAARWAARDD.'); } catch { setNotice('Could not open the provider. Try again.'); } }
   return <SafeAreaView style={{ flex: 1, backgroundColor: '#080B10' }}><ScrollView contentContainerStyle={{ padding: 24, gap: 18, maxWidth: 850, width: '100%', alignSelf: 'center' }}>
@@ -34,7 +34,8 @@ export default function Connections() {
       <Text style={{ color: '#F1F4F8', fontSize: 22 }}>Your setup checklist</Text>
       <Text style={{ color: '#A5B2C4', lineHeight: 21 }}>List the rooms, tools or equipment you want to add. Saved on this device for your account. Keep passwords, tokens and private records in their provider apps.</Text>
       <TextInput accessibilityLabel="Connection setup checklist" multiline maxLength={2000} value={note} onChangeText={setNote} editable={loaded} style={{ minHeight: 120, color: '#F1F4F8', borderColor: '#66748B', borderWidth: 1, borderRadius: 14, padding: 16, textAlignVertical: 'top' }} />
-      {button('Save setup checklist', () => { void AsyncStorage.setItem(key, note).then(() => setNotice('Setup checklist saved on this device.')).catch(() => setNotice('Could not save the checklist.')); }, !loaded)}
+      {readFailed && button('Retry loading saved checklist', () => setReadAttempt(value => value + 1))}
+      {button('Save setup checklist', () => { void AsyncStorage.setItem(key, note).then(() => setNotice('Setup checklist saved on this device.')).catch(() => setNotice('Could not save the checklist.')); }, !loaded || readFailed)}
       {!!notice && <Text accessibilityRole="alert" style={{ color: '#D9E1EC', lineHeight: 23 }}>{notice}</Text>}
     </>}
   </ScrollView></SafeAreaView>;
