@@ -89,3 +89,21 @@ test('native and web previews retry only on explicit user interaction', () => {
   assert.match(native, /setLoadFailed\(false\)/);
   assert.match(web, /setFailedScene\(null\)/);
 });
+
+test('nine-world connection shortcuts remain explicitly unconnected', () => {
+  const providers = fs.readFileSync(path.join('lib', 'staarwardd', 'connections.ts'), 'utf8');
+  const screen = fs.readFileSync(path.join('app', 'connections.tsx'), 'utf8');
+  const declaredUrls = (providers.match(/url: 'https:\/\//g) || []).length;
+  const classified = (providers.match(/kind: 'external-website'/g) || []).length - 1;
+  assert.equal(declaredUrls, 30);
+  assert.equal(classified, declaredUrls);
+  assert.match(screen, /tool.kind === 'external-website'/);
+  assert.match(screen, /External websites — not connected/);
+  assert.match(screen, /website shortcuts, not STAARWAARDD integrations/);
+  assert.match(screen, /world === 'home' && <HomeConnection/);
+});
+test('nine-world Guardian greeting cannot override voice and master mute settings', () => {
+  const guardian = fs.readFileSync(path.join('app', 'guardian-tools.tsx'), 'utf8');
+  assert.match(guardian, /proactive-consent/);
+  assert.doesNotMatch(guardian, /if\s*\(value\)\s*audio\.update\(\{master:true,voice:true\}\)/);
+});
