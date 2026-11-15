@@ -4,6 +4,7 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioSourc
 import { Platform } from "react-native";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import { useAuth } from '@/src/auth';
+import { accountStorageKey } from '@/src/account-storage';
 import { playServerSpeech, stopServerSpeech } from '@/src/server-speech';
 
 import type { AmbientKey } from "@/lib/staarwardd/experience";
@@ -32,7 +33,7 @@ type AudioContextValue = AudioSettings & {
   stopAll: () => void;
 };
 
-const STORAGE_KEY = "staarwardd.v13.audio-settings";
+const ACCOUNT_SETTINGS_BASE = "staarwardd.v14.audio-settings";
 const DEFAULT_SETTINGS: AudioSettings = { master: false, music: false, ambience: false, voice: true, volume: 0.28 };
 const AudioContext = createContext<AudioContextValue | null>(null);
 
@@ -86,6 +87,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   const { user, api } = useAuth();
   const [voiceNotice, setVoiceNotice] = useState("");
   const companion = user?.companion;
+  const storageKey = user && !user.is_demo ? accountStorageKey(ACCOUNT_SETTINGS_BASE, user.user_id) : null;
   useEffect(() => { stopServerSpeech(); return stopServerSpeech; }, [companion]);
   const [settings, setSettings] = useState<AudioSettings>(DEFAULT_SETTINGS);
   const [speechQuiet, setSpeechQuietState] = useState(false);
@@ -100,8 +102,46 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   const speechRequest = useRef(0);
   const speechQuietRef = useRef(false);
   const settingsRef = useRef(settings);
+  const activeStorageKey = useRef<string | null>(null);
 
   useEffect(() => { settingsRef.current = settings; }, [settings]);
+
+  useEffect(() => {
+    // Never transfer settings from a previous login or the legacy device-wide key.
+    let active = true;
+    activeStorageKey.current = null;
+    settingsRef.current = DEFAULT_SETTINGS;
+    setSettings(DEFAULT_SETTINGS);
+    speechRequest.current += 1;
+    stopServerSpeech();
+    void Speech.stop();
+    if (storageKey) {
+      void AsyncStorage.getItem(storageKey).then(saved => {
+        if (!active) return;
+        let restored = DEFAULT_SETTINGS;
+        if (saved) {
+          try {
+            const candidate = JSON.parse(saved) as Partial<AudioSettings>;
+            restored = {
+              master: candidate.master === true,
+              music: candidate.music === true,
+              ambience: candidate.ambience === true,
+              voice: candidate.voice !== false,
+              volume: typeof candidate.volume === 'number' && Number.isFinite(candidate.volume)
+                ? Math.max(0, Math.min(1, candidate.volume)) : DEFAULT_SETTINGS.volume,
+            };
+          } catch { /* unreadable values never enable audio */ }
+        }
+        settingsRef.current = restored;
+        activeStorageKey.current = storageKey;
+        setSettings(restored);
+      }).catch(() => {
+        if (active) { activeStorageKey.current = storageKey; setSettings(DEFAULT_SETTINGS); }
+      });
+    }
+    return () => { active = false; };
+  }, [storageKey]);
+
 
   const clearFade = () => {
     if (fadeTimer.current) { clearInterval(fadeTimer.current); fadeTimer.current = null; }
@@ -131,10 +171,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
       window.addEventListener("unhandledrejection", handler);
       off = () => window.removeEventListener("unhandledrejection", handler);
     }
-    AsyncStorage.getItem(STORAGE_KEY).then((saved) => {
-      if (!saved) return;
-      try { setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) }); } catch { /* preserve safe defaults */ }
-    }).catch(() => undefined);
+
     return () => {
       off?.();
       Object.values(ambientPlayers.current).forEach((p) => { try { p?.remove(); } catch { /* noop */ } });
@@ -145,9 +182,10 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   }, []);
 
   const update = useCallback((patch: Partial<AudioSettings>) => {
+    if (!storageKey || activeStorageKey.current !== storageKey) return;
     setSettings((current) => {
       const next = { ...current, ...patch };
-      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      void AsyncStorage.setItem(storageKey, JSON.stringify(next));
       if (!next.voice || !next.master) {
         speechRequest.current += 1;
         stopServerSpeech();
@@ -159,7 +197,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
       }
       return next;
     });
-  }, []);
+  }, [storageKey]);
 
   const stopAll = useCallback(() => {
     pauseAllAmbient();
@@ -262,7 +300,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
 
   const speak = useCallback(async (text: string, _rate = 0.95) => {
     const requestId = ++speechRequest.current;
-    if (!settingsRef.current.master || !settingsRef.current.voice || speechQuietRef.current || !text.trim()) return false;
+    if (!storageKey || activeStorageKey.current !== storageKey || !settingsRef.current.master || !settingsRef.current.voice || speechQuietRef.current || !text.trim()) return false;
     setVoiceNotice('');
     try {
       let completed = false;
@@ -283,7 +321,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
         Speech.speak(text.slice(0,2000), {language:'en-GB',voice:installed?.identifier,rate:0.95,volume:settingsRef.current.volume,onDone:()=>finish(true),onStopped:()=>finish(false),onError:()=>{setVoiceNotice('Speech could not play. The message remains in your inbox.');finish(false);}});
       });
     }
-  }, [api]);
+  }, [api, storageKey]);
 
   const value = useMemo(() => ({ ...settings, speechQuiet, voiceNotice, activeAmbient, update, setSpeechQuiet, toggleAmbient, playAmbient, stopAmbient, playCue, speak, stopAll }), [activeAmbient, playAmbient, playCue, settings, setSpeechQuiet, speak, speechQuiet, voiceNotice, stopAll, stopAmbient, toggleAmbient, update]);
   return <AudioContext.Provider value={value}>{children}</AudioContext.Provider>;
