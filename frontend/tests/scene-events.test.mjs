@@ -47,6 +47,8 @@ test('a lost WebGL context restores accessible portal navigation', () => {
 test('native 3D load failures retain nine permission-limited portal routes', () => {
   const native = fs.readFileSync(path.join('components', 'staarwardd', 'world-scene.tsx'), 'utf8');
   assert.match(native, /onError=\{\(\) => setLoadFailed\(true\)\}/);
+  assert.match(native, /onRenderProcessGone=\{\(\) => setLoadFailed\(true\)\}/);
+  assert.match(native, /onContentProcessDidTerminate=\{\(\) => setLoadFailed\(true\)\}/);
   assert.match(native, /3D preview unavailable/);
   assert.match(native, /sceneFallbackActions\(world\)/);
   assert.equal(sceneFallbackActions('hub').length, 9);
