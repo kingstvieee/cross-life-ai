@@ -29,7 +29,7 @@ export default function Connections() {
       {world === 'home' && <HomeConnection key={user?.user_id} />}
       {!!entry.tools.length && <Text style={{ color: '#F1F4F8', fontSize: 22 }}>External websites — not connected</Text>}
       {!!entry.tools.length && <Text style={{ color: '#BBC5D3', lineHeight: 22 }}>These are website shortcuts, not STAARWAARDD integrations. They cannot access your provider data, submit generation jobs, or complete purchases. A provider is connected only after its authenticated in-app action succeeds.</Text>}
-      {entry.tools.map(tool => <View key={tool.name} style={{ gap: 5 }}>{button('Open ' + tool.name, () => { void open(tool.url); })}<Text style={{ color: '#96A4B8' }}>External website · no API connection · {new URL(tool.url).hostname}</Text></View>)}
+      {entry.tools.filter(tool => tool.kind === 'external-website').map(tool => <View key={tool.name} style={{ gap: 5 }}>{button('Open external website: ' + tool.name, () => { void open(tool.url); })}<Text style={{ color: '#96A4B8' }}>External website · no API connection · {new URL(tool.url).hostname}</Text></View>)}
       <Text style={{ color: '#F1F4F8', fontSize: 22 }}>Connections still to establish</Text><Text style={{ color: '#BCC6D4', lineHeight: 23 }}>{entry.pending}</Text>
       <Text style={{ color: '#F1F4F8', fontSize: 22 }}>Your setup checklist</Text>
       <Text style={{ color: '#A5B2C4', lineHeight: 21 }}>List the rooms, tools or equipment you want to add. Saved on this device for your account. Keep passwords, tokens and private records in their provider apps.</Text>
