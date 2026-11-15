@@ -13,7 +13,7 @@ import { VoiceInput } from '@/components/staarwardd/voice-input';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
 import { conversationKey, rememberConversation, type ConversationSessions } from '@/lib/staarwardd/conversation-session';
 
-const MAX_CHAT_CHARS = 4000;
+const MAX_CHAT_CHARS = 50000;
 const COMPANION_NAMES: Record<string, string> = { guardian: 'Guardian', kaia: 'Kaia', atlas: 'Atlas' };
 
 type Msg = { role: 'user' | 'assistant'; text: string };
@@ -40,8 +40,8 @@ export default function Chat() {
   const savedSession = conversationCacheByUser.get(userKey)?.[sessionKey];
   const lastSessionIdentity = useRef(`${userKey}:${sessionKey}`);
   const [msgs, setMsgs] = useState<Msg[]>(() => savedSession?.turns ?? []);
-  const [input, setInput] = useState(() => typeof draft === 'string' ? draft.slice(0, 4000) : savedSession?.draft ?? '');
-  useEffect(() => { if (typeof draft === 'string') setInput(draft.slice(0, 4000)); }, [draft]);
+  const [input, setInput] = useState(() => typeof draft === 'string' ? draft.slice(0, MAX_CHAT_CHARS) : savedSession?.draft ?? '');
+  useEffect(() => { if (typeof draft === 'string') setInput(draft.slice(0, MAX_CHAT_CHARS)); }, [draft]);
   useEffect(() => {
     if (!user?.user_id) return;
     const identity = `${userKey}:${sessionKey}`;
@@ -110,7 +110,7 @@ export default function Chat() {
   const send = async (text?: string, retry = false) => {
     const message = (text ?? input).trim();
     if (!message || pending.current || !historyReady || listening) return;
-    if (message.length > MAX_CHAT_CHARS) { setNotice('Message is too long. Limit: 4,000 characters.'); return; }
+    if (message.length > MAX_CHAT_CHARS) { setNotice('Message is too long. Limit: 50,000 characters.'); return; }
     pending.current = true;
     setRetryMessage(null);
     setNotice('');
