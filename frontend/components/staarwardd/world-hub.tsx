@@ -72,8 +72,14 @@ export function WorldHub() {
     if (!audio.master || !audio.voice || audio.speechQuiet) { setGuardianMessage('Voice is muted or disabled. Use settings to enable audio.'); return; }
     setGuardianState('speaking'); setGuardianSpeaking(true);
     setGuardianMessage('Welcome back. Your nine worlds are ready.');
-    try { await audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.'); }
-    finally { if (focused.current && epoch === voiceEpoch.current) { setGuardianSpeaking(false); setGuardianState('hover'); } }
+    try {
+      const played = await audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.');
+      if (!played && focused.current && epoch === voiceEpoch.current) setGuardianMessage('Guardian voice could not play. Check your audio settings and try again.');
+    } catch {
+      if (focused.current && epoch === voiceEpoch.current) setGuardianMessage('Guardian voice is temporarily unavailable. You can still use every portal.');
+    } finally {
+      if (focused.current && epoch === voiceEpoch.current) { setGuardianSpeaking(false); setGuardianState('hover'); }
+    }
   }, [audio.master, audio.voice, audio.speechQuiet, audio.speak]);
   useFocusEffect(useCallback(() => { focused.current = true; greeted.current = false; return () => { focused.current = false; greeted.current = true; voiceEpoch.current += 1; }; }, []));
   useEffect(() => {
