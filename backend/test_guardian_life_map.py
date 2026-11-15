@@ -100,3 +100,14 @@ def test_stale_greeting_expires_without_playback():
     event = run(store.enqueue('owner', key='stale', kind='greetings', decision={'allowed':True}))['event']
     at = datetime.fromisoformat(event['createdAt']) + timedelta(minutes=11)
     assert run(store.claim_notification('owner', event['key'], {'allowed':True}, at)) == {'claimed':False, 'reason':'expired'}
+
+
+def test_inbox_reconciles_abandoned_claim_without_automatic_retry():
+    from datetime import datetime, timedelta
+    store = LifeMapStore(FakeCollection())
+    event = run(store.enqueue('owner', key='abandoned', kind='greetings', decision={'allowed':True}))['event']
+    at = datetime.fromisoformat(event['createdAt'])
+    run(store.claim_notification('owner', event['key'], {'allowed':True}, at))
+    assert run(store.notifications('owner', at + timedelta(seconds=61)))[0]['state'] == 'uncertain'
+    assert run(store.retry_notification('owner', event['key'])) == {'state':'pending'}
+    assert run(store.notifications('owner'))[0]['retries'] == 1
