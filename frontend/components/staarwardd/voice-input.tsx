@@ -86,12 +86,14 @@ export function VoiceInput({ onTranscript, disabled, onListening }: { onTranscri
     locked.current = true;
     const id = ++generation.current; setPhase('starting'); setNotice('');
     try {
-      // Recording is a user-requested interruption; never record over Guardian's voice.
-      audio.stopSpeech();
-      await stopCompanion();
+      // Do not interrupt Guardian speech until microphone permission is granted.
       const permission = await requestRecordingPermissionsAsync();
       if (id !== generation.current || disabledRef.current || !sessionEnabledRef.current || !foregroundRef.current) return;
       if (!permission.granted) throw new Error('Microphone permission is off. Enable it in device settings to speak.');
+      // The user has explicitly requested recording; avoid speaking over the microphone.
+      audio.stopSpeech();
+      await stopCompanion();
+      if (id !== generation.current || disabledRef.current || !sessionEnabledRef.current || !foregroundRef.current) return;
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
       if (id !== generation.current || disabledRef.current || !sessionEnabledRef.current || !foregroundRef.current) { await discard(); return; }
