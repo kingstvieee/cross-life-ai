@@ -9,7 +9,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "scene:build": "npm ci --prefix scene-src --ignore-scripts --no-audit --no-fund && node scene-src/build.mjs",
+    "postinstall": "npm run scene:build"
   },
   "dependencies": {
     "@bacons/apple-targets": "5.0.0",

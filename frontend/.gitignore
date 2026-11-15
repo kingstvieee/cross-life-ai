@@ -38,3 +38,7 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+# Locally bundled 3D scene outputs
+generated/
+public/world-runtime.html

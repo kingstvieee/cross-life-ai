@@ -20,9 +20,14 @@ cannot emit a completion event or be stored by chat-once as a finished reply.
 Provider response bodies and credentials are not included in client errors.
 
 The relay imports are deferred: the direct chat and companion-speech paths do
-not require loading Emergent's chat/TTS SDK at server import. Legacy general
-Guardian TTS endpoints still use their existing relay; this change does not
-migrate those endpoints or replace companion speech with Realtime.
+not require loading Emergent's chat/TTS SDK at server import. General Guardian narration now also selects direct OpenAI when OPENAI_API_KEY
+is configured. GUARDIAN_SPEECH_PROVIDER=openai forces direct delivery;
+GUARDIAN_SPEECH_PROVIDER=emergent explicitly retains the relay. Selection occurs
+before dispatch and never falls back after failure. Existing tts-1/Onyx MP3
+identity, cache keys, account scoping and expiry remain unchanged. A 45-second
+whole-request deadline cancels and closes the HTTP transport; invalid audio,
+redirects and provider bodies cannot become successful output. No migration to
+Realtime is claimed.
 
 ## Validation
 
@@ -47,3 +52,11 @@ Backend Python compilation and `git diff --check` passed.
 
 The build is not declared complete. Physical-device acceptance remains deferred
 as requested until the development requirements are finished.
+
+## November 15 recovered-source validation
+
+425 backend tests passed, including direct narration selection, binary audio,
+redirect rejection, invalid payload rejection, cancellation and transport cleanup.
+The hosting-worker CI trigger and six worker regression tests have been restored.
+No paid provider calls or new credentials were used. Live backend configuration
+and voice playback remain unverified.
