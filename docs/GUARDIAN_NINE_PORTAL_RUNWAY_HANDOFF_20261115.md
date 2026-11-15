@@ -29,14 +29,14 @@ Identity: preserve the approved Guardian face, hair, hairline, skin tone, propor
 4. Check each second for stalled video, frozen 27-second handoff, timing mismatch, clipped wings, deformed hands and awkward motion.
 5. Preserve Toronto/CN Tower, same wing geometry, suit, sigil, continuity of lighting and perspective.
 6. Verify original and transition sound: no repetitive clicking, no audio pop, no unintended replacement soundtrack.
-7. Export a high-quality continuous approved master, joining original startup and approved nine-portal continuation without a second arrival or black-frame flash.
+7. Preserve the founder-locked original startup master byte-for-byte, with its existing file path and all startup playback wiring unchanged. If a nine-portal continuation is later approved, package it as a separate, versioned post-startup scene only; never splice into, overwrite, replace, regenerate or rename the startup video. Test the transition without editing the locked startup master.
 8. Test on web, physical iPhone and TestFlight. Reduced-motion, muted autoplay, replay, skip, auth state preservation, and error/timeout fallback must all pass.
 
 ## Existing runtime and safe migration
 
-At this checkpoint both native `frontend/components/staarwardd/startup-film-player.tsx` and web `frontend/components/staarwardd/startup-film-player.web.tsx` load `frontend/assets/videos/guardian-startup.mp4` using bundled `require`. The 29.2667-second original asset remains the verified rollback; preserve it.
+At this checkpoint both native `frontend/components/staarwardd/startup-film-player.tsx` and web `frontend/components/staarwardd/startup-film-player.web.tsx` load `frontend/assets/videos/guardian-startup.mp4` using bundled `require`. The 29.2667-second original asset is the **founder-locked production startup master**, NOT merely a rollback. It must remain unchanged regardless of whether the new continuation passes QA.
 
-After ALL gates pass: add the approved continuous video as a NEW versioned file inside `frontend/assets/videos/` (do not overwrite the rollback first); switch both video player references together, update associated asset tests, validate native/web runtime and CI, then authorize production promotion. Verify Expo/EAS project owner and Apple/TestFlight signing separately; web deployment does not demonstrate a native release.
+Founder correction (2026-11-15): **DO NOT REPLACE THE STARTUP VIDEO. IT IS ALREADY LOCKED.** Retain `frontend/assets/videos/guardian-startup.mp4` and both native/web `require` references unchanged. Any approved nine-portal material belongs exclusively in a separate optional continuation/Hub scene with its own new asset and independent playback component. Do not alter startup duration, frame content, soundtrack, opening controls, filenames or asset hash. If the continuation is connected to the app later, verify it does not replay the locked opening. Verify Expo/EAS project owner and Apple/TestFlight signing separately; web deployment does not demonstrate a native release.
 
 ### Status
-**CONDITIONAL / NOT RELEASE READY.** This file is an auditable evidence checkpoint, not approval of the render's visual output, not a final master, and not a deployment. Do not claim finished until all gates pass.
+**CONDITIONAL / NOT RELEASE READY.** This file is an auditable evidence checkpoint, not approval of the render's visual output, not a startup replacement, not a final continuation master, and not a deployment. Do not claim finished until all gates pass.
