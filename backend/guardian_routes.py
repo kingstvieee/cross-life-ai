@@ -322,6 +322,15 @@ def build_guardian_router(*, db: Any, get_current_user: Any, get_trusted_worker:
         except (KeyError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    @router.post("/workflows/{workflow_id}/send-admission")
+    async def workflow_send_admission(workflow_id: str, body: GuardianSentRequest, authorization: Optional[str] = Header(None), x_guardian_worker_token: Optional[str] = Header(None)):
+        user = await account_user(authorization)
+        await trusted_worker(x_guardian_worker_token)
+        try:
+            return await store.authorize_workflow_send(user["user_id"], workflow_id, idempotency_key=body.idempotency_key)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     @router.post("/workflows/{workflow_id}/sent")
     async def workflow_sent(workflow_id: str, body: GuardianSentRequest, authorization: Optional[str] = Header(None), x_guardian_worker_token: Optional[str] = Header(None)):
         user = await account_user(authorization)

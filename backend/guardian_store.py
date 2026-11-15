@@ -10,6 +10,7 @@ from guardian_workflow import (
     claim_lease,
     dispatch,
     mark_sent,
+    authorize_send,
     mark_worker_retry,
     new_workflow,
     proactive_decision,
@@ -226,6 +227,9 @@ class GuardianStore:
 
     async def dispatch_workflow(self, user_id: str, workflow_id: str, **kwargs: Any) -> Dict[str, Any]:
         return await self._workflow_mutation(user_id, workflow_id, lambda workflow: dispatch(workflow, workflow_id, **kwargs))
+
+    async def authorize_workflow_send(self, user_id: str, workflow_id: str, *, idempotency_key: str) -> Dict[str, Any]:
+        return await self._workflow_mutation(user_id, workflow_id, lambda workflow: authorize_send(workflow, workflow_id, idempotency_key=idempotency_key))
 
     async def mark_workflow_sent(self, user_id: str, workflow_id: str, *, idempotency_key: str) -> Dict[str, Any]:
         return await self._workflow_mutation(user_id, workflow_id, lambda workflow: mark_sent(workflow, workflow_id, idempotency_key=idempotency_key))
