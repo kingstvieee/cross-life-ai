@@ -107,3 +107,13 @@ test('nine-world Guardian greeting cannot override voice and master mute setting
   assert.match(guardian, /proactive-consent/);
   assert.doesNotMatch(guardian, /if\s*\(value\)\s*audio\.update\(\{master:true,voice:true\}\)/);
 });
+
+test('connection checklist never overwrites saved data after an unreadable store', () => {
+  const screen = fs.readFileSync(path.join('app', 'connections.tsx'), 'utf8');
+  assert.match(screen, /setReadFailed\(true\)/);
+  assert.match(screen, /Retry loading saved checklist/);
+  assert.match(screen, /!loaded \|\| readFailed/);
+  assert.match(screen, /setReadFailed\(false\)/);
+  assert.match(screen, /accountStorageKey\('staar\.connection-plan\.'/);
+  assert.match(screen, /HomeConnection/);
+});
