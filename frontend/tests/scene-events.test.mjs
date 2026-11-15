@@ -117,3 +117,17 @@ test('connection checklist never overwrites saved data after an unreadable store
   assert.match(screen, /accountStorageKey\('staar\.connection-plan\.'/);
   assert.match(screen, /HomeConnection/);
 });
+
+test('audio session changes never inherit or continue the prior account playback', () => {
+  const audio = fs.readFileSync(path.join('lib', 'staarwardd', 'audio-provider.tsx'), 'utf8');
+  assert.match(audio, /accountStorageKey\(ACCOUNT_SETTINGS_BASE, user\.user_id\)/);
+  assert.match(audio, /const DEFAULT_SETTINGS: AudioSettings = \{ master: false/);
+  assert.match(audio, /activeStorageKey\.current = null/);
+  assert.match(audio, /Object\.values\(ambientPlayers\.current\)\.forEach\(player =>/);
+  assert.match(audio, /Object\.values\(cuePlayers\.current\)\.forEach\(player =>/);
+  assert.match(audio, /setActiveAmbient\(null\)/);
+  assert.match(audio, /speechRequest\.current \+= 1/);
+  assert.match(audio, /stopServerSpeech\(\);/);
+  assert.match(audio, /void Speech\.stop\(\);/);
+  assert.doesNotMatch(audio, /AsyncStorage\.getItem\(['"]staarwardd\.v14\.audio-settings['"]\)/);
+});
