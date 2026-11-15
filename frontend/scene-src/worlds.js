@@ -15,16 +15,23 @@ const report = (type, data = {}) => {
   if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(event));
   else parent.postMessage(event, '*');
 };
+const addNavigationFallback = () => {
+  const actions = document.querySelector('#actions');
+  if (!actions) return;
+  actions.replaceChildren();
+  for (const [label, action] of fallbackActions(world)) {
+    const button = document.createElement('button');
+    button.textContent = label;
+    button.addEventListener('click', () => report('select', { action }));
+    actions.append(button);
+  }
+};
 let renderer;
 try { renderer = new T.WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power' }); }
 catch {
   document.querySelector('#status').textContent = '3D rendering is unavailable on this device. Navigation remains available below.';
   document.querySelector('#reset').hidden = true;
-  for (const [label, action] of fallbackActions(world)) {
-    const button = document.createElement('button'); button.textContent = label;
-    button.addEventListener('click', () => report('select', { action }));
-    document.querySelector('#actions').append(button);
-  }
+  addNavigationFallback();
   report('unavailable');
 }
 if (renderer) {
@@ -147,7 +154,7 @@ if (renderer) {
   document.querySelector('#title').textContent=world==='hub'?'STAARWARDD · PORTAL HUB':(singles?'STAAR Love · Singles':names[ids.indexOf(world)]);
   document.querySelector('#status').textContent='Drag to explore · pinch or scroll to move closer · tap a labelled control';
   for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
-  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();visible=false;cancelAnimationFrame(frame);document.querySelector('#status').textContent='3D paused. Reload the scene to continue.';report('unavailable');});
+  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
   report('ready',{geometry:true,objects:scene.children.length});
   addEventListener('pagehide',()=>{cancelAnimationFrame(frame);controls.dispose();scene.traverse(n=>{n.geometry?.dispose();if(n.material)for(const m of[n.material].flat()){m.map?.dispose();m.dispose();}});env.dispose();renderer.dispose();});
 }
