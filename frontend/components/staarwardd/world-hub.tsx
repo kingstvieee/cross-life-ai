@@ -63,7 +63,7 @@ export function WorldHub() {
   }, [preferenceReady, greetingEnabled, audio.master, audio.voice, audio.speechQuiet, greet]);
   const setGreeting = (enabled: boolean) => { setGreetingEnabled(enabled); greeted.current = !enabled; if (!enabled) { /* Disable future automatic greetings without interrupting an active conversation. */ } void AsyncStorage.setItem('staarwardd.guardian.proactive-greeting.v1', enabled ? 'enabled' : 'disabled'); };
   const companion = user?.companion === 'kaia' ? 'Kaia' : user?.companion === 'guardian' ? 'Guardian' : 'Atlas';
-  useFocusEffect(useCallback(() => { setSelected(null); if (!guardianSpeaking) { setGuardianState('flying'); setGuardianMessage('Guardian standing by.'); } }, [guardianSpeaking]));
+  useFocusEffect(useCallback(() => { setSelected(null); }, []));
   return <View style={s.root}>
     <LinearGradient colors={['#171A1E', '#030405', '#111418']} style={StyleSheet.absoluteFill} />
     <SafeAreaView style={s.safe}>
