@@ -6,6 +6,7 @@ export function WorldScene({ world, variant = 'realm', onAction }: { world: stri
   const iframe = useRef<HTMLIFrameElement | null>(null);
   const html = useMemo(() => worldSceneHtml(world, variant), [world, variant]);
   const [failedScene, setFailedScene] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const sceneKey = `${world}:${variant}`;
   const failed = failedScene === sceneKey;
   useEffect(() => {
@@ -24,6 +25,8 @@ export function WorldScene({ world, variant = 'realm', onAction }: { world: stri
     style={{ padding: 22, background: '#030713', color: '#D6DFEC', minHeight: 420 }}>
     <p role="alert" style={{ color: '#F2DFB4', fontWeight: 700 }}>3D preview unavailable</p>
     <p>The local scene could not render. Use safe navigation below. No devices or external services were activated.</p>
+    <button type="button" onClick={() => { setRetryCount(count => count + 1); setFailedScene(null); }}
+      style={{ minHeight: 48, padding: 14, marginBottom: 12, borderRadius: 12, border: '1px solid #D5C08B', background: '#17202B', color: '#F2DFB4' }}>Retry 3D preview</button>
     <nav aria-label="World controls" style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
       {sceneFallbackActions(world).map(([label, action]) => <button key={action} type="button"
         onClick={() => onAction(action)}
@@ -32,7 +35,7 @@ export function WorldScene({ world, variant = 'realm', onAction }: { world: stri
       </button>)}
     </nav>
   </div>;
-  return <iframe key={sceneKey} ref={iframe} title={`${world} navigable 3D environment`} srcDoc={html}
+  return <iframe key={`${sceneKey}:${retryCount}`} ref={iframe} title={`${world} navigable 3D environment`} srcDoc={html}
     onError={() => setFailedScene(sceneKey)}
     sandbox="allow-scripts" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', minHeight: 420, border: 0, display: 'block', background: '#030713' }} />;
 }
