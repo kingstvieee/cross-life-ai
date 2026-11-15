@@ -53,6 +53,13 @@ export default function Chat() {
   const [notice, setNotice] = useState('');
   useEffect(() => { if (audio.voiceNotice) setNotice(audio.voiceNotice); }, [audio.voiceNotice]);
   const pending = useRef(false);
+  const requestGeneration = useRef(0);
+  const requestAbort = useRef<AbortController | null>(null);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; requestGeneration.current++; requestAbort.current?.abort(); requestAbort.current = null; };
+  }, []);
   useEffect(() => {
     let active = true;
     const timer = setTimeout(() => {
@@ -82,27 +89,39 @@ export default function Chat() {
     const message = (text ?? input).trim();
     if (!message || pending.current || !historyReady || listening) return;
     pending.current = true;
+    const requestId = ++requestGeneration.current;
+    const abort = new AbortController();
+    requestAbort.current = abort;
     setInput('');
     setMsgs((m) => [...m, { role: 'user', text: message }]);
     setBusy(true);
     try {
       const r = await api('/api/guardian/chat-once', {
         method: 'POST',
+        signal: abort.signal,
         body: JSON.stringify({ message, portal: portal || null, companion: user?.companion || 'guardian' }),
       });
+      if (requestId !== requestGeneration.current || !mounted.current) return;
       if (r.ok) {
         const data = await r.json();
+        if (requestId !== requestGeneration.current || !mounted.current) return;
         setMsgs((m) => [...m, { role: 'assistant', text: data.reply || '…' }]);
         if (voiceOn) void audio.speak(data.reply);
       } else {
         setMsgs((m) => [...m, { role: 'assistant', text: 'I lost the thread for a second. Try that again.' }]);
       }
     } catch {
-      setMsgs((m) => [...m, { role: 'assistant', text: 'Connection dropped. Try again.' }]);
+      if (requestId === requestGeneration.current && mounted.current && !abort.signal.aborted) {
+        setMsgs((m) => [...m, { role: 'assistant', text: 'Connection dropped. Try again.' }]);
+      }
+    } finally {
+      if (requestId === requestGeneration.current && mounted.current) {
+        setBusy(false);
+        pending.current = false;
+        requestAbort.current = null;
+        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+      }
     }
-    setBusy(false);
-    pending.current = false;
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
   return (
@@ -160,6 +179,7 @@ export default function Chat() {
           )}
         </ScrollView>
 
+        {busy && <Pressable accessibilityRole="button" accessibilityLabel="Cancel pending Guardian reply" onPress={() => { requestGeneration.current++; requestAbort.current?.abort(); requestAbort.current = null; pending.current = false; setBusy(false); setNotice('Reply cancelled. You can send another message.'); }} style={{ paddingHorizontal: 20, paddingVertical: 8 }}><Text style={{ color: '#F1DFA7' }}>Cancel pending reply</Text></Pressable>}
         <VoiceInput onListening={setListening} onTranscript={setInput} disabled={busy || !historyReady} />
         <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <TextInput
