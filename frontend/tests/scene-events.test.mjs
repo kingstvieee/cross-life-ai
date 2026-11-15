@@ -177,3 +177,21 @@ test('native 3D preview responds to renderer unavailability with accessible fall
   assert.match(native, /sceneFallbackActions\(world\)/);
   assert.match(web, /event\.data\.type === 'unavailable'/);
 });
+
+test('native and web 3D viewers recover if renderer readiness never arrives', () => {
+  const native = fs.readFileSync(path.join('components', 'staarwardd', 'world-scene.tsx'), 'utf8');
+  const web = fs.readFileSync(path.join('components', 'staarwardd', 'world-scene.web.tsx'), 'utf8');
+  const renderer = fs.readFileSync(path.join('scene-src', 'worlds.js'), 'utf8');
+  assert.match(renderer, /report\('ready',\{geometry:true,objects:scene.children.length\}\)/);
+  for (const source of [native, web]) {
+    assert.match(source, /sceneReady\.current = false/);
+    assert.match(source, /15000/);
+    assert.match(source, /clearTimeout\(watchdog\)/);
+    assert.match(source, /type === 'ready'/);
+    assert.match(source, /sceneReady\.current = true/);
+    assert.match(source, /retryCount/);
+  }
+  assert.match(native, /if \(!sceneReady\.current\) setLoadFailed\(true\)/);
+  assert.match(web, /if \(!sceneReady\.current\) setFailedScene\(sceneKey\)/);
+  assert.equal(sceneFallbackActions('hub').length, 9);
+});
