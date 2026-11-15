@@ -19,3 +19,12 @@ test('existing Home Assistant component remains mounted separately', () => {
 test('external website launch does not claim provider authorization', () => {
   assert.match(source, /No account, data or tool permissions were connected/);
 });
+
+test('every declared provider URL is explicitly classified as a website shortcut', () => {
+  const providers = fs.readFileSync(path.join(__dirname, '..', 'lib', 'staarwardd', 'connections.ts'), 'utf8');
+  const urlCount = (providers.match(/url: 'https:\/\//g) || []).length;
+  const typedCount = (providers.match(/kind: 'external-website'/g) || []).length - 1; // minus the type declaration
+  assert.ok(urlCount > 0);
+  assert.equal(typedCount, urlCount);
+  assert.match(source, /tool.kind === 'external-website'/);
+});
