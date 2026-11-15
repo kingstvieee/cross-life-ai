@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '@/src/auth';
@@ -9,7 +9,8 @@ export function GuardianVoiceDock() {
   const { user } = useAuth();
   const audio = useStaarAudio();
   const router = useRouter();
-  if (!user) return null;
+  const pathname = usePathname();
+  if (!user || pathname === '/chat' || pathname.startsWith('/auth')) return null;
   const audible = audio.master && audio.voice && !audio.speechQuiet;
   const name = user.companion === 'kaia' ? 'Kaia' : user.companion === 'atlas' ? 'Atlas' : 'Guardian';
   return <View pointerEvents="box-none" style={s.layer}>
