@@ -77,6 +77,9 @@ export default function Settings() {
 
       <Pressable accessibilityRole="button" onPress={() => router.push('/guardian-tools')} style={{padding:20}}><Text style={{color:'#E0E6EE'}}>Life Map, greetings & notification inbox</Text></Pressable>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 60, width: '100%', maxWidth: 640, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/checkins' as never)} style={styles.backBtn}>
+          <Text style={{ color: '#EDF1F7' }}>Daily check-in notifications</Text>
+        </Pressable>
         <Text style={styles.sectionH}>GUARDIAN AUTONOMY</Text>
         <Text style={styles.helper}>Suggest — asks before acting · Assist — handles small things · Proactive — coordinates ahead of you.</Text>
         <View style={styles.segment}>
