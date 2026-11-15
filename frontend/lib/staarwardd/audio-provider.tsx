@@ -292,9 +292,10 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
         const response = await api('/api/companion/speak', { method: 'POST', signal, body: JSON.stringify({ text: text.slice(0, 2000) }) });
         return response;
       }, { volume: settingsRef.current.volume, onDone: () => { completed = true; } });
+      if (requestId !== speechRequest.current) return false;
       dispatchGuardianSpeech({ type: 'TASK_COMPLETED', taskId });
       dispatchGuardianSpeech({ type: 'UTTERANCE_ENDED', utteranceId });
-      return completed && requestId === speechRequest.current;
+      return completed;
     } catch {
       if (requestId !== speechRequest.current || speechQuietRef.current) return false;
       setVoiceNotice('Using installed device speech. Server voice is unavailable.');
@@ -302,9 +303,19 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
       if (requestId !== speechRequest.current || speechQuietRef.current) return false;
       const installed = voices.find(voice => voice.language === 'en-GB');
       return new Promise<boolean>(resolve => {
-        const timer = setTimeout(() => { void Speech.stop(); dispatchGuardianSpeech({ type: 'UTTERANCE_ENDED', utteranceId }); resolve(false); }, 120000);
-        const finish = (played:boolean) => { clearTimeout(timer); dispatchGuardianSpeech({ type: 'TASK_COMPLETED', taskId }); dispatchGuardianSpeech({ type: 'UTTERANCE_ENDED', utteranceId }); resolve(played && requestId === speechRequest.current); };
-        Speech.speak(text.slice(0,2000), {language:'en-GB',voice:installed?.identifier,rate:0.95,volume:settingsRef.current.volume,onDone:()=>finish(true),onStopped:()=>finish(false),onError:()=>{setVoiceNotice('Speech could not play. The message remains in your inbox.');finish(false);}});
+        let settled = false;
+        const finish = (played: boolean) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          if (requestId === speechRequest.current) {
+            dispatchGuardianSpeech({ type: 'TASK_COMPLETED', taskId });
+            dispatchGuardianSpeech({ type: 'UTTERANCE_ENDED', utteranceId });
+          }
+          resolve(played && requestId === speechRequest.current);
+        };
+        const timer = setTimeout(() => { if (requestId === speechRequest.current) void Speech.stop(); finish(false); }, 120000);
+        Speech.speak(text.slice(0,2000), {language:'en-GB',voice:installed?.identifier,rate:0.95,volume:settingsRef.current.volume,onDone:()=>finish(true),onStopped:()=>finish(false),onError:()=>{if (requestId === speechRequest.current) setVoiceNotice('Speech could not play. The message remains in your inbox.');finish(false);}});
       });
     }
   }, [api]);
