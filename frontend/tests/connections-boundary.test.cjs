@@ -35,3 +35,13 @@ test('Guardian greeting consent cannot silently override mute or voice preferenc
   assert.doesNotMatch(guardian, /if\(value\)audio\.update\(\{master:true,voice:true\}\)/);
   assert.match(guardian, /Enabling greetings never overrides your master audio/);
 });
+
+test('Hub welcome preference is account scoped and never reads the shared legacy key', () => {
+  const hub = fs.readFileSync(path.join(__dirname, '..', 'components', 'staarwardd', 'world-hub.tsx'), 'utf8');
+  assert.match(hub, /accountStorageKey\('staarwardd\.guardian\.proactive-greeting\.v2', user\.user_id\)/);
+  assert.match(hub, /!user\.is_demo/);
+  assert.match(hub, /AsyncStorage\.getItem\(greetingKey\)/);
+  assert.match(hub, /AsyncStorage\.setItem\(greetingKey/);
+  assert.match(hub, /disabled=\{!greetingKey \|\| !preferenceReady\}/);
+  assert.doesNotMatch(hub, /AsyncStorage\.(getItem|setItem)\('staarwardd\.guardian\.proactive-greeting\.v1'/);
+});
