@@ -13,6 +13,7 @@ import { VoiceInput } from '@/components/staarwardd/voice-input';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
 import { conversationKey, rememberConversation, type ConversationSessions } from '@/lib/staarwardd/conversation-session';
 
+const MAX_CHAT_CHARS = 4000;
 const COMPANION_NAMES: Record<string, string> = { guardian: 'Guardian', kaia: 'Kaia', atlas: 'Atlas' };
 
 type Msg = { role: 'user' | 'assistant'; text: string };
@@ -109,6 +110,7 @@ export default function Chat() {
   const send = async (text?: string, retry = false) => {
     const message = (text ?? input).trim();
     if (!message || pending.current || !historyReady || listening) return;
+    if (message.length > MAX_CHAT_CHARS) { setNotice('Message is too long. Limit: 4,000 characters.'); return; }
     pending.current = true;
     setRetryMessage(null);
     setNotice('');
@@ -215,6 +217,7 @@ export default function Chat() {
             style={styles.input}
             value={input}
             onChangeText={setInput}
+            maxLength={MAX_CHAT_CHARS}
             placeholder={`Message ${companion}…`}
             placeholderTextColor="rgba(255,255,255,0.35)"
             onSubmitEditing={() => send()}
