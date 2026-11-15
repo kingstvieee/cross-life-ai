@@ -23,6 +23,8 @@ export function WorldScene({ world, variant = 'realm', onAction }: { world: stri
       setSupportMultipleWindows={false} mediaPlaybackRequiresUserAction
       onShouldStartLoadWithRequest={request => request.url === 'about:blank' || request.url.startsWith('data:text/html')}
       onError={() => setLoadFailed(true)}
+      onRenderProcessGone={() => setLoadFailed(true)}
+      onContentProcessDidTerminate={() => setLoadFailed(true)}
       onMessage={event => { try { const action = sceneAction(JSON.parse(event.nativeEvent.data), world); if (action) onAction(action); } catch { /* Invalid renderer messages are ignored. */ } }}
       style={{ backgroundColor: '#030713' }} />
   </View>;
