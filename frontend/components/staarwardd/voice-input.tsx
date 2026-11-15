@@ -16,6 +16,8 @@ export function VoiceInput({ onTranscript, disabled, onListening }: { onTranscri
   const [sessionEnabled, setSessionEnabled] = useState(true);
   const sessionEnabledRef = useRef(true);
   const foregroundRef = useRef(AppState.currentState === 'active');
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
   useEffect(() => { onListening?.(phase !== 'idle'); }, [phase, onListening]);
   useEffect(() => () => { onListening?.(false); }, [onListening]);
   const generation = useRef(0);
@@ -44,13 +46,13 @@ export function VoiceInput({ onTranscript, disabled, onListening }: { onTranscri
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
       foregroundRef.current = state === 'active';
-      if (state !== 'active' && (active.current || preparing.current || phase === 'transcribing')) {
+      if (state !== 'active' && (active.current || preparing.current || phaseRef.current === 'transcribing')) {
         void discard(); setPhase('idle'); setNotice('Microphone stopped when the app left the foreground.');
       }
     });
     return () => { sub.remove(); void discard(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recorder, phase]);
+  }, [recorder]);
   async function finish() {
     if (!active.current) return;
     active.current = false;
