@@ -77,3 +77,15 @@ test('browser iframe failures preserve safe navigation without tool execution', 
     }
   }
 });
+
+test('native and web previews retry only on explicit user interaction', () => {
+  const native = fs.readFileSync(path.join('components', 'staarwardd', 'world-scene.tsx'), 'utf8');
+  const web = fs.readFileSync(path.join('components', 'staarwardd', 'world-scene.web.tsx'), 'utf8');
+  for (const source of [native, web]) {
+    assert.match(source, /Retry 3D preview/);
+    assert.match(source, /setRetryCount\(count => count \+ 1\)/);
+    assert.doesNotMatch(source, /setInterval\(/);
+  }
+  assert.match(native, /setLoadFailed\(false\)/);
+  assert.match(web, /setFailedScene\(null\)/);
+});
