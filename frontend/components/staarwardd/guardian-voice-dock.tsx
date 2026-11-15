@@ -12,14 +12,16 @@ export function GuardianVoiceDock() {
   const pathname = usePathname();
   if (!user || pathname === '/chat' || pathname.startsWith('/auth')) return null;
   const audible = audio.master && audio.voice && !audio.speechQuiet;
+  const speaking = audio.speechPhase === 'speaking';
   const name = user.companion === 'kaia' ? 'Kaia' : user.companion === 'atlas' ? 'Atlas' : 'Guardian';
   return <View pointerEvents="box-none" style={s.layer}>
     <View style={s.dock}>
-      <View style={s.identity}><View style={[s.dot, !audible && s.off]} /><Text style={s.name}>{name}</Text><Text style={s.status}>{audible ? 'VOICE READY' : 'SILENT'}</Text></View>
+      <View style={s.identity}><View style={[s.dot, !audible && s.off]} /><Text style={s.name}>{name}</Text><Text style={s.status}>{speaking ? 'SPEAKING' : audible ? 'VOICE READY' : 'SILENT'}</Text></View>
       <Pressable accessibilityRole="button" accessibilityLabel={audible ? 'Mute Guardian everywhere' : 'Enable Guardian voice everywhere'} onPress={() => {
         if (audible) audio.setSpeechQuiet(true);
         else { audio.update({ master: true, voice: true }); audio.setSpeechQuiet(false); }
       }} style={s.action}><Ionicons name={audible ? 'volume-high-outline' : 'volume-mute-outline'} size={21} color="#E9EDF2" /></Pressable>
+      {speaking && <Pressable accessibilityRole="button" accessibilityLabel="Stop Guardian speech" onPress={audio.stopSpeech} style={s.action}><Ionicons name="stop-circle-outline" size={21} color="#E9EDF2" /></Pressable>}
       <Pressable accessibilityRole="button" accessibilityLabel="Open Guardian conversation" onPress={() => router.push('/chat')} style={s.action}><Ionicons name="chatbubble-ellipses-outline" size={21} color="#E9EDF2" /></Pressable>
     </View>
   </View>;
