@@ -37,3 +37,8 @@ test('revoked calendar credentials never remain visually connected', () => {
   assert.match(code, /catch \(error\) \{ await load\(\); throw error; \}/);
   assert.match(code, /Calendar access verified on connection/);
 });
+
+test('calendar connection status refreshes after foreground and hides stale connected badges',()=>{
+ assert.match(code,/if \(s !== 'active'\) \{ controller\.current\?\.abort\(\); generation\.current\+\+; setProviders\(\[\]\)/);
+ assert.match(code,/\} else \{ void load\(\); \}/);
+});
