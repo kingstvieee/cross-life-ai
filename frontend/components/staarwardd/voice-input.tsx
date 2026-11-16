@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AppState, Platform, Pressable, Text, View } from 'react-native';
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio';
 import { File } from 'expo-file-system';
@@ -10,7 +10,6 @@ export function VoiceInput({ onTranscript, disabled, onListening }: { onTranscri
   const { api, user } = useAuth();
   const account = user && !user.is_demo ? user.user_id : null;
   const accountRef = useRef(account);
-  accountRef.current = account;
   const previousAccount = useRef(account);
   const capturedAccount = useRef<string | null>(null);
   const audio = useStaarAudio();
@@ -22,7 +21,6 @@ export function VoiceInput({ onTranscript, disabled, onListening }: { onTranscri
   const sessionEnabledRef = useRef(true);
   const foregroundRef = useRef(AppState.currentState === 'active');
   const phaseRef = useRef(phase);
-  phaseRef.current = phase;
   useEffect(() => { onListening?.(phase !== 'idle'); }, [phase, onListening]);
   useEffect(() => () => { onListening?.(false); }, [onListening]);
   const generation = useRef(0);
@@ -32,7 +30,13 @@ export function VoiceInput({ onTranscript, disabled, onListening }: { onTranscri
   const locked = useRef(false);
   const preparing = useRef(false);
   const disabledRef = useRef(disabled);
-  disabledRef.current = disabled;
+  // Publish only committed values; interrupted React renders cannot change
+  // the ownership or cancellation state of an active recorder.
+  useLayoutEffect(() => {
+    accountRef.current = account;
+    phaseRef.current = phase;
+    disabledRef.current = disabled;
+  }, [account, phase, disabled]);
   async function discard() {
     generation.current++; controller.current?.abort();
     controller.current = null;

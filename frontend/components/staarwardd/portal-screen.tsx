@@ -58,8 +58,9 @@ export function PortalScreen({ portalId }: { portalId: PortalId }) {
   const [activityOpen, setActivityOpen] = useState(false);
   const { record } = useGuardianActivity();
   const audio = useStaarAudio();
+  const speak = audio.speak;
   const { memory } = usePreferenceMemory();
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const introSpoken = useRef<string | null>(null);
   const experience = PORTAL_EXPERIENCES[portalId];
 
@@ -79,10 +80,10 @@ export function PortalScreen({ portalId }: { portalId: PortalId }) {
       introSpoken.current = key;
       const visit = notePortalVisit(portalId);
       const remembered = visit > 1 ? memoryHighlightLine(memory, portalId, portal.name) : null;
-      void audio.speak(remembered || experience.guardianLine);
+      void speak(remembered || experience.guardianLine);
     }, 700);
     return () => clearTimeout(timer);
-  }, [portalId, portal.name, user?.user_id, audio.master, audio.voice, audio.speechQuiet, audio.speak, memory, experience.guardianLine, voiceOpen]);
+  }, [portalId, portal.name, user?.user_id, audio.master, audio.voice, audio.speechQuiet, speak, memory, experience.guardianLine, voiceOpen]);
 
   const tasks = useMemo(() => plan[horizon], [horizon, plan]);
   const submitCommand = (value?: string) => {

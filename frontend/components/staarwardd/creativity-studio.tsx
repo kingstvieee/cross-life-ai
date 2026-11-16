@@ -1,5 +1,5 @@
 import { glow } from "@/lib/staarwardd/shadow";
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { haptic } from "@/lib/staarwardd/haptics";
@@ -7,7 +7,7 @@ import { haptic } from "@/lib/staarwardd/haptics";
 const PROMPTS = ["How are you feeling?", "What’s inspiring you right now?", "What are we making?", "Want to make something weird?", "What idea keeps coming back?"];
 
 export function CreativityStudio({ value, onChange, onSubmit, onVoice }: { value: string; onChange: (value: string) => void; onSubmit: (value?: string) => void; onVoice: () => void }) {
-  const spark = useRef(new Animated.Value(0)).current;
+  const [spark] = useState(() => new Animated.Value(0));
   useEffect(() => { const motion = Animated.loop(Animated.sequence([Animated.timing(spark, { toValue: 1, duration: 1600, useNativeDriver: true }), Animated.timing(spark, { toValue: 0, duration: 1600, useNativeDriver: true })])); motion.start(); return () => motion.stop(); }, [spark]);
   const scale = spark.interpolate({ inputRange: [0, 1], outputRange: [0.74, 1.34] });
   const rotate = spark.interpolate({ inputRange: [0, 1], outputRange: ["-14deg", "18deg"] });
