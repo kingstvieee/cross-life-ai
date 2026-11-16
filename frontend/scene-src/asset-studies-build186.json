@@ -7,103 +7,123 @@
   "worldStudies": [
     {
       "key": "home-residence",
-      "sha256": "ff11af963c656628e830895913aa5fcfb7e2ad1242852bcc2f2ed489a08dbe0b",
+      "sha256": "4a6a3e069065e67fc9ab5d09fde75a63155523cb87f075c2e2525af407993fd7",
       "meshCount": 80,
       "triangleCount": 4720,
       "founderVisualApproved": false,
       "deviceCaptureVerified": false,
       "animationVerified": false,
-      "navigationVerified": false
+      "navigationVerified": false,
+      "gltfAnimationCount": 1,
+      "animatedNodeCount": 5
     },
     {
       "key": "work-command",
-      "sha256": "d04d6bfa316c964f1f1363a1e6cf1854ee4b741f02cb3fd9f73b09fa092d3969",
+      "sha256": "6d9b9215498455fc3dc39a4e7b63749ac360de636453a27a87845ae250340db3",
       "meshCount": 91,
       "triangleCount": 6872,
       "founderVisualApproved": false,
       "deviceCaptureVerified": false,
       "animationVerified": false,
-      "navigationVerified": false
+      "navigationVerified": false,
+      "gltfAnimationCount": 1,
+      "animatedNodeCount": 5
     },
     {
       "key": "creativity-dream",
-      "sha256": "b25530129310f689a26de72885c917bc5583db3ac88db578db11d19db4ee4b22",
+      "sha256": "f3f6dba466d7e4969dd22b9d1ded559066087f1c930efea18ab93e8a15b77cd9",
       "meshCount": 66,
       "triangleCount": 17224,
       "founderVisualApproved": false,
       "deviceCaptureVerified": false,
       "animationVerified": false,
-      "navigationVerified": false
+      "navigationVerified": false,
+      "gltfAnimationCount": 1,
+      "animatedNodeCount": 5
     },
     {
       "key": "wellbeing-health",
-      "sha256": "6eb0047a538e45728f04bd5648721e48e2d2ed1b7217a05e9cfaaeef6991899f",
+      "sha256": "d2e68f57ab94e48cb1cf5b07d81bcf3c0351b170d6a230e61660637a58a8b98e",
       "meshCount": 70,
       "triangleCount": 2136,
       "founderVisualApproved": false,
       "deviceCaptureVerified": false,
       "animationVerified": false,
-      "navigationVerified": false
+      "navigationVerified": false,
+      "gltfAnimationCount": 1,
+      "animatedNodeCount": 3
     },
     {
       "key": "relationships-realm",
-      "sha256": "4fff7a90fe5cf545618b95670fb6e51b0d726f5f80519e07b4a1ef060cacf85d",
+      "sha256": "64b1ad57e5bbe09ccf4ed9e6d2959b6665a88b54c534e0e733b4c68040a01b73",
       "meshCount": 41,
       "triangleCount": 11064,
       "founderVisualApproved": false,
       "deviceCaptureVerified": false,
       "animationVerified": false,
-      "navigationVerified": false
+      "navigationVerified": false,
+      "gltfAnimationCount": 1,
+      "animatedNodeCount": 5
     },
     {
       "key": "relationships-singles",
-      "sha256": "6b85223f780c5d03c971c7753e50bf69aaefa8c095098f35b35d91527adcaf42",
+      "sha256": "3fd0b2d04d8415cbae11a039eed315f0d93c70d3e102675139c58481a40b6735",
       "meshCount": 93,
       "triangleCount": 8024,
       "founderVisualApproved": false,
       "deviceCaptureVerified": false,
       "animationVerified": false,
-      "navigationVerified": false
+      "navigationVerified": false,
+      "gltfAnimationCount": 1,
+      "animatedNodeCount": 5
     },
     {
       "key": "events-village",
-      "sha256": "588d3d4a6363f9b3cbed51188736c77e9b82e8ddb8295035f3d3d9e546ff9f1f",
+      "sha256": "b6f9c04559bfb80adf38d245ff16c397170b033126bad5944a7568e8b5567fd1",
       "meshCount": 72,
       "triangleCount": 2764,
       "founderVisualApproved": false,
       "deviceCaptureVerified": false,
       "animationVerified": false,
-      "navigationVerified": false
+      "navigationVerified": false,
+      "gltfAnimationCount": 1,
+      "animatedNodeCount": 5
     },
     {
       "key": "style-closet",
-      "sha256": "ed96dca8246c3762860cda6275ff3d442e12c7ad73e8454da04af0d92c4a4250",
+      "sha256": "64070b6841eb4d6a1127b96129a745ca7e73352c5a8032f8f153db32ce091f55",
       "meshCount": 84,
       "triangleCount": 6200,
       "founderVisualApproved": false,
       "deviceCaptureVerified": false,
       "animationVerified": false,
-      "navigationVerified": false
+      "navigationVerified": false,
+      "gltfAnimationCount": 1,
+      "animatedNodeCount": 5
     },
     {
       "key": "staarverse-universe",
-      "sha256": "edc25ce221937ba0b2b03840d48be245b688f0e83efc7d7bfb4a6f8989e9952e",
+      "sha256": "936e008800fc0a1d5e994d05daf806119f25aa26caf69765fc57dcb554367077",
       "meshCount": 84,
       "triangleCount": 8420,
       "founderVisualApproved": false,
       "deviceCaptureVerified": false,
       "animationVerified": false,
-      "navigationVerified": false
+      "navigationVerified": false,
+      "gltfAnimationCount": 1,
+      "animatedNodeCount": 5
     },
     {
       "key": "staarsonic-studio",
-      "sha256": "a82693070fb440e13c283d3096888f77b75e338479b5f2c49fcba39c08bbf19e",
+      "sha256": "93a42e0bc1c4bd86d7ea8cc245db1d9b49e4528575d4d57791edb872c3781fa7",
       "meshCount": 98,
       "triangleCount": 10320,
       "founderVisualApproved": false,
       "deviceCaptureVerified": false,
       "animationVerified": false,
-      "navigationVerified": false
+      "navigationVerified": false,
+      "gltfAnimationCount": 1,
+      "animatedNodeCount": 5
     }
   ],
   "guardianStudy": {
@@ -141,6 +161,7 @@
     "All GLB bytes are valid self-contained glTF 2.0 and SHA-256 verified in the conversation artifacts; binary is not yet in the git repository.",
     "Guardian has a photo-projected front face and demonstration animation. It is not identity-calibrated three-quarter/profile, and is not a production rig.",
     "The locked standalone audio master remains inaccessible; neither pack modifies the approved startup film.",
-    "NO receipt may be marked approved without genuine founder, rights, and physical-device evidence."
+    "NO receipt may be marked approved without genuine founder, rights, and physical-device evidence.",
+    "Each world study now includes one verified, embedded 4-second glTF animation with 3–5 animated nodes. Asset hashes changed; all study acceptance flags remain false."
   ]
 }
