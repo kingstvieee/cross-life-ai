@@ -212,6 +212,7 @@ export default function Chat() {
         {busy && <Pressable accessibilityRole="button" accessibilityLabel="Cancel pending Guardian reply" onPress={() => { const cancelledMessage = pendingMessage.current; requestGeneration.current++; requestAbort.current?.abort(); requestAbort.current = null; pendingMessage.current = null; pending.current = false; setBusy(false); if (cancelledMessage) setRetryMessage(cancelledMessage); setNotice('Reply cancelled. You can retry the message or send another.'); }} style={{ paddingHorizontal: 20, paddingVertical: 8 }}><Text style={{ color: '#F1DFA7' }}>Cancel pending reply</Text></Pressable>}
         {voiceIntent === 'microphone' && <Text accessibilityRole="text" style={{ color: '#F1DFA7', paddingHorizontal: 20, paddingTop: 8, fontSize: 12 }}>Microphone ready. Tap Speak below to begin recording; nothing is recorded automatically.</Text>}
         <VoiceInput onListening={setListening} onTranscript={setInput} disabled={busy || !historyReady} />
+        <Text accessibilityRole="text" accessibilityLabel={`Message length ${input.length} of ${MAX_CHAT_CHARS} characters`} style={{ color: input.length >= MAX_CHAT_CHARS ? "#F1DFA7" : "#8D98A6", fontSize: 11, textAlign: "right", paddingHorizontal: 22, paddingTop: 5 }}>{input.length.toLocaleString()} / {MAX_CHAT_CHARS.toLocaleString()}</Text>
         <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <TextInput
             style={styles.input}
