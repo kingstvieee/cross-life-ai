@@ -1,5 +1,6 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { backendUrl } from './backend-config';
+import { transitionGuardianPlayback } from './guardian-playback-state';
 
 export type SpeechState = 'idle' | 'loading' | 'speaking' | 'failed';
 let state: SpeechState = 'idle';
@@ -37,20 +38,20 @@ export async function playServerSpeech(fetchLine: (signal: AbortSignal) => Promi
     player = active; active.volume = options.volume ?? 0.8;
     await new Promise<void>((resolve, reject) => {
       cancelled = resolve;
-      let started = false;
-      let currentlyPlaying = false;
-      const loadingTimer = setTimeout(() => { if (!started) reject(new Error('Voice playback did not start.')); }, 20000);
+      let playback = { started: false, playing: false };
+      const loadingTimer = setTimeout(() => { if (!playback.started) reject(new Error('Voice playback did not start.')); }, 20000);
       const maximumTimer = setTimeout(() => reject(new Error('Voice playback timed out.')), 240000);
       const subscription = active.addListener('playbackStatusUpdate', status => {
         if (current !== generation) return;
-        if (status.error) { if (currentlyPlaying) options.onPlaybackChange?.(false); reject(new Error('Voice playback failed.')); return; }
-        if (status.didJustFinish) { if (currentlyPlaying) options.onPlaybackChange?.(false); options.onDone?.(); resolve(); return; }
-        if (status.playing && !started) { started = true; clearTimeout(loadingTimer); options.onStart?.(); }
-        if (started && status.playing !== currentlyPlaying) {
-          currentlyPlaying = status.playing;
-          publish(currentlyPlaying ? 'speaking' : 'loading');
-          options.onPlaybackChange?.(currentlyPlaying);
+        const transition = transitionGuardianPlayback(playback, status);
+        playback = transition.state;
+        if (transition.startedNow) { clearTimeout(loadingTimer); options.onStart?.(); }
+        if (transition.changed) {
+          publish(playback.playing ? 'speaking' : 'loading');
+          options.onPlaybackChange?.(playback.playing);
         }
+        if (status.error) { reject(new Error('Voice playback failed.')); return; }
+        if (status.didJustFinish) { options.onDone?.(); resolve(); return; }
       });
       cleanup = () => { clearTimeout(loadingTimer); clearTimeout(maximumTimer); subscription.remove(); };
       active.play();
