@@ -24,6 +24,7 @@ from companion_speech import MODEL as COMPANION_SPEECH_MODEL, PROFILES as SPEECH
 from style_swap_routes import build_style_swap_router
 from identity_routes import SESSION_COOKIE, app_origin, build_identity_router, ensure_identity_indexes
 from provider_connections import build_provider_router
+from guardian_alignment_routes import build_alignment_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -739,13 +740,16 @@ async def coordinate_morning(body: CoordinateIn, authorization: Optional[str] = 
 
 
 # ============================================================
-# GUARDIAN VOICE (OpenAI TTS via Emergent key)
+# GUARDIAN VOICE (direct server-owned transport or selected legacy relay)
 # ============================================================
 _tts_client = None
 
 
 def _tts():
     global _tts_client
+    from guardian_speech import DirectNarration, speech_provider
+    if speech_provider() == 'openai':
+        return DirectNarration()
     if _tts_client is None:
         from emergentintegrations.llm.openai import OpenAITextToSpeech
         _tts_client = OpenAITextToSpeech(api_key=EMERGENT_LLM_KEY)
@@ -1181,6 +1185,7 @@ install_guardian_core(app, db=db, get_current_user=get_current_user)
 app.include_router(build_style_swap_router(get_current_user=get_current_user, rate_limit=rate_limit), prefix="/api")
 app.include_router(build_identity_router(db=db, limiter=rate_limit), prefix="/api")
 app.include_router(build_provider_router(db=db, require_account_user=require_account_user, limiter=rate_limit), prefix="/api")
+app.include_router(build_alignment_router(db, require_account_user, rate_limit), prefix="/api")
 app.include_router(api_router)
 
 @app.middleware("http")

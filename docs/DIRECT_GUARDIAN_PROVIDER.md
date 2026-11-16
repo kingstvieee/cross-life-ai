@@ -21,8 +21,12 @@ Provider response bodies and credentials are not included in client errors.
 
 The relay imports are deferred: the direct chat and companion-speech paths do
 not require loading Emergent's chat/TTS SDK at server import. Legacy general
-Guardian TTS endpoints still use their existing relay; this change does not
-migrate those endpoints or replace companion speech with Realtime.
+Guardian narration now also selects the direct transport when `OPENAI_API_KEY`
+is configured. `GUARDIAN_SPEECH_PROVIDER=openai` forces direct narration;
+`emergent` explicitly retains the legacy relay. Its existing `tts-1`/Onyx/MP3
+identity and private cache semantics are preserved. Direct narration has a
+45-second whole-request deadline, no retries, redirects or failure failover.
+This does not replace companion speech with Realtime.
 
 ## Validation
 
