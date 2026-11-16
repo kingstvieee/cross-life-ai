@@ -1,6 +1,7 @@
 import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { worldIds, worldNames, fallbackActions } from './navigation.js';
 
 const ids = worldIds;
@@ -105,11 +106,37 @@ if (renderer) {
   function shell(day=false) {floor(13,day?white:black);skyline(day);for(let i=-3;i<=3;i++){cylinder(i*3.6,3.6,-8,.13,7.2);box(i*3.6,3.6,-8,.04,7.2,.3,gold);}for(const r of[5.5,6,6.5]){ring(0,7.6,-1,r,.1,chrome,true);ring(0,7.49,-1,r-.15,.025,day?amber:blue,true);}for(const x of[-10,10]){tree(x,-5);tree(x,2);}}
   function sofa(x,z,a=0,mat=white) {const g=new T.Group();g.position.set(x,0,z);g.rotation.y=a;scene.add(g);box(0,.5,0,3.7,.55,1.25,mat,g);box(0,1.1,-.56,3.7,.9,.25,mat,g);for(const side of[-1,1])box(side*1.9,.85,0,.25,.8,1.4,mat,g);for(let i=-1;i<=1;i++)box(i*1.15,.82,.02,1.06,.12,1.05,mat,g);for(const x of[-1.5,1.5])for(const z of[-.4,.4])cylinder(x,.13,z,.06,.28,gold,g);return g;}
   function island(x,y,z,r=2,mat=green) {mesh(new T.ConeGeometry(r,r*1.6,7),black,x,y-r*.8,z);cylinder(x,y+.02,z,r,.15,mat);waterfall(x+r*.4,y-1.7,z+r*.6,3.5);}
+  function approvedArmoredGuardian() {
+    // The binary is bundled offline ONLY after build-time face/armour/signoff verification.
+    // Without that file, the original Guardian remains the sole visible identity.
+    const asset=window.STAAR_APPROVED_GUARDIAN_MODEL;
+    if (!asset?.glbBase64 || asset.sourceImageSha256!=='d7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c') return;
+    try {
+      const decoded=atob(asset.glbBase64);
+      const bytes=new Uint8Array(decoded.length);
+      for(let i=0;i<decoded.length;i++)bytes[i]=decoded.charCodeAt(i);
+      new GLTFLoader().parse(bytes.buffer,'',model=>{
+        if(!model?.scene)return;
+        const guardian=model.scene;
+        const bounds=new T.Box3().setFromObject(guardian);
+        const dimensions=bounds.getSize(new T.Vector3());
+        if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000)return;
+        const scale=Math.min(3.65/dimensions.y,4.5/Math.max(dimensions.x,dimensions.z,.1));
+        guardian.scale.setScalar(scale);
+        // Centre approved full armour above the existing Guardian plinth, never crop the emblem.
+        const centre=bounds.getCenter(new T.Vector3());
+        guardian.position.set(-centre.x*scale,.6-bounds.min.y*scale,1.5-centre.z*scale);
+        scene.add(guardian);
+        requestDraw();
+      },()=>{/* Never display guessed or partial face geometry on load failure. */});
+    } catch { /* The locked Guardian artwork remains the fallback. */ }
+  }
   function hub() {
     floor(15);stars();skyline();plinth(0,1.5,3);
     for(const r of[2,2.4,2.8])ring(0,3+(r-2)*2,1.5,r,.022,r<2.5?blue:amber,true);
     for(const x of[-11.5,11.5]){plinth(x,1,1,amber);diamond(x,1.7,1,.8);}
     ids.forEach((id,i)=>{const a=(i-4)*.31,x=Math.sin(a)*11,z=-Math.cos(a)*8,g=arch(x,z,1.55,i%2?blue:amber);g.rotation.y=-a;sphere(0,2.6,-.1,.65,[blue,amber,violet][i%3],g).scale.z=.45;box(0,.55,.1,2.65,.85,.2,black,g);text(names[i],0,.6,.23,2.5,g);g.userData={action:'world:'+id,label:names[i]};clickable.push(g);cylinder(x,.12,z,1.8,.24);});
+    approvedArmoredGuardian();
     text('STAARWARDD',0,7.1,-9,10);text('PORTAL HUB',0,6.3,-9,5);camera.position.set(0,6,19);controls.target.set(0,2.5,-2);
   }
   function home() {shell();for(const r of[1.8,2.05,2.3])ring(0,2.6,-5,r,.12);ring(0,2.6,-4.85,2.05,.03,amber);sofa(-3,1,.2);sofa(2.2,-1.8,-.4);cylinder(-.6,.55,1.7,1.35,.15,black);cylinder(-.6,.28,1.7,.32,.5,gold);sphere(3.8,1.8,1,.5,blue);ring(3.8,1.8,1,.8,.025,blue);panel('Smart controls','connections',-4,2.7,-2);panel('Rooms & routines','conversation:0',3.8,2.7,-3);panel('Daily check-in','checkins',0,.9,4,amber);}

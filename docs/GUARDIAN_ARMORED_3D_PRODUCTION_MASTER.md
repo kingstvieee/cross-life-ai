@@ -49,3 +49,30 @@ The approved nine world designs remain as enumerated in `docs/LOCKED_PORTAL_REGI
 **Committed paid third-party generation in this 3D production handoff: CAD $0.** A 3D conversion UI was opened; no charged conversion or purchase was submitted by the assistant. Before any paid render, obtain a specific provider quote in CAD, expected credits, source ownership/licensing and maximum approved cap.
 
 **Do not certify final rig complete until actual models, evidence and signature exist.**
+
+
+## Build 174 — verified runtime GLB delivery
+The offline scene compiler now supports a founder-approved production model. To install it, the two **separate, actually existing** files must be supplied together under `frontend/scene-src/assets/`:
+- `guardian-armored-rig.glb` — glTF 2.0 embedded binary, with a skinned mesh and all 16 named facial targets on the same mesh.
+- `guardian-armor-asset-receipt.json` — signed-off review data matching exact binary SHA-256 and the already locked reference fingerprint.
+
+Required receipt JSON fields (replace placeholders **only after actual acceptance**, never submit a fabricated review):
+```json
+{
+  "schema": "staar-armored-guardian-v1",
+  "sourceImageSha256": "d7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c",
+  "rigModelSha256": "REPLACE_WITH_REAL_SHA256",
+  "identityAssetId": "guardian-armored-v1-approved",
+  "founderApprovedRig": false,
+  "faceFidelityReviewed": false,
+  "armorFidelityReviewed": false,
+  "frontThreeQuarterProfileReviewed": false,
+  "speechSyncDeviceVerified": false,
+  "exportRightsConfirmed": false
+}
+```
+The sample is intentionally **not deployable**. A completed receipt requires real founder sign-off and rights documentation; true review cannot be proven by a self-asserted JSON field alone.
+
+Build-time security: if both files are absent, keep the already locked Guardian image and normal portal previews. If just one is present, fail the build. If either has a bad hash, wrong identity, external asset references, unsupported compression, no embedded geometry or missing skinned facial targets, fail the build. If validated, the compiler embeds the approved GLB inside the offline WebGL runtime and loads it only in the central Hub; the locked startup film never changes.
+
+Performance note: embedding a large GLB adds approximately 4/3 its binary size to the generated HTML before JavaScript bundling. Actual iPhone memory, frame timing, animation mapping and sustained temperature must be measured before this production path can be called accepted.
