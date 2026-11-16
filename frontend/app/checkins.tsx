@@ -57,6 +57,7 @@ export default function Checkins() {
   }, [account, api]);
   useEffect(() => { void refresh(); const sub = AppState.addEventListener('change', state => { if (state === 'active') void refresh(); }); return () => { verificationEpoch.current += 1; sub.remove(); }; }, [refresh]);
   async function save() {
+    const startingEpoch = verificationEpoch.current;
     setBusy(true); setNotice('');
     try {
       if (!serverConsentReady) throw new Error('Guardian check-in consent has not been verified.');
@@ -68,6 +69,14 @@ export default function Checkins() {
         if (!response.ok) throw new Error('Guardian could not enable check-in consent.');
         setServerCheckinConsent(true);
         await bindCheckinAccount(account);
+      }
+      // Re-check consent immediately before asking iOS to schedule a recurring background alert.
+      const recheck = await api('/api/guardian/life-map/overview');
+      if (!recheck.ok) throw new Error('Guardian permission could not be reverified.');
+      const latest = await recheck.json();
+      if (startingEpoch !== verificationEpoch.current || latest.privateMode === true || latest.consent?.checkIns !== true) {
+        await bindCheckinAccount('');
+        throw new Error('Guardian check-in permission changed. No reminder was scheduled.');
       }
       const next = await scheduleCheckin(account, Number(hour), Number(minute)); setStatus(next);
       setNotice(next.scheduled ? 'Daily check-in registered with this device. Focus and notification settings can affect delivery.' : 'Notifications are not enabled. Allow them in iPhone or iPad Settings to schedule a check-in.');
