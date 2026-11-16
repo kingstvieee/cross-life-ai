@@ -6,7 +6,10 @@ const guardian=readFileSync(new URL('../app/guardian-tools.tsx',import.meta.url)
 const native=readFileSync(new URL('../modules/staar-watch/ios/StaarCheckinsModule.swift',import.meta.url),'utf8');
 test('daily reminders fail closed when account or backend consent is unavailable',()=>{
  assert.match(page,/api\('\/api\/guardian\/life-map\/overview'\)/);
- assert.match(page,/state\.consent\?\.checkIns === true && state\.privateMode !== true/);
+ assert.match(page,/const privateMode = state\.privateMode === true/);
+ assert.match(page,/state\.consent\?\.checkIns === true && !privateMode/);
+ assert.match(page,/if \(serverPrivateMode\) throw new Error/);
+ assert.match(page,/!serverConsentReady \|\| serverPrivateMode/);
  assert.match(page,/bindCheckinAccount\(allowed \? account : ''\)/);
  assert.match(page,/await bindCheckinAccount\(''\)/);
  assert.match(page,/if \(!serverConsentReady\) throw new Error/);
