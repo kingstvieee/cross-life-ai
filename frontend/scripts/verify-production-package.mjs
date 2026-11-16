@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
 import { loadApprovedWorldAssets, REQUIRED_WORLD_ASSETS } from '../scene-src/approved-world-assets.mjs';
 import { verifyReleaseEvidence } from './verify-release-evidence.mjs';
+import { verifyApprovedSoundtrack } from './verify-approved-soundtrack.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const FRONTEND_ROOT = path.resolve(HERE, '..');
@@ -58,6 +59,10 @@ export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFli
       facts.externalEvidence = await verifyReleaseEvidence(root, approvedGuardian, approvedWorlds);
     } catch (err) { fail('independent-evidence', err?.message ?? err); }
   }
+
+  try {
+    facts.approvedAudio = await verifyApprovedSoundtrack(root);
+  } catch (err) { fail('approved-soundtrack', err?.message ?? err); }
 
   try {
     const bytes = await readFile(path.join(root, 'assets/videos/guardian-startup.mp4'));
