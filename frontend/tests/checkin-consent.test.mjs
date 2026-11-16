@@ -35,3 +35,12 @@ test('out-of-order consent responses cannot override a new account or foreground
  assert.match(page,/if \(epoch !== verificationEpoch\.current\) return/);
  assert.match(page,/verificationEpoch\.current \+= 1; sub\.remove\(\)/);
 });
+
+test('native reminder scheduling rechecks fresh server consent and private mode',()=>{
+ const latest=page.indexOf("const recheck = await api('/api/guardian/life-map/overview')");
+ const schedule=page.indexOf("const next = await scheduleCheckin(account");
+ assert.ok(latest>=0 && schedule>latest);
+ assert.match(page,/latest\.privateMode === true \|\| latest\.consent\?\.checkIns !== true/);
+ assert.match(page,/startingEpoch !== verificationEpoch\.current/);
+ assert.match(page,/Guardian check-in permission changed\. No reminder was scheduled/);
+});
