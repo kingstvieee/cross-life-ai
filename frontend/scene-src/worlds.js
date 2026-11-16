@@ -2,6 +2,7 @@ import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createModelMotion, disposeModel } from './model-motion.js';
+import { modelControls, hitControl } from './model-navigation.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { worldIds, worldNames, fallbackActions } from './navigation.js';
 
@@ -59,6 +60,7 @@ if (renderer) {
   controls.minDistance = 3; controls.maxDistance = 28; controls.maxPolarAngle = Math.PI*.48;
   const animated = [], clickable = [], modelMotions = [];
   let disposed = false;
+  let importedControls = [];
   const material = (color,metalness=0,roughness=.4,emissive='#000000',emissiveIntensity=0) => new T.MeshStandardMaterial({color,metalness,roughness,emissive,emissiveIntensity});
   const chrome = material('#c8d4e1',1,.16), gold = material('#cba15b',1,.22), black = material('#090f18',.75,.2), white = material('#f0ede6',.15,.55);
   const blue = material('#56c9ff',.3,.2,'#008aff',2), amber = material('#ffc377',.5,.2,'#ff861c',2), violet = material('#baaeff',.4,.2,'#7930ff',2), ruby = material('#8c1536',.2,.4), green = material('#345d3b',.05,.8);
@@ -237,6 +239,8 @@ if (renderer) {
         // Hide procedural blockouts ONLY if the independently approved full GLB loads.
         for(const item of previewWorldObjects)item.visible=false;
         clickable.length=0;
+        importedControls=modelControls(model,world);
+        clickable.push(...importedControls.map(control=>control.node));
         scene.add(model);
         modelMotions.push(createModelMotion(model,gltf.animations,{reducedMotion:reduced}));
         addNavigationFallback();
@@ -271,7 +275,8 @@ if (renderer) {
   addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);requestDraw();});
   const raycaster=new T.Raycaster();let down=null;
   canvas.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
-  canvas.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>7)return;const r=canvas.getBoundingClientRect();raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);const hit=raycaster.intersectObjects(clickable,true)[0];if(hit){let n=hit.object;while(n&&!n.userData.action)n=n.parent;if(n)report('select',{action:n.userData.action});}});
+  canvas.addEventListener('pointercancel',()=>{down=null;});
+  canvas.addEventListener('pointerup',e=>{const origin=down;down=null;if(!origin||Math.hypot(e.clientX-origin[0],e.clientY-origin[1])>7)return;const r=canvas.getBoundingClientRect();raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);const hit=raycaster.intersectObjects(clickable,true)[0];if(hit){if(importedControls.length){const control=hitControl(hit.object,importedControls);if(control)report('select',{action:control.action});}else{let n=hit.object;while(n&&!n.userData.action)n=n.parent;if(n)report('select',{action:n.userData.action});}}});
   document.querySelector('#reset').addEventListener('click',()=>{controls.reset();requestDraw();});
   document.querySelector('#title').textContent=world==='hub'?'STAARWARDD · PORTAL HUB':(singles?'STAAR Love · Singles':names[ids.indexOf(world)]);
   document.querySelector('#status').textContent='Drag to explore · pinch or scroll to move closer · tap a labelled control';
