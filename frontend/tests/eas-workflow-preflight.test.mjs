@@ -13,8 +13,8 @@ test('EAS build is blocked by verified production package preflight', () => {
   assert.match(workflow, /uses: eas\/checkout/);
   assert.match(workflow, /node scripts\/verify-production-package\.mjs/);
   assert.match(workflow, /build_ios:\s*\n\s*needs: \[preflight\]/);
-  assert.match(workflow, /founder_acceptance:[\\s\\S]*?needs: \\[build_ios\\][\\s\\S]*?type: require-approval/);
-  assert.match(workflow, /submit_ios:[\\s\\S]*?needs: \\[build_ios, founder_acceptance\\]/);
+  assert.match(workflow, /founder_acceptance:[\s\S]*?needs: \[build_ios\][\s\S]*?type: require-approval/);
+  assert.match(workflow, /submit_ios:[\s\S]*?needs: \[build_ios, founder_acceptance\]/);
 });
 
 test('TestFlight candidate is unique build 106 and requires an explicit dispatch', () => {
