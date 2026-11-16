@@ -1,5 +1,5 @@
-import { parseGuardianAudioAlignment } from './guardian-visemes';
-import type { GuardianSpeechClip } from './guardian-speech-clip';
+import { parseGuardianAudioAlignment } from './guardian-visemes.ts';
+import type { GuardianSpeechClip } from './guardian-speech-clip.ts';
 
 /** An opt-in, account-authorized local alignment request.
  * Call only once the approved Guardian rig is ready; this does not run speech TTS.
