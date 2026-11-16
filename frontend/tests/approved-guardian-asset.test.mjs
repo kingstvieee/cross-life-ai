@@ -38,7 +38,7 @@ function model(targetNames=REQUIRED_FACE_TARGETS,{duplicateDeltas=false,emptySpe
   bytes.write('glTF',0);bytes.writeUInt32LE(2,4);bytes.writeUInt32LE(bytes.length,8);
   bytes.writeUInt32LE(json.length,12);bytes.write('JSON',16);json.copy(bytes,20);
   const offset=20+json.length;bytes.writeUInt32LE(bin.length,offset);
-  bytes.write('BIN\\x00',offset+4,'binary');bin.copy(bytes,offset+8);
+  bytes.write('BIN',offset+4,'ascii');bytes.writeUInt8(0,offset+7);bin.copy(bytes,offset+8);
   return bytes;
 }
 function receipt(bytes) {
