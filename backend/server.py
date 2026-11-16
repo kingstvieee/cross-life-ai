@@ -800,7 +800,7 @@ async def _tts_cached_line(text: str, private_user_id: Optional[str] = None, com
     query = {"content_key": content_key, "private_user_id": private_user_id}
     if private_user_id is None:
         query = {"key": content_key, "visibility": "public"}
-    cached = await db.tts_cache.find_one(query, {"_id": 0, "key": 1, "visibility": 1, "expires_at": 1})
+    cached = await db.tts_cache.find_one(query, {"_id": 0, "key": 1, "visibility": 1, "expires_at": 1, "audio": 1})
     stale_private_key = None
     if cached and private_user_id is not None:
         expires_at = cached.get("expires_at")
@@ -831,7 +831,12 @@ async def _tts_cached_line(text: str, private_user_id: Optional[str] = None, com
             await db.tts_cache.update_one({"key": stale_private_key, "private_user_id": private_user_id}, {"$set": cache_doc})
         else:
             await db.tts_cache.insert_one(cache_doc)
-    return {"url": f"/api/tts/{key}.mp3", "text": text}
+    # Bind optional local mouth timing to the exact stored MP3, never to text alone.
+    cached_audio = cached.get("audio") if cached else audio
+    if not isinstance(cached_audio, (bytes, bytearray)) or not cached_audio:
+        raise HTTPException(status_code=502, detail="tts_cache_invalid")
+    return {"url": f"/api/tts/{key}.mp3", "text": text,
+            "audioSha256": hashlib.sha256(cached_audio).hexdigest()}
 
 
 SCORECARD_FONT_BOLD = "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"
