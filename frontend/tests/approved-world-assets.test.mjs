@@ -7,7 +7,7 @@ import path from 'node:path';
 import { WORLD_IDS, WORLD_VARIANTS, REQUIRED_WORLD_ASSETS, validateWorldAsset,loadApprovedWorldAssets } from '../scene-src/approved-world-assets.mjs';
 
 function makeGlb(tag=1) {
- const data={asset:{version:'2.0'},buffers:[{byteLength:12}],meshes:[{primitives:[{attributes:{POSITION:0}}]}],nodes:[{mesh:0}],scenes:[{nodes:[0]}]};
+ const data={asset:{version:'2.0'},buffers:[{byteLength:12}],bufferViews:[{buffer:0,byteLength:12}],accessors:[{bufferView:0,componentType:5126,count:3,type:'VEC3'}],meshes:[{primitives:[{attributes:{POSITION:0}}]}],nodes:[{mesh:0}],scenes:[{nodes:[0]}]};
  data.extras={uniqueProductionWorld:tag};
  const src=Buffer.from(JSON.stringify(data)),pad=Buffer.alloc((4-src.length%4)%4,32),json=Buffer.concat([src,pad]);
  const out=Buffer.alloc(12+8+json.length+8+12);
