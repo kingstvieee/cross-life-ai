@@ -1,11 +1,13 @@
 import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
 import { backendUrl } from './backend-config';
+import { LOGIN_PROVIDER_IDS, type LoginProviderId } from './login-provider-availability';
 
 const REDIRECT = 'frontend://auth-complete';
 
 /** The browser receives a one-use grant, never an account bearer token. */
 export async function nativeLogin(provider: string) {
+  if (!LOGIN_PROVIDER_IDS.includes(provider as LoginProviderId)) throw new Error('Unsupported sign-in provider.');
   const bytes = await Crypto.getRandomBytesAsync(32);
   const verifier = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
   const digest = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, verifier, {
