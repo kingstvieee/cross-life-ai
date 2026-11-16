@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Animated, AppState, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,6 +38,8 @@ export function WorldHub() {
   const [serverPrivate, setServerPrivate] = useState(false);
   const [serverSpeechQuiet, setServerSpeechQuiet] = useState(false);
   const [savingGreeting, setSavingGreeting] = useState(false);
+  const lastBackground = useRef<number | null>(null);
+  const [foregroundEpoch, setForegroundEpoch] = useState(0);
   const [motionReduced, setMotionReduced] = useState(true);
   useEffect(() => {
     let alive = true;
@@ -91,6 +93,20 @@ export function WorldHub() {
     return () => { loop.stop(); arrival.stopAnimation(); };
   }, [arrival, drift, motionReduced]);
   const focused = useRef(false);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => {
+      if (state !== 'active') { if (lastBackground.current === null) lastBackground.current = Date.now(); return; }
+      const awaySince = lastBackground.current;
+      lastBackground.current = null;
+      if (awaySince === null || Date.now() - awaySince < 20 * 60 * 1000) return;
+      const hour = new Date().getHours();
+      // No unsolicited speech during protected morning focus or late-night rest.
+      if (hour < 12 || hour >= 22) return;
+      greeted.current = false;
+      setForegroundEpoch(epoch => epoch + 1);
+    });
+    return () => sub.remove();
+  }, []);
   const greet = useCallback(async () => {
     if (!focused.current) return;
     const epoch = ++voiceEpoch.current;
@@ -105,7 +121,7 @@ export function WorldHub() {
     if (!focused.current || !preferenceReady || !serverConsentReady || !serverGreetingConsent || serverPrivate || serverSpeechQuiet || !greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || greeted.current) return;
     greeted.current = true;
     void greet();
-  }, [preferenceReady, serverConsentReady, serverGreetingConsent, serverPrivate, serverSpeechQuiet, greetingKey, greetingEnabled, audio.master, audio.voice, audio.speechQuiet, greet]);
+  }, [preferenceReady, serverConsentReady, serverGreetingConsent, serverPrivate, serverSpeechQuiet, greetingKey, greetingEnabled, foregroundEpoch, audio.master, audio.voice, audio.speechQuiet, greet]);
   const setGreeting = (enabled: boolean) => {
     if (!greetingKey || !preferenceReady || !serverConsentReady || savingGreeting) return;
     const savedFor = greetingKey;
