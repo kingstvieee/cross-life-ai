@@ -119,7 +119,7 @@ export function WorldHub() {
         <Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian welcome" disabled={guardianSpeaking} onPress={() => { if (guardianSpeaking) return; void greet(); }} style={s.greetButton}><Ionicons name="volume-high-outline" size={18} color="#F1F3F7" /><Text style={s.greetLabel}>{guardianSpeaking ? 'GUARDIAN SPEAKING' : greetingError ? 'RETRY GUARDIAN VOICE' : 'HEAR GUARDIAN'}</Text></Pressable>
         <LinearGradient colors={['#BBC2CB', '#3A414A', '#8B949F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.frame}>
           <BlurView intensity={35} tint="dark" style={s.companion}>
-            <View style={{ flex: 1, gap: 7 }}><Text style={s.panelTitle}>Speak with {companion}</Text><Text style={s.description}>Bring an idea, a question, or a plan.</Text></View>
+            <View style={{ flex: 1, gap: 7 }}><Text style={s.panelTitle}>Speak with {companion}</Text><Text style={s.description}>Ask a question, plan your day or continue a conversation. Voice recording requires a tap.</Text></View>
             <Pressable accessibilityRole="button" accessibilityLabel={`Open conversation with ${companion}`} onPress={() => router.push('/chat')} style={s.primary}><Ionicons name="chatbubble-ellipses-outline" size={23} color="#101317" /></Pressable>
           </BlurView>
         </LinearGradient>
