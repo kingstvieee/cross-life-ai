@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { isProactiveWelcomeTime } from '../src/guardian-greeting-policy.ts';
 
 test('unsolicited Guardian welcome is silent before noon and after ten PM', () => {
-  const at = (h, m = 0) => new Date(2026, 10, 15, h, m);
+  // Toronto is UTC-05 in November; constructor is independent of the CI machine timezone.
+  const at = (h, m = 0) => new Date(`2026-11-15T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00-05:00`);
   for (const h of [0, 3, 8, 11, 22, 23]) assert.equal(isProactiveWelcomeTime(at(h)), false, String(h));
   for (const h of [12, 13, 18, 21]) assert.equal(isProactiveWelcomeTime(at(h)), true, String(h));
   assert.equal(isProactiveWelcomeTime(at(11, 59)), false);
@@ -22,4 +23,11 @@ test('both first-launch and foreground-return automatic greeting paths enforce h
   assert.match(hub, /const greet = useCallback/);
   assert.match(hub, /onPress=\{\(\) => \{ void greet\(\); \}\}/);
   assert.match(hub, /serverPrivate \|\| serverSpeechQuiet/);
+});
+
+test('Toronto quiet hours remain correct during travel and daylight saving time', () => {
+  assert.equal(isProactiveWelcomeTime(new Date('2026-07-01T15:59:00Z')), false); // 11:59 Toronto summer
+  assert.equal(isProactiveWelcomeTime(new Date('2026-07-01T16:00:00Z')), true);
+  assert.equal(isProactiveWelcomeTime(new Date('2026-11-15T17:00:00Z')), true); // noon in winter
+  assert.equal(isProactiveWelcomeTime(new Date('invalid')), false);
 });
