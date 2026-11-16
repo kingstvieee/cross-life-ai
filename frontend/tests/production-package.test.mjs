@@ -26,7 +26,7 @@ test('release preflight reports missing real art and startup film rather than in
   try {
     const result = await inspectProductionPackage(dir);
     assert.equal(result.readyForSignedBuildAttempt, false);
-    assert.deepEqual(result.blockers.map(x => x.id).sort(), ['guardian','startup-film','worlds']);
+    assert.deepEqual(result.blockers.map(x => x.id).sort(), ['approved-soundtrack','guardian','startup-film','worlds']);
     assert.equal(result.facts.iosBuildNumber, '106');
     assert.match(result.caveat, /Apple signature/);
   } finally { await rm(dir, { recursive: true, force: true }); }
