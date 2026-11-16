@@ -28,3 +28,12 @@ test('browser still has muted autoplay and explicit audible activation', () => {
   assert.match(webPlayer, /autoPlay=\{playing\}/);
   assert.match(boundary, /Play with sound/);
 });
+
+test('native cinematic configures foreground sound before playback without microphone or background audio', () => {
+  assert.match(nativePlayer, /import \{ setAudioModeAsync \} from "expo-audio"/);
+  assert.match(nativePlayer, /playsInSilentMode: true/);
+  assert.match(nativePlayer, /shouldPlayInBackground: false/);
+  assert.match(nativePlayer, /allowsRecording: false/);
+  assert.match(nativePlayer, /if \(!audioSessionReady\) return/);
+  assert.ok(nativePlayer.indexOf("if (!audioSessionReady) return") < nativePlayer.lastIndexOf("player.play()"));
+});
