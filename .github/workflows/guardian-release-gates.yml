@@ -46,6 +46,7 @@ jobs:
       - run: node --test tests/startup-film-sound-default.test.mjs
       - run: node --test tests/mainline-reconciliation.test.mjs
       - run: node --test tests/asset-study-register.test.mjs
+      - run: node --test tests/guardian-build190-review.test.mjs
       - run: node --test tests/release-evidence.test.mjs
       - run: yarn exec eslint components/staarwardd/creativity-studio.tsx components/staarwardd/portal-screen.tsx components/staarwardd/voice-input.tsx
       - run: yarn exec tsc --noEmit
