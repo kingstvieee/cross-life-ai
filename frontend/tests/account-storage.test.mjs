@@ -24,7 +24,9 @@ test("Guardian greeting opt-in keys are isolated and legacy global settings are 
   assert.match(source, /setPreferenceReady\(false\)/);
   assert.match(source, /setGreetingEnabled\(false\)/);
   assert.match(source, /if \(alive\) \{ setGreetingEnabled\(value === 'enabled'\); setPreferenceReady\(true\); \}/);
-  assert.match(source, /disabled=\{!greetingKey \|\| !preferenceReady \|\| !serverConsentReady \|\| savingGreeting\}/);
+  assert.match(source, /disabled=\{!greetingKey \|\| !preferenceReady \|\| !serverConsentReady \|\| savingGreeting \|\| serverPrivate \|\| serverSpeechQuiet\}/);
+  assert.match(source, /const greetingActive = greetingEnabled && serverGreetingConsent && !serverPrivate && !serverSpeechQuiet/);
+  assert.match(source, /accessibilityState=\{\{ checked: greetingActive \}\}/);
   assert.match(source, /if \(activeGreetingKey\.current !== savedFor\) return/);
   assert.doesNotMatch(source, /AsyncStorage\.getItem\('staarwardd\.guardian\.proactive-greeting\.v1'\)/);
   assert.doesNotMatch(source, /AsyncStorage\.setItem\('staarwardd\.guardian\.proactive-greeting\.v1'/);
