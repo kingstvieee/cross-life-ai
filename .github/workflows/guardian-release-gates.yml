@@ -1,5 +1,13 @@
 name: Guardian Release Gates
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'hosting/**'
+      - '.github/workflows/guardian-release-gates.yml'
   pull_request:
     paths:
       - 'backend/**'

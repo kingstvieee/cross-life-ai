@@ -25,3 +25,14 @@ test('TestFlight candidate is unique build 106 and requires an explicit dispatch
   assert.match(workflow, /workflow_dispatch:/);
   assert.doesNotMatch(workflow, /\n\s*push:|\n\s*schedule:/);
 });
+
+
+test('Build 207 Guardian release gates rerun on mainline changes, without auto-signing or TestFlight submission', () => {
+  const guardianWorkflow = readFileSync(path.join(frontend, '../.github/workflows/guardian-release-gates.yml'), 'utf8');
+  assert.match(guardianWorkflow, /on:\s*\n\s*push:\s*\n\s*branches:\s*\n\s*- main/);
+  assert.match(guardianWorkflow, /pull_request:/);
+  assert.match(guardianWorkflow, /tests\/build205-recovered-provenance\.test\.mjs/);
+  assert.match(guardianWorkflow, /tests\/approved-guardian-asset\.test\.mjs/);
+  assert.doesNotMatch(guardianWorkflow, /eas build|eas submit|type:\s*testflight/);
+  assert.match(workflow, /type: require-approval/);
+});
