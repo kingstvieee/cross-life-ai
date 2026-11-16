@@ -76,8 +76,10 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
         for provider in SPECS:
             try: configuration(provider); configured = True
             except HTTPException: configured = False
-            linked = await db.provider_connections.find_one({"user_id": user["user_id"], "provider": provider}, {"_id": 0, "linked_at": 1, "reconnect_required": 1})
-            output.append({"id": provider, "configured": configured, "connected": bool(linked and not linked.get("reconnect_required")), "reconnect_required": bool(linked and linked.get("reconnect_required")), "linked_at": linked.get("linked_at") if linked else None, "capability": "calendar_read_only"})
+            linked = await db.provider_connections.find_one({"user_id": user["user_id"], "provider": provider}, {"_id": 0, "linked_at": 1, "reconnect_required": 1, "tokens": 1})
+            # Never return the token; its presence is required for a truthful status.
+            has_token = bool(linked and isinstance(linked.get("tokens"), str) and linked["tokens"])
+            output.append({"id": provider, "configured": configured, "connected": bool(has_token and not linked.get("reconnect_required")), "reconnect_required": bool(linked and (linked.get("reconnect_required") or not has_token)), "linked_at": linked.get("linked_at") if linked else None, "capability": "calendar_read_only"})
         return output
 
     @router.post("/{provider}/start")
