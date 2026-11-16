@@ -21,6 +21,7 @@ export function WorldHub() {
   const [guardianState, setGuardianState] = useState<GuardianState>('flying');
   const [stageHeight, setStageHeight] = useState(380);
   const [guardianMessage, setGuardianMessage] = useState('Guardian standing by.');
+  const [greetingError, setGreetingError] = useState(false);
   const [guardianSpeaking, setGuardianSpeaking] = useState(false);
   const portalSize = width >= 900 ? 225 : width >= 600 ? 185 : Math.max(96, Math.floor((width - 68) / 3));
   const drift = useRef(new Animated.Value(0)).current;
