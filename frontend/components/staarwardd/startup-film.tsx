@@ -1,6 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import StartupFilmPlayer from "./startup-film-player";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const STARTUP_MUTED_KEY = "staarwardd.guardian.startup-muted.v1";
 
 const ReplayContext = createContext<() => void>(() => undefined);
 export const useStartupReplay = () => useContext(ReplayContext);
@@ -12,6 +15,19 @@ export function StartupFilmBoundary({ children }: { children: React.ReactNode })
   const [instance, setInstance] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [muted, setMuted] = useState(false);
+  const [mutePreferenceReady, setMutePreferenceReady] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void AsyncStorage.getItem(STARTUP_MUTED_KEY)
+      .then(value => { if (active) setMuted(value === "true"); })
+      .catch(() => undefined)
+      .finally(() => { if (active) setMutePreferenceReady(true); });
+    return () => { active = false; };
+  }, []);
+  const changeMuted = useCallback((value: boolean) => {
+    setMuted(value);
+    void AsyncStorage.setItem(STARTUP_MUTED_KEY, String(value)).catch(() => undefined);
+  }, []);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const opacity = useRef(new Animated.Value(1)).current;
@@ -41,7 +57,7 @@ export function StartupFilmBoundary({ children }: { children: React.ReactNode })
     if (reduced) return;
     finishing.current = false;
     opacity.setValue(1);
-    setReady(false); setFailed(false); setMuted(false); setPlaying(true);
+    setReady(false); setFailed(false); setPlaying(true);
     setInstance(value => value + 1); setVisible(true);
   }, [opacity, reduced]);
 
@@ -49,14 +65,14 @@ export function StartupFilmBoundary({ children }: { children: React.ReactNode })
     <View style={styles.root}>
       {entered ? children : null}
       {visible && <Animated.View style={[StyleSheet.absoluteFill, styles.film, { opacity }]} accessibilityViewIsModal testID="startup-film">
-        {reduced === false && <StartupFilmPlayer key={instance} muted={muted} playing={playing} onEnd={finish} onError={onError} onReady={onReady} />}
+        {reduced === false && mutePreferenceReady && <StartupFilmPlayer key={instance} muted={muted} playing={playing} onEnd={finish} onError={onError} onReady={onReady} />}
         <View style={styles.top}><Text style={styles.brand}>STAARWAARDD</Text><Pressable accessibilityRole="button" accessibilityLabel="Skip startup film" onPress={finish} style={styles.button}><Text style={styles.text}>Skip</Text></Pressable></View>
         {!ready && !failed && <ActivityIndicator color="#CCD2D9" accessibilityLabel="Loading startup film" />}
         <View style={styles.bottom}>
           {failed && <Text style={styles.message}>The film couldn’t load. You can enter the app.</Text>}
           <View style={styles.controls}>
-            <Pressable accessibilityRole="button" onPress={() => { setPlaying(true); setMuted(false); }} style={styles.button}><Text style={styles.text}>Play with sound</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={muted ? "Unmute startup film" : "Mute startup film"} onPress={() => setMuted(value => !value)} style={styles.button}><Text style={styles.text}>{muted ? "Sound off" : "Sound on"}</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { setPlaying(true); changeMuted(false); }} style={styles.button}><Text style={styles.text}>Play with sound</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={muted ? "Unmute startup film" : "Mute startup film"} onPress={() => changeMuted(!muted)} style={styles.button}><Text style={styles.text}>{muted ? "Sound off" : "Sound on"}</Text></Pressable>
             {failed && <Pressable accessibilityRole="button" onPress={finish} style={styles.button}><Text style={styles.text}>Enter app</Text></Pressable>}
           </View>
         </View>
