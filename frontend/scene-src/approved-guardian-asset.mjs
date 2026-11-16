@@ -24,18 +24,23 @@ export function validateArmoredGuardianGlb(bytes, receipt) {
   if (gltf?.asset?.version !== '2.0' || !Array.isArray(gltf.meshes) || gltf.meshes.length === 0 || !Array.isArray(gltf.skins) || gltf.skins.length === 0) fail('unskinned_model');
   if ([...(gltf.buffers || []), ...(gltf.images || [])].some(v=>typeof v?.uri === 'string' && !v.uri.startsWith('data:'))) fail('external_asset_uri');
   if (Array.isArray(gltf.extensionsRequired) && gltf.extensionsRequired.some(x=>['KHR_draco_mesh_compression','KHR_texture_basisu','EXT_meshopt_compression'].includes(x))) fail('unsupported_compression');
-  const names=new Set();
-  let hasTargets=false;
-  for (const mesh of gltf.meshes) {
+  const binOffset=20+jsonLength;
+  if (bytes.length < binOffset+8 || bytes.toString('ascii',binOffset+4,binOffset+7)!=='BIN') fail('missing_embedded_geometry');
+  const binLength=bytes.readUInt32LE(binOffset);
+  if(binLength<12 || binOffset+8+binLength>bytes.length || !Array.isArray(gltf.buffers) ||
+    !gltf.buffers.length || gltf.buffers[0].byteLength>binLength ||
+    !Array.isArray(gltf.bufferViews) || !gltf.bufferViews.length ||
+    !Array.isArray(gltf.accessors) || !gltf.accessors.length) fail('missing_embedded_geometry');
+  const hasSkinnedFace = (gltf.nodes||[]).some(node=>{
+    if (!Number.isInteger(node?.skin) || !Number.isInteger(node?.mesh)) return false;
+    const mesh=gltf.meshes[node.mesh];
     const targets=mesh?.extras?.targetNames;
-    if (!Array.isArray(targets) || !targets.every(x=>typeof x==='string')) continue;
-    const primitives=mesh.primitives || [];
-    if (primitives.some(p=>Array.isArray(p.targets) && p.targets.length===targets.length)) {
-      hasTargets=true;
-      targets.forEach(n=>names.add(n));
-    }
-  }
-  if (!hasTargets || REQUIRED_FACE_TARGETS.some(v=>!names.has(v))) fail('missing_face_targets');
+    if (!Array.isArray(targets) || REQUIRED_FACE_TARGETS.some(v=>!targets.includes(v))) return false;
+    return Array.isArray(mesh.primitives) && mesh.primitives.some(p=>
+      Number.isInteger(p?.attributes?.POSITION) && p.attributes.POSITION<gltf.accessors.length &&
+      Array.isArray(p.targets) && p.targets.length===targets.length);
+  });
+  if(!hasSkinnedFace) fail('missing_skinned_face_targets');
   if (!receipt || typeof receipt !== 'object' || receipt.schema !== 'staar-armored-guardian-v1') fail('invalid_receipt');
   if (receipt.sourceImageSha256 !== ARMORED_SOURCE_SHA256) fail('wrong_approved_reference');
   const sha=createHash('sha256').update(bytes).digest('hex');
