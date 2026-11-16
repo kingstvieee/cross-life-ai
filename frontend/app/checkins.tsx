@@ -3,7 +3,7 @@ import { AppState, Pressable, ScrollView, Text, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth';
-import { bindCheckinAccount, cancelCheckins, checkinStatus, scheduleCheckin, type CheckinStatus } from '@/src/checkins';
+import { bindCheckinAccount, cancelCheckins, canDeliverCheckin, checkinStatus, scheduleCheckin, type CheckinStatus } from '@/src/checkins';
 
 export default function Checkins() {
   const router = useRouter(); const { user } = useAuth();
@@ -40,7 +40,7 @@ export default function Checkins() {
     <TextInput accessibilityLabel="Check-in minute" keyboardType="number-pad" maxLength={2} value={minute} onChangeText={setMinute} style={{ color: '#F2F5F9', padding: 15, borderWidth: 1, borderColor: '#66748A', borderRadius: 12 }} />
     {button(busy ? 'Updating…' : 'Enable daily check-in', () => { void save(); }, busy || !status.supported || !account)}
     {button('Cancel daily check-in', () => { void cancel(); }, busy || !status.supported)}
-    <Text style={{ color: '#C5CFDD' }}>{status.scheduled ? `Scheduled · ${String(status.hour).padStart(2, '0')}:${String(status.minute).padStart(2, '0')} Toronto` : 'No daily check-in is scheduled.'}</Text>
+    <Text style={{ color: '#C5CFDD' }}>{status.scheduled ? `Scheduled · ${String(status.hour).padStart(2, '0')}:${String(status.minute).padStart(2, '0')} Toronto` : 'No daily check-in is scheduled.'}{status.scheduled && !canDeliverCheckin(status) ? ' · Notification permission currently unavailable. Enable alerts in iPhone Settings.' : ''}</Text>
     {!!status.nextAt && <Text style={{ color: '#C5CFDD' }}>Next scheduled time: {new Date(status.nextAt * 1000).toLocaleString('en-CA', { timeZone: 'America/Toronto' })} Toronto</Text>}
     {!!notice && <Text accessibilityRole="alert" style={{ color: '#E6EDF7', lineHeight: 23 }}>{notice}</Text>}
   </ScrollView></SafeAreaView>;

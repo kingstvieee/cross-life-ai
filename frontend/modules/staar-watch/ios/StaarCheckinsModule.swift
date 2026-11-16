@@ -49,8 +49,10 @@ private actor CheckinScheduler {
     let pending = await center.pendingNotificationRequests()
     let request = pending.first { $0.identifier == identifier }
     let trigger = request?.trigger as? UNCalendarNotificationTrigger
+    let permissionsEnabled = settings.authorizationStatus == .authorized ||
+      settings.authorizationStatus == .provisional || settings.authorizationStatus == .ephemeral
     return ["supported": true, "authorization": settings.authorizationStatus.rawValue,
-      "scheduled": request != nil, "hour": trigger?.dateComponents.hour ?? -1,
+      "notificationsEnabled": permissionsEnabled, "scheduled": request != nil, "hour": trigger?.dateComponents.hour ?? -1,
       "minute": trigger?.dateComponents.minute ?? -1, "timezone": "America/Toronto",
       "nextAt": trigger?.nextTriggerDate()?.timeIntervalSince1970 ?? 0]
   }
