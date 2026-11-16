@@ -46,3 +46,12 @@ test('paused or buffering server audio suspends speaking animation until playbac
   assert.match(provider, /onPlaybackChange: playing =>/);
   assert.match(provider, /setVoicePlaybackActive\(playing\)/);
 });
+
+test('Guardian voice stops on background and cannot narrate without native playback entitlement',()=>{
+ const provider=read('../lib/staarwardd/audio-provider.tsx');
+ assert.match(provider,/AppState\.addEventListener\('change', next =>/);
+ assert.match(provider,/if \(next !== 'active'\) stopSpeech\(\)/);
+ const config=read('../app.json');
+ assert.match(config,/"enableBackgroundPlayback": false/);
+ assert.match(config,/"enableBackgroundRecording": false/);
+});
