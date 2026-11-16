@@ -96,10 +96,10 @@ export function WorldHub() {
   }, [audio.master, audio.voice, audio.speechQuiet, audio.speak]);
   useFocusEffect(useCallback(() => { focused.current = true; return () => { focused.current = false; voiceEpoch.current += 1; }; }, []));
   useEffect(() => {
-    if (!focused.current || !preferenceReady || preferenceOwner !== greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || greeted.current) return;
+    if (!focused.current || !arrivalComplete || !preferenceReady || preferenceOwner !== greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || greeted.current) return;
     greeted.current = true;
     void greet();
-  }, [preferenceReady, preferenceOwner, greetingKey, greetingEnabled, audio.master, audio.voice, audio.speechQuiet, greet]);
+  }, [arrivalComplete, preferenceReady, preferenceOwner, greetingKey, greetingEnabled, audio.master, audio.voice, audio.speechQuiet, greet]);
   const setGreeting = (enabled: boolean) => { if (!greetingKey || preferenceOwner !== greetingKey) return; setGreetingEnabled(enabled); greeted.current = !enabled; if (!enabled) { /* Disable future automatic greetings without interrupting an active conversation. */ } void AsyncStorage.setItem(greetingKey, enabled ? 'enabled' : 'disabled'); };
   const companion = user?.companion === 'kaia' ? 'Kaia' : user?.companion === 'guardian' ? 'Guardian' : 'Atlas';
   useFocusEffect(useCallback(() => { setSelected(null); }, []));
