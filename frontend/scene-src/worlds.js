@@ -141,9 +141,23 @@ if (renderer) {
   function studio() {shell();stars();for(const x of[-8.5,8.5]){island(x,5.5,-6,2.2,black);tree(x,-6,material('#c56b15'),5.6,.8);waterfall(x-.3,2.6,-4.5,5.6);}plinth(0,-2.5,3);const g=new T.Group();g.position.set(0,3.5,-2.5);scene.add(g);mesh(new T.TorusGeometry(1.7,.16,12,64,Math.PI),chrome,0,0,0,g);for(const s of[-1,1]){cylinder(s*1.7,-.2,0,.65,.35,chrome,g).rotation.z=Math.PI/2;cylinder(s*1.48,-.2,0,.54,.25,material('#5d2e1b',.05,.65),g).rotation.z=Math.PI/2;ring(s*1.9,-.2,0,.45,.025,amber,false,g).rotation.y=Math.PI/2;}animated.push(t=>{if(!reduced)g.rotation.y=t*Math.PI*2/30;});box(0,.8,2.2,10,.3,2.2);for(let i=0;i<30;i++){const x=-4.7+i*.32;box(x,.98,2.6,.04,.03,.65,black);box(x,1.02,2.6+Math.sin(i)*.25,.12,.08,.15,white);for(let j=0;j<3;j++)cylinder(x,1,1.7+j*.18,.035,.06,j%2?blue:amber);}for(const x of[-3.6,0,3.6]){box(x,1.65,1.4,2.7,1.3,.15,black);for(let i=0;i<20;i++)box(x-1.2+i*.126,1.6,1.49,.035,.1+Math.abs(Math.sin(i*2.1+x))*.8,.02,x===0?amber:blue);}for(const x of[-5.6,5.6]){box(x,1.45,1.3,.9,2.9,.8,black);for(const y of[.7,1.5,2.3]){cylinder(x,y,1.73,.28,.05,gold).rotation.x=Math.PI/2;sphere(x,y,1.79,.12,black).scale.z=.4;}}panel('Music library','conversation:0',-4.5,2.4,-2,amber);panel('AI tools & studio','connections',4.5,2.4,-2);panel('Plan a release','conversation:1',0,.7,4.5,amber,4);}
   ({hub,home,work,creativity:()=>dreams(),wellbeing:health,relationships:()=>singles?singlesLounge():love(),events:village,style:closet,staarverse:()=>dreams(true),staarsonic:studio})[world]();
   controls.update();controls.saveState();
-  let frame=0,visible=true;const start=performance.now();
+  let frame=0,visible=true,firstFrameReady=false;const start=performance.now();
   function requestDraw(){if(!frame&&visible)frame=requestAnimationFrame(draw);}
-  function draw(now){frame=0;if(!visible)return;const t=(now-start)/1000;animated.forEach(fn=>fn(t));controls.update();renderer.render(scene,camera);if(!reduced)requestDraw();}
+  function draw(now){
+    frame=0;if(!visible)return;
+    try {
+      const t=(now-start)/1000;
+      animated.forEach(fn=>fn(t));controls.update();renderer.render(scene,camera);
+      // A scene is ready only after WebGL has successfully drawn its first frame.
+      if(!firstFrameReady){firstFrameReady=true;report('ready',{geometry:true,objects:scene.children.length});}
+      if(!reduced)requestDraw();
+    } catch {
+      visible=false;cancelAnimationFrame(frame);frame=0;
+      document.querySelector('#reset').hidden=true;
+      document.querySelector('#status').textContent='3D rendering failed. Safe world navigation remains available below.';
+      addNavigationFallback();report('unavailable');
+    }
+  }
   controls.addEventListener('change',requestDraw);requestDraw();
   document.addEventListener('visibilitychange',()=>{visible=!document.hidden;if(!visible)cancelAnimationFrame(frame);frame=0;if(visible)requestDraw();});
   addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);requestDraw();});
@@ -155,6 +169,5 @@ if (renderer) {
   document.querySelector('#status').textContent='Drag to explore · pinch or scroll to move closer · tap a labelled control';
   for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
   canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
-  report('ready',{geometry:true,objects:scene.children.length});
   addEventListener('pagehide',()=>{cancelAnimationFrame(frame);controls.dispose();scene.traverse(n=>{n.geometry?.dispose();if(n.material)for(const m of[n.material].flat()){m.map?.dispose();m.dispose();}});env.dispose();renderer.dispose();});
 }
