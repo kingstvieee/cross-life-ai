@@ -18,3 +18,11 @@ test('sign-in UI is explicit about disabled options; does not represent them as 
  assert.match(ui,/disabled=\{!ready \|\| Boolean\(busy\)\}/);
  assert.match(ui,/CHECKING' : 'UNAVAILABLE'/);
 });
+
+test('native login cannot open an arbitrary unknown OAuth provider', () => {
+ const src=readFileSync(new URL('../src/native-login.ts',import.meta.url),'utf8');
+ assert.match(src,/LOGIN_PROVIDER_IDS\.includes\(provider as LoginProviderId\)/);
+ assert.match(src,/Unsupported sign-in provider/);
+ assert.match(src,/const start = backendUrl/);
+ assert.ok(src.indexOf('Unsupported sign-in provider') < src.indexOf('const start = backendUrl'));
+});
