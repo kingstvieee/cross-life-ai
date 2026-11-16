@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Animated, Pressable, StyleSheet, Text, View, Platform } from "react-native";
 import StartupFilmPlayer from "./startup-film-player";
+
+const WEB_REQUIRES_MUTED_AUTOPLAY = Platform.OS === "web";
 
 const ReplayContext = createContext<() => void>(() => undefined);
 export const useStartupReplay = () => useContext(ReplayContext);
@@ -11,7 +13,9 @@ export function StartupFilmBoundary({ children }: { children: React.ReactNode })
   const [entered, setEntered] = useState(false);
   const [instance, setInstance] = useState(0);
   const [playing, setPlaying] = useState(true);
-  const [muted, setMuted] = useState(true);
+  // Native iOS/Android can start the original locked film with its own embedded audio.
+  // Web browsers require a gesture to enable audible media playback.
+  const [muted, setMuted] = useState(WEB_REQUIRES_MUTED_AUTOPLAY);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const opacity = useRef(new Animated.Value(1)).current;
@@ -41,7 +45,7 @@ export function StartupFilmBoundary({ children }: { children: React.ReactNode })
     if (reduced) return;
     finishing.current = false;
     opacity.setValue(1);
-    setReady(false); setFailed(false); setMuted(true); setPlaying(true);
+    setReady(false); setFailed(false); setMuted(WEB_REQUIRES_MUTED_AUTOPLAY); setPlaying(true);
     setInstance(value => value + 1); setVisible(true);
   }, [opacity, reduced]);
 

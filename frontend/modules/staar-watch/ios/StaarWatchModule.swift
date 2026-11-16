@@ -24,9 +24,14 @@ final class PhoneWatchBridge: NSObject, WCSessionDelegate {
   func status() -> [String: Any] {
     guard WCSession.isSupported() else { return ["supported": false] }
     let s = WCSession.default
+    let lastVerified = queue.sync { verifiedAt }
+    let recentlyVerified = lastVerified > 0 &&
+      Date().timeIntervalSince1970 - lastVerified <= 600 &&
+      s.activationState == .activated && s.isPaired && s.isWatchAppInstalled
     return ["supported": true, "activated": s.activationState == .activated,
       "paired": s.isPaired, "installed": s.isWatchAppInstalled, "reachable": s.isReachable,
-      "sharing": queue.sync { enabled }, "verifiedAt": queue.sync { verifiedAt }]
+      "sharing": queue.sync { enabled }, "verified": recentlyVerified,
+      "verifiedAt": lastVerified]
   }
   func share(enabled: Bool, companion: String) throws {
     guard ["atlas", "kaia", "guardian"].contains(companion) else { throw NSError(domain: "StaarWatch", code: 1) }

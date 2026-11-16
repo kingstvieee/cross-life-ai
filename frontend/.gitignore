@@ -38,3 +38,12 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+# Bundled 3D runtime is generated from the reviewed source
+scene-src/node_modules/
+generated/
+public/world-runtime.html
+
+# Private owner-approved song for local EAS staging only; never publish to public GitHub
+assets/audio/Starward_Guardian_Approved_AAC_iOS.m4a
+components/staarwardd/startup-approved-soundtrack-source.native.ts

@@ -1,6 +1,6 @@
 import { requireOptionalNativeModule } from 'expo-modules-core';
 
-export type CheckinStatus = { supported: boolean; authorization?: number; scheduled?: boolean; hour?: number; minute?: number; timezone?: string; nextAt?: number };
+export type CheckinStatus = { supported: boolean; authorization?: number; scheduled?: boolean; hour?: number; minute?: number; timezone?: string; nextAt?: number; notificationsEnabled?: boolean };
 const bridge = requireOptionalNativeModule<{
   bindAccount: (account: string) => Promise<void>;
   status: () => Promise<CheckinStatus>;
@@ -16,3 +16,5 @@ export async function scheduleCheckin(account: string, hour: number, minute: num
   if (!account || !Number.isInteger(hour) || hour < 12 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) throw new Error('Choose a time from noon onward.');
   return bridge.schedule(account, hour, minute);
 }
+
+export { canDeliverCheckin } from './checkin-delivery';

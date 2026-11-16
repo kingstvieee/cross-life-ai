@@ -4,6 +4,21 @@ on:
     paths:
       - 'frontend/modules/staar-watch/**'
       - 'frontend/src/checkins.ts'
+      - 'frontend/scene-src/**'
+      - 'frontend/components/staarwardd/world-scene*'
+      - 'frontend/src/guardian-armor-lock.ts'
+      - 'frontend/src/server-speech.ts'
+      - 'frontend/src/guardian-speech-clip.ts'
+      - 'frontend/src/guardian-alignment-client.ts'
+      - 'frontend/src/guardian-visemes.ts'
+      - 'frontend/lib/staarwardd/audio-provider.tsx'
+      - 'frontend/components/staarwardd/startup-film-player.tsx'
+      - 'frontend/components/staarwardd/startup-approved-soundtrack-source.ts'
+      - 'frontend/components/staarwardd/startup-audio-gate.ts'
+      - 'frontend/scripts/stage-approved-startup-audio.mjs'
+      - 'frontend/scripts/prepare-private-eas-archive.mjs'
+      - 'frontend/scripts/verify-approved-soundtrack.mjs'
+      - 'frontend/tests/startup-audio-gate.test.mjs'
       - 'frontend/app/checkins.tsx'
       - 'frontend/scripts/build-ios-simulator.cjs'
       - '.github/workflows/native-checkins.yml'
@@ -26,6 +41,8 @@ jobs:
       - run: corepack enable
       - run: yarn install --frozen-lockfile --ignore-scripts
       - run: node node_modules/@shopify/react-native-skia/scripts/install-libs.js
+      # The nine-world runtime is generated and gitignored; create it before TypeScript checks.
+      - run: yarn scene:build
       - run: yarn exec tsc --noEmit
       - run: yarn expo prebuild --platform ios --no-install
       - run: pod install

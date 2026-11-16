@@ -23,6 +23,8 @@ from guardian_server_integration import ensure_guardian_indexes, install_guardia
 from companion_speech import MODEL as COMPANION_SPEECH_MODEL, PROFILES as SPEECH_PROFILES, PREVIEWS as SPEECH_PREVIEWS, synthesize as synthesize_companion
 from style_swap_routes import build_style_swap_router
 from identity_routes import SESSION_COOKIE, app_origin, build_identity_router, ensure_identity_indexes
+from provider_connections import build_provider_router
+from guardian_alignment_routes import build_alignment_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -214,6 +216,8 @@ def user_public(u: Dict[str, Any]) -> Dict[str, Any]:
 async def startup():
     await ensure_guardian_indexes(db)
     await ensure_identity_indexes(db)
+    await db.provider_flows.create_index('expires_at', expireAfterSeconds=0)
+    await db.provider_connections.create_index([('user_id', 1), ('provider', 1)], unique=True)
     await db.companion_history.create_index("expires_at", expireAfterSeconds=0)
     await db.companion_history.create_index([("user_id", 1), ("portal", 1), ("policy_key", 1), ("created_at", -1)])
     await db.users.create_index("email", unique=True)
@@ -736,13 +740,16 @@ async def coordinate_morning(body: CoordinateIn, authorization: Optional[str] = 
 
 
 # ============================================================
-# GUARDIAN VOICE (OpenAI TTS via Emergent key)
+# GUARDIAN VOICE (direct server-owned transport or selected legacy relay)
 # ============================================================
 _tts_client = None
 
 
 def _tts():
     global _tts_client
+    from guardian_speech import DirectNarration, speech_provider
+    if speech_provider() == 'openai':
+        return DirectNarration()
     if _tts_client is None:
         from emergentintegrations.llm.openai import OpenAITextToSpeech
         _tts_client = OpenAITextToSpeech(api_key=EMERGENT_LLM_KEY)
@@ -793,7 +800,7 @@ async def _tts_cached_line(text: str, private_user_id: Optional[str] = None, com
     query = {"content_key": content_key, "private_user_id": private_user_id}
     if private_user_id is None:
         query = {"key": content_key, "visibility": "public"}
-    cached = await db.tts_cache.find_one(query, {"_id": 0, "key": 1, "visibility": 1, "expires_at": 1})
+    cached = await db.tts_cache.find_one(query, {"_id": 0, "key": 1, "visibility": 1, "expires_at": 1, "audio": 1})
     stale_private_key = None
     if cached and private_user_id is not None:
         expires_at = cached.get("expires_at")
@@ -824,7 +831,12 @@ async def _tts_cached_line(text: str, private_user_id: Optional[str] = None, com
             await db.tts_cache.update_one({"key": stale_private_key, "private_user_id": private_user_id}, {"$set": cache_doc})
         else:
             await db.tts_cache.insert_one(cache_doc)
-    return {"url": f"/api/tts/{key}.mp3", "text": text}
+    # Bind optional local mouth timing to the exact stored MP3, never to text alone.
+    cached_audio = cached.get("audio") if cached else audio
+    if not isinstance(cached_audio, (bytes, bytearray)) or not cached_audio:
+        raise HTTPException(status_code=502, detail="tts_cache_invalid")
+    return {"url": f"/api/tts/{key}.mp3", "text": text,
+            "audioSha256": hashlib.sha256(cached_audio).hexdigest()}
 
 
 SCORECARD_FONT_BOLD = "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"
@@ -1177,6 +1189,8 @@ async def root():
 install_guardian_core(app, db=db, get_current_user=get_current_user)
 app.include_router(build_style_swap_router(get_current_user=get_current_user, rate_limit=rate_limit), prefix="/api")
 app.include_router(build_identity_router(db=db, limiter=rate_limit), prefix="/api")
+app.include_router(build_provider_router(db=db, require_account_user=require_account_user, limiter=rate_limit), prefix="/api")
+app.include_router(build_alignment_router(db, require_account_user, rate_limit), prefix="/api")
 app.include_router(api_router)
 
 @app.middleware("http")

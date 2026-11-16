@@ -1,0 +1,170 @@
+{
+  "schema": "staar-build201-independent-offline-collider-viseme-qa-v1",
+  "date": "2026-11-16",
+  "source": "actual private Build199 source GLBs and owner-provided facial reference photos",
+  "reviewPackages": [
+    "STAARWAARDD_Build201_Collision_And_Guardian_Review.zip"
+  ],
+  "privateBinaryCommitted": false,
+  "approvedOriginalAssetReplaced": false,
+  "collision": {
+    "method": "Exact GLB triangle clipping to character Z band, 0.25m XY grid, 0.35m radius, explicit semantic collider roles, step-by-step swept 2D route simulation",
+    "actualPhysicsEngineIntegrated": false,
+    "iphoneDeviceNavigationTested": false,
+    "illustrativeStart": [
+      0,
+      -10
+    ],
+    "illustrativeEnd": [
+      0,
+      10
+    ],
+    "illustrativePortalEndpointsVerified": false,
+    "passCount": 6,
+    "failedCount": 0,
+    "worlds": [
+      {
+        "key": "home-residence",
+        "sourceSha256": "533aa52e7c2d9415799ccae3fd045c6974b2e9f74431d01bfda23c05634af4ff",
+        "mobileSha256": "9ac4af7d7c1ea9d65d56d28de5a9d74db8e7c1080b6f873ee2ee56b304676832",
+        "routeLengthM": 28.5,
+        "sourceNodeCount": 815,
+        "mobileNodeCount": 29,
+        "propRelocation": null,
+        "originalMeshAndAnimationBytesPreserved": true,
+        "offlineRouteConnected": true,
+        "inAppColliderCertified": false,
+        "founderApprovedOriginalDesignPreserved": true,
+        "founderAcceptedRevisedAsset": false
+      },
+      {
+        "key": "relationships-realm",
+        "sourceSha256": "124fcbc8ed2b5457bf0735f727ed09cfa1add26e0847f0c157d97b85379280c6",
+        "mobileSha256": "52ff8e71064002bf6be09a96fc686c6312d3feb6c1a6374e3a5440807fa346b2",
+        "routeLengthM": 27.5,
+        "sourceNodeCount": 833,
+        "mobileNodeCount": 28,
+        "propRelocation": {
+          "node": "041_Invitation love bench",
+          "deltaM": [
+            0.25,
+            1.5,
+            0
+          ]
+        },
+        "originalMeshAndAnimationBytesPreserved": true,
+        "offlineRouteConnected": true,
+        "inAppColliderCertified": false,
+        "founderApprovedOriginalDesignPreserved": true,
+        "founderAcceptedRevisedAsset": false
+      },
+      {
+        "key": "staarsonic-studio",
+        "sourceSha256": "abf7f529f563b3c8e6b81d542b83f7635a46ed097bb97081a3a68f9d1775d3dd",
+        "mobileSha256": "fe13f20ec5dba10447d901601de9b6eff1214fa8f4af642f522814bcad1f09c8",
+        "routeLengthM": 37,
+        "sourceNodeCount": 945,
+        "mobileNodeCount": 25,
+        "propRelocation": null,
+        "originalMeshAndAnimationBytesPreserved": true,
+        "offlineRouteConnected": true,
+        "inAppColliderCertified": false,
+        "founderApprovedOriginalDesignPreserved": true,
+        "founderAcceptedRevisedAsset": false
+      },
+      {
+        "key": "style-closet",
+        "sourceSha256": "11fd1960f37a9654e7a60862c06bc935eb297b140a1a2c38aba2ebe6e31d6138",
+        "mobileSha256": "e40bc36c03da5ea8faa6258c9bab740648cdb64ab73f6a813ebfebde1da42044",
+        "routeLengthM": 20,
+        "sourceNodeCount": 937,
+        "mobileNodeCount": 27,
+        "propRelocation": null,
+        "originalMeshAndAnimationBytesPreserved": true,
+        "offlineRouteConnected": true,
+        "inAppColliderCertified": false,
+        "founderApprovedOriginalDesignPreserved": true,
+        "founderAcceptedRevisedAsset": false
+      },
+      {
+        "key": "wellbeing-health",
+        "sourceSha256": "e27236b54f77d4cade813f8a0d73d3aa69238053b0fbeb9bf2cb1db9dc1e4d43",
+        "mobileSha256": "b9e112442198a689ca1f5aa571f6dc09403de1bb9ba6b3007981ee7b741ba137",
+        "routeLengthM": 20,
+        "sourceNodeCount": 802,
+        "mobileNodeCount": 28,
+        "propRelocation": null,
+        "originalMeshAndAnimationBytesPreserved": true,
+        "offlineRouteConnected": true,
+        "inAppColliderCertified": false,
+        "founderApprovedOriginalDesignPreserved": true,
+        "founderAcceptedRevisedAsset": false
+      },
+      {
+        "key": "work-command",
+        "sourceSha256": "e19b3b388445127cf26e6fc95089e4b23b579e403f12ad9cdb6496d5f21c3f3c",
+        "mobileSha256": "db311f97e107a297534dcf7abd2acbeaa06d829b0801ab1c75e4e59e7d19d25d",
+        "routeLengthM": 34.5,
+        "sourceNodeCount": 903,
+        "mobileNodeCount": 23,
+        "propRelocation": {
+          "node": "374_Command station backlit desktop",
+          "deltaM": [
+            1,
+            1.5,
+            0
+          ]
+        },
+        "originalMeshAndAnimationBytesPreserved": true,
+        "offlineRouteConnected": true,
+        "inAppColliderCertified": false,
+        "founderApprovedOriginalDesignPreserved": true,
+        "founderAcceptedRevisedAsset": false
+      }
+    ]
+  },
+  "guardian": {
+    "candidateSha256": "e6e81a37cbc142c4d82fe8aff53adce3fb39b18f364aac18b599dccb4a80b8a1",
+    "syntheticAudioCalibrationVideoSha256": "b6e0cbfd184d25ca01645edc34b39ca4dc549643b13c751ca4d598cc4a913ed0",
+    "labels": [
+      "rest",
+      "sil",
+      "PP",
+      "FF",
+      "TH",
+      "DD",
+      "kk",
+      "CH",
+      "SS",
+      "nn",
+      "RR",
+      "aa",
+      "E",
+      "I",
+      "O",
+      "U"
+    ],
+    "nonzeroSpeechTargetCount": 14,
+    "headMaximumAbsoluteMorphCosineOldApprox": 1,
+    "headMaximumAbsoluteMorphCosineNew": 0.986858,
+    "tongueArticulationMeshAdded": true,
+    "threeOriginalAnimationsPreserved": true,
+    "realUserPhotoSecondaryUVApplied": true,
+    "finalOwnerFacialLikenessApproved": false,
+    "authenticProfileScanAvailable": false,
+    "finalVoicePhonemeAligned": false,
+    "physicalDeviceMouthAnimationVerified": false,
+    "productionActivationAllowed": false
+  },
+  "verification": {
+    "localActualGlbFileValidationPassed": true,
+    "modelFileHashesRecorded": true,
+    "syntheticAudioVideoContainsAudioAndVideo": true,
+    "offlineHTMLSourceSyntaxPassed": true,
+    "liveBrowserPlaytestVerified": false,
+    "rightAndPrivacyEvidenceVerified": false,
+    "iosNativePerformanceVerified": false
+  },
+  "spendingCAD": 0,
+  "releaseVerdict": "NO-GO: technical review only"
+}
