@@ -29,3 +29,11 @@ test('live calendar verification must succeed before UI claims connected', () =>
   assert.match(code, /Connection was not completed/);
   assert.doesNotMatch(code, /setMessage\('Calendar account connected\. Choose Refresh/);
 });
+
+test('revoked calendar credentials never remain visually connected', () => {
+  assert.match(code, /reconnect_required\?: boolean/);
+  assert.match(code, /p\.reconnect_required \? 'Connection expired or revoked/);
+  assert.match(code, /Provider calendar access expired or was revoked\. Reconnect your account/);
+  assert.match(code, /catch \(error\) \{ await load\(\); throw error; \}/);
+  assert.match(code, /Calendar access verified on connection/);
+});
