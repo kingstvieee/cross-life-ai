@@ -40,7 +40,7 @@ export function validateArmoredGuardianGlb(bytes, receipt) {
   if (receipt.sourceImageSha256 !== ARMORED_SOURCE_SHA256) fail('wrong_approved_reference');
   const sha=createHash('sha256').update(bytes).digest('hex');
   if (!isSha(receipt.rigModelSha256) || receipt.rigModelSha256 !== sha) fail('model_hash_mismatch');
-  if (!RECEIPT_KEYS.every(k=>receipt[k]===true) || typeof receipt.identityAssetId!=='string' || !receipt.identityAssetId.trim()) fail('approval_not_verified');
+  if (!RECEIPT_KEYS.every(k=>receipt[k]===true) || typeof receipt.identityAssetId!=='string' || !/^[a-zA-Z0-9_-]{1,96}$/.test(receipt.identityAssetId)) fail('approval_not_verified');
   if (receipt.exportRightsConfirmed !== true) fail('missing_export_rights');
   return { sourceImageSha256:ARMORED_SOURCE_SHA256, rigModelSha256:sha, identityAssetId:receipt.identityAssetId, blendshapeTargets:REQUIRED_FACE_TARGETS, glbBase64:bytes.toString('base64') };
 }
