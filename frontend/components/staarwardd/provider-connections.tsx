@@ -9,7 +9,7 @@ export function ProviderConnections() {
   const [providers, setProviders] = useState<Provider[]>([]); const [flow, setFlow] = useState<{ provider: string; id: string } | null>(null);
   const [events, setEvents] = useState<Event[]>([]); const [eventsProvider, setEventsProvider] = useState<string | null>(null); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false);
   useEffect(() => { generation.current++; setProviders([]); setEvents([]); setEventsProvider(null); setFlow(null); setMessage(''); setBusy(false); void load();
-    const sub = AppState.addEventListener('change', s => { if (s !== 'active') { controller.current?.abort(); generation.current++; setEvents([]); setEventsProvider(null); setBusy(false); } });
+    const sub = AppState.addEventListener('change', s => { if (s !== 'active') { controller.current?.abort(); generation.current++; setProviders([]); setEvents([]); setEventsProvider(null); setBusy(false); } else { void load(); } });
     return () => { generation.current++; controller.current?.abort(); sub.remove(); };
   }, [user?.user_id]);
   async function request(path: string, method = 'GET') {

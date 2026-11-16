@@ -7,9 +7,10 @@ export function WorldScene({ world, variant = 'realm', onAction }: { world: stri
   const iframe = useRef<HTMLIFrameElement | null>(null);
   const lastDispatch = useRef<SceneDispatch | null>(null);
   const sceneReady = useRef(false);
-  const html = useMemo(() => worldSceneHtml(world, variant), [world, variant]);
-  const [failedScene, setFailedScene] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const session = useMemo(() => `${Date.now()}_${Math.random().toString(36).slice(2)}`, [world, variant, retryCount]);
+  const html = useMemo(() => worldSceneHtml(world, variant, session), [world, variant, session]);
+  const [failedScene, setFailedScene] = useState<string | null>(null);
   const sceneKey = `${world}:${variant}`;
   const failed = failedScene === sceneKey;
   useEffect(() => {
@@ -20,6 +21,7 @@ export function WorldScene({ world, variant = 'realm', onAction }: { world: stri
   useEffect(() => {
     const receive = (event: MessageEvent) => {
       if (event.source !== iframe.current?.contentWindow) return;
+      if (event.data?.session !== session) return;
       if (event.data?.source === 'staar-scene-v1' && event.data.type === 'unavailable' && event.data.world === world) {
         setFailedScene(sceneKey);
         return;
@@ -32,7 +34,7 @@ export function WorldScene({ world, variant = 'realm', onAction }: { world: stri
       if (action) { const next = { world, action, atMs: Date.now() }; if (shouldDispatchSceneAction(lastDispatch.current, next)) { lastDispatch.current = next; onAction(action); } }
     };
     window.addEventListener('message', receive); return () => window.removeEventListener('message', receive);
-  }, [onAction, world, sceneKey]);
+  }, [onAction, world, sceneKey, session]);
   if (failed) return <div role="region" aria-label="Safe world navigation"
     style={{ padding: 22, background: '#030713', color: '#D6DFEC', minHeight: 420 }}>
     <p role="alert" style={{ color: '#F2DFB4', fontWeight: 700 }}>3D preview unavailable</p>

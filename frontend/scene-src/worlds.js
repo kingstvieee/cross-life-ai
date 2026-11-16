@@ -10,8 +10,9 @@ const world = ['hub', ...ids].includes(requested) ? requested : 'hub';
 const singles = world === 'relationships' && (window.STAAR_VARIANT || new URLSearchParams(location.search).get('variant')) === 'singles';
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const canvas = document.querySelector('canvas');
+const session = window.STAAR_SCENE_SESSION || '';
 const report = (type, data = {}) => {
-  const event = { source: 'staar-scene-v1', world, type, ...data };
+  const event = { source: 'staar-scene-v1', world, session, type, ...data };
   if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(event));
   else parent.postMessage(event, '*');
 };

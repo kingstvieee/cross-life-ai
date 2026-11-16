@@ -207,3 +207,12 @@ def test_calendar_provider_malformed_response_fails_without_leaking_private_data
     assert invalid.json()['detail'] == 'provider_read_unavailable'
     assert 'secret' not in invalid.text
     assert 'tokens' in db.provider_connections.docs[0]  # transient corrupt read is not authorization revocation
+
+def test_calendar_finish_rejects_non_event_records_before_saving_auth(monkeypatch):
+    client, db, requests = make(monkeypatch, calendar_payload={'items': [None, 'bad']})
+    flow, params = begin(client)
+    assert client.get('/api/connections/google/callback', params={'state': params['state'][0], 'code': 'approved'}).status_code == 200
+    denied = client.post('/api/connections/google/finish/' + flow['flow'], headers={'Authorization': 'Bearer alice'})
+    assert denied.status_code == 502
+    assert denied.json()['detail'] == 'provider_read_unavailable'
+    assert not db.provider_connections.docs
