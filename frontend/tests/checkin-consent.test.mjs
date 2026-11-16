@@ -28,3 +28,10 @@ test('switching off check-in permission and entering private mode cancel local s
  assert.match(native,/if next\.isEmpty \|\| UserDefaults\.standard\.string/);
  assert.match(native,/clear\(\)/);
 });
+
+test('out-of-order consent responses cannot override a new account or foreground verification',()=>{
+ assert.match(page,/verificationEpoch = useRef\(0\)/);
+ assert.match(page,/const epoch = \+\+verificationEpoch\.current/);
+ assert.match(page,/if \(epoch !== verificationEpoch\.current\) return/);
+ assert.match(page,/verificationEpoch\.current \+= 1; sub\.remove\(\)/);
+});
