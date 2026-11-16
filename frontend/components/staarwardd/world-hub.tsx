@@ -12,6 +12,7 @@ import { WORLDS } from '@/lib/staarwardd/world-directory';
 import { useAuth } from '@/src/auth';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
 import { accountStorageKey } from '@/src/account-storage';
+import { isProactiveWelcomeTime } from '@/src/guardian-greeting-policy';
 
 export function WorldHub() {
   const router = useRouter();
@@ -99,9 +100,8 @@ export function WorldHub() {
       const awaySince = lastBackground.current;
       lastBackground.current = null;
       if (awaySince === null || Date.now() - awaySince < 20 * 60 * 1000) return;
-      const hour = new Date().getHours();
-      // No unsolicited speech during protected morning focus or late-night rest.
-      if (hour < 12 || hour >= 22) return;
+      // Never create a new automatic welcome during protected focus or rest hours.
+      if (!isProactiveWelcomeTime(new Date())) return;
       greeted.current = false;
       // Require fresh server permission before another unsolicited welcome.
       setServerConsentReady(false);
@@ -121,7 +121,7 @@ export function WorldHub() {
   }, [audio.master, audio.voice, audio.speechQuiet, audio.speak]);
   useFocusEffect(useCallback(() => { focused.current = true; return () => { focused.current = false; voiceEpoch.current += 1; }; }, []));
   useEffect(() => {
-    if (!focused.current || !preferenceReady || !serverConsentReady || !serverGreetingConsent || serverPrivate || serverSpeechQuiet || !greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || greeted.current) return;
+    if (!focused.current || !isProactiveWelcomeTime(new Date()) || !preferenceReady || !serverConsentReady || !serverGreetingConsent || serverPrivate || serverSpeechQuiet || !greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || greeted.current) return;
     greeted.current = true;
     void greet();
   }, [preferenceReady, serverConsentReady, serverGreetingConsent, serverPrivate, serverSpeechQuiet, greetingKey, greetingEnabled, foregroundEpoch, audio.master, audio.voice, audio.speechQuiet, greet]);
