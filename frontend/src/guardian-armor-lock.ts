@@ -3,7 +3,7 @@
  * Source: Library /STAARWAARDD/Guardian/Locked References/
  * STAARWAARDD_Guardian_Armored_Locked_Reference.png
  */
-import { GUARDIAN_VISEMES, type GuardianFacialRig } from './guardian-visemes';
+import { GUARDIAN_VISEMES, type GuardianFacialRig } from './guardian-visemes.ts';
 
 export const LOCKED_ARMORED_GUARDIAN = Object.freeze({
   version: '2026-11-15-armored-v1',
