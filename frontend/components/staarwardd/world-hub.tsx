@@ -56,6 +56,7 @@ export function WorldHub() {
     let alive = true;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
+    setSavingGreeting(false);
     setServerConsentReady(false);
     setServerGreetingConsent(false);
     setServerCheckIns(false);
