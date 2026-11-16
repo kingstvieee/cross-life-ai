@@ -1,0 +1,83 @@
+{
+  "schema": "staar-guardian-3d-reconstruction-review-v1",
+  "date": "2026-11-16",
+  "developmentMilestone": 190,
+  "approvedVisuals": {
+    "approvalSource": "Build 189, owner replied Approve to all three stills",
+    "scope": "cinematic visual direction only",
+    "stills": [
+      {
+        "view": "profile",
+        "sha256": "d624c47089583f4bcdc5d9bd8af6edb8e08c92e3242b5a21edd7cef337c4df9a"
+      },
+      {
+        "view": "over-shoulder",
+        "sha256": "e3ae18bfe6b93ea441c2057b13cd96fe98f744c6766b18c362b9e6a1696cd0dd"
+      },
+      {
+        "view": "front-three-quarter",
+        "sha256": "bcc685ea738dabd39985445fe8bd9862913cdbd494dd47acad6686f92be82ff2"
+      }
+    ]
+  },
+  "actualFacialSource": {
+    "IMG_5711": "650434c4b2be625852b195c98e47dc25a551e2949ecd7951cd016c933b4d6886",
+    "IMG_4824": "35b4ddc162583c034dc1e60c6ab6d0c3db0c391a50f9b6db1be2e567575c68b9"
+  },
+  "armorDesignSourceSha256": "d7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c",
+  "candidate": {
+    "filename": "guardian-build190-articulated-study.glb",
+    "sha256": "7123bcd9f9146635e25e3eaa7dc89fae4e5e93088c62b893d763ed4fac4a3b58",
+    "sizeBytes": 3266168,
+    "meshParts": 160,
+    "triangleCount": 52456,
+    "headJawRig": true,
+    "namedMorphTargets": [
+      "rest",
+      "sil",
+      "PP",
+      "FF",
+      "TH",
+      "DD",
+      "kk",
+      "CH",
+      "SS",
+      "nn",
+      "RR",
+      "aa",
+      "E",
+      "I",
+      "O",
+      "U"
+    ],
+    "technicalAnimationCount": 1,
+    "localStructuralChecksPassed": 27,
+    "localStructuralChecksFailed": 0,
+    "embeddedFaceTextureSource": "IMG_5711.jpeg",
+    "boneAnimationScope": "demonstration-only; not approved audio playback",
+    "location": "Current conversation downloadable review package, not in GitHub repository"
+  },
+  "preview": {
+    "turntableSha256": "0e033541ba4cc46ec7b63c0dd429d3a5eb3aa4e14a48111215d243d92305c6de",
+    "comparisonSha256": "57250cbc40f4bb037d00ea7ff56cc4d7c92a2bfebaa53406d8ec6ebf5acda037"
+  },
+  "externalToolTrial": {
+    "provider": "Thrixel",
+    "submissionId": "22df3383-95a7-4acf-94b0-8102d3770237",
+    "source": "Build 189 approved still",
+    "status": "generated then rejected",
+    "reason": "Preview is an inadequately volumetric head rising from a flattened imagery plane; 1,362 triangles, unsuitable for face likeness and articulated-armor master.",
+    "freeProviderCubesUsed": 8,
+    "additionalCashSpentCAD": 0
+  },
+  "approval": {
+    "ownerVisualDirectionApproved": true,
+    "modelLikenessVerified": false,
+    "armourDesignFidelityVerified": false,
+    "profileReconstructionVerified": false,
+    "allSixteenVisemesDeviceVerified": false,
+    "founderApprovedFinalRig": false,
+    "productionActivationAuthorized": false
+  },
+  "technicalCaveat": "27 local structural checks do not establish photo-realistic likeness, physically plausible materials, organic performance, or iPhone lip sync. Binary is held only as a review artifact."
+}

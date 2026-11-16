@@ -1,0 +1,71 @@
+{
+  "schema": "staar-guardian-build202-founder-visual-direction-approval-v1",
+  "recordedDate": "2026-11-16",
+  "founderDirection": "I approve",
+  "approvalContext": "User responded after the Build 202 cinematic likeness review, including its three standalone rendered portraits, combined cinematic reference, and the independent negative GLB technical verdict.",
+  "scope": {
+    "cinematicVisualReferenceApproved": true,
+    "exactSourcePortraitsLocked": true,
+    "retainsBuild189Reference": true,
+    "approvedTextured3DGuardianGLB": false,
+    "authorizesTestFlight": false,
+    "approvedRealWorldFacialLikenessCertification": false,
+    "authentic16VisemeSpeechPerformanceVerified": false
+  },
+  "approvedCreativeReferences": [
+    {
+      "view": "front",
+      "file": "01_FRONTAL_CINEMATIC.png",
+      "sha256": "73d10921852fc71abe1b009695aceeae1ca0661148f5ddbf8bba488b16454ed3"
+    },
+    {
+      "view": "three-quarter",
+      "file": "02_THREE_QUARTER_CINEMATIC.png",
+      "sha256": "a3c622add69e50845b3fa247db3a4e8f5768ea4559eca01dfe4e2e2fd6c5b2af"
+    },
+    {
+      "view": "right-profile",
+      "file": "03_RIGHT_PROFILE_CINEMATIC.png",
+      "sha256": "8e5ac3da900788fd25800e0f5ee221646c7cfad33b7078c64bce897e9204d9f4"
+    },
+    {
+      "view": "combined-triptych",
+      "file": "GUARDIAN_CINEMATIC_THREE_VIEW_TARGET.png",
+      "sha256": "5a767bd10e139dbc3e794f54626ae219b4b66dabfe9459982dce74866f397646"
+    },
+    {
+      "view": "original-generation",
+      "file": "a_cinematic_studio_portrait_triptych_of_the_same_m.png",
+      "sha256": "fffb45753bed6e2aef4a8191afcee148624e829a16ecc0d17bb0b10037820fc1"
+    }
+  ],
+  "priorApprovedBuild189Hashes": [
+    "d624c47089583f4bcdc5d9bd8af6edb8e08c92e3242b5a21edd7cef337c4df9a",
+    "e3ae18bfe6b93ea441c2057b13cd96fe98f744c6766b18c362b9e6a1696cd0dd",
+    "bcc685ea738dabd39985445fe8bd9862913cdbd494dd47acad6686f92be82ff2"
+  ],
+  "realIdentitySourcePhotoFingerprints": {
+    "primary": "650434c4b2be625852b195c98e47dc25a551e2949ecd7951cd016c933b4d6886",
+    "secondary": "35b4ddc162583c034dc1e60c6ab6d0c3db0c391a50f9b6db1be2e567575c68b9"
+  },
+  "rejectedExperimentalModel": {
+    "sha256": "847c2f412b0184a372cd8a6a9149b78fcfe33a7e3127297196a80611f5e0f50d",
+    "structural16MorphAndThreeAnimationCheck": "passed",
+    "visualResult": "failed — texture seams, inaccurate profile depth, unrefined armor",
+    "installedIntoProduction": false
+  },
+  "nextAcceptanceRequirements": [
+    "True matched front/45/90 degree 3D mesh renders using real facial geometry references",
+    "Resolve UV seams and facial side-depth",
+    "Preserve original silver-gold armour, crest and source protection",
+    "Measure independent natural 16-viseme motion synchronized to approved spoken dialogue",
+    "Physical iPhone/Watch runtime verification and final owner GLB-by-hash review"
+  ],
+  "privacy": {
+    "repoIsPublic": true,
+    "portraitImagesCommittedToPublicRepo": false,
+    "personalPhotoBinaryCommittedToPublicRepo": false,
+    "recordContainsOnlyHashes": true
+  },
+  "directCashSpentCAD": 0
+}

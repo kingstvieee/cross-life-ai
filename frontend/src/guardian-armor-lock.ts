@@ -24,6 +24,9 @@ export const LOCKED_ARMORED_GUARDIAN = Object.freeze({
   ],
 } as const);
 
+// A 2D cinematic approval does not override the Build 202 rejected 3D-model verdict.
+export const REJECTED_BUILD202_GUARDIAN_MODEL_SHA256 = '847c2f412b0184a372cd8a6a9149b78fcfe33a7e3127297196a80611f5e0f50d' as const;
+
 export type GuardianArmoredRigEvidence = {
   sourceImageSha256: string;
   identityAssetId: string;
@@ -45,6 +48,7 @@ export function canActivateArmoredGuardian3D(
   if (!evidence) return false;
   return evidence.sourceImageSha256 === LOCKED_ARMORED_GUARDIAN.sourceImageSha256
     && /^[a-f0-9]{64}$/.test(evidence.rigModelSha256)
+    && evidence.rigModelSha256 !== REJECTED_BUILD202_GUARDIAN_MODEL_SHA256
     && evidence.identityAssetId.trim().length > 0
     && evidence.founderApprovedRig === true
     && evidence.faceFidelityReviewed === true
