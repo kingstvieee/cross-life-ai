@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GUARDIAN_VISEMES, mayAnimateApprovedGuardianFace } from '../src/guardian-visemes.ts';
-import { LOCKED_ARMORED_GUARDIAN, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, canActivateArmoredGuardian3D, armoredGuardianFacialRig } from '../src/guardian-armor-lock.ts';
+import { LOCKED_ARMORED_GUARDIAN, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, canActivateArmoredGuardian3D, armoredGuardianFacialRig } from '../src/guardian-armor-lock.ts';
 
 const reference = LOCKED_ARMORED_GUARDIAN;
 const valid = {
@@ -44,4 +44,11 @@ test('only a verified armoured model can create the original facial runtime appr
 test('Build 202 rejected model is denied by native Guardian activation even with every approval boolean true',()=>{
  assert.equal(canActivateArmoredGuardian3D({ ...valid, rigModelSha256: REJECTED_BUILD202_GUARDIAN_MODEL_SHA256 }),false);
  assert.equal(armoredGuardianFacialRig({ ...valid, rigModelSha256: REJECTED_BUILD202_GUARDIAN_MODEL_SHA256 }),null);
+});
+
+
+test('Build 208 private QA-only model cannot activate even with a forged all-true receipt',()=>{
+ assert.equal(PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256,'09dcb3cb56b70f5a2b38e5d5f68de627a62df5ad42ad89e2f9d9123d92cf70b5');
+ assert.equal(canActivateArmoredGuardian3D({...valid,rigModelSha256:PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256}),false);
+ assert.equal(armoredGuardianFacialRig({...valid,rigModelSha256:PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256}),null);
 });
