@@ -195,3 +195,16 @@ test('native and web 3D viewers recover if renderer readiness never arrives', ()
   assert.match(web, /if \(!sceneReady\.current\) setFailedScene\(sceneKey\)/);
   assert.equal(sceneFallbackActions('hub').length, 9);
 });
+
+test('3D renderer reports readiness only after the first successful WebGL frame', () => {
+  const renderer = fs.readFileSync(path.join('scene-src', 'worlds.js'), 'utf8');
+  const draw = renderer.slice(renderer.indexOf('function draw(now)'), renderer.indexOf("controls.addEventListener('change'"));
+  assert.match(draw, /firstFrameReady/);
+  assert.match(draw, /renderer\.render\(scene,camera\)/);
+  assert.match(draw, /if\(!firstFrameReady\)\{firstFrameReady=true;report\('ready'/);
+  assert.ok(draw.indexOf('renderer.render(scene,camera)') < draw.indexOf("report('ready'"), 'ready must occur after a successful frame');
+  assert.match(draw, /catch\s*\{/);
+  assert.match(draw, /addNavigationFallback\(\);report\('unavailable'\)/);
+  assert.equal((renderer.match(/report\('ready'/g) || []).length, 1);
+  assert.equal((renderer.match(/report\('unavailable'/g) || []).length >= 2, true);
+});
