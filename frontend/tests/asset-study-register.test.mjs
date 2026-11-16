@@ -25,6 +25,7 @@ test('ten independently hashed studies cover precisely the runtime world variant
    assert.equal(item.deviceCaptureVerified, false);
    assert.equal(item.animationVerified, false);
    assert.equal(item.navigationVerified, false);
+   assert.equal(item.exportRightsConfirmed, false);
  }
 });
 test('identity reference and all sixteen face targets are recorded without false approval', () => {
