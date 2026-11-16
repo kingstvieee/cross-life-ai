@@ -9,6 +9,12 @@ from pydantic import BaseModel, Field
 from guardian_store import GuardianStore
 from starcenttinel_gate import require_sentinel_admission
 
+# Canonical Guardian Core portal identifiers (not the final immersive hub portals).
+GUARDIAN_CORE_PORTALS = frozenset({
+    "creativity", "work", "home", "wellbeing",
+    "relationships", "community", "style",
+})
+
 
 class GuardianMissionUpdate(BaseModel):
     patch: Dict[str, Any] = Field(default_factory=dict)
@@ -364,6 +370,8 @@ def build_guardian_router(*, db: Any, get_current_user: Any, get_trusted_worker:
     @router.post("/workflows/{workflow_id}/portal-weave/contributions")
     async def workflow_contribution(workflow_id: str, body: GuardianContributionRequest, authorization: Optional[str] = Header(None)):
         user = await account_user(authorization)
+        if body.portal_id not in GUARDIAN_CORE_PORTALS:
+            raise HTTPException(status_code=400, detail="guardian_unknown_portal")
         try:
             return await store.add_portal_contribution(user["user_id"], workflow_id, contribution_id=body.contribution_id, portal_id=body.portal_id, kind=body.kind, summary=body.summary, version=body.version, privacy_scope=body.privacy_scope, authority_scopes=body.authority_scopes, idempotency_key=body.idempotency_key)
         except (KeyError, ValueError) as exc:
