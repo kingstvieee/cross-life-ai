@@ -54,6 +54,7 @@ jobs:
       - run: node --test tests/guardian-build190-review.test.mjs
       - run: node --test tests/build198-cinematic-review.test.mjs
       - run: node --test tests/build199-approved-development-baseline.test.mjs
+      - run: node --test tests/build200-navigation-qa.test.mjs
       - run: node --test tests/build199-master-review.test.mjs
       - run: node --test tests/release-evidence.test.mjs
       - run: yarn exec eslint components/staarwardd/creativity-studio.tsx components/staarwardd/portal-screen.tsx components/staarwardd/voice-input.tsx
