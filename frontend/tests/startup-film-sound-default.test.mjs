@@ -30,16 +30,19 @@ test('browser still has muted autoplay and explicit audible activation', () => {
 });
 
 test('native cinematic configures foreground sound before playback without microphone or background audio', () => {
-  assert.match(nativePlayer, /import \{ setAudioModeAsync, useAudioPlayer \} from "expo-audio"/);
+  assert.match(nativePlayer, /import \{ setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus \} from "expo-audio"/);
   assert.match(nativePlayer, /playsInSilentMode: true/);
   assert.match(nativePlayer, /shouldPlayInBackground: false/);
   assert.match(nativePlayer, /allowsRecording: false/);
   assert.match(nativePlayer, /if \(!audioSessionReady\) return/);
-  assert.match(nativePlayer, /soundtrack\.muted = muted/);
-  assert.match(nativePlayer, /if \(playing\) soundtrack\.play\(\)/);
+  assert.match(nativePlayer, /soundtrack\.muted = gate\.muteMusic/);
+  assert.match(nativePlayer, /if \(gate\.playFilm\) player\.play\(\)/);
   assert.match(nativePlayer, /soundtrack\.pause\(\)/);
   assert.match(nativePlayer, /setApprovedMusicFailed\(true\)/);
   assert.match(nativePlayer, /playbackStatusUpdate/);
+  assert.match(nativePlayer, /const timeout = setTimeout\(\(\) => setApprovedMusicFailed\(true\), 3500\)/);
+  assert.match(nativePlayer, /gate\.playApprovedMusic/);
+  assert.match(nativePlayer, /useAudioPlayerStatus\(soundtrack\)/);
   assert.match(nativePlayer, /if \(status\.error\)/);
   assert.match(nativePlayer, /subscription\.remove\(\)/);
   assert.ok(nativePlayer.indexOf("if (!audioSessionReady) return") < nativePlayer.lastIndexOf("player.play()"));
