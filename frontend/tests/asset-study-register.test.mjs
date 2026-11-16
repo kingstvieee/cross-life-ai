@@ -19,6 +19,8 @@ test('ten independently hashed studies cover precisely the runtime world variant
  for (const item of studies.worldStudies) {
    assert.match(item.sha256, /^[a-f0-9]{64}$/);
    assert.ok(item.meshCount > 0 && item.triangleCount > 0);
+   assert.equal(item.gltfAnimationCount, 1);
+   assert.ok(item.animatedNodeCount >= 3 && item.animatedNodeCount <= 5);
    assert.equal(item.founderVisualApproved, false);
    assert.equal(item.deviceCaptureVerified, false);
    assert.equal(item.animationVerified, false);
