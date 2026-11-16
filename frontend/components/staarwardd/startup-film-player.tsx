@@ -7,7 +7,9 @@ export type FilmProps = { muted: boolean; playing: boolean; onEnd: () => void; o
 export default function StartupFilmPlayer({ muted, playing, onEnd, onError, onReady }: FilmProps) {
   const player = useVideoPlayer(require("@/assets/videos/guardian-startup.mp4"), p => {
     p.loop = false;
-    p.muted = true;
+    // The native player must begin with the same state as the startup sound toggle.
+    // No changes are made to the original locked film or its embedded audio.
+    p.muted = muted;
   });
   useEffect(() => {
     const end = player.addListener("playToEnd", onEnd);
