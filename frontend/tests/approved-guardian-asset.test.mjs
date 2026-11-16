@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { ARMORED_SOURCE_SHA256, REQUIRED_FACE_TARGETS, validateArmoredGuardianGlb, loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
+import { ARMORED_SOURCE_SHA256, REAL_FACE_SOURCE_SHA256, REQUIRED_FACE_TARGETS, validateArmoredGuardianGlb, loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
 
 function model(targetNames=REQUIRED_FACE_TARGETS) {
   const gltf={
@@ -27,6 +27,7 @@ function model(targetNames=REQUIRED_FACE_TARGETS) {
 }
 function receipt(bytes) {
  return {schema:'staar-armored-guardian-v1',sourceImageSha256:ARMORED_SOURCE_SHA256,
+   realFaceSourceSha256:{...REAL_FACE_SOURCE_SHA256},
    rigModelSha256:createHash('sha256').update(bytes).digest('hex'),
    identityAssetId:'approved-armored-guardian-v1',exportRightsConfirmed:true,
    founderApprovedRig:true,faceFidelityReviewed:true,armorFidelityReviewed:true,
@@ -42,7 +43,10 @@ test('verified offline GLB can be packed only after all 16 viseme targets and so
 test('wrong face, changed binary, denied approval, tracksuit substitute and absent visemes are rejected',()=>{
  const bytes=model();
  for(const changes of [
-   {sourceImageSha256:'b'.repeat(64)}, {rigModelSha256:'c'.repeat(64)},
+   {sourceImageSha256:'b'.repeat(64)}, {realFaceSourceSha256:null},
+   {realFaceSourceSha256:{...REAL_FACE_SOURCE_SHA256,primary:'b'.repeat(64)}},
+   {realFaceSourceSha256:{...REAL_FACE_SOURCE_SHA256,secondary:'c'.repeat(64)}},
+   {rigModelSha256:'c'.repeat(64)},
    {founderApprovedRig:false},{armorFidelityReviewed:false},{faceFidelityReviewed:false},
    {frontThreeQuarterProfileReviewed:false},{speechSyncDeviceVerified:false},
    {exportRightsConfirmed:false},
