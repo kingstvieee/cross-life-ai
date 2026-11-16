@@ -33,6 +33,12 @@ test('proxy reports 4 connected and 6 blocked routes without fabricating a real 
  assert.ok(nav.results.every(x=>!x.actualAppCollisionQA&&!x.verifiedSpawnAndPortal&&!x.iphoneFrameRateQA));
  assert.equal(nav.status.realDeviceNavigationPassedCount,0);
  assert.equal(nav.status.productionGLBsPromoted,0);
+ assert.equal(nav.mobileFileSizeAudit.sourceBytesTotal,6534576);
+ assert.equal(nav.mobileFileSizeAudit.mobileBytesTotal,5475852);
+ assert.equal(nav.results.filter(x=>x.mobileSizeAudit.mobileLargerThanSource).length,1);
+ assert.deepEqual(nav.mobileFileSizeAudit.largerThanSourceWorlds,['creativity-dream']);
+ assert.equal(nav.mobileFileSizeAudit.bytesAreNotRuntimeRamBenchmark,true);
+
 });
 
 test('AABB geometry proxy cannot unlock iPhone signing or final Guardian performance',()=>{
