@@ -131,7 +131,7 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
             if probe.status_code != 200: raise HTTPException(502, "provider_read_unavailable")
             payload = probe.json()
             items = payload.get("items" if provider == "google" else "value")
-            if not isinstance(items, list): raise HTTPException(502, "provider_read_unavailable")
+            if not isinstance(items, list) or any(not isinstance(item, dict) for item in items[:25]): raise HTTPException(502, "provider_read_unavailable")
         except (httpx.HTTPError, ValueError, AttributeError):
             raise HTTPException(502, "provider_read_unavailable")
         # Atomically consume consent only after proven read permission; no data is stored.
@@ -167,8 +167,8 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
                         raise HTTPException(409, "provider_reconnect_required")
                     if result.status_code != 200: raise HTTPException(502, "provider_read_unavailable")
                     fresh = result.json()
-                    if not fresh.get("access_token"): raise HTTPException(502, "provider_read_unavailable")
-                    tokens.update(fresh); tokens["expires_at"] = (now() + timedelta(seconds=int(fresh.get("expires_in", 3600)))).timestamp()
+                    if not isinstance(fresh, dict) or not isinstance(fresh.get("access_token"), str) or not fresh["access_token"]: raise HTTPException(502, "provider_read_unavailable")
+                    tokens.update(fresh); tokens["expires_at"] = (now() + timedelta(seconds=max(60, min(int(fresh.get("expires_in", 3600)), 86400)))).timestamp()
                     refreshed_token = seal(tokens)
                     await db.provider_connections.update_one({"_id": record["_id"], "tokens": record["tokens"]}, {"$set": {"tokens": refreshed_token}})
                     record["tokens"] = refreshed_token
