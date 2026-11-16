@@ -1,27 +1,17 @@
-"""Fail-closed Guardian admission gate. No endpoint in Guardian may lower containment.
+"""Guardian admission gate: independently signed capability is required.
 
-This is an integration boundary, NOT an independently deployed control plane.
-An external authority must write a valid signed/verified policy projection to
-the database before any external dispatch is permitted. Until then deny.
+Until a separately operated verifier is implemented, every external action
+is denied. A mutable Guardian Mongo record cannot grant security authority.
 """
 from fastapi import HTTPException
 
-VALID_MODES = {"NORMAL", "CAUTION", "CONTAIN", "LOCKDOWN"}
+ALLOWED_OPERATIONS = frozenset({"dispatch", "send-admission"})
 
 async def require_sentinel_admission(db, *, user_id: str, operation: str) -> None:
-    # Never trust request-provided mode, scopes, or approval booleans.
-    try:
-        record = await db.starcenttinel_policy.find_one({"user_id": user_id})
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail="sentinel_policy_unavailable") from exc
-    if not record or record.get("mode") not in VALID_MODES:
-        raise HTTPException(status_code=423, detail="sentinel_unprovisioned_lockdown")
-    # A local projection alone cannot establish independent authentication.
-    # Fail closed unless an independent verifier has explicitly activated
-    # enforcement in a future reviewed integration.
-    if record.get("independent_enforcement_verified") is not True:
-        raise HTTPException(status_code=423, detail="sentinel_independent_enforcement_required")
-    if record["mode"] != "NORMAL":
-        raise HTTPException(status_code=423, detail="sentinel_containment_active")
-    if operation not in ("dispatch", "send-admission"):
+    if operation not in ALLOWED_OPERATIONS:
         raise HTTPException(status_code=403, detail="sentinel_operation_not_allowed")
+    # Deliberately ignore all Guardian-local policy fields. In particular,
+    # independent_enforcement_verified=True MUST NOT unlock execution.
+    # A future implementation must validate independently signed, scoped,
+    # expiring, one-use authority and check revocation before dispatch.
+    raise HTTPException(status_code=423, detail="sentinel_independent_capability_required")
