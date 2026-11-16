@@ -20,3 +20,15 @@ test('native TestFlight is not claimed by web export or Expo prebuild',()=>{
  assert.match(text,/NOT FINAL/);
  assert.match(text,/signed IPA/);
 });
+
+test('Guardian live avatar never imports rejected geometry or swaps the founder-approved identity',()=>{
+ const avatar=readFileSync(new URL('../components/staarwardd/guardian-character.tsx',import.meta.url),'utf8');
+ const startupNative=readFileSync(new URL('../components/staarwardd/startup-film-player.tsx',import.meta.url),'utf8');
+ const startupWeb=readFileSync(new URL('../components/staarwardd/startup-film-player.web.tsx',import.meta.url),'utf8');
+ for(const src of [avatar,startupNative,startupWeb]){
+   assert.doesNotMatch(src,/REJECTED_identity_mismatch|REJECTED_user_declined_appearance/);
+ }
+ assert.match(startupNative,/guardian-startup\.mp4/);
+ assert.match(startupWeb,/guardian-startup\.mp4/);
+ assert.match(avatar,/guardian-poses\/guide\.png/);
+});
