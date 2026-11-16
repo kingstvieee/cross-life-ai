@@ -47,6 +47,13 @@ def event_summary(provider, item):
         return {"id": item.get("id", ""), "title": item.get("summary") or "Untitled event", "start": item.get("start", {}).get("dateTime") or item.get("start", {}).get("date"), "end": item.get("end", {}).get("dateTime") or item.get("end", {}).get("date")}
     return {"id": item.get("id", ""), "title": item.get("subject") or "Untitled event", "start": item.get("start", {}).get("dateTime"), "end": item.get("end", {}).get("dateTime")}
 
+def calendar_query(provider):
+    """Minimal, bounded read-only permission probe and calendar preview window."""
+    start, end = now().isoformat(), (now() + timedelta(days=7)).isoformat()
+    if provider == "google":
+        return {"timeMin": start, "timeMax": end, "maxResults": 25, "singleEvents": "true", "orderBy": "startTime", "fields": "items(id,summary,start,end)"}
+    return {"startDateTime": start, "endDateTime": end, "$top": 25, "$select": "id,subject,start,end", "$orderby": "start/dateTime"}
+
 def build_provider_router(*, db, require_account_user, limiter, http_client=None):
     def private_response(response: Response):
         response.headers["Cache-Control"] = "no-store"
@@ -102,10 +109,27 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
     @router.post("/{provider}/finish/{flow_id}")
     async def finish(provider: str, flow_id: str, authorization: str = Header(None)):
         user = await account(authorization); configuration(provider)
-        flow = await db.provider_flows.find_one_and_delete({"flow": hashed(flow_id), "user_id": user["user_id"], "provider": provider, "status": "consented", "expires_at": {"$gt": now()}})
+        # Do not present a provider as connected until its live API accepts this token.
+        query = {"flow": hashed(flow_id), "user_id": user["user_id"], "provider": provider, "status": "consented", "expires_at": {"$gt": now()}}
+        flow = await db.provider_flows.find_one(query)
         if not flow: raise HTTPException(409, "consent_not_finished_or_expired")
-        await db.provider_connections.update_one({"user_id": user["user_id"], "provider": provider}, {"$set": {"tokens": flow["tokens"], "linked_at": now()}}, upsert=True)
-        return {"connected": True, "capability": "calendar_read_only"}
+        token = unseal(flow["tokens"]).get("access_token")
+        if not isinstance(token, str) or not token: raise HTTPException(409, "provider_reconnect_required")
+        try:
+            async with make_client() as client:
+                probe = await client.get(SPECS[provider]["api"], params=calendar_query(provider), headers={"Authorization": "Bearer " + token})
+            if probe.status_code in (401, 403): raise HTTPException(409, "provider_reconnect_required")
+            if probe.status_code != 200: raise HTTPException(502, "provider_read_unavailable")
+            payload = probe.json()
+            items = payload.get("items" if provider == "google" else "value")
+            if not isinstance(items, list): raise HTTPException(502, "provider_read_unavailable")
+        except (httpx.HTTPError, ValueError, AttributeError):
+            raise HTTPException(502, "provider_read_unavailable")
+        # Atomically consume consent only after proven read permission; no data is stored.
+        consumed = await db.provider_flows.find_one_and_delete(query)
+        if not consumed: raise HTTPException(409, "consent_not_finished_or_expired")
+        await db.provider_connections.update_one({"user_id": user["user_id"], "provider": provider}, {"$set": {"tokens": consumed["tokens"], "linked_at": now()}}, upsert=True)
+        return {"connected": True, "capability": "calendar_read_only", "readback_verified": True}
 
     @router.delete("/{provider}")
     async def disconnect(provider: str, authorization: str = Header(None)):
@@ -131,9 +155,7 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
                     if not fresh.get("access_token"): raise HTTPException(409, "provider_reconnect_required")
                     tokens.update(fresh); tokens["expires_at"] = (now() + timedelta(seconds=int(fresh.get("expires_in", 3600)))).timestamp()
                     await db.provider_connections.update_one({"_id": record["_id"], "tokens": record["tokens"]}, {"$set": {"tokens": seal(tokens)}})
-                start, end = now().isoformat(), (now() + timedelta(days=7)).isoformat()
-                params = {"timeMin": start, "timeMax": end, "maxResults": 25, "singleEvents": "true", "orderBy": "startTime", "fields": "items(id,summary,start,end)"} if provider == "google" else {"startDateTime": start, "endDateTime": end, "$top": 25, "$select": "id,subject,start,end", "$orderby": "start/dateTime"}
-                response = await client.get(SPECS[provider]["api"], params=params, headers={"Authorization": "Bearer " + tokens["access_token"]})
+                response = await client.get(SPECS[provider]["api"], params=calendar_query(provider), headers={"Authorization": "Bearer " + tokens["access_token"]})
                 if response.status_code in (401, 403): raise HTTPException(409, "provider_reconnect_required")
                 if response.status_code != 200: raise HTTPException(502, "provider_read_unavailable")
                 data = response.json()
