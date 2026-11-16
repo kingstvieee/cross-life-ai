@@ -113,7 +113,49 @@ if (renderer) {
   }
   function home() {shell();for(const r of[1.8,2.05,2.3])ring(0,2.6,-5,r,.12);ring(0,2.6,-4.85,2.05,.03,amber);sofa(-3,1,.2);sofa(2.2,-1.8,-.4);cylinder(-.6,.55,1.7,1.35,.15,black);cylinder(-.6,.28,1.7,.32,.5,gold);sphere(3.8,1.8,1,.5,blue);ring(3.8,1.8,1,.8,.025,blue);panel('Smart controls','connections',-4,2.7,-2);panel('Rooms & routines','conversation:0',3.8,2.7,-3);panel('Daily check-in','checkins',0,.9,4,amber);}
   function work() {shell(true);plinth(0,-1,3.8);globe(0,3.7,-1,2);cylinder(0,.85,-1,3.4,.6);ring(0,1.2,-1,3.2,.04,blue,true);for(let i=0;i<12;i++){const a=i*Math.PI/6;box(Math.sin(a)*3,1.23,-1+Math.cos(a)*3,.65,.04,.4,blue).rotation.y=a;}['Employment','Businesses','Career','Teams'].forEach((n,i)=>panel(n,i===0?'conversation:0':'connections',(i-1.5)*3,2,2.5,amber,2.6));panel('Connect workplace','connections',0,.85,5,blue,4);sofa(8,-3,-.6);}
-  function dreams(game=false) {stars();skyline();plinth(0,1,4,violet);island(0,1.5,-3,3,game?black:green);tree(-1.4,-3,game?material('#7568b0'):green,1.6,.8);for(let i=0;i<6;i++){const a=i*Math.PI/3,x=Math.cos(a)*8,z=Math.sin(a)*7-3,y=2+i%2;island(x,y,z,1.6,game?black:green);diamond(x,y+1.4,z,.4);line([[0,1.6,-3],[x/2,2+i%2/2,(z-3)/2],[x,y+.2,z]],violet,.065);}arch(0,-4,1.6,violet);panel(game?'Milo & games library':'Film & animation','conversation:0',-3.5,1.3,3.5,violet);panel(game?'Creator lab':'Creative library','conversation:1',3.5,1.3,3.5,violet);panel(game?'World tools':'Connect creative tools','connections',0,.8,5.2,amber,4);if(game)text('Playable games are in development',0,5.5,-4,7);}
+  function dreams() {
+    stars();skyline();plinth(0,1,4,violet);island(0,1.5,-3,3,green);
+    tree(-1.4,-3,green,1.6,.8);
+    for(let i=0;i<6;i++){const a=i*Math.PI/3,x=Math.cos(a)*8,z=Math.sin(a)*7-3,y=2+i%2;
+      island(x,y,z,1.6,green);diamond(x,y+1.4,z,.4);
+      line([[0,1.6,-3],[x/2,2+i%2/2,(z-3)/2],[x,y+.2,z]],violet,.065);
+    }
+    arch(0,-4,1.6,violet);
+    panel('Film & animation','conversation:0',-3.5,1.3,3.5,violet);
+    panel('Creative library','conversation:1',3.5,1.3,3.5,violet);
+    panel('Connect creative tools','connections',0,.8,5.2,amber,4);
+  }
+  function staarverse() {
+    // STARVERSE is its own cinematic gaming preview, not a palette swap of Dreams.
+    stars();skyline();plinth(0,-1,5.5,blue);
+    const gate=new T.Group();gate.position.set(0,3.8,-6.8);scene.add(gate);
+    for(const r of[2.25,2.65,3.05]){const halo=ring(0,0,0,r,.08,r===2.65?amber:blue,false,gate);
+      animated.push(t=>{if(!reduced)halo.rotation.y=t*(r===2.65?-.14:.12);});
+    }
+    const core=mesh(new T.IcosahedronGeometry(1.3,2),violet,0,0,0,gate);
+    animated.push(t=>{if(!reduced){core.rotation.y=t*.17;core.rotation.x=.2+Math.sin(t*.3)*.1;}});
+    for(let i=0;i<6;i++){const a=i*Math.PI/3,x=Math.cos(a)*10,z=-5+Math.sin(a)*6;
+      const y=1.6+(i%3)*.7,accent=[blue,violet,amber][i%3];
+      const rock=mesh(new T.DodecahedronGeometry(2,0),black,x,y-.9,z);rock.scale.set(1.2,.58,1.1);
+      cylinder(x,y,z,2.25,.18,accent);ring(x,y+.15,z,2.2,.05,gold,true);
+      diamond(x,y+1.8,z,.55);
+      for(let step=0;step<9;step++){const v=step/8;
+        const px=x*v,pz=-5+(z+5)*v;
+        box(px,1.05+(y-1.05)*v,pz,.22,.055,.18,accent).rotation.y=a;
+      }
+      line([[0,1.2,-5],[x*.55,1.5+(y-1.5)*.5,-5+(z+5)*.55],[x,y+.1,z]],accent,.04);
+    }
+    for(let i=0;i<12;i++){const a=i*Math.PI*2/12,r=3.2;
+      sphere(Math.cos(a)*r,1.5,-6.8+Math.sin(a)*r,.09,i%2?amber:blue);
+    }
+    // "Milo" names a library entrance only; no unapproved Milo character is generated.
+    text('STARVERSE · GAME GATEWAY',0,8,-9,11);
+    panel('Milo · games library','conversation:0',-4,1.5,3.2,blue,4.6);
+    panel('World creation lab','conversation:1',4,1.5,3.2,violet,4.6);
+    panel('Connect gaming tools','connections',0,.7,5.7,amber,4.8);
+    text('GAME WORLDS IN DEVELOPMENT',0,6.7,-8,8);
+    camera.position.set(0,7.4,19);controls.target.set(0,3,-4);
+  }
   function health() {floor(14,white);skyline(true);for(const side of[-1,1])for(let i=0;i<4;i++){const x=side*7.5,z=4-i*4;box(x,3,z,3.5,6,3,white);box(x-side*1.8,2.4,z,.06,3.3,2.4,blue);box(x-side*1.84,4.6,z,.08,.4,2.9);tree(side*4.9,z,green,0,.65);}for(let i=-4;i<=4;i++)box(i*.8,.01,1,.4,.025,4);arch(0,-8,2.5,blue);text('STAAR HEALTH',0,5.3,-8,7);box(-.6,3,-7.9,1.6,.4,.2,blue);box(-.6,3,-7.85,.4,1.6,.2,blue);panel('Appointments & care','conversation:2',-3,1.5,3.8);panel('Health resources','connections',3,1.5,3.8);}
   function love() {shell();stars();cylinder(0,.02,0,4.8,.06,ruby);sofa(-3,-.5,.4,ruby);sofa(3,-.5,-.4,ruby);box(0,1.1,-6,4.5,2.2,.7,black);box(0,.8,-5.6,3.5,1,.08,amber);for(let i=0;i<18;i++){const flame=mesh(new T.ConeGeometry(.08,.5+i%4*.1,6),amber,-1.6+i*.19,.8,-5.5);animated.push(t=>{flame.scale.y=reduced?1:.8+Math.sin(t*4+i)*.25;});}const heart=new T.Shape();heart.moveTo(0,.3);heart.bezierCurveTo(-1.5,1.7,-2,-.1,0,-1.2);heart.bezierCurveTo(2,-.1,1.5,1.7,0,.3);mesh(new T.ExtrudeGeometry(heart,{depth:.15,bevelEnabled:true,bevelSize:.08,bevelThickness:.08,bevelSegments:3,steps:1}),ruby,0,3.9,-5.6);for(const x of[-6,6]){box(x,1.3,-3,1.4,2.6,.6,gold);for(let i=0;i<5;i++)cylinder(x-.45+i*.23,2.8,-3,.07,.45,amber);}panel('Connection & conversation','conversation:0',-2.5,1.4,3,amber,4);panel('Community & support','connections',2.5,1.4,3,violet,4);}
   function singlesLounge() {
@@ -139,7 +181,7 @@ if (renderer) {
   function village() {floor(15);skyline();stars();cylinder(0,.8,-4,4.4,1.6).scale.z=.65;ring(0,1.65,-4,4.3,.06,violet,true).scale.y=.65;text('SCOTIABANK ARENA DISTRICT',0,2.6,-3,8);for(let i=0;i<4;i++){const x=(i-1.5)*4;plinth(x,3,1.35);diamond(x,1.2,3,.28);}['Toronto','Brampton','Mississauga','Scarborough'].forEach((n,i)=>panel(n,'connections',(i-1.5)*3.7,2.3,2.5,violet,3.2));for(const x of[-5.5,0,5.5])line([[x,.05,4],[x+1,.05,0],[x,.05,-7]],blue,.035);panel('Events, transit & community','connections',0,.8,6,amber,6);}
   function closet() {shell(true);cylinder(0,.06,0,4.5,.13,white);for(const side of[-1,1]){const x=side*6.5;box(x,2,-2,.09,4,.09);box(x,2,3,.09,4,.09);box(x,4,.5,.09,.09,5.1);for(let i=0;i<7;i++){const z=-1.6+i*.65;line([[x,3.95,z],[x-.45,3.6,z],[x+.45,3.6,z],[x,3.95,z]],gold);box(x,2.6,z,1,1.8,.1,i%3===0?black:white);diamond(x,3.05,z+.07,.07);}}box(0,2.6,-6,4,5,.25);box(0,2.6,-5.84,3.75,4.75,.04,black);text('RISING STAARFORM',0,5.7,-6,7);for(let i=0;i<26;i++){const a=i*Math.PI*2/26,m=sphere(Math.sin(a)*4.5,.16,Math.cos(a)*4.5,.3,white);m.scale.set(1.5,.25,1);animated.push(t=>{if(!reduced)m.position.y=.16+Math.sin(t*.7+i)*.014;});}panel('My wardrobe','conversation:1',-2.5,1.4,4,amber);panel('RSF & shopping tools','connections',2.5,1.4,4,amber);}
   function studio() {shell();stars();for(const x of[-8.5,8.5]){island(x,5.5,-6,2.2,black);tree(x,-6,material('#c56b15'),5.6,.8);waterfall(x-.3,2.6,-4.5,5.6);}plinth(0,-2.5,3);const g=new T.Group();g.position.set(0,3.5,-2.5);scene.add(g);mesh(new T.TorusGeometry(1.7,.16,12,64,Math.PI),chrome,0,0,0,g);for(const s of[-1,1]){cylinder(s*1.7,-.2,0,.65,.35,chrome,g).rotation.z=Math.PI/2;cylinder(s*1.48,-.2,0,.54,.25,material('#5d2e1b',.05,.65),g).rotation.z=Math.PI/2;ring(s*1.9,-.2,0,.45,.025,amber,false,g).rotation.y=Math.PI/2;}animated.push(t=>{if(!reduced)g.rotation.y=t*Math.PI*2/30;});box(0,.8,2.2,10,.3,2.2);for(let i=0;i<30;i++){const x=-4.7+i*.32;box(x,.98,2.6,.04,.03,.65,black);box(x,1.02,2.6+Math.sin(i)*.25,.12,.08,.15,white);for(let j=0;j<3;j++)cylinder(x,1,1.7+j*.18,.035,.06,j%2?blue:amber);}for(const x of[-3.6,0,3.6]){box(x,1.65,1.4,2.7,1.3,.15,black);for(let i=0;i<20;i++)box(x-1.2+i*.126,1.6,1.49,.035,.1+Math.abs(Math.sin(i*2.1+x))*.8,.02,x===0?amber:blue);}for(const x of[-5.6,5.6]){box(x,1.45,1.3,.9,2.9,.8,black);for(const y of[.7,1.5,2.3]){cylinder(x,y,1.73,.28,.05,gold).rotation.x=Math.PI/2;sphere(x,y,1.79,.12,black).scale.z=.4;}}panel('Music library','conversation:0',-4.5,2.4,-2,amber);panel('AI tools & studio','connections',4.5,2.4,-2);panel('Plan a release','conversation:1',0,.7,4.5,amber,4);}
-  ({hub,home,work,creativity:()=>dreams(),wellbeing:health,relationships:()=>singles?singlesLounge():love(),events:village,style:closet,staarverse:()=>dreams(true),staarsonic:studio})[world]();
+  ({hub,home,work,creativity:()=>dreams(),wellbeing:health,relationships:()=>singles?singlesLounge():love(),events:village,style:closet,staarverse,staarsonic:studio})[world]();
   controls.update();controls.saveState();
   let frame=0,visible=true,firstFrameReady=false;const start=performance.now();
   function requestDraw(){if(!frame&&visible)frame=requestAnimationFrame(draw);}
