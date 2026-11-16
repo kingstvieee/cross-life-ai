@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GUARDIAN_VISEMES, mayAnimateApprovedGuardianFace } from '../src/guardian-visemes.ts';
-import { LOCKED_ARMORED_GUARDIAN, canActivateArmoredGuardian3D, armoredGuardianFacialRig } from '../src/guardian-armor-lock.ts';
+import { LOCKED_ARMORED_GUARDIAN, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, canActivateArmoredGuardian3D, armoredGuardianFacialRig } from '../src/guardian-armor-lock.ts';
 
 const reference = LOCKED_ARMORED_GUARDIAN;
 const valid = {
@@ -38,4 +38,10 @@ test('only a verified armoured model can create the original facial runtime appr
   assert.equal(armoredGuardianFacialRig({ ...valid, faceFidelityReviewed: false }), null);
   const rig = armoredGuardianFacialRig(valid);
   assert.equal(mayAnimateApprovedGuardianFace(rig, reference.sourceImageSha256), true);
+});
+
+
+test('Build 202 rejected model is denied by native Guardian activation even with every approval boolean true',()=>{
+ assert.equal(canActivateArmoredGuardian3D({ ...valid, rigModelSha256: REJECTED_BUILD202_GUARDIAN_MODEL_SHA256 }),false);
+ assert.equal(armoredGuardianFacialRig({ ...valid, rigModelSha256: REJECTED_BUILD202_GUARDIAN_MODEL_SHA256 }),null);
 });
