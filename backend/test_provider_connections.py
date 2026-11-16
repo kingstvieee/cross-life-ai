@@ -181,3 +181,15 @@ def test_transient_calendar_failure_keeps_valid_saved_connection(monkeypatch):
     assert 'tokens' in db.provider_connections.docs[0]
     entry = client.get('/api/connections', headers={'Authorization': 'Bearer alice'}).json()[0]
     assert entry['connected'] is True
+
+def test_corrupt_link_without_token_is_not_reported_connected(monkeypatch):
+    client, db, requests = make(monkeypatch)
+    flow, params = begin(client)
+    assert client.get('/api/connections/google/callback', params={'state': params['state'][0], 'code': 'approved'}).status_code == 200
+    assert client.post('/api/connections/google/finish/' + flow['flow'], headers={'Authorization': 'Bearer alice'}).status_code == 200
+    db.provider_connections.docs[0].pop('tokens', None)
+    response = client.get('/api/connections', headers={'Authorization': 'Bearer alice'})
+    assert response.status_code == 200
+    status = response.json()[0]
+    assert status['connected'] is False and status['reconnect_required'] is True
+    assert 'tokens' not in status
