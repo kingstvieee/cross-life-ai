@@ -1,5 +1,8 @@
 from copy import deepcopy
 
+import pytest
+from unittest.mock import AsyncMock
+
 from fastapi.testclient import TestClient
 
 from test_guardian_reconciliation import AUTH, DISPATCH_CONTEXT, EXECUTE_GRANT, READ_AUTH
@@ -10,6 +13,16 @@ PATH = "/api/guardian/core/workflows/rsf-fabric-sourcing"
 A = {"Authorization": "Bearer user-a"}
 AW = {**A, "X-Guardian-Worker-Token": "worker-test"}
 B = {"Authorization": "Bearer user-b", "X-Guardian-Worker-Token": "worker-test"}
+
+
+@pytest.fixture(autouse=True)
+def isolate_downstream_guardian_authority(monkeypatch):
+    """Exercise legacy Guardian authority checks independently of Sentinel admission.
+
+    Sentinel fail-closed behavior is tested separately in test_starcenttinel_gate.py.
+    This fixture only patches the in-process test module, never application code.
+    """
+    monkeypatch.setattr("guardian_routes.require_sentinel_admission", AsyncMock(return_value=None))
 
 
 def seed_http_authority(client):
