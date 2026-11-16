@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
 import { useAuth } from "@/src/auth";
 import { backendUrl } from "@/src/backend-config";
+import { enabledLoginProviders } from "@/src/login-provider-availability";
 import { useStartupReplay } from "./startup-film";
 import { PORTALS, PREVIEW_WORLDS } from "@/lib/staarwardd/portal-data";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -35,7 +36,7 @@ export function SignInScreen() {
     let active = true;
     void Promise.resolve().then(() => fetch(backendUrl("/api/auth/providers")))
       .then(r => r.ok ? r.json() : null).then(data => {
-        if (active && data) setEnabled(data.providers.filter((p: { id: string; enabled: boolean }) => p.enabled && (Platform.OS === 'web' || data.nativeEnabled)).map((p: { id: string }) => p.id));
+        if (active) setEnabled(enabledLoginProviders(data, Platform.OS !== 'web'));
         if (active && !data) setError('Account sign-in is unavailable. You can still explore the portals.');
       }).catch(() => { if (active) setError('Account sign-in is not connected. You can still explore the portals.'); })
       .finally(() => { if (active) setChecking(false); });
