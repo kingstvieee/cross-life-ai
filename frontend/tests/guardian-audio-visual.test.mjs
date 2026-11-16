@@ -7,10 +7,10 @@ const read = file => readFileSync(new URL(file, import.meta.url), 'utf8');
 test('server transport marks speaking only after actual playback starts', () => {
   const transport = read('../src/server-speech.ts');
   assert.match(transport, /onStart\?: \(\) => void/);
-  assert.match(transport, /if \(status\.playing && !started\)/);
+  assert.match(transport, /transitionGuardianPlayback\(playback, status\)/);
   assert.match(transport, /options\.onStart\?\.\(\)/);
-  assert.match(transport, /publish\(currentlyPlaying \? 'speaking' : 'loading'\)/);
-  assert.match(transport, /options\.onPlaybackChange\?\.\(currentlyPlaying\)/);
+  assert.match(transport, /publish\(playback\.playing \? 'speaking' : 'loading'\)/);
+  assert.match(transport, /options\.onPlaybackChange\?\.\(playback\.playing\)/);
 });
 
 test('Guardian avatar speaking state follows actual voice, not speech requests', () => {
@@ -38,10 +38,10 @@ test('explicit stop and mute cannot keep audio-active visual state', () => {
 test('paused or buffering server audio suspends speaking animation until playback resumes', () => {
   const transport = read('../src/server-speech.ts');
   const provider = read('../lib/staarwardd/audio-provider.tsx');
-  assert.match(transport, /let currentlyPlaying = false/);
-  assert.match(transport, /if \(started && status\.playing !== currentlyPlaying\)/);
-  assert.match(transport, /currentlyPlaying = status\.playing/);
-  assert.match(transport, /options\.onPlaybackChange\?\.\(false\)/);
+  assert.match(transport, /let playback = \{ started: false, playing: false \}/);
+  assert.match(transport, /if \(transition\.changed\)/);
+  assert.match(transport, /playback = transition\.state/);
+  assert.match(transport, /options\.onPlaybackChange\?\.\(playback\.playing\)/);
   assert.match(transport, /if \(status\.didJustFinish\)/);
   assert.match(provider, /onPlaybackChange: playing =>/);
   assert.match(provider, /setVoicePlaybackActive\(playing\)/);
