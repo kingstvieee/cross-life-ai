@@ -22,6 +22,8 @@ export function validateArmoredGuardianGlb(bytes, receipt) {
   try { gltf=JSON.parse(bytes.subarray(20,20+jsonLength).toString('utf8')); }
   catch { fail('invalid_gltf_json'); }
   if (gltf?.asset?.version !== '2.0' || !Array.isArray(gltf.meshes) || gltf.meshes.length === 0 || !Array.isArray(gltf.skins) || gltf.skins.length === 0) fail('unskinned_model');
+  if ([...(gltf.buffers || []), ...(gltf.images || [])].some(v=>typeof v?.uri === 'string' && !v.uri.startsWith('data:'))) fail('external_asset_uri');
+  if (Array.isArray(gltf.extensionsRequired) && gltf.extensionsRequired.some(x=>['KHR_draco_mesh_compression','KHR_texture_basisu','EXT_meshopt_compression'].includes(x))) fail('unsupported_compression');
   const names=new Set();
   let hasTargets=false;
   for (const mesh of gltf.meshes) {
