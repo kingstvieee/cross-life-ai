@@ -309,7 +309,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
       await playServerSpeech(async signal => {
         const response = await api('/api/companion/speak', { method: 'POST', signal, body: JSON.stringify({ text: text.slice(0, 2000) }) });
         return response;
-      }, { volume: settingsRef.current.volume, onStart: () => { if (requestId === speechRequest.current && !speechQuietRef.current) setVoicePlaybackActive(true); }, onDone: () => { completed = true; if (requestId === speechRequest.current) setVoicePlaybackActive(false); } });
+      }, { volume: settingsRef.current.volume, onStart: () => { /* First frame proves TTS started; playback changes own the visual speaking state. */ }, onPlaybackChange: playing => { if (requestId === speechRequest.current && !speechQuietRef.current) setVoicePlaybackActive(playing); }, onDone: () => { completed = true; if (requestId === speechRequest.current) setVoicePlaybackActive(false); } });
       if (requestId !== speechRequest.current) return false;
       setVoicePlaybackActive(false);
       dispatchGuardianSpeech({ type: 'TASK_COMPLETED', taskId });
