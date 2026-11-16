@@ -16,7 +16,9 @@ test('unsolicited Guardian welcome is silent before noon and after ten PM', () =
 test('both first-launch and foreground-return automatic greeting paths enforce hour policy', () => {
   const hub = readFileSync(new URL('../components/staarwardd/world-hub.tsx', import.meta.url), 'utf8');
   assert.match(hub, /if \(!isProactiveWelcomeTime\(new Date\(\)\)\) return/);
-  assert.match(hub, /if \(!focused\.current \|\| !isProactiveWelcomeTime\(new Date\(\)\) \|\| !preferenceReady/);
+  assert.match(hub, /if \(!focused\.current \|\| !appActive \|\| !isProactiveWelcomeTime\(new Date\(\)\) \|\| !preferenceReady/);
+  assert.match(hub, /setAppActive\(state === 'active'\)/);
+  assert.match(hub, /if \(!focused\.current \|\| AppState\.currentState !== 'active'\) return/);
   assert.match(hub, /const greet = useCallback/);
   assert.match(hub, /onPress=\{\(\) => \{ void greet\(\); \}\}/);
   assert.match(hub, /serverPrivate \|\| serverSpeechQuiet/);
