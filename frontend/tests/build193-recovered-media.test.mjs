@@ -15,6 +15,7 @@ test('recovered user-approved song has separate untampered original and iOS-comp
  assert.equal(data.soundtrack.iosSampleRate,48000);
  assert.equal(data.soundtrack.originalDurationSeconds,206);
  assert.ok(isSha(data.soundtrack.originalSha256)&&isSha(data.soundtrack.iosStagingSha256));
+ assert.equal(data.soundtrack.iosStagingSha256,'ddd63b3622dd7524af8d976d53d7c0afce7cd35a4af1f7c3ce88ba61afadb937');
  assert.notEqual(data.soundtrack.originalSha256,data.soundtrack.iosStagingSha256);
  assert.equal(data.soundtrack.originalMasterPreserved,true);
 });
