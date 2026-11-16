@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import {inspectGuardianMorphGeometry} from './guardian-morph-qa.mjs';
 
 export const ARMORED_SOURCE_SHA256 = 'd7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c';
 export const REAL_FACE_SOURCE_SHA256 = Object.freeze({
@@ -53,6 +54,8 @@ export function validateArmoredGuardianGlb(bytes, receipt) {
       Array.isArray(p.targets) && p.targets.length===targets.length);
   });
   if(!hasSkinnedFace) fail('missing_skinned_face_targets');
+  // An array of 16 names is insufficient: read the embedded GLB vertex deltas.
+  const morphQa=inspectGuardianMorphGeometry(gltf,bytes.subarray(binOffset+8,binOffset+8+binLength));
   if (!receipt || typeof receipt !== 'object' || receipt.schema !== 'staar-armored-guardian-v1') fail('invalid_receipt');
   if (receipt.sourceImageSha256 !== ARMORED_SOURCE_SHA256) fail('wrong_approved_reference');
   if (receipt.realFaceSourceSha256?.primary !== REAL_FACE_SOURCE_SHA256.primary ||
@@ -64,7 +67,7 @@ export function validateArmoredGuardianGlb(bytes, receipt) {
   if (!isSha(receipt.rigModelSha256) || receipt.rigModelSha256 !== sha) fail('model_hash_mismatch');
   if (!RECEIPT_KEYS.every(k=>receipt[k]===true) || typeof receipt.identityAssetId!=='string' || !/^[a-zA-Z0-9_-]{1,96}$/.test(receipt.identityAssetId)) fail('approval_not_verified');
   if (receipt.exportRightsConfirmed !== true) fail('missing_export_rights');
-  return { sourceImageSha256:ARMORED_SOURCE_SHA256, realFaceSourceSha256:{...REAL_FACE_SOURCE_SHA256}, rigModelSha256:sha, identityAssetId:receipt.identityAssetId, blendshapeTargets:REQUIRED_FACE_TARGETS, glbBase64:bytes.toString('base64') };
+  return { sourceImageSha256:ARMORED_SOURCE_SHA256, realFaceSourceSha256:{...REAL_FACE_SOURCE_SHA256}, rigModelSha256:sha, identityAssetId:receipt.identityAssetId, blendshapeTargets:REQUIRED_FACE_TARGETS, morphQa, glbBase64:bytes.toString('base64') };
 }
 
 /** No asset is a valid state; partial, altered or unapproved files fail the build.
