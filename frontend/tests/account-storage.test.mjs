@@ -29,3 +29,19 @@ test("Guardian greeting opt-in keys are isolated and legacy global settings are 
   assert.doesNotMatch(source, /AsyncStorage\.getItem\('staarwardd\.guardian\.proactive-greeting\.v1'\)/);
   assert.doesNotMatch(source, /AsyncStorage\.setItem\('staarwardd\.guardian\.proactive-greeting\.v1'/);
 });
+
+test("Guardian automatic speech requires verified server consent and privacy gates", () => {
+  const source = readFileSync(new URL("../components/staarwardd/world-hub.tsx", import.meta.url), "utf8");
+  assert.match(source, /api\('\/api\/guardian\/life-map\/overview'/);
+  assert.match(source, /api\('\/api\/guardian\/core\/workflows\/rsf-fabric-sourcing\/proactive-consent'/);
+  assert.match(source, /state\.consent\?\.greetings === true/);
+  assert.match(source, /setServerConsentReady\(false\)/);
+  assert.match(source, /setServerGreetingConsent\(false\)/);
+  assert.match(source, /!serverConsentReady \|\| !serverGreetingConsent \|\| serverPrivate \|\| serverSpeechQuiet/);
+  assert.match(source, /!serverConsentReady \|\| savingGreeting/);
+  assert.match(source, /greetings: enabled, check_ins: serverCheckIns/);
+  assert.match(source, /if \(!response\.ok\) throw new Error\('Guardian consent could not be saved'\)/);
+  assert.match(source, /if \(activeGreetingKey\.current !== savedFor\) return/);
+  assert.match(source, /Automatic greeting remains off/);
+  assert.match(source, /setSavingGreeting\(false\)/);
+});
