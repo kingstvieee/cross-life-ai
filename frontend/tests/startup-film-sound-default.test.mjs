@@ -39,5 +39,8 @@ test('native cinematic configures foreground sound before playback without micro
   assert.match(nativePlayer, /if \(playing\) soundtrack\.play\(\)/);
   assert.match(nativePlayer, /soundtrack\.pause\(\)/);
   assert.match(nativePlayer, /setApprovedMusicFailed\(true\)/);
+  assert.match(nativePlayer, /playbackStatusUpdate/);
+  assert.match(nativePlayer, /if \(status\.error\)/);
+  assert.match(nativePlayer, /subscription\.remove\(\)/);
   assert.ok(nativePlayer.indexOf("if (!audioSessionReady) return") < nativePlayer.lastIndexOf("player.play()"));
 });
