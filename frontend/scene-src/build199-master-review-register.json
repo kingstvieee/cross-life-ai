@@ -194,6 +194,17 @@
     "Face is visibly different from approved three-view portrait references; real bilateral profile and geometric face reconstruction still required.",
     "Viseme calibration is synthetic eSpeak words, not licensed/founder-accepted final Guardian narration.",
     "World navigation, collisions and performance not confirmed on actual iPhone/Watch.",
-    "Private GLBs contain owner-likeness texture; commit hashes only to public repository."
-  ]
+    "Private GLBs contain owner-likeness texture; commit hashes only to public repository.",
+    "Founder's explicit approval attaches to the Build 199 review candidates and their exact model hashes, without fabricating device/collision/rights/identity tests."
+  ],
+  "founderApproval": {
+    "source": "User said 'Approve and continue' following Build 199 Guardian/world review",
+    "acceptedAt": "2026-11-16",
+    "scope": "Approval to use the Build 199 models and previews as the visual development baseline for next-stage integration and refinement; not an assertion of completed independent rights, collision, iPhone/Watch, natural phoneme-sync or biometric proof.",
+    "sourceAndMobileModelHashesBound": true,
+    "approvedCandidateWorldCount": 10,
+    "approvedCandidateGuardianCount": 1,
+    "finalProductionGatesStillRequired": true
+  },
+  "founderApprovedBuild199ReviewDirection": true
 }
