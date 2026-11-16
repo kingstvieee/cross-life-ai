@@ -11,8 +11,15 @@ export const REAL_FACE_SOURCE_SHA256 = Object.freeze({
 export const REQUIRED_FACE_TARGETS = ['rest','sil','PP','FF','TH','DD','kk','CH','SS','nn','RR','aa','E','I','O','U'];
 const RECEIPT_KEYS = ['founderApprovedRig','faceFidelityReviewed','armorFidelityReviewed','frontThreeQuarterProfileReviewed','speechSyncDeviceVerified'];
 
+// Build 202: negative visual QA is binding, even if a positive-looking receipt
+// is subsequently paired with the rejected experimental file.
+export const REJECTED_BUILD202_GUARDIAN_MODEL_SHA256 = '847c2f412b0184a372cd8a6a9149b78fcfe33a7e3127297196a80611f5e0f50d';
 const isSha = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const fail = reason => { throw new Error('guardian_rig_' + reason); };
+export function assertGuardianModelNotRejected(modelSha256) {
+  if (!isSha(modelSha256)) fail('invalid_model_hash');
+  if (modelSha256 === REJECTED_BUILD202_GUARDIAN_MODEL_SHA256) fail('build202_visual_rejection');
+}
 
 /** Validate real GLB bytes and an independent founder-signoff receipt.
  * Refuses silently auto-approving a generic AI-generated portrait/model.
@@ -53,6 +60,7 @@ export function validateArmoredGuardianGlb(bytes, receipt) {
     fail('wrong_real_face_identity_source');
 
   const sha=createHash('sha256').update(bytes).digest('hex');
+  assertGuardianModelNotRejected(sha);
   if (!isSha(receipt.rigModelSha256) || receipt.rigModelSha256 !== sha) fail('model_hash_mismatch');
   if (!RECEIPT_KEYS.every(k=>receipt[k]===true) || typeof receipt.identityAssetId!=='string' || !/^[a-zA-Z0-9_-]{1,96}$/.test(receipt.identityAssetId)) fail('approval_not_verified');
   if (receipt.exportRightsConfirmed !== true) fail('missing_export_rights');
