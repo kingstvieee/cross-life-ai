@@ -193,3 +193,17 @@ def test_corrupt_link_without_token_is_not_reported_connected(monkeypatch):
     status = response.json()[0]
     assert status['connected'] is False and status['reconnect_required'] is True
     assert 'tokens' not in status
+
+def test_calendar_provider_malformed_response_fails_without_leaking_private_data(monkeypatch):
+    payload = {'items': []}
+    client, db, requests = make(monkeypatch, calendar_payload=payload)
+    flow, params = begin(client)
+    assert client.get('/api/connections/google/callback', params={'state': params['state'][0], 'code': 'approved'}).status_code == 200
+    assert client.post('/api/connections/google/finish/' + flow['flow'], headers={'Authorization': 'Bearer alice'}).status_code == 200
+    payload.clear()
+    payload.update({'items': 'not-an-events-array', 'description': 'secret'})
+    invalid = client.get('/api/connections/google/calendar', headers={'Authorization': 'Bearer alice'})
+    assert invalid.status_code == 502
+    assert invalid.json()['detail'] == 'provider_read_unavailable'
+    assert 'secret' not in invalid.text
+    assert 'tokens' in db.provider_connections.docs[0]  # transient corrupt read is not authorization revocation
