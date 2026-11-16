@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Pressable, ScrollView, Text, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -14,8 +14,10 @@ export default function Checkins() {
   const [serverCheckinConsent, setServerCheckinConsent] = useState(false);
   const [serverGreetingConsent, setServerGreetingConsent] = useState(false);
   const [serverPrivateMode, setServerPrivateMode] = useState(false);
+  const verificationEpoch = useRef(0);
   const account = user && !user.is_demo && !user.cross_life_paused ? user.user_id : '';
   const refresh = useCallback(async () => {
+    const epoch = ++verificationEpoch.current;
     setServerConsentReady(false);
     setServerCheckinConsent(false);
     setServerPrivateMode(false);
@@ -28,12 +30,14 @@ export default function Checkins() {
       const response = await api('/api/guardian/life-map/overview');
       if (!response.ok) throw new Error('Guardian check-in consent could not be verified.');
       const state = await response.json();
+      if (epoch !== verificationEpoch.current) return;
       const privateMode = state.privateMode === true;
       const allowed = state.consent?.checkIns === true && !privateMode;
       const greetings = state.consent?.greetings === true;
       // Native pending notifications may outlive JavaScript; revoke immediately when consent is off.
       await bindCheckinAccount(allowed ? account : '');
       const next = await checkinStatus();
+      if (epoch !== verificationEpoch.current) return;
       setStatus(next);
       setServerCheckinConsent(allowed);
       setServerGreetingConsent(greetings);
@@ -43,12 +47,15 @@ export default function Checkins() {
         setHour(String(next.hour)); setMinute(String(next.minute).padStart(2, '0'));
       }
     } catch {
+      if (epoch !== verificationEpoch.current) return;
       await bindCheckinAccount('');
-      setStatus(await checkinStatus());
+      const next = await checkinStatus();
+      if (epoch !== verificationEpoch.current) return;
+      setStatus(next);
       setNotice('Guardian consent is unavailable. Daily reminders remain disabled.');
     }
   }, [account, api]);
-  useEffect(() => { void refresh(); const sub = AppState.addEventListener('change', state => { if (state === 'active') void refresh(); }); return () => sub.remove(); }, [refresh]);
+  useEffect(() => { void refresh(); const sub = AppState.addEventListener('change', state => { if (state === 'active') void refresh(); }); return () => { verificationEpoch.current += 1; sub.remove(); }; }, [refresh]);
   async function save() {
     setBusy(true); setNotice('');
     try {
