@@ -51,6 +51,19 @@ export default function StartupFilmPlayer({ muted, playing, onEnd, onError, onRe
   }, [player, onEnd, onError, onReady]);
 
   useEffect(() => {
+    if (!approvedMusicAvailable || approvedMusicFailed) return;
+    // Native decoding errors often surface asynchronously, not in play().
+    // Switch to the original locked movie audio instead of leaving silence.
+    const subscription = soundtrack.addListener("playbackStatusUpdate", status => {
+      if (status.error) {
+        try { soundtrack.pause(); } catch { /* Player already stopped. */ }
+        setApprovedMusicFailed(true);
+      }
+    });
+    return () => subscription.remove();
+  }, [soundtrack, approvedMusicAvailable, approvedMusicFailed]);
+
+  useEffect(() => {
     // The same on-screen mute button controls the one audible source.
     player.muted = useApprovedMusic || muted;
     soundtrack.muted = muted;
