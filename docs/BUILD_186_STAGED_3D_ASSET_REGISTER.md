@@ -6,6 +6,7 @@
 
 - Ten independently authored, self-contained glTF 2.0 GLBs covering every required variation in `REQUIRED_WORLD_ASSETS`, including both relationships-realm and relationships-singles.
 - Each model has a real SHA-256 fingerprint, original scene geometry, glTF buffer accessors, and named theme-specific mesh parts.
+- The current versions each contain an independently verified 4-second glTF animation, with 3–5 animated semantic scene nodes per world. This is a technical loop, not founder-approved cinematic performance.
 - GLB sizes are individually below 160 KB, with between 41 and 98 scene meshes each and no remote asset URIs.
 - A separate 1.25 MB technical Guardian GLB contains a photo-projected face sourced from the owner's exact approved image, silver/gunmetal armoured body geometry, a distinct gold maple-leaf crest, one glTF skin, sixteen named positional mouth morph targets and one **demonstration-only** weights animation. This is **not** the final identity-matched cinematic Guardian.
 
