@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { ARMORED_SOURCE_SHA256, REAL_FACE_SOURCE_SHA256, REQUIRED_FACE_TARGETS, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, assertGuardianModelNotRejected, validateArmoredGuardianGlb, loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
+import { ARMORED_SOURCE_SHA256, REAL_FACE_SOURCE_SHA256, REQUIRED_FACE_TARGETS, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, assertGuardianModelNotRejected, validateArmoredGuardianGlb, loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
 
 function model(targetNames=REQUIRED_FACE_TARGETS,{duplicateDeltas=false,emptySpeech=false}={}) {
   // Unlike the old one-accessor fixture, this represents 16 separate real
@@ -117,4 +117,10 @@ test('14 named speech morphs must have independent real vertex displacements',()
   assert.throws(()=>validateArmoredGuardianGlb(copies,receipt(copies)),/guardian_morph_indistinguishable_speech_targets/);
   const silent=model(REQUIRED_FACE_TARGETS,{emptySpeech:true});
   assert.throws(()=>validateArmoredGuardianGlb(silent,receipt(silent)),/guardian_morph_silent_speech_target_/);
+});
+
+
+test('Build 208 repaired private viseme source never becomes production face by passing geometry alone',()=>{
+ assert.equal(PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256,'09dcb3cb56b70f5a2b38e5d5f68de627a62df5ad42ad89e2f9d9123d92cf70b5');
+ assert.throws(()=>assertGuardianModelNotRejected(PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256),/guardian_rig_build208_not_final_likeness/);
 });
