@@ -4,6 +4,7 @@ on:
     paths:
       - 'backend/starcenttinel_gate.py'
       - 'backend/tests/test_starcenttinel_gate.py'
+      - 'backend/tests/test_starcenttinel_portal_scope.py'
       - 'backend/guardian_routes.py'
       - '.github/workflows/starcenttinel-integration.yml'
   push:
@@ -23,4 +24,4 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install pytest pytest-xdist pytest-asyncio fastapi==0.110.1
       - run: python -m compileall -q backend/starcenttinel_gate.py backend/guardian_routes.py
-      - run: PYTHONPATH=backend python -m pytest -q backend/tests/test_starcenttinel_gate.py
+      - run: PYTHONPATH=backend python -m pytest -q backend/tests/test_starcenttinel_gate.py backend/tests/test_starcenttinel_portal_scope.py
