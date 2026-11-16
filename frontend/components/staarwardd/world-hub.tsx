@@ -109,7 +109,7 @@ export function WorldHub() {
     <SafeAreaView style={s.safe}>
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <View style={s.header}><View><Text style={s.brand}>STAARWAARDD</Text><Text style={s.micro}>YOUR CONNECTED UNIVERSE</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => router.push('/settings')} style={s.icon}><Ionicons name="options-outline" size={22} color="#E4E8EE" /></Pressable></View>
-        <View style={s.stage}>
+        <View style={[s.stage, { height: stageHeight }]} onLayout={event => { const available = event.nativeEvent.layout.width; const target = Math.max(380, Math.min(560, available * 1.06)); if (Math.abs(target - stageHeight) > 1) setStageHeight(target); }}>
           <Image source={require('@/assets/images/staarwardd/toronto-skyline-pan.png')} resizeMode="cover" style={s.skyline} />
           <AccessField />
           <View style={s.guardianFigure}><GuardianCharacter state={guardianState} size={Math.min(width * 0.56, 285)} reducedMotion={motionReduced} onMotionEnd={onGuardianMotionEnd} /></View>
