@@ -8,23 +8,39 @@ on:
         description: Confirm the approved production TestFlight candidate
         required: true
         options:
-          - 1.0.4 (105)
+          - 1.0.4 (106)
 
 concurrency:
   group: staar-hub-testflight-release
   cancel_in_progress: false
 
 jobs:
+  preflight:
+    name: Verify locked production package
+    steps:
+      - uses: eas/checkout
+      - name: Check production artwork and Apple release identity
+        run: |
+          if [ -f scripts/verify-production-package.mjs ]; then
+            node scripts/verify-production-package.mjs
+          elif [ -f frontend/scripts/verify-production-package.mjs ]; then
+            cd frontend && node scripts/verify-production-package.mjs
+          else
+            echo 'Production package preflight is missing' >&2
+            exit 1
+          fi
+
   build_ios:
-    name: Build STAAR Hub 1.0.4 (105)
+    needs: [preflight]
+    name: Build STAAR Hub 1.0.4 (106)
     type: build
     params:
       platform: ios
       profile: production
-      message: STAAR Hub 1.0.4 (105) portal connections and device checks
+      message: STAAR Hub 1.0.4 (106) portal connections and device checks
 
   submit_ios:
-    name: Submit build 105 to TestFlight
+    name: Submit build 106 to TestFlight
     needs: [build_ios]
     type: testflight
     params:
