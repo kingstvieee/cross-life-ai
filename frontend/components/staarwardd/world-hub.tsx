@@ -41,6 +41,7 @@ export function WorldHub() {
   const [savingGreeting, setSavingGreeting] = useState(false);
   const lastBackground = useRef<number | null>(null);
   const [foregroundEpoch, setForegroundEpoch] = useState(0);
+  const [appActive, setAppActive] = useState(AppState.currentState === 'active');
   const [motionReduced, setMotionReduced] = useState(true);
   useEffect(() => {
     let alive = true;
@@ -96,6 +97,7 @@ export function WorldHub() {
   const focused = useRef(false);
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
+      setAppActive(state === 'active');
       if (state !== 'active') { if (lastBackground.current === null) lastBackground.current = Date.now(); return; }
       const awaySince = lastBackground.current;
       lastBackground.current = null;
@@ -111,7 +113,7 @@ export function WorldHub() {
     return () => sub.remove();
   }, []);
   const greet = useCallback(async () => {
-    if (!focused.current) return;
+    if (!focused.current || AppState.currentState !== 'active') return;
     const epoch = ++voiceEpoch.current;
     if (!audio.master || !audio.voice || audio.speechQuiet) { setGuardianMessage('Voice is muted or disabled. Use settings to enable audio.'); return; }
     setGuardianState('speaking'); setGuardianSpeaking(true);
@@ -121,10 +123,10 @@ export function WorldHub() {
   }, [audio.master, audio.voice, audio.speechQuiet, audio.speak]);
   useFocusEffect(useCallback(() => { focused.current = true; return () => { focused.current = false; voiceEpoch.current += 1; }; }, []));
   useEffect(() => {
-    if (!focused.current || !isProactiveWelcomeTime(new Date()) || !preferenceReady || !serverConsentReady || !serverGreetingConsent || serverPrivate || serverSpeechQuiet || !greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || greeted.current) return;
+    if (!focused.current || !appActive || !isProactiveWelcomeTime(new Date()) || !preferenceReady || !serverConsentReady || !serverGreetingConsent || serverPrivate || serverSpeechQuiet || !greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || greeted.current) return;
     greeted.current = true;
     void greet();
-  }, [preferenceReady, serverConsentReady, serverGreetingConsent, serverPrivate, serverSpeechQuiet, greetingKey, greetingEnabled, foregroundEpoch, audio.master, audio.voice, audio.speechQuiet, greet]);
+  }, [appActive, preferenceReady, serverConsentReady, serverGreetingConsent, serverPrivate, serverSpeechQuiet, greetingKey, greetingEnabled, foregroundEpoch, audio.master, audio.voice, audio.speechQuiet, greet]);
   const setGreeting = (enabled: boolean) => {
     if (!greetingKey || !preferenceReady || !serverConsentReady || savingGreeting) return;
     const savedFor = greetingKey;
