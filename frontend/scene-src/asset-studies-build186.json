@@ -1,0 +1,146 @@
+{
+  "schema": "staar-build-186-study-register-v1",
+  "date": "2026-11-16",
+  "releaseApproved": false,
+  "productionIntegrationAllowed": false,
+  "spendCAD": 0,
+  "worldStudies": [
+    {
+      "key": "home-residence",
+      "sha256": "ff11af963c656628e830895913aa5fcfb7e2ad1242852bcc2f2ed489a08dbe0b",
+      "meshCount": 80,
+      "triangleCount": 4720,
+      "founderVisualApproved": false,
+      "deviceCaptureVerified": false,
+      "animationVerified": false,
+      "navigationVerified": false
+    },
+    {
+      "key": "work-command",
+      "sha256": "d04d6bfa316c964f1f1363a1e6cf1854ee4b741f02cb3fd9f73b09fa092d3969",
+      "meshCount": 91,
+      "triangleCount": 6872,
+      "founderVisualApproved": false,
+      "deviceCaptureVerified": false,
+      "animationVerified": false,
+      "navigationVerified": false
+    },
+    {
+      "key": "creativity-dream",
+      "sha256": "b25530129310f689a26de72885c917bc5583db3ac88db578db11d19db4ee4b22",
+      "meshCount": 66,
+      "triangleCount": 17224,
+      "founderVisualApproved": false,
+      "deviceCaptureVerified": false,
+      "animationVerified": false,
+      "navigationVerified": false
+    },
+    {
+      "key": "wellbeing-health",
+      "sha256": "6eb0047a538e45728f04bd5648721e48e2d2ed1b7217a05e9cfaaeef6991899f",
+      "meshCount": 70,
+      "triangleCount": 2136,
+      "founderVisualApproved": false,
+      "deviceCaptureVerified": false,
+      "animationVerified": false,
+      "navigationVerified": false
+    },
+    {
+      "key": "relationships-realm",
+      "sha256": "4fff7a90fe5cf545618b95670fb6e51b0d726f5f80519e07b4a1ef060cacf85d",
+      "meshCount": 41,
+      "triangleCount": 11064,
+      "founderVisualApproved": false,
+      "deviceCaptureVerified": false,
+      "animationVerified": false,
+      "navigationVerified": false
+    },
+    {
+      "key": "relationships-singles",
+      "sha256": "6b85223f780c5d03c971c7753e50bf69aaefa8c095098f35b35d91527adcaf42",
+      "meshCount": 93,
+      "triangleCount": 8024,
+      "founderVisualApproved": false,
+      "deviceCaptureVerified": false,
+      "animationVerified": false,
+      "navigationVerified": false
+    },
+    {
+      "key": "events-village",
+      "sha256": "588d3d4a6363f9b3cbed51188736c77e9b82e8ddb8295035f3d3d9e546ff9f1f",
+      "meshCount": 72,
+      "triangleCount": 2764,
+      "founderVisualApproved": false,
+      "deviceCaptureVerified": false,
+      "animationVerified": false,
+      "navigationVerified": false
+    },
+    {
+      "key": "style-closet",
+      "sha256": "ed96dca8246c3762860cda6275ff3d442e12c7ad73e8454da04af0d92c4a4250",
+      "meshCount": 84,
+      "triangleCount": 6200,
+      "founderVisualApproved": false,
+      "deviceCaptureVerified": false,
+      "animationVerified": false,
+      "navigationVerified": false
+    },
+    {
+      "key": "staarverse-universe",
+      "sha256": "edc25ce221937ba0b2b03840d48be245b688f0e83efc7d7bfb4a6f8989e9952e",
+      "meshCount": 84,
+      "triangleCount": 8420,
+      "founderVisualApproved": false,
+      "deviceCaptureVerified": false,
+      "animationVerified": false,
+      "navigationVerified": false
+    },
+    {
+      "key": "staarsonic-studio",
+      "sha256": "a82693070fb440e13c283d3096888f77b75e338479b5f2c49fcba39c08bbf19e",
+      "meshCount": 98,
+      "triangleCount": 10320,
+      "founderVisualApproved": false,
+      "deviceCaptureVerified": false,
+      "animationVerified": false,
+      "navigationVerified": false
+    }
+  ],
+  "guardianStudy": {
+    "sha256": "5bd08e953c41eff4ccf3af866f7d3c48f72b34772d2c1c7820542d4a52bdd233",
+    "referenceImageSha256": "d7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c",
+    "skinCount": 1,
+    "faceTargetNames": [
+      "rest",
+      "sil",
+      "PP",
+      "FF",
+      "TH",
+      "DD",
+      "kk",
+      "CH",
+      "SS",
+      "nn",
+      "RR",
+      "aa",
+      "E",
+      "I",
+      "O",
+      "U"
+    ],
+    "founderApprovedRig": false,
+    "faceFidelityReviewed": false,
+    "armorFidelityReviewed": false,
+    "speechSyncDeviceVerified": false
+  },
+  "downloadablePackages": [
+    "STAARWAARDD_10_Immersive_3D_Worlds_Build186.zip",
+    "STAARWAARDD_Guardian_3D_Technical_Rig_Build186.zip"
+  ],
+  "notes": [
+    "All GLB bytes are valid self-contained glTF 2.0 and SHA-256 verified in the conversation artifacts; binary is not yet in the git repository.",
+    "Guardian has a photo-projected front face and demonstration animation. It is not identity-calibrated three-quarter/profile, and is not a production rig.",
+    "The locked standalone audio master remains inaccessible; neither pack modifies the approved startup film.",
+    "NO receipt may be marked approved without genuine founder, rights, and physical-device evidence."
+  ]
+}
