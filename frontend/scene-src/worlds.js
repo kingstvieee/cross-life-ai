@@ -1,6 +1,8 @@
 import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { createModelMotion, disposeModel } from './model-motion.js';
+import { modelControls, hitControl } from './model-navigation.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { worldIds, worldNames, fallbackActions } from './navigation.js';
 
@@ -56,7 +58,9 @@ if (renderer) {
   const controls = new OrbitControls(camera, canvas);
   controls.target.set(0,2.2,-1); controls.enableDamping = !reduced;
   controls.minDistance = 3; controls.maxDistance = 28; controls.maxPolarAngle = Math.PI*.48;
-  const animated = [], clickable = [];
+  const animated = [], clickable = [], modelMotions = [];
+  let disposed = false;
+  let importedControls = [];
   const material = (color,metalness=0,roughness=.4,emissive='#000000',emissiveIntensity=0) => new T.MeshStandardMaterial({color,metalness,roughness,emissive,emissiveIntensity});
   const chrome = material('#c8d4e1',1,.16), gold = material('#cba15b',1,.22), black = material('#090f18',.75,.2), white = material('#f0ede6',.15,.55);
   const blue = material('#56c9ff',.3,.2,'#008aff',2), amber = material('#ffc377',.5,.2,'#ff861c',2), violet = material('#baaeff',.4,.2,'#7930ff',2), ruby = material('#8c1536',.2,.4), green = material('#345d3b',.05,.8);
@@ -117,16 +121,18 @@ if (renderer) {
       for(let i=0;i<decoded.length;i++)bytes[i]=decoded.charCodeAt(i);
       new GLTFLoader().parse(bytes.buffer,'',model=>{
         if(!model?.scene)return;
+        if(disposed){disposeModel(model.scene);return;}
         const guardian=model.scene;
         const bounds=new T.Box3().setFromObject(guardian);
         const dimensions=bounds.getSize(new T.Vector3());
-        if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000)return;
+        if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000){disposeModel(guardian);return;}
         const scale=Math.min(3.65/dimensions.y,4.5/Math.max(dimensions.x,dimensions.z,.1));
         guardian.scale.setScalar(scale);
         // Centre approved full armour above the existing Guardian plinth, never crop the emblem.
         const centre=bounds.getCenter(new T.Vector3());
         guardian.position.set(-centre.x*scale,.6-bounds.min.y*scale,1.5-centre.z*scale);
         scene.add(guardian);
+        modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
         requestDraw();
       },()=>{/* Never display guessed or partial face geometry on load failure. */});
     } catch { /* The locked Guardian artwork remains the fallback. */ }
@@ -223,8 +229,9 @@ if (renderer) {
       for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
       new GLTFLoader().parse(bytes.buffer,'',gltf=>{
         if(!gltf?.scene)return;
+        if(disposed){disposeModel(gltf.scene);return;}
         const model=gltf.scene,bounds=new T.Box3().setFromObject(model),size=bounds.getSize(new T.Vector3());
-        if(!Number.isFinite(size.x+size.y+size.z)||Math.max(size.x,size.y,size.z)<=.01)return;
+        if(!Number.isFinite(size.x+size.y+size.z)||Math.max(size.x,size.y,size.z)<=.01){disposeModel(model);return;}
         const scale=Math.min(20/Math.max(size.x,size.z,.1),12/Math.max(size.y,.1),8);
         model.scale.setScalar(scale);
         const centre=bounds.getCenter(new T.Vector3());
@@ -232,7 +239,10 @@ if (renderer) {
         // Hide procedural blockouts ONLY if the independently approved full GLB loads.
         for(const item of previewWorldObjects)item.visible=false;
         clickable.length=0;
+        importedControls=modelControls(model,world);
+        clickable.push(...importedControls.map(control=>control.node));
         scene.add(model);
+        modelMotions.push(createModelMotion(model,gltf.animations,{reducedMotion:reduced}));
         addNavigationFallback();
         document.querySelector('#status').textContent='Approved 3D world loaded · use the controls below to explore';
         requestDraw();
@@ -241,12 +251,14 @@ if (renderer) {
   }
   importApprovedWorld();
   controls.update();controls.saveState();
-  let frame=0,visible=true,firstFrameReady=false;const start=performance.now();
+  let frame=0,visible=true,firstFrameReady=false,lastFrameAt=null;const start=performance.now();
   function requestDraw(){if(!frame&&visible)frame=requestAnimationFrame(draw);}
   function draw(now){
     frame=0;if(!visible)return;
     try {
       const t=(now-start)/1000;
+      const delta=lastFrameAt===null?0:(now-lastFrameAt)/1000;lastFrameAt=now;
+      modelMotions.forEach(motion=>motion.update(delta,visible));
       animated.forEach(fn=>fn(t));controls.update();renderer.render(scene,camera);
       // A scene is ready only after WebGL has successfully drawn its first frame.
       if(!firstFrameReady){firstFrameReady=true;report('ready',{geometry:true,objects:scene.children.length});}
@@ -259,15 +271,16 @@ if (renderer) {
     }
   }
   controls.addEventListener('change',requestDraw);requestDraw();
-  document.addEventListener('visibilitychange',()=>{visible=!document.hidden;if(!visible)cancelAnimationFrame(frame);frame=0;if(visible)requestDraw();});
+  document.addEventListener('visibilitychange',()=>{visible=!document.hidden;lastFrameAt=null;if(!visible)cancelAnimationFrame(frame);frame=0;if(visible)requestDraw();});
   addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);requestDraw();});
   const raycaster=new T.Raycaster();let down=null;
   canvas.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
-  canvas.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>7)return;const r=canvas.getBoundingClientRect();raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);const hit=raycaster.intersectObjects(clickable,true)[0];if(hit){let n=hit.object;while(n&&!n.userData.action)n=n.parent;if(n)report('select',{action:n.userData.action});}});
+  canvas.addEventListener('pointercancel',()=>{down=null;});
+  canvas.addEventListener('pointerup',e=>{const origin=down;down=null;if(!origin||Math.hypot(e.clientX-origin[0],e.clientY-origin[1])>7)return;const r=canvas.getBoundingClientRect();raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);const hit=raycaster.intersectObjects(clickable,true)[0];if(hit){if(importedControls.length){const control=hitControl(hit.object,importedControls);if(control)report('select',{action:control.action});}else{let n=hit.object;while(n&&!n.userData.action)n=n.parent;if(n)report('select',{action:n.userData.action});}}});
   document.querySelector('#reset').addEventListener('click',()=>{controls.reset();requestDraw();});
   document.querySelector('#title').textContent=world==='hub'?'STAARWARDD · PORTAL HUB':(singles?'STAAR Love · Singles':names[ids.indexOf(world)]);
   document.querySelector('#status').textContent='Drag to explore · pinch or scroll to move closer · tap a labelled control';
   for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
   canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
-  addEventListener('pagehide',()=>{cancelAnimationFrame(frame);controls.dispose();scene.traverse(n=>{n.geometry?.dispose();if(n.material)for(const m of[n.material].flat()){m.map?.dispose();m.dispose();}});env.dispose();renderer.dispose();});
+  addEventListener('pagehide',()=>{disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
 }

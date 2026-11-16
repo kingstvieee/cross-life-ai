@@ -13,13 +13,13 @@ import { PORTAL_EXPERIENCES, homeDayPart } from "@/lib/staarwardd/experience";
 import { createGuardianInteraction } from "@/lib/staarwardd/guardian-interaction";
 import { useGuardianActivity } from "@/lib/staarwardd/guardian-activity";
 import { PortalAtmosphere } from "@/components/staarwardd/portal-atmosphere";
+import { VoiceInput } from "@/components/staarwardd/voice-input";
 import { CreativityStudio } from "@/components/staarwardd/creativity-studio";
 import { WorldActionScene } from "@/components/staarwardd/world-action-scene";
 import { HomeSafetySheet } from "@/components/staarwardd/home-safety-sheet";
 import { GuardianInteractionCard } from "@/components/staarwardd/guardian-interaction-card";
 import { GuardianActivitySheet } from "@/components/staarwardd/guardian-activity-sheet";
 import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
-import { fetchGuardianLine, fetchGuardianSpokenText, playGuardianLine } from "@/lib/staarwardd/guardian-tts";
 import { notePortalVisit } from "@/lib/staarwardd/portal-visits";
 import { usePreferenceMemory } from "@/lib/staarwardd/preference-memory";
 import { useAuth } from "@/src/auth";
@@ -51,15 +51,17 @@ export function PortalScreen({ portalId }: { portalId: PortalId }) {
   const [command, setCommand] = useState("");
   const [plan, setPlan] = useState(() => createPreviewPlan("", portalId));
   const [approvalTask, setApprovalTask] = useState<TaskPreview | null>(null);
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [guardianInteraction, setGuardianInteraction] = useState<ReturnType<typeof createGuardianInteraction> | null>(null);
   const [safetyOpen, setSafetyOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const { record } = useGuardianActivity();
   const audio = useStaarAudio();
+  const speak = audio.speak;
   const { memory } = usePreferenceMemory();
-  const { token } = useAuth();
-  const introSpoken = useRef(false);
+  const { user } = useAuth();
+  const introSpoken = useRef<string | null>(null);
   const experience = PORTAL_EXPERIENCES[portalId];
 
   // This world's soundscape fades in as the judge enters, and stops on exit.
@@ -69,26 +71,19 @@ export function PortalScreen({ portalId }: { portalId: PortalId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portalId, audio.master, audio.ambience]);
 
-  // Guardian speaks a one-line Onyx introduction when a judge enters this world.
+  // Use the shared speech controller so portal greetings respect mute, volume,
+  // account isolation and foreground cancellation just like other Guardian speech.
   useEffect(() => {
-    if (introSpoken.current || !audio.voice) return;
-    introSpoken.current = true;
-    const visit = notePortalVisit(portalId);
-    let cancelled = false;
-    let stop: (() => void) | null = null;
-    const timer = setTimeout(async () => {
-      const line = visit === 1
-        ? await fetchGuardianLine(`/api/guardian/portal-intro/${portalId}`)
-        : await (async () => {
-            const text = memoryHighlightLine(memory, portalId, PORTAL_BY_ID[portalId].name);
-            return text ? fetchGuardianSpokenText(text, token) : null;
-          })();
-      if (!line || cancelled) return;
-      stop = playGuardianLine(line.url);
+    const key = `${user?.user_id ?? 'guest'}:${portalId}`;
+    if (introSpoken.current === key || !audio.master || !audio.voice || audio.speechQuiet || voiceOpen) return;
+    const timer = setTimeout(() => {
+      introSpoken.current = key;
+      const visit = notePortalVisit(portalId);
+      const remembered = visit > 1 ? memoryHighlightLine(memory, portalId, portal.name) : null;
+      void speak(remembered || experience.guardianLine);
     }, 700);
-    return () => { cancelled = true; clearTimeout(timer); stop?.(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [portalId, audio.voice]);
+    return () => clearTimeout(timer);
+  }, [portalId, portal.name, user?.user_id, audio.master, audio.voice, audio.speechQuiet, speak, memory, experience.guardianLine, voiceOpen]);
 
   const tasks = useMemo(() => plan[horizon], [horizon, plan]);
   const submitCommand = (value?: string) => {
@@ -131,7 +126,7 @@ export function PortalScreen({ portalId }: { portalId: PortalId }) {
             <WorldActionScene portalId={portalId} />
             {portalId === "style" && <Pressable accessibilityRole="button" accessibilityLabel="Open AI Style Swap fitting room" onPress={() => router.push("/style-swap" as any)} style={({ pressed }) => [styles.styleSwapEntry, pressed && styles.pressed]}><View><Text style={styles.styleSwapKicker}>AI FITTING ROOM</Text><Text style={styles.styleSwapTitle}>Masked Style Swap</Text><Text style={styles.styleSwapDetail}>Upload a photo, paint only the garment or accessory region, and generate a controlled style edit while preserving the rest of the image.</Text></View><Text style={styles.styleSwapArrow}>↗</Text></Pressable>}
             {portalId === "home" && <Pressable accessibilityRole="button" onPress={() => setSafetyOpen(true)} style={({ pressed }) => [styles.safetyEntry, pressed && styles.pressed]}><Text style={styles.safetyKicker}>HOME SAFETY GUARDIAN</Text><Text style={styles.safetyTitle}>Review connected-home readiness and local safety preferences.</Text><Text style={styles.safetyDetail}>No live sensor data is claimed until Google Home or Alexa access is authorized.</Text></Pressable>}
-            {portalId === "creativity" ? <><CreativityStudio value={command} onChange={setCommand} onSubmit={submitCommand} />{guardianInteraction && <GuardianInteractionCard interaction={guardianInteraction} onSecondary={() => setGuardianInteraction(null)} />}</> : <><View style={[styles.nowCard, { borderColor: `${portal.color}55` }]}><View style={[styles.nowGlyph, { borderColor: `${portal.color}88` }]}><Text style={[styles.nowGlyphText, { color: portal.accent }]}>{portal.glyph}</Text></View><View style={styles.nowCopy}><Text style={styles.nowLabel}>WHAT MATTERS NOW</Text><Text style={styles.nowTitle}>{portal.focus}</Text></View></View>
+            {portalId === "creativity" ? <><CreativityStudio value={command} onChange={setCommand} onSubmit={submitCommand} onVoice={() => setVoiceOpen(true)} />{guardianInteraction && <GuardianInteractionCard interaction={guardianInteraction} onSecondary={() => setGuardianInteraction(null)} />}</> : <><View style={[styles.nowCard, { borderColor: `${portal.color}55` }]}><View style={[styles.nowGlyph, { borderColor: `${portal.color}88` }]}><Text style={[styles.nowGlyphText, { color: portal.accent }]}>{portal.glyph}</Text></View><View style={styles.nowCopy}><Text style={styles.nowLabel}>WHAT MATTERS NOW</Text><Text style={styles.nowTitle}>{portal.focus}</Text></View></View>
             <Text style={styles.modeLabel}>HOW SHOULD {portal.name.toUpperCase()} HELP?</Text>
             <FlatList
               horizontal
@@ -145,7 +140,7 @@ export function PortalScreen({ portalId }: { portalId: PortalId }) {
               <View style={styles.commandHeading}><Text style={[styles.commandKicker, { color: portal.accent }]}>{mode.toUpperCase()} MODE</Text><Text style={styles.previewPill}>LOCAL PREVIEW</Text></View>
               <TextInput value={command} onChangeText={setCommand} onSubmitEditing={() => submitCommand()} returnKeyType="done" placeholder={portal.promptSeed} placeholderTextColor="#77849B" style={styles.commandInput} multiline maxLength={240} accessibilityLabel={`Describe what you need in ${portal.name}`} />
               <View style={styles.commandActions}>
-                <Pressable accessibilityRole="button" onPress={() => Alert.alert("Voice input", "Voice input requires a connected transcription service. Text interaction and optional Guardian device voice are available in this build.")} style={({ pressed }) => [styles.secondaryAction, pressed && styles.pressed]}><Text style={styles.secondaryActionText}>VOICE INPUT</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => setVoiceOpen(true)} style={({ pressed }) => [styles.secondaryAction, pressed && styles.pressed]}><Text style={styles.secondaryActionText}>VOICE INPUT</Text></Pressable>
                 <Pressable accessibilityRole="button" onPress={() => submitCommand()} style={({ pressed }) => [styles.primaryAction, { backgroundColor: portal.color }, pressed && styles.pressed]}><Text style={styles.primaryActionText}>PREPARE</Text><Text style={styles.primaryArrow}>→</Text></Pressable>
               </View>
             </View>
@@ -162,6 +157,16 @@ export function PortalScreen({ portalId }: { portalId: PortalId }) {
         renderItem={({ item }) => <TaskCard task={item} color={portal.color} onPress={() => handleTask(item)} />}
         ListFooterComponent={<View style={styles.privacyCard}><View style={[styles.privacyTint, { backgroundColor: `${portal.color}22` }]} /><View style={styles.privacyCopy}><Text style={styles.privacyTitle}>A clear boundary</Text><Text style={styles.privacyText}>{portal.privacyCue}</Text></View></View>}
       />
+      <Modal transparent visible={voiceOpen} animationType="slide" onRequestClose={() => setVoiceOpen(false)}>
+        <View style={styles.modalBack}><View style={styles.modalCard}>
+          <Text style={styles.modalKicker}>VOICE INPUT</Text>
+          <Text style={styles.modalTitle}>Capture your idea</Text>
+          {!user || user.is_demo ? <Text style={styles.modalCopy}>Sign in to transcribe your recording. You can continue typing without signing in.</Text> : null}
+          {voiceOpen && <VoiceInput disabled={!user || !!user.is_demo} onTranscript={(text) => { setCommand(text.slice(0, 240)); setVoiceOpen(false); }} />}
+          <Text style={styles.modalCopy}>Your words will appear in the request field for review. Nothing is submitted automatically.</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Close voice input and discard unfinished recording" onPress={() => setVoiceOpen(false)} style={styles.modalSecondary}><Text style={styles.modalSecondaryText}>CLOSE</Text></Pressable>
+        </View></View>
+      </Modal>
       <Modal transparent visible={Boolean(approvalTask)} animationType="slide" onRequestClose={() => setApprovalTask(null)}>
         <View style={styles.modalBack}><View style={styles.modalCard}><Text style={styles.modalKicker}>APPROVAL REQUIRED</Text><Text style={styles.modalTitle}>{approvalTask?.title}</Text><Text style={styles.modalCopy}>This request may involve communication, registration, booking, purchasing, sharing, or an external change. The native preview cannot perform it.</Text><View style={styles.modalActions}><Pressable accessibilityRole="button" onPress={() => setApprovalTask(null)} style={({ pressed }) => [styles.modalSecondary, pressed && styles.pressed]}><Text style={styles.modalSecondaryText}>NOT NOW</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { if (approvalTask) { const interaction = createGuardianInteraction({ portalId, action: approvalTask.title, source: "local-preview", trigger: "You approved a local preview review", approval: "approved", execution: "completed" }); setGuardianInteraction(interaction); record(interaction.policy.receipt); } haptic.success(); setApprovalTask(null); Alert.alert("Prepared for review", "Approval was recorded only in this local preview. No external action was executed."); }} style={({ pressed }) => [styles.modalPrimary, pressed && styles.pressed]}><Text style={styles.modalPrimaryText}>ACKNOWLEDGE</Text></Pressable></View></View></View>
       </Modal>
