@@ -46,10 +46,11 @@ def make(monkeypatch, calendar_status=200, calendar_payload=None):
         return {'user_id': auth.split()[1]}
     def respond(req):
         requests.append(req)
+        active_calendar_status = calendar_status['value'] if isinstance(calendar_status, dict) else calendar_status
         if req.method == 'POST': return httpx.Response(200, json={'access_token': 'private-provider-token', 'refresh_token': 'private-refresh', 'expires_in': 3600})
-        if calendar_payload is not None: return httpx.Response(calendar_status, json=calendar_payload)
-        if 'graph.microsoft.com' in str(req.url): return httpx.Response(calendar_status, json={'value': []})
-        return httpx.Response(calendar_status, json={'items': [{'id': '1', 'summary': 'Meeting', 'start': {'dateTime': '2026-11-20T13:00:00Z'}, 'attendees': [{'email': 'private@example.test'}], 'description': 'private body'}]})
+        if calendar_payload is not None: return httpx.Response(active_calendar_status, json=calendar_payload)
+        if 'graph.microsoft.com' in str(req.url): return httpx.Response(active_calendar_status, json={'value': []})
+        return httpx.Response(active_calendar_status, json={'items': [{'id': '1', 'summary': 'Meeting', 'start': {'dateTime': '2026-11-20T13:00:00Z'}, 'attendees': [{'email': 'private@example.test'}], 'description': 'private body'}]})
     app = FastAPI(); app.include_router(build_provider_router(db=db, require_account_user=account, limiter=lambda *args: None, http_client=lambda: httpx.AsyncClient(transport=httpx.MockTransport(respond))), prefix='/api')
     return TestClient(app, follow_redirects=False), db, requests
 
@@ -134,3 +135,49 @@ def test_microsoft_empty_calendar_can_still_verify_valid_read_access(monkeypatch
     assert finish.status_code == 200 and finish.json()['readback_verified'] is True
     assert db.provider_connections.docs
     assert 'graph.microsoft.com' in str(requests[-1].url)
+
+def test_revoked_google_calendar_token_transitions_to_reconnect_required(monkeypatch):
+    state = {'value': 200}
+    client, db, requests = make(monkeypatch, calendar_status=state)
+    flow, params = begin(client)
+    assert client.get('/api/connections/google/callback', params={'state': params['state'][0], 'code': 'approved'}).status_code == 200
+    assert client.post('/api/connections/google/finish/' + flow['flow'], headers={'Authorization': 'Bearer alice'}).status_code == 200
+    assert client.get('/api/connections', headers={'Authorization': 'Bearer alice'}).json()[0]['connected'] is True
+    state['value'] = 401
+    denied = client.get('/api/connections/google/calendar', headers={'Authorization': 'Bearer alice'})
+    assert denied.status_code == 409 and denied.json()['detail'] == 'provider_reconnect_required'
+    record = db.provider_connections.docs[0]
+    assert 'tokens' not in record and record['reconnect_required'] is True
+    entry = client.get('/api/connections', headers={'Authorization': 'Bearer alice'}).json()[0]
+    assert entry['connected'] is False and entry['reconnect_required'] is True
+    assert client.get('/api/connections/google/calendar', headers={'Authorization': 'Bearer alice'}).status_code == 409
+
+
+def test_missing_refresh_token_invalidates_expired_connection(monkeypatch):
+    client, db, requests = make(monkeypatch)
+    flow, params = begin(client)
+    assert client.get('/api/connections/google/callback', params={'state': params['state'][0], 'code': 'approved'}).status_code == 200
+    assert client.post('/api/connections/google/finish/' + flow['flow'], headers={'Authorization': 'Bearer alice'}).status_code == 200
+    record = db.provider_connections.docs[0]
+    token = unseal(record['tokens'])
+    token.pop('refresh_token', None)
+    token['expires_at'] = 0
+    record['tokens'] = seal(token)
+    denied = client.get('/api/connections/google/calendar', headers={'Authorization': 'Bearer alice'})
+    assert denied.status_code == 409
+    assert record['reconnect_required'] is True
+    assert 'tokens' not in record
+
+
+def test_transient_calendar_failure_keeps_valid_saved_connection(monkeypatch):
+    state = {'value': 200}
+    client, db, requests = make(monkeypatch, calendar_status=state)
+    flow, params = begin(client)
+    assert client.get('/api/connections/google/callback', params={'state': params['state'][0], 'code': 'approved'}).status_code == 200
+    assert client.post('/api/connections/google/finish/' + flow['flow'], headers={'Authorization': 'Bearer alice'}).status_code == 200
+    state['value'] = 503
+    error = client.get('/api/connections/google/calendar', headers={'Authorization': 'Bearer alice'})
+    assert error.status_code == 502
+    assert 'tokens' in db.provider_connections.docs[0]
+    entry = client.get('/api/connections', headers={'Authorization': 'Bearer alice'}).json()[0]
+    assert entry['connected'] is True
