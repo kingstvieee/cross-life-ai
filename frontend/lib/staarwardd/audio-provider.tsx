@@ -105,6 +105,13 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   const lastCue = useRef<CinematicCue | null>(null);
   const fadeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const speechRequest = useRef(0);
+  useEffect(() => {
+    // A previous account's speech must never persist as the next account's active avatar.
+    speechRequest.current += 1;
+    setVoicePlaybackActive(false);
+    stopServerSpeech();
+    void Speech.stop();
+  }, [user?.user_id]);
   const guardianSpeech = useRef({ ...initialGuardianSpeechState });
   const dispatchGuardianSpeech = (event: GuardianSpeechEvent) => {
     guardianSpeech.current = transitionGuardianSpeech(guardianSpeech.current, event).state;
