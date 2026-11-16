@@ -19,7 +19,9 @@ export function WorldHub() {
   const { width } = useWindowDimensions();
   const [selected, setSelected] = useState<string | null>(null);
   const [guardianState, setGuardianState] = useState<GuardianState>('flying');
+  const [stageHeight, setStageHeight] = useState(380);
   const [guardianMessage, setGuardianMessage] = useState('Guardian standing by.');
+  const [greetingError, setGreetingError] = useState(false);
   const [guardianSpeaking, setGuardianSpeaking] = useState(false);
   const portalSize = width >= 900 ? 225 : width >= 600 ? 185 : Math.max(96, Math.floor((width - 68) / 3));
   const drift = useRef(new Animated.Value(0)).current;
@@ -91,7 +93,7 @@ export function WorldHub() {
     if (!audio.master || !audio.voice || audio.speechQuiet) { setGuardianMessage('Voice is muted or disabled. Use settings to enable audio.'); return; }
     setGuardianState('speaking'); setGuardianSpeaking(true);
     setGuardianMessage('Welcome back. Your nine worlds are ready.');
-    try { await audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.'); }
+    try { setGreetingError(false); const spoken = await audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.'); if (!spoken && focused.current && epoch === voiceEpoch.current) { setGreetingError(true); setGuardianMessage('Guardian is present, but voice playback is unavailable. You can still open a conversation.'); } } catch { if (focused.current && epoch === voiceEpoch.current) { setGreetingError(true); setGuardianMessage('Voice playback failed. Open chat to continue in text.'); } }
     finally { if (focused.current && epoch === voiceEpoch.current) { setGuardianSpeaking(false); setGuardianState('hover'); } }
   }, [audio.master, audio.voice, audio.speechQuiet, audio.speak]);
   useFocusEffect(useCallback(() => { focused.current = true; return () => { focused.current = false; voiceEpoch.current += 1; }; }, []));
@@ -108,20 +110,20 @@ export function WorldHub() {
     <SafeAreaView style={s.safe}>
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <View style={s.header}><View><Text style={s.brand}>STAARWAARDD</Text><Text style={s.micro}>YOUR CONNECTED UNIVERSE</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => router.push('/settings')} style={s.icon}><Ionicons name="options-outline" size={22} color="#E4E8EE" /></Pressable></View>
-        <View style={s.stage}>
+        <View style={[s.stage, { height: stageHeight }]} onLayout={event => { const available = event.nativeEvent.layout.width; const target = Math.max(380, Math.min(560, available * 1.06)); if (Math.abs(target - stageHeight) > 1) setStageHeight(target); }}>
           <Image source={require('@/assets/images/staarwardd/toronto-skyline-pan.png')} resizeMode="cover" style={s.skyline} />
           <AccessField />
           <View style={s.guardianFigure}><GuardianCharacter state={guardianState} size={Math.min(width * 0.56, 285)} reducedMotion={motionReduced} onMotionEnd={onGuardianMotionEnd} /></View>
           <Animated.View style={[s.stageCopy, { opacity: arrival, transform: [{ translateY: arrival.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }] }]}><Text style={s.micro}>{companion.toUpperCase()} · YOUR COMPANION</Text><Text style={s.title}>STAARWAARDD</Text><Text style={s.description}>{guardianMessage}</Text></Animated.View>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian welcome" disabled={guardianSpeaking} onPress={() => { void greet(); }} style={s.greetButton}><Ionicons name="volume-high-outline" size={18} color="#F1F3F7" /><Text style={s.greetLabel}>{guardianSpeaking ? 'GUARDIAN SPEAKING' : 'HEAR GUARDIAN'}</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian welcome" accessibilityHint="Plays a welcome message only when voice is enabled and not muted" disabled={guardianSpeaking} onPress={() => { if (guardianSpeaking) return; void greet(); }} style={s.greetButton}><Ionicons name="volume-high-outline" size={18} color="#F1F3F7" /><Text style={s.greetLabel}>{guardianSpeaking ? 'GUARDIAN SPEAKING' : greetingError ? 'RETRY GUARDIAN VOICE' : 'HEAR GUARDIAN'}</Text></Pressable>
         <LinearGradient colors={['#BBC2CB', '#3A414A', '#8B949F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.frame}>
           <BlurView intensity={35} tint="dark" style={s.companion}>
-            <View style={{ flex: 1, gap: 7 }}><Text style={s.panelTitle}>Speak with {companion}</Text><Text style={s.description}>Bring an idea, a question, or a plan.</Text></View>
+            <View style={{ flex: 1, gap: 7 }}><Text style={s.panelTitle}>Speak with {companion}</Text><Text style={s.description}>Ask a question, plan your day or continue a conversation. Voice recording requires a tap.</Text></View>
             <Pressable accessibilityRole="button" accessibilityLabel={`Open conversation with ${companion}`} onPress={() => router.push('/chat')} style={s.primary}><Ionicons name="chatbubble-ellipses-outline" size={23} color="#101317" /></Pressable>
           </BlurView>
         </LinearGradient>
-        <View style={s.voiceRow}><View style={{ flex: 1 }}><Text style={s.panelTitle}>Guardian welcome</Text><Text style={s.description}>{!audio.master ? 'Enable master audio in settings to hear greetings.' : greetingEnabled ? 'Greets on entry when enabled. Conversation continues across all portals.' : 'Automatic welcome off. Voice remains available throughout the Hub.'}</Text></View><Pressable accessibilityRole="switch" accessibilityState={{ checked: greetingEnabled }} accessibilityLabel="Proactive Guardian greeting" disabled={!greetingKey || !preferenceReady || preferenceOwner !== greetingKey} onPress={() => setGreeting(!greetingEnabled)} style={[s.toggle, greetingEnabled && s.toggleOn]}><Text style={[s.toggleText, greetingEnabled && s.toggleTextOn]}>{greetingEnabled ? 'ON' : 'OFF'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Silence Guardian" onPress={() => { voiceEpoch.current += 1; audio.setSpeechQuiet(true); audio.stopAll(); setGuardianSpeaking(false); setGuardianState('hover'); }} style={s.silence}><Ionicons name="volume-mute-outline" size={21} color="#F3F4F6" /></Pressable></View>
+        <View style={s.voiceRow}><View style={{ flex: 1 }}><Text style={s.panelTitle}>Guardian welcome</Text><Text style={s.description}>{!audio.master ? 'Enable master audio in settings to hear greetings.' : greetingEnabled ? 'Greets after arrival when enabled. Tap the microphone for a new turn; continuous listening is not active.' : 'Automatic welcome off. Tap the microphone or chat to talk to Guardian.'}</Text></View><Pressable accessibilityRole="switch" accessibilityState={{ checked: greetingEnabled }} accessibilityLabel="Proactive Guardian greeting" disabled={!greetingKey || !preferenceReady || preferenceOwner !== greetingKey} onPress={() => setGreeting(!greetingEnabled)} style={[s.toggle, greetingEnabled && s.toggleOn]}><Text style={[s.toggleText, greetingEnabled && s.toggleTextOn]}>{greetingEnabled ? 'ON' : 'OFF'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Silence Guardian" onPress={() => { voiceEpoch.current += 1; audio.setSpeechQuiet(true); audio.stopAll(); setGuardianSpeaking(false); setGuardianState('hover'); }} style={s.silence}><Ionicons name="volume-mute-outline" size={21} color="#F3F4F6" /></Pressable></View>
         <View style={s.section}><Text style={s.micro}>ENTER YOUR NINE WORLDS</Text><Text style={s.count}>09</Text></View>
         <View style={s.grid}>{WORLDS.map((world, index) => <Pressable key={world.id} accessibilityRole="button" accessibilityLabel={`Open ${world.name}`} disabled={selected !== null} onPress={() => { setSelected(world.id); router.push({ pathname: '/world/[id]', params: { id: world.id } } as never); }} style={({ pressed }) => [s.world, { width: portalSize, height: portalSize, borderRadius: portalSize / 2 }, pressed && s.pressed]}>
           <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [index % 2 ? 4 : -4, index % 2 ? -4 : 4] }) }, { scale: drift.interpolate({ inputRange: [0, 1], outputRange: [1.02, 1.08] }) }] }]}><Image source={world.image} style={s.art} accessibilityLabel={`${world.name} approved portal artwork`} /></Animated.View>
