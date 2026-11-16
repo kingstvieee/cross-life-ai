@@ -45,3 +45,14 @@ test("Guardian automatic speech requires verified server consent and privacy gat
   assert.match(source, /Automatic greeting remains off/);
   assert.match(source, /setSavingGreeting\(false\)/);
 });
+
+test("Guardian only offers automatic return speech after a meaningful foreground absence", () => {
+  const source = readFileSync(new URL("../components/staarwardd/world-hub.tsx", import.meta.url), "utf8");
+  assert.match(source, /AppState\.addEventListener\('change'/);
+  assert.match(source, /Date\.now\(\) - awaySince < 20 \* 60 \* 1000/);
+  assert.match(source, /if \(hour < 12 \|\| hour >= 22\) return/);
+  assert.match(source, /setForegroundEpoch\(epoch => epoch \+ 1\)/);
+  assert.match(source, /return \(\) => sub\.remove\(\)/);
+  assert.match(source, /foregroundEpoch, audio\.master, audio\.voice, audio\.speechQuiet, greet/);
+  assert.match(source, /serverPrivate \|\| serverSpeechQuiet/);
+});
