@@ -13,6 +13,21 @@ export type GuardianFacialRig = {
   approved: boolean;
 };
 
+/** Import offline audio-derived articulation only for the exact verified clip.
+ * This validates timing data; it never grants identity/rig approval.
+ */
+export function parseGuardianAudioAlignment(input: unknown, verifiedAudioSha256: string) {
+  if (!input || typeof input !== 'object') throw new Error('invalid_audio_alignment');
+  const row = input as Record<string, unknown>;
+  if (!/^[a-f0-9]{64}$/.test(verifiedAudioSha256) ||
+      row.schema !== 'staar-guardian-alignment-v1' ||
+      row.audioSha256 !== verifiedAudioSha256 ||
+      row.source !== 'rhubarb-audio-mouth-shapes' || row.identityApproved !== false ||
+      typeof row.durationMs !== 'number') throw new Error('audio_alignment_mismatch');
+  const cues = validateGuardianVisemeTimeline(row.cues, row.durationMs);
+  return { durationMs: row.durationMs, cues, source: row.source as string };
+}
+
 export function validateGuardianVisemeTimeline(input: unknown, durationMs: number): GuardianVisemeCue[] {
   if (!Number.isFinite(durationMs) || durationMs <= 0 || durationMs > 240000) throw new Error('invalid_audio_duration');
   if (!Array.isArray(input) || input.length > 12000) throw new Error('invalid_viseme_timeline');
