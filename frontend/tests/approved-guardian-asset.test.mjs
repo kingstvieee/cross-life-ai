@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { ARMORED_SOURCE_SHA256, REAL_FACE_SOURCE_SHA256, REQUIRED_FACE_TARGETS, validateArmoredGuardianGlb, loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
+import { ARMORED_SOURCE_SHA256, REAL_FACE_SOURCE_SHA256, REQUIRED_FACE_TARGETS, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, assertGuardianModelNotRejected, validateArmoredGuardianGlb, loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
 
 function model(targetNames=REQUIRED_FACE_TARGETS) {
   const gltf={
@@ -75,4 +75,18 @@ test('scene builder and renderer only enable guardian model if verified assets e
  assert.match(runtime,/asset\?\.glbBase64/);
  assert.match(runtime,/new GLTFLoader\(\)\.parse/);
  assert.match(runtime,/approvedArmoredGuardian\(\)/);
+});
+
+
+test('Build 202 visibly rejected 3D model can never be accepted by a forged positive receipt',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const register=JSON.parse(await readFile(new URL('../scene-src/build202-cinematic-reference-approval.json',import.meta.url),'utf8'));
+ assert.equal(register.scope.cinematicVisualReferenceApproved,true);
+ assert.equal(register.scope.approvedTextured3DGuardianGLB,false);
+ assert.equal(REJECTED_BUILD202_GUARDIAN_MODEL_SHA256,register.rejectedExperimentalModel.sha256);
+ assert.throws(()=>assertGuardianModelNotRejected(register.rejectedExperimentalModel.sha256),/guardian_rig_build202_visual_rejection/);
+ assert.doesNotThrow(()=>assertGuardianModelNotRejected('a'.repeat(64)));
+ assert.throws(()=>assertGuardianModelNotRejected('invalid'),/guardian_rig_invalid_model_hash/);
+ const source=await readFile(new URL('../scene-src/approved-guardian-asset.mjs',import.meta.url),'utf8');
+ assert.match(source,/assertGuardianModelNotRejected\(sha\)/);
 });
