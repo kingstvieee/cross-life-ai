@@ -17,7 +17,7 @@ export function stopServerSpeech() {
   try { player?.pause(); player?.remove(); } catch { /* already disposed */ }
   player = null; cancelled?.(); cancelled = null; publish('idle');
 }
-export async function playServerSpeech(fetchLine: (signal: AbortSignal) => Promise<Response>, options: { volume?: number; onDone?: () => void } = {}) {
+export async function playServerSpeech(fetchLine: (signal: AbortSignal) => Promise<Response>, options: { volume?: number; onStart?: () => void; onDone?: () => void } = {}) {
   stopServerSpeech();
   const current = generation;
   publish('loading');
@@ -43,7 +43,7 @@ export async function playServerSpeech(fetchLine: (signal: AbortSignal) => Promi
       const subscription = active.addListener('playbackStatusUpdate', status => {
         if (current !== generation) return;
         if (status.error) reject(new Error('Voice playback failed.'));
-        if (status.playing) { started = true; clearTimeout(loadingTimer); publish('speaking'); }
+        if (status.playing && !started) { started = true; clearTimeout(loadingTimer); publish('speaking'); options.onStart?.(); }
         if (status.didJustFinish) { options.onDone?.(); resolve(); }
       });
       cleanup = () => { clearTimeout(loadingTimer); clearTimeout(maximumTimer); subscription.remove(); };
