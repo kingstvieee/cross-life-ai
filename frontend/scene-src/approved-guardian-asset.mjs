@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import {inspectGuardianMorphGeometry} from './guardian-morph-qa.mjs';
 
 export const ARMORED_SOURCE_SHA256 = 'd7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c';
 export const REAL_FACE_SOURCE_SHA256 = Object.freeze({
@@ -11,8 +12,15 @@ export const REAL_FACE_SOURCE_SHA256 = Object.freeze({
 export const REQUIRED_FACE_TARGETS = ['rest','sil','PP','FF','TH','DD','kk','CH','SS','nn','RR','aa','E','I','O','U'];
 const RECEIPT_KEYS = ['founderApprovedRig','faceFidelityReviewed','armorFidelityReviewed','frontThreeQuarterProfileReviewed','speechSyncDeviceVerified'];
 
+// Build 202: negative visual QA is binding, even if a positive-looking receipt
+// is subsequently paired with the rejected experimental file.
+export const REJECTED_BUILD202_GUARDIAN_MODEL_SHA256 = '847c2f412b0184a372cd8a6a9149b78fcfe33a7e3127297196a80611f5e0f50d';
 const isSha = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const fail = reason => { throw new Error('guardian_rig_' + reason); };
+export function assertGuardianModelNotRejected(modelSha256) {
+  if (!isSha(modelSha256)) fail('invalid_model_hash');
+  if (modelSha256 === REJECTED_BUILD202_GUARDIAN_MODEL_SHA256) fail('build202_visual_rejection');
+}
 
 /** Validate real GLB bytes and an independent founder-signoff receipt.
  * Refuses silently auto-approving a generic AI-generated portrait/model.
@@ -46,6 +54,8 @@ export function validateArmoredGuardianGlb(bytes, receipt) {
       Array.isArray(p.targets) && p.targets.length===targets.length);
   });
   if(!hasSkinnedFace) fail('missing_skinned_face_targets');
+  // An array of 16 names is insufficient: read the embedded GLB vertex deltas.
+  const morphQa=inspectGuardianMorphGeometry(gltf,bytes.subarray(binOffset+8,binOffset+8+binLength));
   if (!receipt || typeof receipt !== 'object' || receipt.schema !== 'staar-armored-guardian-v1') fail('invalid_receipt');
   if (receipt.sourceImageSha256 !== ARMORED_SOURCE_SHA256) fail('wrong_approved_reference');
   if (receipt.realFaceSourceSha256?.primary !== REAL_FACE_SOURCE_SHA256.primary ||
@@ -53,10 +63,11 @@ export function validateArmoredGuardianGlb(bytes, receipt) {
     fail('wrong_real_face_identity_source');
 
   const sha=createHash('sha256').update(bytes).digest('hex');
+  assertGuardianModelNotRejected(sha);
   if (!isSha(receipt.rigModelSha256) || receipt.rigModelSha256 !== sha) fail('model_hash_mismatch');
   if (!RECEIPT_KEYS.every(k=>receipt[k]===true) || typeof receipt.identityAssetId!=='string' || !/^[a-zA-Z0-9_-]{1,96}$/.test(receipt.identityAssetId)) fail('approval_not_verified');
   if (receipt.exportRightsConfirmed !== true) fail('missing_export_rights');
-  return { sourceImageSha256:ARMORED_SOURCE_SHA256, realFaceSourceSha256:{...REAL_FACE_SOURCE_SHA256}, rigModelSha256:sha, identityAssetId:receipt.identityAssetId, blendshapeTargets:REQUIRED_FACE_TARGETS, glbBase64:bytes.toString('base64') };
+  return { sourceImageSha256:ARMORED_SOURCE_SHA256, realFaceSourceSha256:{...REAL_FACE_SOURCE_SHA256}, rigModelSha256:sha, identityAssetId:receipt.identityAssetId, blendshapeTargets:REQUIRED_FACE_TARGETS, morphQa, glbBase64:bytes.toString('base64') };
 }
 
 /** No asset is a valid state; partial, altered or unapproved files fail the build.
