@@ -27,14 +27,21 @@ export function validateWorldAsset(bytes,receipt,expected) {
  if(gltf?.asset?.version!=='2.0'||!Array.isArray(gltf.meshes)||!gltf.meshes.length)fail('empty_geometry');
  if(!Array.isArray(gltf.bufferViews)||!gltf.bufferViews.length||
     !Array.isArray(gltf.accessors)||!gltf.accessors.length||
-    !gltf.meshes.some(mesh=>Array.isArray(mesh.primitives)&&mesh.primitives.some(p=>
-      Number.isInteger(p?.attributes?.POSITION) && Number.isInteger(gltf.accessors[p.attributes.POSITION]?.count) &&
-      gltf.accessors[p.attributes.POSITION].count>=3))) fail('missing_mesh_vertices');
+    !gltf.meshes.some(mesh=>Array.isArray(mesh.primitives)&&mesh.primitives.some(p=>{
+      const index=p?.attributes?.POSITION;
+      const accessor=Number.isInteger(index)?gltf.accessors[index]:null;
+      const view=accessor?gltf.bufferViews[accessor.bufferView]:null;
+      if(!accessor||!view||accessor.componentType!==5126||accessor.type!=='VEC3'||
+        !Number.isInteger(accessor.count)||accessor.count<3||view.buffer!==0)return false;
+      const stride=view.byteStride||12,offset=accessor.byteOffset||0;
+      return Number.isInteger(stride)&&stride>=12&&Number.isInteger(offset)&&offset>=0&&
+        Number.isInteger(view.byteLength)&&view.byteLength>=offset+(accessor.count-1)*stride+12;
+    }))) fail('missing_mesh_vertices');
  if((gltf.buffers||[]).some(x=>x?.uri && !String(x.uri).startsWith('data:'))) fail('remote_asset_reference');
  if((gltf.images||[]).some(x=>x?.uri && !String(x.uri).startsWith('data:'))) fail('remote_asset_reference');
  if(gltf.extensionsRequired?.some(x=>['KHR_draco_mesh_compression','EXT_meshopt_compression','KHR_texture_basisu'].includes(x)))fail('unsupported_decoder');
  const binAt=20+len;
- if(binAt+8>bytes.length||bytes.toString('ascii',binAt+4,binAt+7)!=='BIN'||bytes.readUInt32LE(binAt)<12||binAt+8+bytes.readUInt32LE(binAt)>bytes.length)fail('missing_geometry');
+ if(binAt+8>bytes.length||bytes.toString('ascii',binAt+4,binAt+7)!=='BIN'||bytes.readUInt32LE(binAt)<36||binAt+8+bytes.readUInt32LE(binAt)>bytes.length||gltf.bufferViews.some(v=>v.buffer===0&&((v.byteOffset||0)+v.byteLength>bytes.readUInt32LE(binAt))))fail('missing_geometry');
  if(!receipt||receipt.schema!=='staar-world-asset-v1'||receipt.worldId!==expected.id||receipt.variant!==expected.variant)fail('wrong_world_receipt');
  const digest=createHash('sha256').update(bytes).digest('hex');
  if(!sha(receipt.modelSha256)||receipt.modelSha256!==digest)fail('model_hash');
