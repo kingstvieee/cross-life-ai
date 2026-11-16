@@ -1,0 +1,219 @@
+{
+  "schema": "staar-build198-private-cinematic-qa-v1",
+  "date": "2026-11-16",
+  "status": "3D geometry and synthetic calibration delivered as private conversation files; final cinematic art acceptance and real-device evidence outstanding",
+  "founderApprovedCinematicDirection": true,
+  "protectedProductionImportsChanged": false,
+  "productionReleaseApproved": false,
+  "privateBinaryCommitted": false,
+  "additionalCashSpentCAD": 0,
+  "worldAssets": [
+    {
+      "key": "home-residence",
+      "sha256": "8d7ff434a0844681d4929a66bed5e233b2d4760f428367b6eb2c3b7636211c46",
+      "meshNodes": 289,
+      "triangles": 9580,
+      "animatedNodes": 7,
+      "gltfAnimationCount": 1,
+      "walkableFloorExtentM": [
+        28,
+        27
+      ],
+      "navigationDeviceVerified": false,
+      "founderVisualApproved": false,
+      "rightsEvidenceAccepted": false
+    },
+    {
+      "key": "work-command",
+      "sha256": "126dad9a5684e401b327b482bb247e8a04397c6eae737b4f927a24968a63eb8e",
+      "meshNodes": 377,
+      "triangles": 12656,
+      "animatedNodes": 4,
+      "gltfAnimationCount": 1,
+      "walkableFloorExtentM": [
+        28,
+        27
+      ],
+      "navigationDeviceVerified": false,
+      "founderVisualApproved": false,
+      "rightsEvidenceAccepted": false
+    },
+    {
+      "key": "creativity-dream",
+      "sha256": "749adf04545dd7932d36df7190540d3d324bcba83cfea096fab143468bc5edf8",
+      "meshNodes": 298,
+      "triangles": 41424,
+      "animatedNodes": 7,
+      "gltfAnimationCount": 1,
+      "walkableFloorExtentM": [
+        28,
+        27
+      ],
+      "navigationDeviceVerified": false,
+      "founderVisualApproved": false,
+      "rightsEvidenceAccepted": false
+    },
+    {
+      "key": "wellbeing-health",
+      "sha256": "13e53faa351823b4f05d6b5ed1c57f95f38dd448368352b0102e72179b68cd4c",
+      "meshNodes": 276,
+      "triangles": 9088,
+      "animatedNodes": 7,
+      "gltfAnimationCount": 1,
+      "walkableFloorExtentM": [
+        28,
+        27
+      ],
+      "navigationDeviceVerified": false,
+      "founderVisualApproved": false,
+      "rightsEvidenceAccepted": false
+    },
+    {
+      "key": "relationships-realm",
+      "sha256": "aada214ea72bf9bbb29dceb2cd238fb69e2584726b4debfb6f87e47ad0d3e388",
+      "meshNodes": 283,
+      "triangles": 22616,
+      "animatedNodes": 7,
+      "gltfAnimationCount": 1,
+      "walkableFloorExtentM": [
+        28,
+        27
+      ],
+      "navigationDeviceVerified": false,
+      "founderVisualApproved": false,
+      "rightsEvidenceAccepted": false
+    },
+    {
+      "key": "relationships-singles",
+      "sha256": "d95da82092b411720f52cae2ef35186942ebc68daaf2dc9dca069e5533c80d4a",
+      "meshNodes": 310,
+      "triangles": 13916,
+      "animatedNodes": 7,
+      "gltfAnimationCount": 1,
+      "walkableFloorExtentM": [
+        28,
+        27
+      ],
+      "navigationDeviceVerified": false,
+      "founderVisualApproved": false,
+      "rightsEvidenceAccepted": false
+    },
+    {
+      "key": "events-village",
+      "sha256": "ed997890c88f97aa9310f993c927d9193681469a3834a07ede9e1c5feea6d40a",
+      "meshNodes": 292,
+      "triangles": 12572,
+      "animatedNodes": 7,
+      "gltfAnimationCount": 1,
+      "walkableFloorExtentM": [
+        28,
+        27
+      ],
+      "navigationDeviceVerified": false,
+      "founderVisualApproved": false,
+      "rightsEvidenceAccepted": false
+    },
+    {
+      "key": "style-closet",
+      "sha256": "65b1e665cafbcb5aef69cdb7f9ccd39b73adc0d35e5dec758e9f00009e9b30f5",
+      "meshNodes": 342,
+      "triangles": 13144,
+      "animatedNodes": 7,
+      "gltfAnimationCount": 1,
+      "walkableFloorExtentM": [
+        28,
+        27
+      ],
+      "navigationDeviceVerified": false,
+      "founderVisualApproved": false,
+      "rightsEvidenceAccepted": false
+    },
+    {
+      "key": "staarverse-universe",
+      "sha256": "a769f0c670df9ab89cb2e7ccf04eafc2241e92373d348c0a94162590bab2e68d",
+      "meshNodes": 318,
+      "triangles": 21988,
+      "animatedNodes": 7,
+      "gltfAnimationCount": 1,
+      "walkableFloorExtentM": [
+        28,
+        27
+      ],
+      "navigationDeviceVerified": false,
+      "founderVisualApproved": false,
+      "rightsEvidenceAccepted": false
+    },
+    {
+      "key": "staarsonic-studio",
+      "sha256": "201eb070d01f9941f4f6dbcb05d2ea04cffaefca6962c62071ccdffee982fea9",
+      "meshNodes": 418,
+      "triangles": 16512,
+      "animatedNodes": 7,
+      "gltfAnimationCount": 1,
+      "walkableFloorExtentM": [
+        28,
+        27
+      ],
+      "navigationDeviceVerified": false,
+      "founderVisualApproved": false,
+      "rightsEvidenceAccepted": false
+    }
+  ],
+  "guardian": {
+    "file": "guardian-build198-16viseme-calibration.glb",
+    "sha256": "da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395",
+    "namedMorphTargets": [
+      "rest",
+      "sil",
+      "PP",
+      "FF",
+      "TH",
+      "DD",
+      "kk",
+      "CH",
+      "SS",
+      "nn",
+      "RR",
+      "aa",
+      "E",
+      "I",
+      "O",
+      "U"
+    ],
+    "activeSpeechMorphs": 14,
+    "neutralSilenceSlots": 2,
+    "skinCount": 1,
+    "realFacePhotoUVEmbedded": true,
+    "originalModelVersion": "Build 191; facial likeness remains visually rejected and must be corrected",
+    "audioCalibration": {
+      "source": "synthetic local eSpeak voice, NOT final approved Guardian narration",
+      "durationSeconds": 15.934,
+      "wavSha256": "ad4e622f83a1b9be38e753a33b749beaf293f5842e2e41b1a949f91107a64997",
+      "wordCues": 16,
+      "animationClipName": "STAAR_16_VISEME_PCM_WORD_ALIGNED_CALIBRATION",
+      "phonemeAccurate": false
+    },
+    "headProfileAccepted": false,
+    "threeQuarterLikenessAccepted": false,
+    "founderFinalModelApproved": false,
+    "actualDeviceLipSyncVerified": false
+  },
+  "evidence": {
+    "localValidator": "BUILD198_TECHNICAL_QA.json in private zip",
+    "worldTechnicalPassCount": 10,
+    "guardianMorphTechnicalPassCount": 16,
+    "visualApprovalsReceived": 0,
+    "deviceTestsReceived": 0
+  },
+  "delivery": {
+    "package": "STAARWAARDD_Build198_3D_Production_Review_Complete.zip",
+    "worldsPackage": "STAARWAARDD_10_Cinematic_Worlds_Build198.zip",
+    "guardianPackage": "STAARWAARDD_Guardian_16_Viseme_Build198.zip",
+    "reviewer": "STAARWAARDD_Build198_Interactive_3D_Studio.html"
+  },
+  "caveats": [
+    "New worlds are modeled spaces with human-scale route layout, but not real-device collision-tested navigation",
+    "GLB animation byte integrity and audio-bound synthetic word calibration do not certify expressive speech lip-sync",
+    "Do not place private face-textured GLB in public GitHub or production before actual final approval"
+  ]
+}
