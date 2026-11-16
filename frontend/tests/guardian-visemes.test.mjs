@@ -1,8 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GUARDIAN_VISEMES, validateGuardianVisemeTimeline, mayAnimateApprovedGuardianFace, guardianVisemeAt, guardianVisemeForPlayback } from '../src/guardian-visemes.ts';
+import { GUARDIAN_VISEMES, validateGuardianVisemeTimeline, mayAnimateApprovedGuardianFace, guardianVisemeAt, guardianVisemeForPlayback, parseGuardianAudioAlignment } from '../src/guardian-visemes.ts';
 const sha = 'a'.repeat(64);
 const base = { identityAssetId: 'approved-guardian', approvedIdentitySha256: sha, morphTargetNames: GUARDIAN_VISEMES, approved: true };
+test('audio alignment is bound to verified playback bytes and never grants rig approval', () => {
+  const sidecar = {schema:'staar-guardian-alignment-v1', audioSha256:sha,
+    source:'rhubarb-audio-mouth-shapes', identityApproved:false, durationMs:1000,
+    cues:[{atMs:0,viseme:'PP',weight:1},{atMs:200,viseme:'rest',weight:0}]};
+  assert.equal(parseGuardianAudioAlignment(sidecar,sha).cues.length,2);
+  assert.throws(()=>parseGuardianAudioAlignment(sidecar,'b'.repeat(64)));
+  assert.throws(()=>parseGuardianAudioAlignment({...sidecar,identityApproved:true},sha));
+  assert.throws(()=>parseGuardianAudioAlignment({...sidecar,cues:[{atMs:2000,viseme:'aa',weight:1}]},sha));
+});
 test('approved identity and full facial morph target mapping required', () => {
   assert.equal(mayAnimateApprovedGuardianFace(base, sha), true);
   assert.equal(mayAnimateApprovedGuardianFace({ ...base, approved: false }, sha), false);
