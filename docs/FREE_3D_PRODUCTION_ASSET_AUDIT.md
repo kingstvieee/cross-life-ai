@@ -19,6 +19,8 @@ Each verified model has real vertices and independent GLB structure, but NONE ha
 
 **Separate free-model provider output:** STARVERSE gateway Thrixel submission `c2cddb3c-0d1b-4177-99f8-d12e7c3a5817`, inspected as 11 named parts and 10,468 triangles. Guardian armored *torso only* Thrixel submission `d86a178b-0b2f-4675-b7e8-712c2ccb45bc`, inspected as 117 parts and 22,774 triangles. Neither is a founder-approved whole-world/whole-character model. Do not mark the torso as facial-rig complete: it contains no face and no 16 viseme morph targets.
 
+**Signed-release configuration readback:** The repository already has EAS owner `staarwarddceos-team`, EAS project ID `d3485a8e-6746-4383-999e-0907fc4d86a7`, Apple team `R9BPDSU4BW`, iOS bundle identifier `com.emergent.crosslifeai.z79271`, App Store Connect app ID `6834467523`, and a production EAS build profile. Its **actual `frontend/app.json` iOS buildNumber is still `105`**, even though the source development milestone labels reach 180. Those are different numbering systems. Configuration identifiers are NOT proof of valid signing certificates or EAS/Apple account login. The production binary is not signed or uploaded by this audit.
+
 **Native build:** unsigned iOS simulator compilation run `43803806776` passed, including CocoaPods and `scripts/build-ios-simulator.cjs`. This is **NOT** a signed IPA or TestFlight build. Signed production requires actual Apple Developer distribution certificates/provisioning profile, authorized Expo EAS credentials and submission permissions. These credentials were not established in this review.
 
 **Financing:** generation charged from already included Thrixel Free-plan allowance; additional cash spend CAD $0. Free-account remaining cubes last observed 155.
