@@ -33,7 +33,7 @@ class Collection:
                 return
         if upsert: await self.insert_one({**query, **update.get('$set', {})})
 
-def make(monkeypatch):
+def make(monkeypatch, calendar_status=200, calendar_payload=None):
     monkeypatch.setenv('PROVIDER_TOKEN_ENCRYPTION_KEY', Fernet.generate_key().decode())
     monkeypatch.setenv('CONNECT_CALLBACK_ORIGIN', 'https://hub.example.test')
     for provider in ['GOOGLE', 'MICROSOFT']:
@@ -47,7 +47,9 @@ def make(monkeypatch):
     def respond(req):
         requests.append(req)
         if req.method == 'POST': return httpx.Response(200, json={'access_token': 'private-provider-token', 'refresh_token': 'private-refresh', 'expires_in': 3600})
-        return httpx.Response(200, json={'items': [{'id': '1', 'summary': 'Meeting', 'start': {'dateTime': '2026-11-20T13:00:00Z'}, 'attendees': [{'email': 'private@example.test'}], 'description': 'private body'}]})
+        if calendar_payload is not None: return httpx.Response(calendar_status, json=calendar_payload)
+        if 'graph.microsoft.com' in str(req.url): return httpx.Response(calendar_status, json={'value': []})
+        return httpx.Response(calendar_status, json={'items': [{'id': '1', 'summary': 'Meeting', 'start': {'dateTime': '2026-11-20T13:00:00Z'}, 'attendees': [{'email': 'private@example.test'}], 'description': 'private body'}]})
     app = FastAPI(); app.include_router(build_provider_router(db=db, require_account_user=account, limiter=lambda *args: None, http_client=lambda: httpx.AsyncClient(transport=httpx.MockTransport(respond))), prefix='/api')
     return TestClient(app, follow_redirects=False), db, requests
 
@@ -66,7 +68,9 @@ def test_consent_pkce_encryption_and_readback(monkeypatch):
     assert client.get('/api/connections/google/callback', params={'state': params['state'][0], 'code': 'code'}).status_code == 400
     assert len(requests) == 1
     assert client.post('/api/connections/google/finish/' + flow['flow'], headers={'Authorization': 'Bearer bob'}).status_code == 409
-    assert client.post('/api/connections/google/finish/' + flow['flow'], headers={'Authorization': 'Bearer alice'}).status_code == 200
+    verified = client.post('/api/connections/google/finish/' + flow['flow'], headers={'Authorization': 'Bearer alice'})
+    assert verified.status_code == 200 and verified.json()['readback_verified'] is True
+    assert requests[-1].method == 'GET' and requests[-1].headers['Authorization'] == 'Bearer private-provider-token'
     assert 'private-provider-token' not in str(db.provider_connections.docs)
     read = client.get('/api/connections/google/calendar', headers={'Authorization': 'Bearer alice'})
     assert read.status_code == 200 and read.json()['events'][0]['title'] == 'Meeting'
@@ -104,3 +108,29 @@ def test_vault_integrity_and_https_callback(monkeypatch):
 def test_microsoft_has_read_only_scope(monkeypatch):
     client, _, _ = make(monkeypatch); _, params = begin(client, 'microsoft')
     assert params['scope'] == ['offline_access Calendars.ReadBasic']
+
+def test_invalid_calendar_scope_cannot_claim_connected(monkeypatch):
+    client, db, requests = make(monkeypatch, calendar_status=403)
+    flow, params = begin(client)
+    assert client.get('/api/connections/google/callback', params={'state': params['state'][0], 'code': 'approved'}).status_code == 200
+    denied = client.post('/api/connections/google/finish/' + flow['flow'], headers={'Authorization': 'Bearer alice'})
+    assert denied.status_code == 409 and denied.json()['detail'] == 'provider_reconnect_required'
+    assert not db.provider_connections.docs
+    assert client.get('/api/connections', headers={'Authorization': 'Bearer alice'}).json()[0]['connected'] is False
+
+def test_provider_must_return_valid_calendar_readback(monkeypatch):
+    client, db, requests = make(monkeypatch, calendar_payload={'unrelated': 'not calendar events'})
+    flow, params = begin(client)
+    assert client.get('/api/connections/google/callback', params={'state': params['state'][0], 'code': 'approved'}).status_code == 200
+    bad = client.post('/api/connections/google/finish/' + flow['flow'], headers={'Authorization': 'Bearer alice'})
+    assert bad.status_code == 502 and bad.json()['detail'] == 'provider_read_unavailable'
+    assert not db.provider_connections.docs
+
+def test_microsoft_empty_calendar_can_still_verify_valid_read_access(monkeypatch):
+    client, db, requests = make(monkeypatch)
+    flow, params = begin(client, 'microsoft')
+    assert client.get('/api/connections/microsoft/callback', params={'state': params['state'][0], 'code': 'approved'}).status_code == 200
+    finish = client.post('/api/connections/microsoft/finish/' + flow['flow'], headers={'Authorization': 'Bearer alice'})
+    assert finish.status_code == 200 and finish.json()['readback_verified'] is True
+    assert db.provider_connections.docs
+    assert 'graph.microsoft.com' in str(requests[-1].url)
