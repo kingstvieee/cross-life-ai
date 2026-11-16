@@ -221,8 +221,9 @@ export default function Chat() {
             maxLength={MAX_CHAT_CHARS}
             placeholder={`Message ${companion}…`}
             placeholderTextColor="rgba(255,255,255,0.35)"
-            onSubmitEditing={() => send()}
-            returnKeyType="send"
+            multiline
+            textAlignVertical="top"
+            accessibilityHint="Multiline message. Use the send button to submit."
             testID="chat-input"
           />
           <Pressable accessibilityRole="button" style={[styles.sendBtn, (!input.trim() || busy) && { opacity: 0.4 }]} onPress={() => send()} disabled={!input.trim() || busy || listening} accessibilityLabel="Send message" testID="send-btn">
@@ -265,8 +266,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', backgroundColor: '#0A0B0E',
   },
   input: {
-    flex: 1, height: 48, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
-    paddingHorizontal: 18, fontSize: 14.5, color: '#F3F4F6', backgroundColor: '#15171D',
+    flex: 1, minHeight: 48, maxHeight: 144, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
+    paddingHorizontal: 18, paddingVertical: 13, fontSize: 14.5, color: '#F3F4F6', backgroundColor: '#15171D',
   },
   sendBtn: { width: 48, height: 48, borderRadius: 999, backgroundColor: '#DDE3EA', alignItems: 'center', justifyContent: 'center' },
 });
