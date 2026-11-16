@@ -135,7 +135,7 @@ export default function Chat() {
         if (voiceOn) void audio.speak(data.reply);
       } else {
         setRetryMessage(message);
-        setNotice('Guardian could not complete that request. Retry when ready.');
+        setNotice(r.status === 413 || r.status === 422 ? 'The server rejected this message size or format. Your text is preserved for editing or retry; shorter sections may work better.' : r.status === 429 ? 'Guardian is receiving too many requests. Your message is preserved; retry after the limit resets.' : 'Guardian could not complete that request. Retry when ready.');
       }
     } catch {
       if (requestId === requestGeneration.current && mounted.current && !abort.signal.aborted) {
@@ -211,7 +211,7 @@ export default function Chat() {
 
         {busy && <Pressable accessibilityRole="button" accessibilityLabel="Cancel pending Guardian reply" onPress={() => { const cancelledMessage = pendingMessage.current; requestGeneration.current++; requestAbort.current?.abort(); requestAbort.current = null; pendingMessage.current = null; pending.current = false; setBusy(false); if (cancelledMessage) setRetryMessage(cancelledMessage); setNotice('Reply cancelled. You can retry the message or send another.'); }} style={{ paddingHorizontal: 20, paddingVertical: 8 }}><Text style={{ color: '#F1DFA7' }}>Cancel pending reply</Text></Pressable>}
         {voiceIntent === 'microphone' && <Text accessibilityRole="text" style={{ color: '#F1DFA7', paddingHorizontal: 20, paddingTop: 8, fontSize: 12 }}>Microphone ready. Tap Speak below to begin recording; nothing is recorded automatically.</Text>}
-        <VoiceInput onListening={setListening} onTranscript={setInput} disabled={busy || !historyReady} />
+        <VoiceInput onListening={setListening} onTranscript={(text) => { setInput(previous => { const combined = previous.trim() ? `${previous.trimEnd()}\n${text}` : text; return combined.slice(0, MAX_CHAT_CHARS); }); setNotice('Transcript added to your draft. Review before sending; combined text is limited to 50,000 characters.'); }} disabled={busy || !historyReady} />
         <Text accessibilityRole="text" accessibilityLabel={`Message length ${input.length} of ${MAX_CHAT_CHARS} characters`} style={{ color: input.length >= MAX_CHAT_CHARS ? "#F1DFA7" : "#8D98A6", fontSize: 11, textAlign: "right", paddingHorizontal: 22, paddingTop: 5 }}>{input.length.toLocaleString()} / {MAX_CHAT_CHARS.toLocaleString()}</Text>
         <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <TextInput
