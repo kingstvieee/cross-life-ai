@@ -58,6 +58,30 @@ export function WorldHub() {
     Animated.spring(arrival, { toValue: 1, damping: 17, stiffness: 65, useNativeDriver: true }).start();
     return () => { loop.stop(); arrival.stopAnimation(); };
   }, [arrival, drift, motionReduced]);
+  // The visible Guardian follows the shared audio provider, including speech
+  // started from the persistent dock, rather than only the welcome button.
+  const arrivalFinished = useRef(false);
+  const [arrivalComplete, setArrivalComplete] = useState(false);
+  useEffect(() => {
+    if (!arrivalComplete) return;
+    if (audio.speechQuiet || !audio.master || !audio.voice) {
+      setGuardianSpeaking(false);
+      setGuardianState('hover');
+    } else if (audio.speechPhase === 'speaking') {
+      setGuardianSpeaking(true);
+      setGuardianState('speaking');
+    } else if (audio.speechPhase === 'idle' || audio.speechPhase === 'muted') {
+      setGuardianSpeaking(false);
+      setGuardianState('hover');
+    }
+  }, [arrivalComplete, audio.speechPhase, audio.speechQuiet, audio.master, audio.voice]);
+  const onGuardianMotionEnd = useCallback(() => {
+    if (!arrivalFinished.current) {
+      arrivalFinished.current = true;
+      setArrivalComplete(true);
+    }
+    setGuardianState(current => current === 'flying' ? 'hover' : current);
+  }, []);
   const greeted = useRef(false);
   const voiceEpoch = useRef(0);
   const focused = useRef(false);
@@ -87,7 +111,7 @@ export function WorldHub() {
         <View style={s.stage}>
           <Image source={require('@/assets/images/staarwardd/toronto-skyline-pan.png')} resizeMode="cover" style={s.skyline} />
           <AccessField />
-          <View style={s.guardianFigure}><GuardianCharacter state={guardianState} size={Math.min(width * 0.56, 285)} reducedMotion={motionReduced} onMotionEnd={() => setGuardianState('hover')} /></View>
+          <View style={s.guardianFigure}><GuardianCharacter state={guardianState} size={Math.min(width * 0.56, 285)} reducedMotion={motionReduced} onMotionEnd={onGuardianMotionEnd} /></View>
           <Animated.View style={[s.stageCopy, { opacity: arrival, transform: [{ translateY: arrival.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }] }]}><Text style={s.micro}>{companion.toUpperCase()} · YOUR COMPANION</Text><Text style={s.title}>STAARWAARDD</Text><Text style={s.description}>{guardianMessage}</Text></Animated.View>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian welcome" disabled={guardianSpeaking} onPress={() => { void greet(); }} style={s.greetButton}><Ionicons name="volume-high-outline" size={18} color="#F1F3F7" /><Text style={s.greetLabel}>{guardianSpeaking ? 'GUARDIAN SPEAKING' : 'HEAR GUARDIAN'}</Text></Pressable>
