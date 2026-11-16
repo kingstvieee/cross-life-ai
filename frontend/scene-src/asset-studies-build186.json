@@ -15,7 +15,8 @@
       "animationVerified": false,
       "navigationVerified": false,
       "gltfAnimationCount": 1,
-      "animatedNodeCount": 5
+      "animatedNodeCount": 5,
+      "exportRightsConfirmed": false
     },
     {
       "key": "work-command",
@@ -27,7 +28,8 @@
       "animationVerified": false,
       "navigationVerified": false,
       "gltfAnimationCount": 1,
-      "animatedNodeCount": 5
+      "animatedNodeCount": 5,
+      "exportRightsConfirmed": false
     },
     {
       "key": "creativity-dream",
@@ -39,7 +41,8 @@
       "animationVerified": false,
       "navigationVerified": false,
       "gltfAnimationCount": 1,
-      "animatedNodeCount": 5
+      "animatedNodeCount": 5,
+      "exportRightsConfirmed": false
     },
     {
       "key": "wellbeing-health",
@@ -51,7 +54,8 @@
       "animationVerified": false,
       "navigationVerified": false,
       "gltfAnimationCount": 1,
-      "animatedNodeCount": 3
+      "animatedNodeCount": 3,
+      "exportRightsConfirmed": false
     },
     {
       "key": "relationships-realm",
@@ -63,7 +67,8 @@
       "animationVerified": false,
       "navigationVerified": false,
       "gltfAnimationCount": 1,
-      "animatedNodeCount": 5
+      "animatedNodeCount": 5,
+      "exportRightsConfirmed": false
     },
     {
       "key": "relationships-singles",
@@ -75,7 +80,8 @@
       "animationVerified": false,
       "navigationVerified": false,
       "gltfAnimationCount": 1,
-      "animatedNodeCount": 5
+      "animatedNodeCount": 5,
+      "exportRightsConfirmed": false
     },
     {
       "key": "events-village",
@@ -87,7 +93,8 @@
       "animationVerified": false,
       "navigationVerified": false,
       "gltfAnimationCount": 1,
-      "animatedNodeCount": 5
+      "animatedNodeCount": 5,
+      "exportRightsConfirmed": false
     },
     {
       "key": "style-closet",
@@ -99,7 +106,8 @@
       "animationVerified": false,
       "navigationVerified": false,
       "gltfAnimationCount": 1,
-      "animatedNodeCount": 5
+      "animatedNodeCount": 5,
+      "exportRightsConfirmed": false
     },
     {
       "key": "staarverse-universe",
@@ -111,7 +119,8 @@
       "animationVerified": false,
       "navigationVerified": false,
       "gltfAnimationCount": 1,
-      "animatedNodeCount": 5
+      "animatedNodeCount": 5,
+      "exportRightsConfirmed": false
     },
     {
       "key": "staarsonic-studio",
@@ -123,7 +132,8 @@
       "animationVerified": false,
       "navigationVerified": false,
       "gltfAnimationCount": 1,
-      "animatedNodeCount": 5
+      "animatedNodeCount": 5,
+      "exportRightsConfirmed": false
     }
   ],
   "guardianStudy": {
@@ -162,6 +172,7 @@
     "Guardian has a photo-projected front face and demonstration animation. It is not identity-calibrated three-quarter/profile, and is not a production rig.",
     "The locked standalone audio master remains inaccessible; neither pack modifies the approved startup film.",
     "NO receipt may be marked approved without genuine founder, rights, and physical-device evidence.",
-    "Each world study now includes one verified, embedded 4-second glTF animation with 3–5 animated nodes. Asset hashes changed; all study acceptance flags remain false."
+    "Each world study now includes one verified, embedded 4-second glTF animation with 3–5 animated nodes. Asset hashes changed; all study acceptance flags remain false.",
+    "Export-rights sign-off is not certified for study assets; all eventual release licences must be independently reviewed."
   ]
 }
