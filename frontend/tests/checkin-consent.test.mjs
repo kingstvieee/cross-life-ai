@@ -23,8 +23,8 @@ test('tap to enable requires server write prior to native scheduling',()=>{
  assert.match(page,/greetings: serverGreetingConsent, check_ins: true/);
 });
 test('switching off check-in permission and entering private mode cancel local scheduling',()=>{
- assert.match(guardian,/check_ins:value\}\)\}\);if\(!value\)await bindCheckinAccount\(''\)/);
- assert.match(guardian,/if\(value\)await bindCheckinAccount\(''\)/);
+ assert.match(guardian,/if\(!value\)await bindCheckinAccount\(''\);await checked\(CORE\+'\/proactive-consent'/);
+ assert.match(guardian,/if\(value\)await bindCheckinAccount\(''\);await checked\('\/api\/guardian\/core\/private-mode'/);
  assert.match(native,/if next\.isEmpty \|\| UserDefaults\.standard\.string/);
  assert.match(native,/clear\(\)/);
 });
