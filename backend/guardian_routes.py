@@ -7,6 +7,7 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from guardian_store import GuardianStore
+from starcenttinel_gate import require_sentinel_admission
 
 
 class GuardianMissionUpdate(BaseModel):
@@ -317,6 +318,7 @@ def build_guardian_router(*, db: Any, get_current_user: Any, get_trusted_worker:
     async def workflow_dispatch(workflow_id: str, body: GuardianDispatchRequest, authorization: Optional[str] = Header(None), x_guardian_worker_token: Optional[str] = Header(None)):
         user = await account_user(authorization)
         await trusted_worker(x_guardian_worker_token)
+        await require_sentinel_admission(db, user_id=user["user_id"], operation="dispatch")
         try:
             return await store.dispatch_workflow(user["user_id"], workflow_id, owner=body.owner, fence=body.fence, action=body.action, action_version=body.action_version, action_hash=body.action_hash, authority=body.authority, context=body.context, idempotency_key=body.idempotency_key)
         except (KeyError, ValueError) as exc:
@@ -326,6 +328,7 @@ def build_guardian_router(*, db: Any, get_current_user: Any, get_trusted_worker:
     async def workflow_send_admission(workflow_id: str, body: GuardianSentRequest, authorization: Optional[str] = Header(None), x_guardian_worker_token: Optional[str] = Header(None)):
         user = await account_user(authorization)
         await trusted_worker(x_guardian_worker_token)
+        await require_sentinel_admission(db, user_id=user["user_id"], operation="send-admission")
         try:
             return await store.authorize_workflow_send(user["user_id"], workflow_id, idempotency_key=body.idempotency_key)
         except (KeyError, ValueError) as exc:
