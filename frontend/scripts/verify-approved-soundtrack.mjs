@@ -5,7 +5,7 @@ export const LOCKED_GUARDIAN_MUSIC=Object.freeze({
  sourceFilename:'Starward Guardian(2).m4a',
  sourceSha256:'2b8590fcae07a81e96fad7f6cb4769b02ef6eb0856ee9831ee0eb68c0e1a9938',
  filename:'Starward_Guardian_Approved_AAC_iOS.m4a',
- sha256:'ddd63b3622dd7524af8d976d53d7c0afce7cd35a4afadb937',
+ sha256:'ddd63b3622dd7524af8d976d53d7c0afce7cd35a4af1f7c3ce88ba61afadb937',
  bytes:6743732, codec:'aac',sampleRate:48000,channels:2,
 });
 /** Validates the actual on-disk AAC derivative; does not attest live iPhone playback.
