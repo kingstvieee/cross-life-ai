@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { worldSceneHtml } from '@/generated/world-runtime';
 import { sceneAction, sceneFallbackActions } from '@/src/scene-events';
+import { shouldDispatchSceneAction, type SceneDispatch } from '@/src/scene-action-dedup';
 
 export function WorldScene({ world, variant = 'realm', onAction }: { world: string; variant?: 'realm' | 'singles'; onAction: (action: string) => void }) {
   const iframe = useRef<HTMLIFrameElement | null>(null);
+  const lastDispatch = useRef<SceneDispatch | null>(null);
   const sceneReady = useRef(false);
   const html = useMemo(() => worldSceneHtml(world, variant), [world, variant]);
   const [failedScene, setFailedScene] = useState<string | null>(null);
@@ -27,7 +29,7 @@ export function WorldScene({ world, variant = 'realm', onAction }: { world: stri
         return;
       }
       const action = sceneAction(event.data, world);
-      if (action) onAction(action);
+      if (action) { const next = { world, action, atMs: Date.now() }; if (shouldDispatchSceneAction(lastDispatch.current, next)) { lastDispatch.current = next; onAction(action); } }
     };
     window.addEventListener('message', receive); return () => window.removeEventListener('message', receive);
   }, [onAction, world, sceneKey]);
