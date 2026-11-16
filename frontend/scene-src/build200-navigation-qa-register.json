@@ -38,7 +38,12 @@
       "verifiedSpawnAndPortal": false,
       "iphoneFrameRateQA": false,
       "founderApprovedCandidateBaseline": true,
-      "finalMasterProductionAccepted": false
+      "finalMasterProductionAccepted": false,
+      "mobileSizeAudit": {
+        "sourceBytes": 896368,
+        "mobileBytes": 1232840,
+        "mobileLargerThanSource": true
+      }
     },
     {
       "worldKey": "events-village",
@@ -52,7 +57,12 @@
       "verifiedSpawnAndPortal": false,
       "iphoneFrameRateQA": false,
       "founderApprovedCandidateBaseline": true,
-      "finalMasterProductionAccepted": false
+      "finalMasterProductionAccepted": false,
+      "mobileSizeAudit": {
+        "sourceBytes": 618584,
+        "mobileBytes": 492748,
+        "mobileLargerThanSource": false
+      }
     },
     {
       "worldKey": "home-residence",
@@ -66,7 +76,12 @@
       "verifiedSpawnAndPortal": false,
       "iphoneFrameRateQA": false,
       "founderApprovedCandidateBaseline": true,
-      "finalMasterProductionAccepted": false
+      "finalMasterProductionAccepted": false,
+      "mobileSizeAudit": {
+        "sourceBytes": 555048,
+        "mobileBytes": 353740,
+        "mobileLargerThanSource": false
+      }
     },
     {
       "worldKey": "relationships-realm",
@@ -80,7 +95,12 @@
       "verifiedSpawnAndPortal": false,
       "iphoneFrameRateQA": false,
       "founderApprovedCandidateBaseline": true,
-      "finalMasterProductionAccepted": false
+      "finalMasterProductionAccepted": false,
+      "mobileSizeAudit": {
+        "sourceBytes": 683896,
+        "mobileBytes": 673064,
+        "mobileLargerThanSource": false
+      }
     },
     {
       "worldKey": "relationships-singles",
@@ -94,7 +114,12 @@
       "verifiedSpawnAndPortal": false,
       "iphoneFrameRateQA": false,
       "founderApprovedCandidateBaseline": true,
-      "finalMasterProductionAccepted": false
+      "finalMasterProductionAccepted": false,
+      "mobileSizeAudit": {
+        "sourceBytes": 602284,
+        "mobileBytes": 444008,
+        "mobileLargerThanSource": false
+      }
     },
     {
       "worldKey": "staarsonic-studio",
@@ -108,7 +133,12 @@
       "verifiedSpawnAndPortal": false,
       "iphoneFrameRateQA": false,
       "founderApprovedCandidateBaseline": true,
-      "finalMasterProductionAccepted": false
+      "finalMasterProductionAccepted": false,
+      "mobileSizeAudit": {
+        "sourceBytes": 664688,
+        "mobileBytes": 432388,
+        "mobileLargerThanSource": false
+      }
     },
     {
       "worldKey": "staarverse-universe",
@@ -122,7 +152,12 @@
       "verifiedSpawnAndPortal": false,
       "iphoneFrameRateQA": false,
       "founderApprovedCandidateBaseline": true,
-      "finalMasterProductionAccepted": false
+      "finalMasterProductionAccepted": false,
+      "mobileSizeAudit": {
+        "sourceBytes": 685208,
+        "mobileBytes": 634696,
+        "mobileLargerThanSource": false
+      }
     },
     {
       "worldKey": "style-closet",
@@ -136,7 +171,12 @@
       "verifiedSpawnAndPortal": false,
       "iphoneFrameRateQA": false,
       "founderApprovedCandidateBaseline": true,
-      "finalMasterProductionAccepted": false
+      "finalMasterProductionAccepted": false,
+      "mobileSizeAudit": {
+        "sourceBytes": 659532,
+        "mobileBytes": 466876,
+        "mobileLargerThanSource": false
+      }
     },
     {
       "worldKey": "wellbeing-health",
@@ -150,7 +190,12 @@
       "verifiedSpawnAndPortal": false,
       "iphoneFrameRateQA": false,
       "founderApprovedCandidateBaseline": true,
-      "finalMasterProductionAccepted": false
+      "finalMasterProductionAccepted": false,
+      "mobileSizeAudit": {
+        "sourceBytes": 538208,
+        "mobileBytes": 337848,
+        "mobileLargerThanSource": false
+      }
     },
     {
       "worldKey": "work-command",
@@ -164,7 +209,12 @@
       "verifiedSpawnAndPortal": false,
       "iphoneFrameRateQA": false,
       "founderApprovedCandidateBaseline": true,
-      "finalMasterProductionAccepted": false
+      "finalMasterProductionAccepted": false,
+      "mobileSizeAudit": {
+        "sourceBytes": 630760,
+        "mobileBytes": 407644,
+        "mobileLargerThanSource": false
+      }
     }
   ],
   "protectedReleaseState": {
@@ -180,6 +230,16 @@
     "No changes to approved scene geometry, protected asset loader, Apple signing or private face/audio assets.",
     "AABB proxy can overblock or underblock; results require runtime collider/navmesh verification.",
     "Endpoints are illustrative: they have NOT been confirmed to be the actual in-app entry/exit portals.",
-    "Do not count these four connected proxy routes as four production passes."
-  ]
+    "Do not count these four connected proxy routes as four production passes.",
+    "The creativity-dream mobile GLB has 37.5% more on-disk bytes than its source; batching reduced nodes but should be revisited before final mobile distribution."
+  ],
+  "mobileFileSizeAudit": {
+    "sourceBytesTotal": 6534576,
+    "mobileBytesTotal": 5475852,
+    "overallReducedPercent": 16.2,
+    "largerThanSourceWorlds": [
+      "creativity-dream"
+    ],
+    "bytesAreNotRuntimeRamBenchmark": true
+  }
 }
