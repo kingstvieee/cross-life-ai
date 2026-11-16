@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GUARDIAN_VISEMES, validateGuardianVisemeTimeline, mayAnimateApprovedGuardianFace, guardianVisemeAt } from '../src/guardian-visemes.ts';
+import { GUARDIAN_VISEMES, validateGuardianVisemeTimeline, mayAnimateApprovedGuardianFace, guardianVisemeAt, guardianVisemeForPlayback } from '../src/guardian-visemes.ts';
 const sha = 'a'.repeat(64);
 const base = { identityAssetId: 'approved-guardian', approvedIdentitySha256: sha, morphTargetNames: GUARDIAN_VISEMES, approved: true };
 test('approved identity and full facial morph target mapping required', () => {
@@ -21,4 +21,13 @@ test('mouth returns to neutral before first cue; playback cue lookup is bounded'
   assert.equal(guardianVisemeAt(cues,-1).viseme,'rest');
   assert.equal(guardianVisemeAt(cues,50).viseme,'PP');
   assert.equal(guardianVisemeAt(cues,90).viseme,'rest');
+});
+
+test('paused, finished or unapproved Guardian facial rig returns a neutral mouth',()=>{
+ const cues=validateGuardianVisemeTimeline([{atMs:100,viseme:'aa',weight:1}],1000);
+ assert.equal(guardianVisemeForPlayback(cues,200,1000,true,true).viseme,'aa');
+ for(const args of [
+   [200,1000,false,true],[200,1000,true,false],[1000,1000,true,true],
+   [200,0,true,true],[-1,1000,true,true],[Infinity,1000,true,true]
+ ]) assert.deepEqual(guardianVisemeForPlayback(cues,...args),{atMs:0,viseme:'rest',weight:0});
 });
