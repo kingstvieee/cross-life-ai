@@ -46,3 +46,20 @@ export function guardianVisemeAt(cues: readonly GuardianVisemeCue[], playheadMs:
   }
   return found < 0 ? neutral : cues[found];
 }
+
+/** Build 154. A paused/finished clip must never leave an open mouth.
+ * This remains unavailable until an actual approved morph-target rig is supplied.
+ */
+export function guardianVisemeForPlayback(
+  cues: readonly GuardianVisemeCue[],
+  playheadMs: number,
+  durationMs: number,
+  playbackActive: boolean,
+  approvedRig: boolean,
+): GuardianVisemeCue {
+  const neutral: GuardianVisemeCue = { atMs: 0, viseme: 'rest', weight: 0 };
+  if (!approvedRig || !playbackActive || !Number.isFinite(durationMs) ||
+      durationMs <= 0 || !Number.isFinite(playheadMs) ||
+      playheadMs < 0 || playheadMs >= durationMs) return neutral;
+  return guardianVisemeAt(cues, playheadMs);
+}
