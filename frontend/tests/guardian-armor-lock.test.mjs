@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GUARDIAN_VISEMES, mayAnimateApprovedGuardianFace } from '../src/guardian-visemes.ts';
-import { LOCKED_ARMORED_GUARDIAN, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, canActivateArmoredGuardian3D, armoredGuardianFacialRig } from '../src/guardian-armor-lock.ts';
+import { LOCKED_ARMORED_GUARDIAN, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, REJECTED_LEGACY_GUARDIAN_MODEL_SHA256, canActivateArmoredGuardian3D, armoredGuardianFacialRig } from '../src/guardian-armor-lock.ts';
 
 const reference = LOCKED_ARMORED_GUARDIAN;
 const valid = {
@@ -51,4 +51,12 @@ test('Build 208 private QA-only model cannot activate even with a forged all-tru
  assert.equal(PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256,'09dcb3cb56b70f5a2b38e5d5f68de627a62df5ad42ad89e2f9d9123d92cf70b5');
  assert.equal(canActivateArmoredGuardian3D({...valid,rigModelSha256:PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256}),false);
  assert.equal(armoredGuardianFacialRig({...valid,rigModelSha256:PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256}),null);
+});
+
+
+test('Build 210 rejects both recovered 198 and reviewed 201 models even when approval booleans are forged',()=>{
+ for(const sha of REJECTED_LEGACY_GUARDIAN_MODEL_SHA256){
+   assert.equal(canActivateArmoredGuardian3D({...valid,rigModelSha256:sha}),false);
+   assert.equal(armoredGuardianFacialRig({...valid,rigModelSha256:sha}),null);
+ }
 });
