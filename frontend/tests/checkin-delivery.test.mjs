@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { canDeliverCheckin } from '../src/checkins.ts';
+import { canDeliverCheckin } from '../src/checkin-delivery.ts';
 test('native check-ins report real notification availability, not merely a pending schedule',()=>{
   for(const authorization of [2,3,4])assert.equal(canDeliverCheckin({supported:true,scheduled:true,authorization}),true);
   for(const authorization of [0,1])assert.equal(canDeliverCheckin({supported:true,scheduled:true,authorization}),false);
