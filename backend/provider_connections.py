@@ -178,6 +178,10 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
                     raise HTTPException(409, "provider_reconnect_required")
                 if response.status_code != 200: raise HTTPException(502, "provider_read_unavailable")
                 data = response.json()
-                return {"provider": provider, "read_at": now().isoformat(), "events": [event_summary(provider, x) for x in data.get("items" if provider == "google" else "value", [])[:25]]}
-            except (httpx.HTTPError, ValueError, KeyError): raise HTTPException(502, "provider_read_unavailable")
+                if not isinstance(data, dict): raise HTTPException(502, "provider_read_unavailable")
+                items = data.get("items" if provider == "google" else "value")
+                if not isinstance(items, list) or any(not isinstance(x, dict) for x in items[:25]):
+                    raise HTTPException(502, "provider_read_unavailable")
+                return {"provider": provider, "read_at": now().isoformat(), "events": [event_summary(provider, x) for x in items[:25]]}
+            except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError): raise HTTPException(502, "provider_read_unavailable")
     return router
