@@ -93,7 +93,7 @@ export function WorldHub() {
     if (!audio.master || !audio.voice || audio.speechQuiet) { setGuardianMessage('Voice is muted or disabled. Use settings to enable audio.'); return; }
     setGuardianState('speaking'); setGuardianSpeaking(true);
     setGuardianMessage('Welcome back. Your nine worlds are ready.');
-    try { await audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.'); }
+    try { setGreetingError(false); const spoken = await audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.'); if (!spoken && focused.current && epoch === voiceEpoch.current) { setGreetingError(true); setGuardianMessage('Guardian is present, but voice playback is unavailable. You can still open a conversation.'); } } catch { if (focused.current && epoch === voiceEpoch.current) { setGreetingError(true); setGuardianMessage('Voice playback failed. Open chat to continue in text.'); } }
     finally { if (focused.current && epoch === voiceEpoch.current) { setGuardianSpeaking(false); setGuardianState('hover'); } }
   }, [audio.master, audio.voice, audio.speechQuiet, audio.speak]);
   useFocusEffect(useCallback(() => { focused.current = true; return () => { focused.current = false; voiceEpoch.current += 1; }; }, []));
