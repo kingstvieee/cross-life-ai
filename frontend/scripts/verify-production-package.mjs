@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
 import { loadApprovedWorldAssets, REQUIRED_WORLD_ASSETS } from '../scene-src/approved-world-assets.mjs';
+import { verifyReleaseEvidence } from './verify-release-evidence.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const FRONTEND_ROOT = path.resolve(HERE, '..');
@@ -24,13 +25,15 @@ export const EXPECTED_APP = Object.freeze({
 export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFlightBuild = 105) {
   const blockers = [];
   const facts = {};
+  let approvedGuardian = null;
+  let approvedWorlds = null;
   const fail = (id, reason) => blockers.push({ id, reason: String(reason) });
   const readJson = async (relative) => JSON.parse(await readFile(path.join(root, relative), 'utf8'));
 
   try {
     const approved = await loadApprovedArmoredGuardianAsset(path.join(root, 'scene-src'));
     if (!approved) fail('guardian', 'The identity-approved skinned Guardian GLB and signed-off receipt are absent');
-    else facts.guardianModelSha256 = approved.rigModelSha256;
+    else { approvedGuardian = approved; facts.guardianModelSha256 = approved.rigModelSha256; }
   } catch (err) { fail('guardian', err?.message ?? err); }
 
   try {
@@ -42,10 +45,19 @@ export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFli
           REQUIRED_WORLD_ASSETS.some(key => !keys.includes(key))) {
         fail('worlds', 'Missing required world variants');
       } else {
+        approvedWorlds = worlds;
         facts.worldVariantCount = keys.length;
       }
     }
   } catch (err) { fail('worlds', err?.message ?? err); }
+
+  // JSON acceptance booleans are insufficient. Re-verify real independent
+  // model-specific visual, rights and physical-device evidence by file hash.
+  if (approvedGuardian && approvedWorlds) {
+    try {
+      facts.externalEvidence = await verifyReleaseEvidence(root, approvedGuardian, approvedWorlds);
+    } catch (err) { fail('independent-evidence', err?.message ?? err); }
+  }
 
   try {
     const bytes = await readFile(path.join(root, 'assets/videos/guardian-startup.mp4'));
