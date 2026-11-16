@@ -63,14 +63,21 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
 
     async def account(authorization): return await require_account_user(authorization)
 
+    async def invalidate_revoked_token(record):
+        # Compare-and-set: never invalidate a newer OAuth link or a refreshed token.
+        await db.provider_connections.update_one(
+            {"_id": record["_id"], "tokens": record["tokens"]},
+            {"$set": {"reconnect_required": True}, "$unset": {"tokens": ""}},
+        )
+
     @router.get("")
     async def status(authorization: str = Header(None)):
         user = await account(authorization); output = []
         for provider in SPECS:
             try: configuration(provider); configured = True
             except HTTPException: configured = False
-            linked = await db.provider_connections.find_one({"user_id": user["user_id"], "provider": provider}, {"_id": 0, "linked_at": 1})
-            output.append({"id": provider, "configured": configured, "connected": bool(linked), "linked_at": linked.get("linked_at") if linked else None, "capability": "calendar_read_only"})
+            linked = await db.provider_connections.find_one({"user_id": user["user_id"], "provider": provider}, {"_id": 0, "linked_at": 1, "reconnect_required": 1})
+            output.append({"id": provider, "configured": configured, "connected": bool(linked and not linked.get("reconnect_required")), "reconnect_required": bool(linked and linked.get("reconnect_required")), "linked_at": linked.get("linked_at") if linked else None, "capability": "calendar_read_only"})
         return output
 
     @router.post("/{provider}/start")
@@ -128,7 +135,7 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
         # Atomically consume consent only after proven read permission; no data is stored.
         consumed = await db.provider_flows.find_one_and_delete(query)
         if not consumed: raise HTTPException(409, "consent_not_finished_or_expired")
-        await db.provider_connections.update_one({"user_id": user["user_id"], "provider": provider}, {"$set": {"tokens": consumed["tokens"], "linked_at": now()}}, upsert=True)
+        await db.provider_connections.update_one({"user_id": user["user_id"], "provider": provider}, {"$set": {"tokens": consumed["tokens"], "linked_at": now(), "reconnect_required": False}}, upsert=True)
         return {"connected": True, "capability": "calendar_read_only", "readback_verified": True}
 
     @router.delete("/{provider}")
@@ -144,19 +151,29 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
         user = await account(authorization); limiter("provider_read:" + user["user_id"], 30, 60); cfg = configuration(provider)
         record = await db.provider_connections.find_one({"user_id": user["user_id"], "provider": provider})
         if not record: raise HTTPException(409, "provider_not_connected")
+        if record.get("reconnect_required") or not record.get("tokens"): raise HTTPException(409, "provider_reconnect_required")
         tokens = unseal(record["tokens"])
         async with make_client() as client:
             try:
                 if float(tokens.get("expires_at", 0)) <= now().timestamp() + 60:
-                    if not tokens.get("refresh_token"): raise HTTPException(409, "provider_reconnect_required")
+                    if not tokens.get("refresh_token"):
+                        await invalidate_revoked_token(record)
+                        raise HTTPException(409, "provider_reconnect_required")
                     result = await client.post(SPECS[provider]["token"], data={**cfg, "grant_type": "refresh_token", "refresh_token": tokens["refresh_token"]})
-                    if result.status_code != 200: raise HTTPException(409, "provider_reconnect_required")
+                    if result.status_code in (400, 401, 403):
+                        await invalidate_revoked_token(record)
+                        raise HTTPException(409, "provider_reconnect_required")
+                    if result.status_code != 200: raise HTTPException(502, "provider_read_unavailable")
                     fresh = result.json()
-                    if not fresh.get("access_token"): raise HTTPException(409, "provider_reconnect_required")
+                    if not fresh.get("access_token"): raise HTTPException(502, "provider_read_unavailable")
                     tokens.update(fresh); tokens["expires_at"] = (now() + timedelta(seconds=int(fresh.get("expires_in", 3600)))).timestamp()
-                    await db.provider_connections.update_one({"_id": record["_id"], "tokens": record["tokens"]}, {"$set": {"tokens": seal(tokens)}})
+                    refreshed_token = seal(tokens)
+                    await db.provider_connections.update_one({"_id": record["_id"], "tokens": record["tokens"]}, {"$set": {"tokens": refreshed_token}})
+                    record["tokens"] = refreshed_token
                 response = await client.get(SPECS[provider]["api"], params=calendar_query(provider), headers={"Authorization": "Bearer " + tokens["access_token"]})
-                if response.status_code in (401, 403): raise HTTPException(409, "provider_reconnect_required")
+                if response.status_code in (401, 403):
+                    await invalidate_revoked_token(record)
+                    raise HTTPException(409, "provider_reconnect_required")
                 if response.status_code != 200: raise HTTPException(502, "provider_read_unavailable")
                 data = response.json()
                 return {"provider": provider, "read_at": now().isoformat(), "events": [event_summary(provider, x) for x in data.get("items" if provider == "google" else "value", [])[:25]]}
