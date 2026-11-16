@@ -39,9 +39,14 @@ jobs:
       profile: production
       message: STAAR Hub 1.0.4 (106) portal connections and device checks
 
+  founder_acceptance:
+    name: Founder approves tested, signed Build 106
+    needs: [build_ios]
+    type: require-approval
+
   submit_ios:
     name: Submit build 106 to TestFlight
-    needs: [build_ios]
+    needs: [build_ios, founder_acceptance]
     type: testflight
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
