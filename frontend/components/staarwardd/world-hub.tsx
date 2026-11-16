@@ -116,7 +116,8 @@ export function WorldHub() {
     if (!focused.current || AppState.currentState !== 'active') return;
     const epoch = ++voiceEpoch.current;
     if (!audio.master || !audio.voice || audio.speechQuiet) { setGuardianMessage('Voice is muted or disabled. Use settings to enable audio.'); return; }
-    setGuardianState('speaking'); setGuardianSpeaking(true);
+    // Transport emits playback-active only after the voice actually starts.
+    setGuardianState('hover'); setGuardianSpeaking(true);
     setGuardianMessage('Welcome back. Your nine worlds are ready.');
     try { await audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.'); }
     finally { if (focused.current && epoch === voiceEpoch.current) { setGuardianSpeaking(false); setGuardianState('hover'); } }
@@ -170,10 +171,10 @@ export function WorldHub() {
         <View style={s.stage}>
           <Image source={require('@/assets/images/staarwardd/toronto-skyline-pan.png')} resizeMode="cover" style={s.skyline} />
           <AccessField />
-          <View style={s.guardianFigure}><GuardianCharacter state={guardianState} size={Math.min(width * 0.56, 285)} reducedMotion={motionReduced} onMotionEnd={() => setGuardianState('hover')} /></View>
+          <View style={s.guardianFigure}><GuardianCharacter state={audio.voicePlaybackActive ? 'speaking' : guardianState} size={Math.min(width * 0.56, 285)} reducedMotion={motionReduced} onMotionEnd={() => setGuardianState('hover')} /></View>
           <Animated.View style={[s.stageCopy, { opacity: arrival, transform: [{ translateY: arrival.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }] }]}><Text style={s.micro}>{companion.toUpperCase()} · YOUR COMPANION</Text><Text style={s.title}>STAARWAARDD</Text><Text style={s.description}>{guardianMessage}</Text></Animated.View>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian welcome" disabled={guardianSpeaking} onPress={() => { void greet(); }} style={s.greetButton}><Ionicons name="volume-high-outline" size={18} color="#F1F3F7" /><Text style={s.greetLabel}>{guardianSpeaking ? 'GUARDIAN SPEAKING' : 'HEAR GUARDIAN'}</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian welcome" disabled={guardianSpeaking} onPress={() => { void greet(); }} style={s.greetButton}><Ionicons name="volume-high-outline" size={18} color="#F1F3F7" /><Text style={s.greetLabel}>{audio.voicePlaybackActive ? 'GUARDIAN SPEAKING' : guardianSpeaking ? 'GUARDIAN PREPARING VOICE' : 'HEAR GUARDIAN'}</Text></Pressable>
         <LinearGradient colors={['#BBC2CB', '#3A414A', '#8B949F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.frame}>
           <BlurView intensity={35} tint="dark" style={s.companion}>
             <View style={{ flex: 1, gap: 7 }}><Text style={s.panelTitle}>Speak with {companion}</Text><Text style={s.description}>Bring an idea, a question, or a plan.</Text></View>
