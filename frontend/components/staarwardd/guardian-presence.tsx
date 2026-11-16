@@ -12,10 +12,11 @@ export function GuardianPresence({ listening = false, thinking = false }: { list
   const [failed, setFailed] = useState(false);
   useEffect(() => observeSpeech(setSpeech), []);
   useEffect(() => {
-    void AccessibilityInfo.isReduceMotionEnabled().then(setQuietMotion);
+    let alive = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (alive) setQuietMotion(value); }).catch(() => undefined);
     const motion = AccessibilityInfo.addEventListener('reduceMotionChanged', setQuietMotion);
     const app = AppState.addEventListener('change', state => setForeground(state === 'active'));
-    return () => { motion.remove(); app.remove(); };
+    return () => { alive = false; motion.remove(); app.remove(); };
   }, []);
   const ready = useCallback(() => setFailed(false), []);
   const failure = useCallback(() => setFailed(true), []);
