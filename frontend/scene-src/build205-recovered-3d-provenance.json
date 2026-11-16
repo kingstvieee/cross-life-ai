@@ -1,0 +1,54 @@
+{
+  "schema": "staar-build205-recovered-embedded-model-provenance-v1",
+  "date": "2026-11-16",
+  "source": {
+    "libraryFile": "STAARWAARDD_Build198_Interactive_3D_Studio.html",
+    "sourceHtmlSha256": "710dd542711e2ad8ee8851ec98e40284a36795e94e16ff5026217c85cc122a7b",
+    "method": "decoded the original embedded GLB base64 from owner's private Library HTML, inspected actual binary bytes"
+  },
+  "privateRecovery": {
+    "archiveName": "STAARWAARDD_Build205_Recovered_Private_3D_Source_Checkpoint.zip",
+    "archiveSha256": "55e0a8a7fa1d5fbd82e52c8a73f35a39097e7e3ff538e849085b943c301b7e4e",
+    "archiveUploadedToPublicRepo": false
+  },
+  "recoveredAssetCount": 11,
+  "modelHashesMatchedExistingBuild198Register": true,
+  "guardian": {
+    "modelSha256": "da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395",
+    "morphNames": [
+      "rest",
+      "sil",
+      "PP",
+      "FF",
+      "TH",
+      "DD",
+      "kk",
+      "CH",
+      "SS",
+      "nn",
+      "RR",
+      "aa",
+      "E",
+      "I",
+      "O",
+      "U"
+    ],
+    "faceVertexCount": 10285,
+    "skinCount": 1,
+    "animationClips": 2,
+    "measuredMaxAbsSpeechMorphCosineApprox": 1,
+    "distinctSpeechMorphGatePassed": false,
+    "finalRealLikenessAccepted": false,
+    "productionRigActivationAllowed": false
+  },
+  "worlds": {
+    "modelCount": 10,
+    "allHashesMatched": true,
+    "finalVisualApproved": false,
+    "rightsEvidenceAccepted": false,
+    "inAppNavmeshPhysicsCertified": false,
+    "physicalDeviceVerified": false
+  },
+  "externalDirectSpendCAD": 0,
+  "releaseVerdict": "NO-GO: recovered real original review binaries do not satisfy latest likeness, morph independence, rights, native-device or signed release acceptance"
+}
