@@ -21,6 +21,7 @@ jobs:
       - run: python -m pip install pytest pytest-xdist fastapi==0.110.1 httpx==0.28.1 python-multipart==0.0.32 cryptography==50.0.0
       - run: python -m compileall -q backend
       - run: python -m pytest -q backend/test_provider_connections.py
+      - run: python -m pytest -q backend/tests/test_chat_input_boundary_static.py
       - run: python -m pytest -q backend/test_guardian_alignment.py backend/test_guardian_alignment_routes.py backend/test_guardian_speech_clip_contract.py
       - run: python -m pytest -q backend/test_guardian_*.py backend/test_identity_routes.py backend/test_conversation_history.py backend/test_companion_speech.py backend/test_companion_chat.py backend/test_voice_input.py
   web-export:
@@ -43,6 +44,7 @@ jobs:
       - run: node --test tests/production-package.test.mjs
       - run: node --test tests/eas-workflow-preflight.test.mjs
       - run: node --test tests/startup-film-sound-default.test.mjs
+      - run: node --test tests/mainline-reconciliation.test.mjs
       - run: yarn exec eslint components/staarwardd/creativity-studio.tsx components/staarwardd/portal-screen.tsx components/staarwardd/voice-input.tsx
       - run: yarn exec tsc --noEmit
       - run: yarn expo export --platform web --no-bytecode
