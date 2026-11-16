@@ -26,6 +26,8 @@ jobs:
       - run: corepack enable
       - run: yarn install --frozen-lockfile --ignore-scripts
       - run: node node_modules/@shopify/react-native-skia/scripts/install-libs.js
+      # The nine-world runtime is generated and gitignored; create it before TypeScript checks.
+      - run: yarn scene:build
       - run: yarn exec tsc --noEmit
       - run: yarn expo prebuild --platform ios --no-install
       - run: pod install
