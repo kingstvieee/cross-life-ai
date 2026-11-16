@@ -19,6 +19,9 @@ The ChatGPT conversation artifact `STAARWAARDD_Build200_Navigation_QA_Package.zi
 
 No private GLB or source facial photo is committed to the public GitHub repo. Their exact fingerprints are linked by `frontend/scene-src/build200-navigation-qa-register.json` to the founder-approved Build 199 asset register.
 
+## Additional mobile GLB byte-size audit
+All ten actual source and mobile GLBs were weighed, without decompressing or claiming a device RAM benchmark. Combined source assets occupy **6,534,576 bytes**; batched mobile files occupy **5,475,852 bytes** (16.2% fewer bytes overall). But **Creativity Dream** unexpectedly increases from 896,368 to 1,232,840 bytes (+37.5%) after batching. That variant requires a separate export-size optimization review; fewer scene nodes do not guarantee lower download size, frame time, GPU memory or draw calls.
+
 ## Remediation gate
 1. Confirm each real runtime portal entry, path and destination. Don't silently assume a back-wall exit.
 2. Mark collisions on actual game/portal engine meshes and identify which flagged features are decorative (non-collidable) vs structural. Repair paths as new **review versions** only; do not alter approved Build 199 models in place.
