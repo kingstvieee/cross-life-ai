@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Speech from "expo-speech";
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioSource } from "expo-audio";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import { useAuth } from '@/src/auth';
 import { playServerSpeech, stopServerSpeech } from '@/src/server-speech';
@@ -192,6 +192,15 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     stopServerSpeech();
     void Speech.stop();
   }, []);
+
+  useEffect(() => {
+    // No background-audio permission has been granted for autonomous narration.
+    // Native reminders can alert while the app is closed, but must never resume speech.
+    const sub = AppState.addEventListener('change', next => {
+      if (next !== 'active') stopSpeech();
+    });
+    return () => sub.remove();
+  }, [stopSpeech]);
 
   const stopAll = useCallback(() => {
     pauseAllAmbient();
