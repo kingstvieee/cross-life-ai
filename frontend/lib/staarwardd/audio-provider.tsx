@@ -23,6 +23,7 @@ type AudioContextValue = AudioSettings & {
   speechQuiet: boolean;
   voiceNotice: string;
   speechPhase: "idle" | "speaking" | "waiting" | "muted";
+  voicePlaybackActive: boolean;
   stopSpeech: () => void;
   activeAmbient: AmbientKey | null;
   update: (patch: Partial<AudioSettings>) => void;
@@ -90,6 +91,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   const { user, api } = useAuth();
   const [voiceNotice, setVoiceNotice] = useState("");
   const [speechPhase, setSpeechPhase] = useState<"idle" | "speaking" | "waiting" | "muted">("idle");
+  const [voicePlaybackActive, setVoicePlaybackActive] = useState(false);
   const companion = user?.companion;
   useEffect(() => { stopServerSpeech(); return stopServerSpeech; }, [companion]);
   const [settings, setSettings] = useState<AudioSettings>(DEFAULT_SETTINGS);
@@ -163,6 +165,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
       void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       if (!next.voice || !next.master) {
         speechRequest.current += 1;
+        setVoicePlaybackActive(false);
         dispatchGuardianSpeech({ type: 'REVOKE' });
         stopServerSpeech();
         void Speech.stop();
@@ -177,6 +180,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
 
   const stopSpeech = useCallback(() => {
     speechRequest.current += 1;
+    setVoicePlaybackActive(false);
     dispatchGuardianSpeech({ type: "STOP" });
     stopServerSpeech();
     void Speech.stop();
@@ -194,6 +198,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     setSpeechQuietState(quiet);
     void AsyncStorage.setItem(QUIET_KEY, quiet ? 'true' : 'false');
     speechRequest.current += 1;
+    setVoicePlaybackActive(false);
     dispatchGuardianSpeech({ type: quiet ? 'MUTE' : 'UNMUTE' });
     if (quiet) { stopServerSpeech(); void Speech.stop(); }
   }, []);
@@ -283,6 +288,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
 
   const speak = useCallback(async (text: string, _rate = 0.95) => {
     const requestId = ++speechRequest.current;
+    setVoicePlaybackActive(false);
     if (!settingsRef.current.master || !settingsRef.current.voice || speechQuietRef.current || !text.trim()) return false;
     const taskId = `guardian-task-${requestId}`;
     const utteranceId = `guardian-utterance-${requestId}`;
@@ -296,13 +302,15 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
       await playServerSpeech(async signal => {
         const response = await api('/api/companion/speak', { method: 'POST', signal, body: JSON.stringify({ text: text.slice(0, 2000) }) });
         return response;
-      }, { volume: settingsRef.current.volume, onDone: () => { completed = true; } });
+      }, { volume: settingsRef.current.volume, onStart: () => { if (requestId === speechRequest.current && !speechQuietRef.current) setVoicePlaybackActive(true); }, onDone: () => { completed = true; if (requestId === speechRequest.current) setVoicePlaybackActive(false); } });
       if (requestId !== speechRequest.current) return false;
+      setVoicePlaybackActive(false);
       dispatchGuardianSpeech({ type: 'TASK_COMPLETED', taskId });
       dispatchGuardianSpeech({ type: 'UTTERANCE_ENDED', utteranceId });
       return completed;
     } catch {
       if (requestId !== speechRequest.current || speechQuietRef.current) return false;
+      setVoicePlaybackActive(false);
       setVoiceNotice('Using installed device speech. Server voice is unavailable.');
       const voices = await Speech.getAvailableVoicesAsync().catch(() => []);
       if (requestId !== speechRequest.current || speechQuietRef.current) return false;
@@ -314,18 +322,19 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
           settled = true;
           clearTimeout(timer);
           if (requestId === speechRequest.current) {
+            setVoicePlaybackActive(false);
             dispatchGuardianSpeech({ type: 'TASK_COMPLETED', taskId });
             dispatchGuardianSpeech({ type: 'UTTERANCE_ENDED', utteranceId });
           }
           resolve(played && requestId === speechRequest.current);
         };
         const timer = setTimeout(() => { if (requestId === speechRequest.current) void Speech.stop(); finish(false); }, 120000);
-        Speech.speak(text.slice(0,2000), {language:'en-GB',voice:installed?.identifier,rate:0.95,volume:settingsRef.current.volume,onDone:()=>finish(true),onStopped:()=>finish(false),onError:()=>{if (requestId === speechRequest.current) setVoiceNotice('Speech could not play. The message remains in your inbox.');finish(false);}});
+        Speech.speak(text.slice(0,2000), {language:'en-GB',voice:installed?.identifier,rate:0.95,volume:settingsRef.current.volume,onStart:()=>{if(requestId===speechRequest.current && !speechQuietRef.current)setVoicePlaybackActive(true);},onDone:()=>finish(true),onStopped:()=>finish(false),onError:()=>{if (requestId === speechRequest.current) setVoiceNotice('Speech could not play. The message remains in your inbox.');finish(false);}});
       });
     }
   }, [api]);
 
-  const value = useMemo(() => ({ ...settings, speechQuiet, speechPhase, voiceNotice, activeAmbient, update, setSpeechQuiet, toggleAmbient, playAmbient, stopAmbient, playCue, speak, stopSpeech, stopAll }), [activeAmbient, playAmbient, playCue, settings, setSpeechQuiet, speak, speechQuiet, speechPhase, voiceNotice, stopSpeech, stopAll, stopAmbient, toggleAmbient, update]);
+  const value = useMemo(() => ({ ...settings, speechQuiet, speechPhase, voicePlaybackActive, voiceNotice, activeAmbient, update, setSpeechQuiet, toggleAmbient, playAmbient, stopAmbient, playCue, speak, stopSpeech, stopAll }), [activeAmbient, playAmbient, playCue, settings, setSpeechQuiet, speak, speechQuiet, speechPhase, voicePlaybackActive, voiceNotice, stopSpeech, stopAll, stopAmbient, toggleAmbient, update]);
   return <AudioContext.Provider value={value}>{children}</AudioContext.Provider>;
 }
 
