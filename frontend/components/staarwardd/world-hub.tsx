@@ -29,6 +29,8 @@ export function WorldHub() {
   const greetingKey = user && !user.is_demo ? accountStorageKey('staarwardd.guardian.proactive-greeting.v2', user.user_id) : null;
   const greeted = useRef(false);
   const voiceEpoch = useRef(0);
+  const activeGreetingKey = useRef<string | null>(null);
+  activeGreetingKey.current = greetingKey;
   const [preferenceReady, setPreferenceReady] = useState(false);
   const [motionReduced, setMotionReduced] = useState(true);
   useEffect(() => {
@@ -75,7 +77,7 @@ export function WorldHub() {
     greeted.current = true;
     void greet();
   }, [preferenceReady, greetingKey, greetingEnabled, audio.master, audio.voice, audio.speechQuiet, greet]);
-  const setGreeting = (enabled: boolean) => { if (!greetingKey || !preferenceReady) return; setGreetingEnabled(enabled); greeted.current = !enabled; if (!enabled) { /* Disable future automatic greetings without interrupting an active conversation. */ } void AsyncStorage.setItem(greetingKey, enabled ? 'enabled' : 'disabled').catch(() => { setGreetingEnabled(false); greeted.current = true; }); };
+  const setGreeting = (enabled: boolean) => { if (!greetingKey || !preferenceReady) return; const savedFor = greetingKey; setGreetingEnabled(enabled); greeted.current = !enabled; if (!enabled) { /* Disable future automatic greetings without interrupting an active conversation. */ } void AsyncStorage.setItem(savedFor, enabled ? 'enabled' : 'disabled').catch(() => { if (activeGreetingKey.current !== savedFor) return; setGreetingEnabled(false); greeted.current = true; }); };
   const companion = user?.companion === 'kaia' ? 'Kaia' : user?.companion === 'guardian' ? 'Guardian' : 'Atlas';
   useFocusEffect(useCallback(() => { setSelected(null); }, []));
   return <View style={s.root}>
