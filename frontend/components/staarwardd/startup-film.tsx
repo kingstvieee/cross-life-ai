@@ -11,7 +11,7 @@ export function StartupFilmBoundary({ children }: { children: React.ReactNode })
   const [entered, setEntered] = useState(false);
   const [instance, setInstance] = useState(0);
   const [playing, setPlaying] = useState(true);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const opacity = useRef(new Animated.Value(1)).current;
@@ -41,7 +41,7 @@ export function StartupFilmBoundary({ children }: { children: React.ReactNode })
     if (reduced) return;
     finishing.current = false;
     opacity.setValue(1);
-    setReady(false); setFailed(false); setMuted(true); setPlaying(true);
+    setReady(false); setFailed(false); setMuted(false); setPlaying(true);
     setInstance(value => value + 1); setVisible(true);
   }, [opacity, reduced]);
 
