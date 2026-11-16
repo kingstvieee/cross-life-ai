@@ -135,7 +135,7 @@ export default function Chat() {
         if (voiceOn) void audio.speak(data.reply);
       } else {
         setRetryMessage(message);
-        setNotice('Guardian could not complete that request. Retry when ready.');
+        setNotice(r.status === 413 || r.status === 422 ? 'The server rejected this message size or format. Your text is preserved for editing or retry; shorter sections may work better.' : r.status === 429 ? 'Guardian is receiving too many requests. Your message is preserved; retry after the limit resets.' : 'Guardian could not complete that request. Retry when ready.');
       }
     } catch {
       if (requestId === requestGeneration.current && mounted.current && !abort.signal.aborted) {
