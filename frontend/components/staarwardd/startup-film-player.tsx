@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
-import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { decideStartupPlayback } from "./startup-audio-gate";
 import { useVideoPlayer, VideoView } from "expo-video";
 import approvedStartupSoundtrackSource from "./startup-approved-soundtrack-source";
 
@@ -16,8 +17,16 @@ export default function StartupFilmPlayer({ muted, playing, onEnd, onError, onRe
   const [audioSessionReady, setAudioSessionReady] = useState(false);
   const [approvedMusicFailed, setApprovedMusicFailed] = useState(false);
   const approvedMusicAvailable = approvedStartupSoundtrackSource !== null;
-  const useApprovedMusic = approvedMusicAvailable && !approvedMusicFailed;
   const soundtrack = useAudioPlayer(approvedStartupSoundtrackSource);
+  const soundtrackStatus = useAudioPlayerStatus(soundtrack);
+  const gate = decideStartupPlayback({
+    sessionReady: audioSessionReady,
+    filmRequested: playing,
+    approvedMusicAvailable,
+    approvedMusicLoaded: soundtrackStatus.isLoaded,
+    approvedMusicFailed,
+    muted
+  });
   const player = useVideoPlayer(require("@/assets/videos/guardian-startup.mp4"), p => {
     p.loop = false;
     // Mute the video itself if the owner-approved standalone music is bundled.
@@ -64,34 +73,40 @@ export default function StartupFilmPlayer({ muted, playing, onEnd, onError, onRe
   }, [soundtrack, approvedMusicAvailable, approvedMusicFailed]);
 
   useEffect(() => {
-    // The same on-screen mute button controls the one audible source.
-    player.muted = useApprovedMusic || muted;
-    soundtrack.muted = muted;
-  }, [player, soundtrack, muted, useApprovedMusic]);
+    // A missing or stalled AAC must never leave the startup film black and silent.
+    if (!gate.waitingForMusic) return;
+    const timeout = setTimeout(() => setApprovedMusicFailed(true), 3500);
+    return () => clearTimeout(timeout);
+  }, [gate.waitingForMusic]);
+
+  useEffect(() => {
+    // Always expose exactly one audible source at a time.
+    player.muted = gate.muteFilm;
+    soundtrack.muted = gate.muteMusic;
+  }, [player, soundtrack, gate.muteFilm, gate.muteMusic]);
 
   useEffect(() => {
     if (!audioSessionReady) return;
     try {
-      if (playing) player.play();
+      if (gate.playFilm) player.play();
       else player.pause();
     } catch {
       onError();
       return;
     }
-    if (!useApprovedMusic) {
-      try { soundtrack.pause(); } catch { /* No source in public builds. */ }
+    if (!gate.playApprovedMusic) {
+      try { soundtrack.pause(); } catch { /* No private source in public builds. */ }
       return;
     }
     try {
-      if (playing) soundtrack.play();
-      else soundtrack.pause();
+      soundtrack.play();
     } catch {
       // If the staged AAC cannot play, fall back to the film's existing audio
       // instead of double-playing or trapping the owner at the splash screen.
       try { soundtrack.pause(); } catch { /* Already stopped. */ }
       setApprovedMusicFailed(true);
     }
-  }, [audioSessionReady, playing, player, soundtrack, useApprovedMusic, onError]);
+  }, [audioSessionReady, gate.playFilm, gate.playApprovedMusic, player, soundtrack, onError]);
 
   return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls={false} playsInline />;
 }
