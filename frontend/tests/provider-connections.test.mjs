@@ -21,3 +21,11 @@ test('calendar integration exposes read-only display without silent calendar mod
   assert.match(code, /No changes have been made/);
   assert.doesNotMatch(code, /api\('\/api\/connections.*method: 'PUT'/);
 });
+
+test('live calendar verification must succeed before UI claims connected', () => {
+  assert.match(code, /Verify and finish calendar connection/);
+  assert.match(code, /verified\.readback_verified !== true \|\| verified\.connected !== true/);
+  assert.match(code, /Verified read-only calendar connection/);
+  assert.match(code, /Connection was not completed/);
+  assert.doesNotMatch(code, /setMessage\('Calendar account connected\. Choose Refresh/);
+});
