@@ -60,7 +60,8 @@ def convert_alignment(document, audio_sha256):
             'identityApproved': False, 'cues': [events[t] for t in sorted(events)]}
 
 
-def align_audio(audio_path, rhubarb='rhubarb', ffmpeg='ffmpeg', recognizer='pocketSphinx'):
+def align_audio(audio_path, rhubarb='rhubarb', ffmpeg='ffmpeg', recognizer='pocketSphinx',
+                conversion_timeout=45, alignment_timeout=120):
     """Run trusted local executables with bounded duration and no shell."""
     if recognizer not in ('pocketSphinx', 'phonetic'):
         raise ValueError('invalid_recognizer')
@@ -72,10 +73,10 @@ def align_audio(audio_path, rhubarb='rhubarb', ffmpeg='ffmpeg', recognizer='pock
         wav = Path(tmp) / 'speech.wav'
         subprocess.run([ffmpeg, '-nostdin', '-v', 'error', '-i', str(audio_path),
                         '-vn', '-ac', '1', '-ar', '16000', '-t', '241', str(wav)],
-                       check=True, capture_output=True, timeout=45)
+                       check=True, capture_output=True, timeout=conversion_timeout)
         result = subprocess.run([rhubarb, '-f', 'json', '--recognizer', recognizer,
                                  '--extendedShapes', 'GHX', str(wav)],
-                                check=True, capture_output=True, timeout=120)
+                                check=True, capture_output=True, timeout=alignment_timeout)
         if len(result.stdout) > 2 * 1024 * 1024:
             raise ValueError('alignment_too_large')
         return convert_alignment(json.loads(result.stdout), hashlib.sha256(data).hexdigest())
