@@ -76,7 +76,7 @@ export function WorldHub() {
         setServerConsentReady(true);
       }).catch(() => { /* Fail closed: an unverified server cannot authorize unsolicited speech. */ });
     return () => { alive = false; controller.abort(); clearTimeout(timeout); };
-  }, [api, greetingKey]);
+  }, [api, greetingKey, foregroundEpoch]);
   useEffect(() => {
     let alive = true;
     void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (alive) setMotionReduced(value); }).catch(() => undefined);
@@ -103,6 +103,9 @@ export function WorldHub() {
       // No unsolicited speech during protected morning focus or late-night rest.
       if (hour < 12 || hour >= 22) return;
       greeted.current = false;
+      // Require fresh server permission before another unsolicited welcome.
+      setServerConsentReady(false);
+      setServerGreetingConsent(false);
       setForegroundEpoch(epoch => epoch + 1);
     });
     return () => sub.remove();
