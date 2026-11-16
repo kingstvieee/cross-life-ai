@@ -11,6 +11,7 @@ import { loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian
 import { loadApprovedWorldAssets, REQUIRED_WORLD_ASSETS } from '../scene-src/approved-world-assets.mjs';
 import { verifyReleaseEvidence } from './verify-release-evidence.mjs';
 import { verifyApprovedSoundtrack } from './verify-approved-soundtrack.mjs';
+import { verifyStagedNativeSource } from './stage-approved-startup-audio.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const FRONTEND_ROOT = path.resolve(HERE, '..');
@@ -62,6 +63,7 @@ export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFli
 
   try {
     facts.approvedAudio = await verifyApprovedSoundtrack(root);
+    facts.approvedAudioNativeSource = await verifyStagedNativeSource(root);
   } catch (err) { fail('approved-soundtrack', err?.message ?? err); }
 
   try {

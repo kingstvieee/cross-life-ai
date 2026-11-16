@@ -1,32 +1,39 @@
 import { useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
-import { setAudioModeAsync } from "expo-audio";
+import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import { useVideoPlayer, VideoView } from "expo-video";
+import approvedStartupSoundtrackSource from "./startup-approved-soundtrack-source";
 
 export type FilmProps = { muted: boolean; playing: boolean; onEnd: () => void; onError: () => void; onReady: () => void };
 
+/**
+ * The original hash-locked film remains untouched.
+ * When the privately staged approved soundtrack is present, play its AAC
+ * track while muting the movie's embedded soundtrack to prevent doubled audio.
+ * In source-only development builds, retain existing movie-audio fallback.
+ */
 export default function StartupFilmPlayer({ muted, playing, onEnd, onError, onReady }: FilmProps) {
   const [audioSessionReady, setAudioSessionReady] = useState(false);
+  const [approvedMusicFailed, setApprovedMusicFailed] = useState(false);
+  const approvedMusicAvailable = approvedStartupSoundtrackSource !== null;
+  const useApprovedMusic = approvedMusicAvailable && !approvedMusicFailed;
+  const soundtrack = useAudioPlayer(approvedStartupSoundtrackSource);
   const player = useVideoPlayer(require("@/assets/videos/guardian-startup.mp4"), p => {
     p.loop = false;
-    // The native player must begin in the owner's chosen startup sound state.
-    // This never changes the locked film or fabricates its embedded soundtrack.
-    p.muted = muted;
+    // Mute the video itself if the owner-approved standalone music is bundled.
+    p.muted = approvedMusicAvailable || muted;
   });
 
   useEffect(() => {
     let active = true;
-    // Establish the foreground playback audio session before starting video:
-    // iOS silent switch is distinct from the in-app mute control.
-    // No background playback or microphone authorization is requested here.
+    // Foreground-only audio. Do not authorize microphone or background play.
     void setAudioModeAsync({
       playsInSilentMode: true,
       shouldPlayInBackground: false,
       allowsRecording: false,
       interruptionMode: "mixWithOthers",
     }).catch(() => {
-      // System audio-mode errors must not strand the user on the launch screen.
-      // Actual audible output still requires physical-device verification.
+      // The film remains skippable if iOS refuses the audio-session request.
     }).finally(() => {
       if (active) setAudioSessionReady(true);
     });
@@ -44,10 +51,34 @@ export default function StartupFilmPlayer({ muted, playing, onEnd, onError, onRe
   }, [player, onEnd, onError, onReady]);
 
   useEffect(() => {
-    player.muted = muted;
+    // The same on-screen mute button controls the one audible source.
+    player.muted = useApprovedMusic || muted;
+    soundtrack.muted = muted;
+  }, [player, soundtrack, muted, useApprovedMusic]);
+
+  useEffect(() => {
     if (!audioSessionReady) return;
-    try { if (playing) player.play(); else player.pause(); } catch { onError(); }
-  }, [player, muted, playing, audioSessionReady, onError]);
+    try {
+      if (playing) player.play();
+      else player.pause();
+    } catch {
+      onError();
+      return;
+    }
+    if (!useApprovedMusic) {
+      try { soundtrack.pause(); } catch { /* No source in public builds. */ }
+      return;
+    }
+    try {
+      if (playing) soundtrack.play();
+      else soundtrack.pause();
+    } catch {
+      // If the staged AAC cannot play, fall back to the film's existing audio
+      // instead of double-playing or trapping the owner at the splash screen.
+      try { soundtrack.pause(); } catch { /* Already stopped. */ }
+      setApprovedMusicFailed(true);
+    }
+  }, [audioSessionReady, playing, player, soundtrack, useApprovedMusic, onError]);
 
   return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls={false} playsInline />;
 }
