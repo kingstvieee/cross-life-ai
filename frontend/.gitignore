@@ -38,3 +38,8 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+# Bundled 3D runtime is generated from the reviewed source
+scene-src/node_modules/
+generated/
+public/world-runtime.html
