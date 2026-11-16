@@ -1,7 +1,6 @@
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
-import {validateArmoredGuardianGlb} from './approved-guardian-asset.mjs';
 
 export const WORLD_IDS = Object.freeze(['home','work','creativity','wellbeing','relationships','events','style','staarverse','staarsonic']);
 export const WORLD_VARIANTS = Object.freeze({
