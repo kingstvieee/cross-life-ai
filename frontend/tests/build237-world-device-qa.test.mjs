@@ -40,8 +40,9 @@ test('Build236/237 QA must be user opt-in, session scoped and export only throug
  assert.match(host,/EXPO_PUBLIC_WORLD_COLLISION_QA === '1'/);
  assert.match(host,/staar-world-physics-qa-request-v1/);
  assert.match(host,/staar-guardian-locomotion-qa-command-v1/);
- assert.match(host,/physicalIphoneOwnerAttestation:false/);
- assert.match(host,/realDeviceCertification:'UNVERIFIED'/);
+ const sanitizer=await readFile(new URL('../src/iphone-qa-controls.ts',import.meta.url),'utf8');
+ assert.match(sanitizer,/physicalIphoneOwnerAttestation:false/);
+ assert.match(sanitizer,/certification:'UNVERIFIED'/);
  assert.match(host,/Share\.share/);
  assert.doesNotMatch(host,/fetch\('https:\/\/.*world-physics/);
 });

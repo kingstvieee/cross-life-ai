@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WebView } from 'react-native-webview';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
 import { guardianWireFrame, type GuardianAudioFrame } from '@/src/guardian-audio-frame';
 import { worldSceneHtml } from '@/generated/world-runtime';
 import { sceneAction, sceneFallbackActions } from '@/src/scene-events';
 import { shouldDispatchSceneAction, type SceneDispatch } from '@/src/scene-action-dedup';
+import {normalizeIphoneQa, iphoneQaStatus} from '@/src/iphone-qa-controls';
+import {readWorldQaArchive,saveWorldQaCapture,exportWorldQaArchive,clearWorldQaArchive,worldQaProgress} from '@/src/iphone-qa-archive';
 
 export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFrame = null }: { world: string; variant?: 'realm' | 'singles'; onAction: (action: string) => void; guardianAudioFrame?: GuardianAudioFrame | null }) {
   const audio=useStaarAudio();
@@ -17,38 +20,87 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
     webviewRef.current?.injectJavaScript(js);
   };
   // Explicitly opt-in at build time; disabled in normal production builds.
-  const qaEnabled = world==='hub' && process.env.EXPO_PUBLIC_GUARDIAN_DEVICE_QA === '1';
-  const worldQaEnabled = world!=='hub' && process.env.EXPO_PUBLIC_WORLD_COLLISION_QA === '1';
+  const qaEnabled = Platform.OS==='ios' && world==='hub' && process.env.EXPO_PUBLIC_GUARDIAN_DEVICE_QA === '1';
+  const worldQaEnabled = Platform.OS==='ios' && world!=='hub' && process.env.EXPO_PUBLIC_WORLD_COLLISION_QA === '1';
   const worldQaLatest = useRef<string | null>(null);
-  const [worldQaSummary,setWorldQaSummary] = useState('No on-device collision measurements collected');
+  const [worldQaSummary,setWorldQaSummary] = useState('No capture yet');
+  const [motionQaSummary,setMotionQaSummary] = useState('No Guardian motion test requested');
+  const [worldQaReady,setWorldQaReady] = useState(false);
+  const [archiveSummary,setArchiveSummary] = useState('0/10 world QA captures saved');
+  const [archiveReady,setArchiveReady] = useState(false);
+  const [qaReady,setQaReady] = useState(false);
   const qaLatest = useRef<string | null>(null);
-  const [qaSummary,setQaSummary] = useState('No on-device Guardian measurements collected');
+  const [qaSummary,setQaSummary] = useState('No capture yet');
   const captureDeviceQa=()=>{
+    if(!qaEnabled)return;
+    qaLatest.current=null;setQaReady(false);
+    setQaSummary('Capture requested — awaiting renderer');
     const msg={source:'staar-guardian-device-qa-request-v1',session};
     webviewRef.current?.injectJavaScript(
       "window.dispatchEvent(new MessageEvent('message',{data:"+JSON.stringify(msg)+"}));true;");
   };
   const requestWorldQa=()=>{
+    if(!worldQaEnabled)return;
+    worldQaLatest.current=null;setWorldQaReady(false);
+    setWorldQaSummary('Capture requested — awaiting renderer');
     const msg={source:'staar-world-physics-qa-request-v1',session};
     webviewRef.current?.injectJavaScript("window.dispatchEvent(new MessageEvent('message',{data:"+JSON.stringify(msg)+"}));true;");
   };
   const exportWorldQa=()=>{
-    if(!worldQaLatest.current)return;
+    if(!worldQaEnabled||!worldQaLatest.current)return;
     void Share.share({title:'STAARWAARDD World Collision QA',message:worldQaLatest.current}).catch(()=>{});
+  };
+  const exportAllWorldQa=()=>{
+    if(!worldQaEnabled)return;
+    void readWorldQaArchive(AsyncStorage).then(archive=>{
+      const payload=exportWorldQaArchive(archive,new Date().toISOString());
+      return Share.share({title:'STAARWAARDD Ten-World QA — Review Only',message:payload});
+    }).catch(()=>setArchiveSummary('Local archive unavailable'));
+  };
+  const requestClearWorldQa=()=>{
+    if(!worldQaEnabled)return;
+    Alert.alert('Clear saved world QA?', 'Remove ten-world local test results from this iPhone. This cannot be undone.',[
+      {text:'Cancel',style:'cancel'},
+      {text:'Clear results',style:'destructive',onPress:()=>{
+        void clearWorldQaArchive(AsyncStorage).then(()=>{
+          setArchiveSummary('0/10 world QA captures saved');setArchiveReady(false);
+        }).catch(()=>setArchiveSummary('Local archive unavailable'));
+      }}
+    ]);
   };
   const issueMotionQa=(mode:'idle'|'walk'|'run')=>{
     if(!qaEnabled)return;
+    setMotionQaSummary(mode.toUpperCase()+' requested — awaiting renderer');
     const msg={source:'staar-guardian-locomotion-qa-command-v1',session,mode};
     webviewRef.current?.injectJavaScript("window.dispatchEvent(new MessageEvent('message',{data:"+JSON.stringify(msg)+"}));true;");
   };
   const exportDeviceQa=()=>{
-    if(!qaLatest.current)return;
+    if(!qaEnabled||!qaLatest.current)return;
     // Only operator-initiated local iOS Share Sheet; no network upload.
     void Share.share({title:'STAARWAARDD Guardian Device QA',
       message:qaLatest.current}).catch(()=>{});
   };
   const [retryCount, setRetryCount] = useState(0);
   const session = useMemo(() => `${Date.now()}_${Math.random().toString(36).slice(2)}`, [world, variant, retryCount]);
+  useEffect(()=>{
+    qaLatest.current=null;worldQaLatest.current=null;
+    setQaReady(false);setWorldQaReady(false);
+    setQaSummary('No capture yet');setWorldQaSummary('No capture yet');
+    setMotionQaSummary('No Guardian motion test requested');
+  },[session]);
+  useEffect(()=>{
+    if(!worldQaEnabled)return;
+    let active=true;
+    void readWorldQaArchive(AsyncStorage).then(archive=>{
+      if(!active)return;
+      const progress=worldQaProgress(archive);
+      setArchiveSummary(progress.captured+'/10 world QA captures saved; '+progress.withModel+' with approved GLB');
+      setArchiveReady(progress.captured>0);
+    }).catch(()=>{if(active)setArchiveSummary('Local archive unavailable');});
+    return ()=>{active=false;};
+  },[worldQaEnabled,world,variant]);
+  const makeQaContext=()=>({scene:world,variant,session,platform:Platform.OS,
+    capturedAt:new Date().toISOString()});
   useEffect(()=>{pushGuardianFrame();},[
     guardianAudioFrame,audio.guardianAudioFrame,audio.master,audio.voice,
     audio.speechQuiet,audio.voicePlaybackActive,session,
@@ -91,12 +143,13 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
           style={{minHeight:44,padding:12,borderWidth:1,borderColor:'#C9AC6D',borderRadius:8}}>
           <Text style={{color:'#FFFFFF'}}>Capture frame QA</Text>
         </Pressable>
-        <Pressable onPress={exportDeviceQa} disabled={!qaLatest.current}
+        <Pressable onPress={exportDeviceQa} disabled={!qaReady}
           accessibilityRole="button" accessibilityLabel="Share Guardian device QA report"
           style={{minHeight:44,padding:12,borderWidth:1,borderColor:'#C9AC6D',borderRadius:8}}>
           <Text style={{color:'#FFFFFF'}}>Export QA</Text>
         </Pressable>
       </View>
+      <Text accessibilityRole="text" style={{color:'#E8D9AF',fontSize:12}}>{motionQaSummary}</Text>
       <View style={{flexDirection:'row',gap:8}}>
         {(['idle','walk','run'] as const).map(mode=><Pressable key={mode}
           accessibilityRole="button" accessibilityLabel={'Guardian '+mode+' motion QA'}
@@ -108,15 +161,28 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
     </View>:null}
     {worldQaEnabled ? <View style={{padding:8,backgroundColor:'#080E1B',gap:6}}>
       <Text style={{color:'#E8D9AF',fontSize:12,fontWeight:'600'}}>WORLD COLLISION QA · {worldQaSummary}</Text>
+      <Text style={{color:'#DDE6F2',fontSize:12}}>{archiveSummary}</Text>
       <View style={{flexDirection:'row',gap:12}}>
         <Pressable onPress={requestWorldQa} accessibilityRole="button" accessibilityLabel="Capture local world collision QA"
           style={{minHeight:44,padding:12,borderWidth:1,borderColor:'#C9AC6D',borderRadius:8}}>
           <Text style={{color:'#FFFFFF'}}>Capture world QA</Text>
         </Pressable>
-        <Pressable onPress={exportWorldQa} disabled={!worldQaLatest.current}
+        <Pressable onPress={exportWorldQa} disabled={!worldQaReady}
           accessibilityRole="button" accessibilityLabel="Share local world collision QA"
           style={{minHeight:44,padding:12,borderWidth:1,borderColor:'#C9AC6D',borderRadius:8}}>
           <Text style={{color:'#FFFFFF'}}>Export world QA</Text>
+        </Pressable>
+      </View>
+      <View style={{flexDirection:'row',gap:12}}>
+        <Pressable onPress={exportAllWorldQa} disabled={!archiveReady}
+          accessibilityRole="button" accessibilityLabel="Export consolidated ten-world QA reports"
+          style={{minHeight:44,padding:12,borderWidth:1,borderColor:'#C9AC6D',borderRadius:8}}>
+          <Text style={{color:'#FFFFFF'}}>Export all worlds</Text>
+        </Pressable>
+        <Pressable onPress={requestClearWorldQa} disabled={!archiveReady}
+          accessibilityRole="button" accessibilityLabel="Clear local ten-world QA results"
+          style={{minHeight:44,padding:12,borderWidth:1,borderColor:'#9DABBD',borderRadius:8}}>
+          <Text style={{color:'#FFFFFF'}}>Clear results</Text>
         </Pressable>
       </View>
     </View>:null}
@@ -134,19 +200,10 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
         !Array.isArray(message.metrics) &&
         'schema' in message.metrics &&
         message.metrics.schema==='staar-guardian-physical-device-qa-telemetry-v1'){
-          const metrics=message.metrics as Record<string,unknown>;
-          const report={
-            ...metrics,
-            exportedAt:new Date().toISOString(),
-            clientPlatform:Platform.OS,
-            renderSession:session,
-            physicalIphoneOwnerAttestation:false,
-            // An exported client report is not external AV latency evidence.
-            realDeviceCertification:'UNVERIFIED',
-          };
-          qaLatest.current=JSON.stringify(report,null,2);
-          setQaSummary(String(metrics.frameCount??0)+' rendered frames; '+
-            (metrics.modelBound===true?'GLB bound':'no approved GLB'));
+          const report=normalizeIphoneQa('guardian',message.metrics,makeQaContext());
+          qaLatest.current=report?JSON.stringify(report,null,2):null;
+          setQaReady(Boolean(report));
+          setQaSummary(report?iphoneQaStatus(report):'Invalid renderer report rejected');
           return;
         }
         if(worldQaEnabled && 'source' in message && 'type' in message && 'world' in message &&
@@ -154,12 +211,28 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
           message.world===world && message.metrics && typeof message.metrics==='object' &&
           !Array.isArray(message.metrics) && 'schema' in message.metrics &&
           message.metrics.schema==='staar-world-physical-device-qa-telemetry-v1'){
-          const metrics=message.metrics as Record<string,unknown>;
-          const report={...metrics,exportedAt:new Date().toISOString(),
-            clientPlatform:Platform.OS,renderSession:session,
-            physicalIphoneOwnerAttestation:false,realDeviceCertification:'UNVERIFIED'};
-          worldQaLatest.current=JSON.stringify(report,null,2);
-          setWorldQaSummary(String(metrics.steps??0)+' steps; '+String(metrics.blockedSteps??0)+' blocked; '+String(metrics.frameCount??0)+' frames');
+          const report=normalizeIphoneQa('world',message.metrics,makeQaContext());
+          worldQaLatest.current=report?JSON.stringify(report,null,2):null;
+          setWorldQaReady(Boolean(report));
+          setWorldQaSummary(report?iphoneQaStatus(report):'Invalid renderer report rejected');
+          if(report){
+            void saveWorldQaCapture(AsyncStorage,report).then(archive=>{
+              const progress=worldQaProgress(archive);
+              setArchiveSummary(progress.captured+'/10 world QA captures saved; '+progress.withModel+' with approved GLB');
+              setArchiveReady(progress.captured>0);
+            }).catch(()=>setArchiveSummary('Local archive unavailable'));
+          }
+          return;
+        }
+        if(qaEnabled && 'source' in message && 'type' in message && 'world' in message &&
+          message.source==='staar-scene-v1' && message.type==='guardian-locomotion-qa' &&
+          message.world==='hub' && 'accepted' in message && 'mode' in message){
+          const validMode=message.mode==='idle'||message.mode==='walk'||message.mode==='run';
+          if(validMode&&typeof message.accepted==='boolean'){
+            setMotionQaSummary(message.accepted
+              ?String(message.mode).toUpperCase()+' selected for local QA — not certified'
+              :'Motion rejected — approved full-body GLB not available');
+          }
           return;
         }
         const action = sceneAction(message, world); if (action) { const next = { world, action, atMs: Date.now() }; if (shouldDispatchSceneAction(lastDispatch.current, next)) { lastDispatch.current = next; onAction(action); } } } catch { /* Invalid renderer messages are ignored. */ } }}
