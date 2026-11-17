@@ -24,6 +24,20 @@ const validMetric = (v:unknown,max=10000000):v is number =>
   typeof v==='number' && Number.isFinite(v) && v>=0 && v<=max;
 const object = (v:unknown):v is Record<string,unknown> =>
   !!v && typeof v==='object'&&!Array.isArray(v);
+/** Match the actual GLB variant key, not the 'realm' host navigation default.
+ * Only Relationships has a user-switchable 'singles' variant. Non-Relationships
+ * scenes pass variant='realm' from WorldScene but load their own named GLB.
+ */
+export const resolveCanonicalWorldQaKey=(scene:string,variant:string):string|null=>{
+ if(scene==='relationships')
+   return variant==='realm'||variant==='singles'?'relationships-'+variant:null;
+ if(variant!=='realm')return null;
+ const canonical:Record<string,string>={
+  home:'residence',work:'command',creativity:'dream',wellbeing:'health',
+  events:'village',style:'closet',staarverse:'universe',staarsonic:'studio',
+ };
+ return Object.hasOwn(canonical,scene)?scene+'-'+canonical[scene]:null;
+};
 const isFalse=(v:unknown)=>v===false;
 const keep=(src:Record<string,unknown>,dest:Record<string,string|number|boolean|null|string[]>,names:readonly string[],isValid:(v:unknown)=>boolean)=>{
   for(const name of names)if(isValid(src[name]))dest[name]=src[name] as number;
@@ -71,7 +85,7 @@ export function normalizeIphoneQa(
     const missing=payload.reason==='no_verified_world_model' && payload.worldKey===context.scene;
     if(!missing && (!hex(payload.modelSha256)||
        typeof payload.worldKey!=='string'||
-       payload.worldKey!==context.scene+'-'+context.variant||
+       payload.worldKey!==resolveCanonicalWorldQaKey(context.scene,context.variant)||
        !isFalse(payload.realIphoneCertified)||
        !isFalse(payload.finalWorldOwnerApproved)||
        !isFalse(payload.physicsEngineCertified)||
