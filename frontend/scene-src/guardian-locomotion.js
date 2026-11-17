@@ -5,7 +5,41 @@ import {AnimationMixer,LoopOnce,LoopRepeat} from 'three';
  * approvedAsset is NOT itself an authentication/acceptance receipt.
  * Facial morph targets, jaw, lips, neck, and face-head rotations are NEVER driven.
  */
-const BODY_PREFIX=/^B230_QA_Joint_(Pelvis|Spine|Chest|UpperArm_[LR]|Forearm_[LR]|Thigh_[LR]|Calf_[LR]|Foot_[LR])\.(position|quaternion)$/;
+// Reject superficially well-named clips that omit limbs, repeat tracks, or
+// have malformed keyframes; renderer receipts alone do not validate motion.
+const BODY_JOINTS=Object.freeze(['Pelvis','Spine','Chest','UpperArm_L','UpperArm_R',
+ 'Forearm_L','Forearm_R','Thigh_L','Thigh_R','Calf_L','Calf_R','Foot_L','Foot_R']);
+const BODY_TRACK_SCHEMA=new Map(BODY_JOINTS.map(joint=>[
+ 'B230_QA_Joint_'+joint+(joint==='Pelvis'?'.position':'.quaternion'),
+ joint==='Pelvis'?'vector':'quaternion',
+]));
+function validBodyClip(clip){
+ if(!clip||!Number.isFinite(clip.duration)||clip.duration<=0||clip.duration>30||
+    !Array.isArray(clip.tracks)||clip.tracks.length!==BODY_TRACK_SCHEMA.size)return false;
+ const seen=new Set();
+ for(const track of clip.tracks){
+  if(!track||!BODY_TRACK_SCHEMA.has(track.name)||seen.has(track.name))return false;
+  seen.add(track.name);
+  const kind=BODY_TRACK_SCHEMA.get(track.name);
+  if(track.ValueTypeName!==kind)return false;
+  const size=kind==='quaternion'?4:3;
+  const {times,values}=track;
+  if(!times||!values||!Number.isSafeInteger(times.length)||
+     times.length<2||times.length>3000||values.length!==times.length*size)return false;
+  for(let i=0;i<times.length;i++){
+   const time=times[i];
+   if(!Number.isFinite(time)||time<0||time>clip.duration+.002||
+      (i>0&&time<=times[i-1]))return false;
+   let norm=0;
+   for(let k=0;k<size;k++){
+    const v=values[i*size+k];if(!Number.isFinite(v))return false;
+    norm+=v*v;
+   }
+   if(kind==='quaternion'&&(norm<.9||norm>1.1))return false;
+  }
+ }
+ return seen.size===BODY_TRACK_SCHEMA.size;
+}
 const NAMES=Object.freeze({
  walk:'WALK_IN_PLACE_BODY_QA',
  run:'RUN_IN_PLACE_BODY_QA',
@@ -18,14 +52,15 @@ const finite=x=>typeof x==='number'&&Number.isFinite(x);
 
 export function createGuardianLocomotion(root, clips=[],{approvedAsset=false,reducedMotion=false}={}){
  const mixer=new AnimationMixer(root);
+ const joints=new Map(BODY_JOINTS.map(j=>['B230_QA_Joint_'+j,0]));
+ root.traverse(node=>{if(joints.has(node.name))joints.set(node.name,joints.get(node.name)+1);});
+ const validSkeleton=[...joints.values()].every(count=>count===1);
  const actions=new Map(),outgoing=[];
  let disposed=false,mode='idle',phase='idle',active=null,pending=null;
  if(approvedAsset===true&&!reducedMotion&&Array.isArray(clips)){
   for(const name of Object.values(NAMES)){
    const source=clips.find(c=>c?.name===name);
-   if(!source || !finite(source.duration) || source.duration<=0 ||
-      !Array.isArray(source.tracks) || source.tracks.length!==13 ||
-      !source.tracks.every(t=>BODY_PREFIX.test(t.name)))continue;
+   if(!validSkeleton||!validBodyClip(source))continue;
    const clip=source.clone();
    actions.set(name,mixer.clipAction(clip));
   }
@@ -33,7 +68,18 @@ export function createGuardianLocomotion(root, clips=[],{approvedAsset=false,red
  const ready=Object.values(NAMES).every(name=>actions.has(name));
  const start=(name,{loop=false}={})=>{
   const incoming=actions.get(name);if(!incoming)return false;
-  if(active&&active!==incoming){active.fadeOut(.12);outgoing.push({action:active,seconds:.13});}
+  // Build240: a quick walk→run→walk switch may reuse an action before an old
+  // fade-out timer expires. Remove its stale stop request before reactivating.
+  for(let i=outgoing.length-1;i>=0;i--){
+   if(outgoing[i].action===incoming)outgoing.splice(i,1);
+  }
+  if(active&&active!==incoming){
+   // Only one delayed stop can belong to an action at a time.
+   for(let i=outgoing.length-1;i>=0;i--){
+    if(outgoing[i].action===active)outgoing.splice(i,1);
+   }
+   active.fadeOut(.12);outgoing.push({action:active,seconds:.13});
+  }
   incoming.reset();
   incoming.setLoop(loop?LoopRepeat:LoopOnce,loop?Infinity:1);
   incoming.clampWhenFinished=!loop;
