@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
+import {mkdtemp,mkdir,writeFile,readFile,rm,cp,symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
@@ -86,4 +86,32 @@ test('Build 211 signed preflight refuses missing or tampered local EAS upload po
   await writeFile(path.join(f.root,'.easignore'),ignore+'!frontend/secrets.txt\\n');
   await assert.rejects(verifyPrivateEasUploadRules({repoRoot:f.root,frontendRoot:f.frontend}),/private_eas_ignore_missing_or_noncanonical/);
  }finally{await rm(f.root,{recursive:true,force:true});}
+});
+
+test('Build 221 release preflight rejects a checkout masquerading as an Expo inspected archive',async()=>{
+ const f=await fixture();
+ const independent=await mkdtemp(path.join(tmpdir(),'staar-real-independent-inspect-'));
+ try {
+   await stageApprovedStartupAudio({inputFile:f.source,frontendRoot:f.frontend,expected:f.expected});
+   await assert.rejects(inspectPrivateEasArchive({
+     archiveRoot:f.root,checkoutRoot:f.frontend,expected:f.expected,
+   }),/private_archive_overlaps_checkout/);
+   await assert.rejects(inspectPrivateEasArchive({
+     archiveRoot:f.frontend,checkoutRoot:f.frontend,expected:f.expected,
+   }),/private_archive_overlaps_checkout/);
+   await cp(f.frontend,path.join(independent,'frontend'),{recursive:true});
+   const pass=await inspectPrivateEasArchive({
+     archiveRoot:independent,checkoutRoot:f.frontend,expected:f.expected,
+   });
+   assert.equal(pass.archiveVerified,true);
+   // The file content is accepted only in a physically separate extraction.
+   const alias=path.join(f.root,'faux-eas-inspection');
+   await symlink(f.frontend,alias,'dir');
+   await assert.rejects(inspectPrivateEasArchive({
+     archiveRoot:alias,checkoutRoot:f.frontend,expected:f.expected,
+   }),/private_archive_overlaps_checkout/);
+ }finally{
+   await rm(f.root,{recursive:true,force:true});
+   await rm(independent,{recursive:true,force:true});
+ }
 });
