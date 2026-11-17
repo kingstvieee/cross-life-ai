@@ -28,6 +28,13 @@ export const PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256 = '4d7
 export const PRIVATE_BUILD229_STATIC_BODY_REVIEW_SHA256 = '84295da28d4b580f83cad8786cf684ea498c45d5185c85a7d09955b9c6b5f5b4';
 // Build 230 is a local programmatic rigging STUDY: joint weights and gait unreviewed.
 export const PRIVATE_BUILD230_EXPERIMENTAL_BODY_RIG_SHA256 = '656a12b79a334e6d0a4301b666df5098f0ab6ae1387a5195904b978fc5415130';
+export const PRIVATE_BUILD231_REFINED_RIG_QA_SHA256 = 'cca5092a8971c7817dab3301b4540c8a9b53844bc1aa0257840bf9db957a077c';
+export const LOCKED_GUARDIAN_ARMOR_FINISH = 'chrome-and-gold';
+// For B229-derived GLBs, exact Build228 original BIN prefix locks the entire approved face.
+export const BUILD228_APPROVED_FACE_BINARY_PREFIX = Object.freeze({
+  bytes: 4735136,
+  sha256: 'ee78ab8bc97a7cad9853c878ace2d11d528ca9f4f981a0d5aff75ac8fc89c03d'
+});
 // Build 210 independent review: neither recovered Build 198 nor revised Build 201
 // possesses founder-approved final facial/profile fidelity; separate mouth QA is not release acceptance.
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
@@ -46,6 +53,7 @@ export function assertGuardianModelNotRejected(modelSha256) {
   if (modelSha256 === PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256) fail('build228_release_requirements_pending');
   if (modelSha256 === PRIVATE_BUILD229_STATIC_BODY_REVIEW_SHA256) fail('build229_unrigged_body_not_approved');
   if (modelSha256 === PRIVATE_BUILD230_EXPERIMENTAL_BODY_RIG_SHA256) fail('build230_experimental_rig_not_approved');
+  if (modelSha256 === PRIVATE_BUILD231_REFINED_RIG_QA_SHA256) fail('build231_refined_rig_not_device_approved');
   if (REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(modelSha256)) fail('legacy_face_not_approved');
 }
 
@@ -71,6 +79,12 @@ export function validateArmoredGuardianGlb(bytes, receipt) {
     !gltf.buffers.length || gltf.buffers[0].byteLength>binLength ||
     !Array.isArray(gltf.bufferViews) || !gltf.bufferViews.length ||
     !Array.isArray(gltf.accessors) || !gltf.accessors.length) fail('missing_embedded_geometry');
+  // B229 family alone is not a face receipt. Preserve exact Build228 protected facial source bytes.
+  if (gltf.meshes.some(mesh=>typeof mesh?.name === 'string' && mesh.name.startsWith('B229_'))) {
+    const begin=binOffset+8, end=begin+BUILD228_APPROVED_FACE_BINARY_PREFIX.bytes;
+    if (end > bytes.length || createHash('sha256').update(bytes.subarray(begin,end)).digest('hex') !== BUILD228_APPROVED_FACE_BINARY_PREFIX.sha256)
+      fail('build228_approved_face_binary_changed');
+  }
   const hasSkinnedFace = (gltf.nodes||[]).some(node=>{
     if (!Number.isInteger(node?.skin) || !Number.isInteger(node?.mesh)) return false;
     const mesh=gltf.meshes[node.mesh];
@@ -94,7 +108,8 @@ export function validateArmoredGuardianGlb(bytes, receipt) {
   if (!isSha(receipt.rigModelSha256) || receipt.rigModelSha256 !== sha) fail('model_hash_mismatch');
   if (!RECEIPT_KEYS.every(k=>receipt[k]===true) || typeof receipt.identityAssetId!=='string' || !/^[a-zA-Z0-9_-]{1,96}$/.test(receipt.identityAssetId)) fail('approval_not_verified');
   if (receipt.exportRightsConfirmed !== true) fail('missing_export_rights');
-  return { sourceImageSha256:ARMORED_SOURCE_SHA256, realFaceSourceSha256:{...REAL_FACE_SOURCE_SHA256}, rigModelSha256:sha, identityAssetId:receipt.identityAssetId, blendshapeTargets:REQUIRED_FACE_TARGETS, morphQa, glbBase64:bytes.toString('base64') };
+  if (receipt.armorFinish !== LOCKED_GUARDIAN_ARMOR_FINISH) fail('wrong_locked_armor_finish');
+  return { sourceImageSha256:ARMORED_SOURCE_SHA256, realFaceSourceSha256:{...REAL_FACE_SOURCE_SHA256}, rigModelSha256:sha, identityAssetId:receipt.identityAssetId, armorFinish:LOCKED_GUARDIAN_ARMOR_FINISH, blendshapeTargets:REQUIRED_FACE_TARGETS, morphQa, glbBase64:bytes.toString('base64') };
 }
 
 /** No asset is a valid state; partial, altered or unapproved files fail the build.
