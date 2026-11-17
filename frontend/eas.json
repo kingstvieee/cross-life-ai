@@ -9,12 +9,20 @@
       "distribution": "internal",
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_GUARDIAN_DEVICE_QA": "1",
+        "EXPO_PUBLIC_WORLD_COLLISION_QA": "1"
       }
     },
     "preview": {
       "distribution": "internal",
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_GUARDIAN_DEVICE_QA": "1",
+        "EXPO_PUBLIC_WORLD_COLLISION_QA": "1"
       }
     },
     "production": {
@@ -23,7 +31,9 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_BACKEND_URL": "https://cross-life-ai.emergent.host"
+        "EXPO_PUBLIC_BACKEND_URL": "https://cross-life-ai.emergent.host",
+        "EXPO_PUBLIC_GUARDIAN_DEVICE_QA": "0",
+        "EXPO_PUBLIC_WORLD_COLLISION_QA": "0"
       }
     }
   },
