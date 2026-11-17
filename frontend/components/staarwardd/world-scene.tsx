@@ -12,16 +12,21 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
   const webviewRef=useRef<WebView>(null);
   const pushGuardianFrame=()=>{
     const allowed=audio.master&&audio.voice&&!audio.speechQuiet&&audio.voicePlaybackActive;
-    const packet=guardianWireFrame(allowed?guardianAudioFrame:null,session);
+    const packet=guardianWireFrame(allowed?(guardianAudioFrame??audio.guardianAudioFrame):null,session);
     const js="window.dispatchEvent(new MessageEvent('message',{data:"+JSON.stringify(packet)+"}));true;";
     webviewRef.current?.injectJavaScript(js);
   };
   const [retryCount, setRetryCount] = useState(0);
   const session = useMemo(() => `${Date.now()}_${Math.random().toString(36).slice(2)}`, [world, variant, retryCount]);
   useEffect(()=>{pushGuardianFrame();},[
-    guardianAudioFrame,audio.master,audio.voice,audio.speechQuiet,
-    audio.voicePlaybackActive,session,
+    guardianAudioFrame,audio.guardianAudioFrame,audio.master,audio.voice,
+    audio.speechQuiet,audio.voicePlaybackActive,session,
   ]);
+
+  useEffect(()=>{
+    audio.setGuardianRigHash(null);
+    return ()=>audio.setGuardianRigHash(null);
+  },[world,variant,session,audio.setGuardianRigHash]);
 
   const html = useMemo(() => worldSceneHtml(world, variant, session), [world, variant, session]);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -52,7 +57,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
       onError={() => setLoadFailed(true)}
       onRenderProcessGone={() => setLoadFailed(true)}
       onContentProcessDidTerminate={() => setLoadFailed(true)}
-      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (!message || typeof message !== 'object' || !('session' in message) || message.session !== session) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'ready' && message.world === world) { sceneReady.current = true; return; } const action = sceneAction(message, world); if (action) { const next = { world, action, atMs: Date.now() }; if (shouldDispatchSceneAction(lastDispatch.current, next)) { lastDispatch.current = next; onAction(action); } } } catch { /* Invalid renderer messages are ignored. */ } }}
+      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (!message || typeof message !== 'object' || !('session' in message) || message.session !== session) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'ready' && message.world === world) { sceneReady.current = true; return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'modelSha256' in message && message.source === 'staar-scene-v1' && message.type === 'guardian-face-ready' && world === 'hub' && message.world === world && typeof message.modelSha256 === 'string') { audio.setGuardianRigHash(message.modelSha256); return; } const action = sceneAction(message, world); if (action) { const next = { world, action, atMs: Date.now() }; if (shouldDispatchSceneAction(lastDispatch.current, next)) { lastDispatch.current = next; onAction(action); } } } catch { /* Invalid renderer messages are ignored. */ } }}
       style={{ backgroundColor: '#030713' }} />
   </View>;
 }
