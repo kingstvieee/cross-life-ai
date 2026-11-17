@@ -8,7 +8,7 @@
  *   eas build:inspect --platform ios --profile production --stage archive --output ./private-eas-inspection
  *   node frontend/scripts/prepare-private-eas-archive.mjs inspect ./private-eas-inspection
  */
-import {readFile, writeFile, stat, chmod} from 'node:fs/promises';
+import {readFile, writeFile, stat, chmod, realpath} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -100,8 +100,19 @@ export async function preparePrivateEasArchive({
 }
 
 export async function inspectPrivateEasArchive({
- archiveRoot,expected=LOCKED_GUARDIAN_MUSIC
+ archiveRoot,expected=LOCKED_GUARDIAN_MUSIC,checkoutRoot=null
 }={}){
+ // Build 221: a checkout passed off as the EAS archive is not independent.
+ // Realpath defeats symlinks to the checkout; both containing and nested
+ // directories are rejected. This is necessary, not sufficient, provenance.
+ if(checkoutRoot){
+   const inspected=await realpath(archiveRoot);
+   const checkout=await realpath(checkoutRoot);
+   const prefix=(a,b)=>b===a||b.startsWith(a+path.sep);
+   if(prefix(checkout,inspected)||prefix(inspected,checkout))
+     throw new Error('private_archive_overlaps_checkout');
+ }
+
  if(!archiveRoot||typeof archiveRoot!=='string')throw Error('inspected_archive_directory_required');
  const root=path.resolve(archiveRoot);
  const candidates=[path.join(root,'frontend'),root];
