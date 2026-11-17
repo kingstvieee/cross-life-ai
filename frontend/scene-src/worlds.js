@@ -6,6 +6,7 @@ import { modelControls, hitControl } from './model-navigation.js';
 import {moveCapsuleXZ, capsuleCollidesXZ, WALK_RADIUS_M} from './player-collision.js';
 import {createApprovedGuardianFaceMotion} from './guardian-face-motion.js';
 import {applyGuardianSpeechFrame} from './guardian-speech-bridge.js';
+import {createGuardianDevicePerformanceProbe} from './guardian-device-performance.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { worldIds, worldNames, fallbackActions } from './navigation.js';
 
@@ -66,15 +67,23 @@ if (renderer) {
   let importedControls = [];
   let walkController = null;
   let guardianFaceMotion = null;
+  const guardianDeviceQa = window.STAAR_GUARDIAN_QA === true && world === 'hub'
+    ? createGuardianDevicePerformanceProbe() : null;
   // This does not create speech cues. Actual verified audio playback must supply
   // session-bound, timestamped cue packets. Unverified packets neutralize the face.
   const onHostFaceFrame=e=>{
     let packet=e?.data;
     if(typeof packet==='string'){try{packet=JSON.parse(packet);}catch{return;}}
+    if(packet?.source==='staar-guardian-device-qa-request-v1' &&
+        packet.session===session && guardianDeviceQa){
+      report('guardian-device-qa',{metrics:guardianDeviceQa.snapshot()});
+      return;
+    }
     if(!packet||packet.source!=='staar-native-guardian-audio-v1')return;
     const accepted=applyGuardianSpeechFrame(guardianFaceMotion,packet,{
       session,modelSha256:window.STAAR_APPROVED_GUARDIAN_MODEL?.rigModelSha256,
     });
+    guardianDeviceQa?.packet(packet,accepted);
     if(accepted)requestDraw();
   };
   window.addEventListener('message',onHostFaceFrame);
@@ -250,8 +259,10 @@ if (renderer) {
         // Only the exact build-time receipt-checked Guardian GLB can signal
         // readiness. 2D stills and the known rejected 3D models never do.
         guardianFaceMotion.mute();
-        if(guardianFaceMotion.readyForPlayback)
+        if(guardianFaceMotion.readyForPlayback){
+          guardianDeviceQa?.modelReady(asset.rigModelSha256);
           report('guardian-face-ready',{modelSha256:asset.rigModelSha256});
+        }
         requestDraw();
       },()=>{/* Never display guessed or partial face geometry on load failure. */});
     } catch { /* The locked Guardian artwork remains the fallback. */ }
@@ -410,11 +421,16 @@ if (renderer) {
       const delta=lastFrameAt===null?0:(now-lastFrameAt)/1000;lastFrameAt=now;
       modelMotions.forEach(motion=>motion.update(delta,visible));
       walkController?.tick(Math.max(0,Math.min(delta,.075)));
-      animated.forEach(fn=>fn(t));controls.update();renderer.render(scene,camera);
+      animated.forEach(fn=>fn(t));controls.update();
+      const renderStart=guardianDeviceQa ? performance.now() : 0;
+      renderer.render(scene,camera);
+      if(guardianDeviceQa)guardianDeviceQa.recordFrame(performance.now(),
+        performance.now()-renderStart);
       // A scene is ready only after WebGL has successfully drawn its first frame.
       if(!firstFrameReady){firstFrameReady=true;report('ready',{geometry:true,objects:scene.children.length});}
       if(!reduced || walkController?.pressedCount())requestDraw();
     } catch {
+      guardianDeviceQa?.failedFrame();
       visible=false;cancelAnimationFrame(frame);frame=0;
       document.querySelector('#reset').hidden=true;
       document.querySelector('#status').textContent='3D rendering failed. Safe world navigation remains available below.';
