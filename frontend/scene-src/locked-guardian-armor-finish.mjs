@@ -46,13 +46,13 @@ export function validateLockedGuardianBlackTitaniumFinish(gltf) {
   if (!/black_titanium/i.test(black?.name??'') ||
       !finiteRGBA(blackRGBA) ||
       Math.max(...blackRGBA.slice(0,3)) >= 0.30 ||
-      black?.pbrMetallicRoughness?.metallicFactor < 0.7)
+      !(Number.isFinite(black?.pbrMetallicRoughness?.metallicFactor) && black.pbrMetallicRoughness.metallicFactor >= 0.7))
     deny('default_not_black_titanium');
   if (!/gold/i.test(gold?.name??'') ||
       !finiteRGBA(goldRGBA) ||
       goldRGBA[0] < 0.65 || goldRGBA[1] < 0.35 ||
       goldRGBA[2] >= goldRGBA[0] ||
-      gold?.pbrMetallicRoughness?.metallicFactor < 0.7)
+      !(Number.isFinite(gold?.pbrMetallicRoughness?.metallicFactor) && gold.pbrMetallicRoughness.metallicFactor >= 0.7))
     deny('gold_missing');
 
   const mappings=armorPrimitive?.extensions?.KHR_materials_variants?.mappings;
