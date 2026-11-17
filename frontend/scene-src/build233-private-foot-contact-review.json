@@ -1,0 +1,54 @@
+{
+  "schema": "staarwardd-guardian-build233-private-foot-qa-v1",
+  "build": 233,
+  "sourceBuild231ChromeSha256": "cca5092a8971c7817dab3301b4540c8a9b53844bc1aa0257840bf9db957a077c",
+  "sha256": "66e6821f4e776ac7a957e8a566de71731a555cdc006714e1e448d58a85fb80dc",
+  "bytes": 10674004,
+  "sourceApprovedFaceBuild228Sha256": "4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b",
+  "protectedFaceBinary": {
+    "size": 4735136,
+    "sha256": "ee78ab8bc97a7cad9853c878ace2d11d528ca9f4f981a0d5aff75ac8fc89c03d"
+  },
+  "styleOfThisPrivateCandidate": "chrome-and-gold",
+  "currentProductionFinishUnmodified": true,
+  "rig": {
+    "bodyJoints": 16,
+    "bodyVertices": 83446,
+    "originalMorphTargets": 16,
+    "originalFaceAnimations": 3,
+    "footCounterRotationTracksAdded": 2,
+    "rigidArmorComponentsChecked": 480,
+    "type": "in-place alternating foot-lift diagnostic, not walking",
+    "sampleTimesSeconds": [
+      0,
+      0.25,
+      0.5,
+      0.75,
+      1,
+      1.25,
+      1.5,
+      1.75,
+      2
+    ],
+    "plantedLeftDriftMeters": 1.5266237700502784e-8,
+    "plantedRightDriftMeters": 1.5266237700502784e-8,
+    "swingFootClearanceMeters": 0.04499376236028052,
+    "swingFootForwardDisplacementMeters": 0.48819164525976216,
+    "rigidPanelMaxLengthErrorMeters": 1.5758272198240775e-7
+  },
+  "privateAssetLibraryPath": "/Projects/STAARWAARDD/STAAR Hub/Private Release Staging/STAARWAARDD_Build233_Private_FootPlant_Rig_QA_NOT_APPROVED.zip",
+  "acceptance": {
+    "faceAppearanceApprovedFromBuild228": true,
+    "syntheticRigQaPassed": true,
+    "founderApprovedBodyRig": false,
+    "naturalWalkAccepted": false,
+    "actualFootFloorColliderVerified": false,
+    "realIphoneVisemePassed": false,
+    "starCenttinelRecoveryPassed": false,
+    "easArchiveInspected": false,
+    "appleIpaSigned": false,
+    "testflightSubmitted": false
+  },
+  "productionReleaseAllowed": false,
+  "externalPaidExpenseCAD": 0
+}
