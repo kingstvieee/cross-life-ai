@@ -84,9 +84,13 @@ if (renderer) {
       if(Object.values(b).every(Number.isFinite))solids.push(b);
     });
     if(!solids.length||solids.length>1024)return false;
-    const scale=model.scale.x,feet=model.position.y+.08;
-    const current={x:model.position.x+spawn[0]*scale,
-      z:model.position.z+spawn[1]*scale};
+    // Original Build 201/214 candidate routes were authored in GLB XY with Z-up.
+    // Transform the authored fixture through the model matrix, never treat XY
+    // floor coordinates as raw viewer XZ coordinates.
+    model.updateMatrixWorld(true);
+    const rawSpawn=new T.Vector3(spawn[0],spawn[1],0).applyMatrix4(model.matrixWorld);
+    const scale=model.scale.x,feet=new T.Box3().setFromObject(model).min.y+.08;
+    const current={x:rawSpawn.x,z:rawSpawn.z};
     const params={feet,radius:WALK_RADIUS_M*scale,height:1.7*scale};
     if(capsuleCollidesXZ(current,solids,params))return false;
     // A small navigation marker is not a replacement for the locked Guardian.
@@ -322,7 +326,13 @@ if (renderer) {
       new GLTFLoader().parse(bytes.buffer,'',gltf=>{
         if(!gltf?.scene)return;
         if(disposed){disposeModel(gltf.scene);return;}
-        const model=gltf.scene,bounds=new T.Box3().setFromObject(model),size=bounds.getSize(new T.Vector3());
+        const model=gltf.scene;
+        const nav=gltf?.parser?.json?.extras?.staarNavigationCandidate;
+        // Source Build 201/214 collider archives are Z-up (route is XY and
+        // 'sliceZ' denotes avatar height). Convert only explicitly tagged GLBs.
+        if(nav && (Array.isArray(nav.sliceZ)||Array.isArray(nav.verticalSliceM)))
+          model.rotation.x=-Math.PI/2;
+        const bounds=new T.Box3().setFromObject(model),size=bounds.getSize(new T.Vector3());
         if(!Number.isFinite(size.x+size.y+size.z)||Math.max(size.x,size.y,size.z)<=.01){disposeModel(model);return;}
         const scale=Math.min(20/Math.max(size.x,size.z,.1),12/Math.max(size.y,.1),8);
         model.scale.setScalar(scale);
