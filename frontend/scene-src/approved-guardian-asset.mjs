@@ -28,6 +28,8 @@ export const PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256 = '4d7
 export const PRIVATE_BUILD229_STATIC_BODY_REVIEW_SHA256 = '84295da28d4b580f83cad8786cf684ea498c45d5185c85a7d09955b9c6b5f5b4';
 // Build 230 is a local programmatic rigging STUDY: joint weights and gait unreviewed.
 export const PRIVATE_BUILD230_EXPERIMENTAL_BODY_RIG_SHA256 = '656a12b79a334e6d0a4301b666df5098f0ab6ae1387a5195904b978fc5415130';
+// Build 231 locks black titanium + gold, but its heuristic body rig is still PRIVATE QA only.
+export const PRIVATE_BUILD231_BLACK_TITANIUM_RIG_REVIEW_SHA256 = '91bac844779ea58cb45804efd4ffe441f68fab6c2dbbae11e8868f7418b04fbc';
 // Build 210 independent review: neither recovered Build 198 nor revised Build 201
 // possesses founder-approved final facial/profile fidelity; separate mouth QA is not release acceptance.
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
@@ -46,6 +48,7 @@ export function assertGuardianModelNotRejected(modelSha256) {
   if (modelSha256 === PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256) fail('build228_release_requirements_pending');
   if (modelSha256 === PRIVATE_BUILD229_STATIC_BODY_REVIEW_SHA256) fail('build229_unrigged_body_not_approved');
   if (modelSha256 === PRIVATE_BUILD230_EXPERIMENTAL_BODY_RIG_SHA256) fail('build230_experimental_rig_not_approved');
+  if (modelSha256 === PRIVATE_BUILD231_BLACK_TITANIUM_RIG_REVIEW_SHA256) fail('build231_artist_and_device_not_certified');
   if (REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(modelSha256)) fail('legacy_face_not_approved');
 }
 

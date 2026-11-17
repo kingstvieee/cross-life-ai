@@ -37,6 +37,20 @@ export const PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256 = '4d7
 // Private Build 229 static-body and 230 approximate-body-rig candidates have no owner/full device acceptance.
 export const PRIVATE_BUILD229_STATIC_BODY_REVIEW_SHA256 = '84295da28d4b580f83cad8786cf684ea498c45d5185c85a7d09955b9c6b5f5b4' as const;
 export const PRIVATE_BUILD230_EXPERIMENTAL_BODY_RIG_SHA256 = '656a12b79a334e6d0a4301b666df5098f0ab6ae1387a5195904b978fc5415130' as const;
+// Selected user finish is NOT a declaration of complete body rig or Apple release acceptance.
+export const LOCKED_BUILD229_FULLBODY_ARMOR_FINISH = Object.freeze({
+  ownerSelected: true,
+  name: 'black titanium + gold',
+  materialVariantName: 'Black titanium + gold (saved no-silver note)',
+  variantIndex: 1,
+  productionColorIntent: 'black-titanium-gold',
+  approvedFaceModelSha256: '4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b',
+  scope: 'Build 229 full-body armour finish only; locked prior reference is preserved',
+  bodyRigAccepted: false,
+  deviceVerified: false,
+  appleReleaseApproved: false,
+} as const);
+export const PRIVATE_BUILD231_BLACK_TITANIUM_RIG_REVIEW_SHA256 = '91bac844779ea58cb45804efd4ffe441f68fab6c2dbbae11e8868f7418b04fbc' as const;
 
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
   'da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395',
@@ -72,6 +86,7 @@ export function canActivateArmoredGuardian3D(
     && evidence.rigModelSha256 !== PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD229_STATIC_BODY_REVIEW_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD230_EXPERIMENTAL_BODY_RIG_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD231_BLACK_TITANIUM_RIG_REVIEW_SHA256
     && !REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(evidence.rigModelSha256)
     && evidence.identityAssetId.trim().length > 0
     && evidence.founderApprovedRig === true
