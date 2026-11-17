@@ -1,0 +1,53 @@
+{
+  "schema": "staar-guardian-build212-founder-facial-likeness-direction-approval-v1",
+  "ownerStatement": "Final Guardian facial likeness accepted",
+  "recordedLocalDate": "2026-11-16",
+  "approval": {
+    "finalFacialLikenessArtDirectionAccepted": true,
+    "originalLockedArmoredGuardianDesignPreserved": true,
+    "referenceRegister": "frontend/scene-src/build202-cinematic-reference-approval.json",
+    "acceptedReferenceSHA256": [
+      {
+        "view": "front",
+        "sha256": "73d10921852fc71abe1b009695aceeae1ca0661148f5ddbf8bba488b16454ed3"
+      },
+      {
+        "view": "three-quarter",
+        "sha256": "a3c622add69e50845b3fa247db3a4e8f5768ea4559eca01dfe4e2e2fd6c5b2af"
+      },
+      {
+        "view": "right-profile",
+        "sha256": "8e5ac3da900788fd25800e0f5ee221646c7cfad33b7078c64bce897e9204d9f4"
+      }
+    ],
+    "ownerAcceptedSpecificGLBHash": null,
+    "ownerAcceptedProduction3DModel": false,
+    "identityAndProfileCalibrationDeviceVerified": false,
+    "speechSyncDeviceVerified": false,
+    "appleSigningOrTestFlightAuthorizedByThisStatement": false
+  },
+  "excludedHistoricGLBs": [
+    {
+      "build": 198,
+      "sha256": "da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395",
+      "reason": "archived legacy facial profile not final"
+    },
+    {
+      "build": 201,
+      "sha256": "e6e81a37cbc142c4d82fe8aff53adce3fb39b18f364aac18b599dccb4a80b8a1",
+      "reason": "later-reviewed model with inaccurate face profile"
+    },
+    {
+      "build": 202,
+      "sha256": "847c2f412b0184a372cd8a6a9149b78fcfe33a7e3127297196a80611f5e0f50d",
+      "reason": "rejected textured experimental geometry"
+    },
+    {
+      "build": 208,
+      "sha256": "09dcb3cb56b70f5a2b38e5d5f68de627a62df5ad42ad89e2f9d9123d92cf70b5",
+      "reason": "QA-only speech morph candidate"
+    }
+  ],
+  "scopeNote": "Records owner's explicit acceptance of the facial likeness/design direction. It cannot identify an accepted final binary, issue the GLB-by-hash release attestation, or stand in for device performance, rights or Apple credentials. Do not automatically promote any historically rejected GLB.",
+  "directAdditionalSpendCAD": 0
+}
