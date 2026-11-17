@@ -35,6 +35,8 @@ export const PRIVATE_BUILD231_BLACK_TITANIUM_RIG_REVIEW_SHA256 = '91bac844779ea5
 export const PRIVATE_BUILD232_BLACK_TITANIUM_RIG_QA_SHA256 = 'ecc3c9660cd3bacef39c5ca28193b2c67a4ec5ff433c77347ce58b741bc456f9';
 // Separate chrome/gold Build231 private QA; finish conflict is not resolved by engineering check.
 export const PRIVATE_BUILD231_CHROME_GOLD_RIG_QA_SHA256 = 'cca5092a8971c7817dab3301b4540c8a9b53844bc1aa0257840bf9db957a077c';
+// Build233 adds synthetic planted-foot keys, but not real-device, collision, or final full-body artist acceptance.
+export const PRIVATE_BUILD233_CHROME_FOOT_PLANT_QA_SHA256 = '66e6821f4e776ac7a957e8a566de71731a555cdc006714e1e448d58a85fb80dc';
 // Build 210 independent review: neither recovered Build 198 nor revised Build 201
 // possesses founder-approved final facial/profile fidelity; separate mouth QA is not release acceptance.
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
@@ -56,6 +58,7 @@ export function assertGuardianModelNotRejected(modelSha256) {
   if (modelSha256 === PRIVATE_BUILD231_BLACK_TITANIUM_RIG_REVIEW_SHA256) fail('build231_artist_and_device_not_certified');
   if (modelSha256 === PRIVATE_BUILD232_BLACK_TITANIUM_RIG_QA_SHA256) fail('build232_private_rig_not_device_certified');
   if (modelSha256 === PRIVATE_BUILD231_CHROME_GOLD_RIG_QA_SHA256) fail('build231_chrome_gold_private_rig_not_approved');
+  if (modelSha256 === PRIVATE_BUILD233_CHROME_FOOT_PLANT_QA_SHA256) fail('build233_private_foot_qa_not_device_approved');
   if (REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(modelSha256)) fail('legacy_face_not_approved');
 }
 
