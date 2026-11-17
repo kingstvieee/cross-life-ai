@@ -1,30 +1,39 @@
 {
-  "schema": "staarwardd-guardian-fullbody-finish-lock-v1",
+  "schema": "staarwardd-guardian-fullbody-finish-lock-v2",
   "recordedLocalDate": "2026-11-17",
-  "founderSelection": "BLACK TITANIUM + GOLD",
-  "selectedMaterialVariant": 1,
-  "selectedPbrMaterialIndex": 23,
-  "originalChromeMaterialIndex": 18,
-  "scene": "Build 229 full-body armour family; does not overwrite earlier 2D reference",
+  "founderSelection": "CHROME + GOLD",
+  "selectedMaterialVariant": 0,
+  "selectedPbrMaterialIndex": 18,
+  "goldTrimMaterialIndex": 19,
+  "goldMaterialIndex": 20,
+  "alternateBlackTitaniumMaterialIndex": 23,
+  "alternateBlackTitaniumNotApprovedAsDefault": true,
+  "scene": "Build 229 full-body armour family; the 2D Guardian and founder-approved Build228 face remain preserved",
   "faceLock": {
     "founderApprovedBuild228Sha256": "4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b",
     "preserveExactHeadGeometry": true,
-    "preserveOriginalFacialAnimations": 3
+    "preserveOriginalFacialAnimations": 3,
+    "binaryPrefixBytes": 4735136,
+    "binaryPrefixSha256": "ee78ab8bc97a7cad9853c878ace2d11d528ca9f4f981a0d5aff75ac8fc89c03d"
   },
   "provenance": {
     "sourceBuild229Sha256": "84295da28d4b580f83cad8786cf684ea498c45d5185c85a7d09955b9c6b5f5b4",
     "previousBuild230Sha256": "656a12b79a334e6d0a4301b666df5098f0ab6ae1387a5195904b978fc5415130",
-    "privateBuild231QaSha256": "91bac844779ea58cb45804efd4ffe441f68fab6c2dbbae11e8868f7418b04fbc",
-    "privateArtifactLibraryPath": "/Projects/STAARWAARDD/STAAR Hub/Private Release Staging/STAARWAARDD_Build231_BlackTitaniumGold_Private_Rig_QA_NOT_APPROVED.zip"
+    "privateBuild231QaSha256": "cca5092a8971c7817dab3301b4540c8a9b53844bc1aa0257840bf9db957a077c",
+    "privateArtifactLibraryPath": "/Projects/STAARWAARDD/STAAR Hub/Private Release Staging/STAARWAARDD_Build231_ChromeGold_Private_Rig_QA_NOT_APPROVED.zip",
+    "quarantinedHistoricalBlackTitaniumRigSha256": "91bac844779ea58cb45804efd4ffe441f68fab6c2dbbae11e8868f7418b04fbc",
+    "supersedesConcurrentFinishRecord": "Build 231 black titanium finish choice on previous main commit; this record implements the current explicitly selected chrome-and-gold finish."
   },
   "engineeringObserved": {
-    "glbByteLength": 10672372,
+    "glbByteLength": 10672816,
     "skinJointCount": 16,
     "skinnedBodyVertices": 83446,
-    "rigidMetalMeshComponents": 382,
+    "rigidArmourComponents": 480,
     "gloveVerticesMappedToLegJoints": 0,
     "sourceHeadBytesUnchanged": true,
-    "original3FaceAnimationBuffersUnchanged": true
+    "original3FaceAnimationBuffersUnchanged": true,
+    "maximumGaitVertexDisplacementMeters": 0.5071657299995422,
+    "maximumRigidPlatePairErrorMeters": 2.682209014892578e-7
   },
   "acceptance": {
     "founderColorFinishSelected": true,
@@ -37,5 +46,5 @@
     "testflightFounderApproved": false
   },
   "readyForProduction": false,
-  "notes": "Owner selected the finish, not the experimental rig or Apple release. The old original locked reference remains unchanged."
+  "additionalDirectSpendCAD": 0
 }
