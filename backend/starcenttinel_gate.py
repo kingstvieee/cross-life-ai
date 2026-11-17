@@ -26,10 +26,13 @@ def denied(reason):
 
 def allowed_health_url(url):
     if not isinstance(url, str): return False
-    p = urlsplit(url)
-    return (p.scheme == "https" and p.hostname == HEALTH_HOST and p.port is None
-            and p.username is None and p.password is None
-            and p.path == HEALTH_PATH and not p.query and not p.fragment)
+    try:
+        p = urlsplit(url)
+        return (p.scheme == "https" and p.hostname == HEALTH_HOST and p.port is None
+                and p.username is None and p.password is None
+                and p.path == HEALTH_PATH and not p.query and not p.fragment)
+    except ValueError:
+        return False
 
 async def inspect_independent_control_plane(*, client=None, environ=None, nonce=None):
     config = environ if environ is not None else os.environ
