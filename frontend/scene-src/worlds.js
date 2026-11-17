@@ -2,9 +2,12 @@ import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createModelMotion, disposeModel } from './model-motion.js';
+import {createGuardianLocomotion} from './guardian-locomotion.js';
+import {createWorldPhysicsProbe} from './world-physics-qa.js';
 import { modelControls, hitControl } from './model-navigation.js';
 import {moveCapsuleXZ, routeIsClear, WALK_RADIUS_M} from './player-collision.js';
 import {createTriangleCollisionIndex} from './player-triangle-collision.js';
+import {createGroundSupportIndex} from './player-ground-support.js';
 import {createApprovedGuardianFaceMotion} from './guardian-face-motion.js';
 import {applyGuardianSpeechFrame} from './guardian-speech-bridge.js';
 import {createGuardianDevicePerformanceProbe} from './guardian-device-performance.js';
@@ -68,6 +71,9 @@ if (renderer) {
   let importedControls = [];
   let walkController = null;
   let guardianFaceMotion = null;
+  let guardianLocomotion = null;
+  const worldQaEnabled=window.STAAR_WORLD_COLLISION_QA===true && world!=='hub';
+  let worldPhysicsQa=null;
   const guardianDeviceQa = window.STAAR_GUARDIAN_QA === true && world === 'hub'
     ? createGuardianDevicePerformanceProbe() : null;
   // This does not create speech cues. Actual verified audio playback must supply
@@ -75,6 +81,21 @@ if (renderer) {
   const onHostFaceFrame=e=>{
     let packet=e?.data;
     if(typeof packet==='string'){try{packet=JSON.parse(packet);}catch{return;}}
+    if(packet?.source==='staar-world-physics-qa-request-v1' &&
+        packet.session===session && worldQaEnabled){
+      report('world-physics-qa',{metrics:worldPhysicsQa?.snapshot()??{
+        schema:'staar-world-physical-device-qa-telemetry-v1',worldKey:world,
+        decision:'UNVERIFIED',reason:'no_verified_world_model'}});
+      return;
+    }
+    if(packet?.source==='staar-guardian-locomotion-qa-command-v1' &&
+        packet.session===session && window.STAAR_GUARDIAN_QA===true && world==='hub'){
+      const accepted=guardianLocomotion?.setMode(packet.mode)===true;
+      report('guardian-locomotion-qa',{accepted,mode:guardianLocomotion?.snapshot().mode??'idle',
+        physicalIphoneMotionCertified:false});
+      if(accepted)requestDraw();
+      return;
+    }
     if(packet?.source==='staar-guardian-device-qa-request-v1' &&
         packet.session===session && guardianDeviceQa){
       report('guardian-device-qa',{metrics:guardianDeviceQa.snapshot()});
@@ -121,17 +142,20 @@ if (renderer) {
     // Exact triangle narrow phase: role-tagged meshes only, transformed by
     // real Three.js model matrices. Never silently fall back to AABB-only walking.
     // A missing, corrupt, or oversized collision index fails closed.
-    const triangles=[],p=new T.Vector3();
+    const triangles=[],groundTriangles=[],p=new T.Vector3();
     let geometryInvalid=false;
     colliderScene.updateMatrixWorld(true);
     colliderScene.traverse(node=>{
-      if(geometryInvalid || !node.isMesh || node.userData?.staarCollisionRole!=='solid')return;
+      if(geometryInvalid || !node.isMesh)return;
+      // Build237 'walkable_candidate' and 'visual_only' MUST NOT confer ground authority.
+      const role=node.userData?.staarCollisionRole;
+      if(role!=='solid'&&role!=='walkable')return;
       const pos=node.geometry?.getAttribute('position'),indices=node.geometry?.index;
       if(!pos || pos.itemSize!==3 || !Number.isInteger(pos.count) || pos.count<3){
         geometryInvalid=true;return;
       }
       const count=indices?indices.count:pos.count;
-      if(count%3!==0 || count>195000 || triangles.length+count/3>65000){
+      if(count%3!==0 || count>195000 || triangles.length+groundTriangles.length+count/3>65000){
         geometryInvalid=true;return;
       }
       const vert=i=>{
@@ -147,15 +171,19 @@ if (renderer) {
         if(geometryInvalid || tri.some(v=>!v.every(Number.isFinite))){
           geometryInvalid=true;return;
         }
-        triangles.push(tri);
+        if(role==='solid')triangles.push(tri);else groundTriangles.push(tri);
       }
     });
-    if(geometryInvalid || !triangles.length)return false;
+    if(geometryInvalid || !triangles.length || !groundTriangles.length)return false;
     const collisionIndex=createTriangleCollisionIndex(triangles,{
       feet,height:params.height,cellSize:Math.max(.25,Math.min(1,.5*scale))
     });
     if(!collisionIndex.ok)return false;
-    const collisionPredicate=point=>collisionIndex.collides(point,params.radius);
+    const groundIndex=createGroundSupportIndex(groundTriangles);
+    if(!groundIndex.ok)return false;
+    const groundOptions={feet,maxDrop:.3*scale,maxRise:.18*scale,radius:params.radius*.7};
+    const collisionPredicate=point=>collisionIndex.collides(point,params.radius) ||
+      !groundIndex.supportAt(point,groundOptions).supported;
     if(collisionPredicate(current))return false;
     // Renderer-space route must match the source GLB's reviewed path. Even an
     // otherwise walkable model fails closed when the authored portal route
@@ -169,12 +197,15 @@ if (renderer) {
     });
     if(Math.hypot(transformedRoute[0].x-current.x,transformedRoute[0].z-current.z)>.2*scale)
       return false;
-    if(!routeIsClear(transformedRoute,solids,{...params,collisionPredicate}))return false;
+    if(!routeIsClear(transformedRoute,solids,{...params,collisionPredicate}) ||
+       !groundIndex.routeSupported(transformedRoute,groundOptions))return false;
     // A small navigation marker is not a replacement for the locked Guardian.
     const marker=new T.Mesh(new T.CylinderGeometry(.20,.20,.09,20),
       new T.MeshStandardMaterial({color:'#e9ce92',metalness:.9,roughness:.15,
       emissive:'#b28e55',emissiveIntensity:.45}));
-    marker.position.set(current.x,feet+.045,current.z);
+    const initialGround=groundIndex.supportAt(current,groundOptions);
+    if(!initialGround.supported)return false;
+    marker.position.set(current.x,initialGround.height+.045*scale,current.z);
     scene.add(marker);
     const held=new Set();
     const directions={ArrowUp:'forward',KeyW:'forward',ArrowDown:'back',
@@ -224,9 +255,13 @@ if (renderer) {
         const shiftX=result.point.x-current.x,shiftZ=result.point.z-current.z;
         current.x=result.point.x;current.z=result.point.z;
         marker.position.x=current.x;marker.position.z=current.z;
+        const grounded=groundIndex.supportAt(current,groundOptions);
+        if(grounded.supported)marker.position.y=grounded.height+.045*scale;
         camera.position.x+=shiftX;camera.position.z+=shiftZ;
         controls.target.x+=shiftX;controls.target.z+=shiftZ;
         if(Math.abs(shiftX)+Math.abs(shiftZ)>.001)controls.update();
+        worldPhysicsQa?.movement({distance:Math.hypot(shiftX,shiftZ),
+          blocked:result.blocked,running:held.has('run')});
       },
       dispose(){
         held.clear();removeEventListener('keydown',onDown);
@@ -237,10 +272,13 @@ if (renderer) {
     camera.position.set(current.x,feet+3.4*scale,current.z+6*scale);
     controls.target.set(current.x,feet+1.15*scale,current.z);
     controls.update();controls.saveState();
+    worldPhysicsQa?.navigationReady({groundTriangleCount:groundIndex.triangleCount,
+      solidTriangleCount:collisionIndex.triangleCount,routePassed:true});
     report('navigation-ready',{collisionMode:'tagged-triangle-capsule',
       solidMeshes:solids.length,solidTriangles:collisionIndex.triangleCount,
       collisionCells:collisionIndex.gridCellCount,
-      offlineRouteVerifiedAgainstLoadedTriangles:true,
+      walkableTriangles:groundIndex.triangleCount,
+      groundGapGuardActive:true,offlineRouteVerifiedAgainstLoadedTriangles:true,
       actualPortalEndpointsCertified:false,deviceCertified:false});
     return true;
   }
@@ -317,6 +355,11 @@ if (renderer) {
         guardian.position.set(-centre.x*scale,.6-bounds.min.y*scale,1.5-centre.z*scale);
         scene.add(guardian);
         modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
+        // Only importer-accepted Guardian assets ever reach this branch.
+        // No experimental Build236 GLB can pass the exact SHA gate.
+        guardianLocomotion=createGuardianLocomotion(guardian,model.animations,
+          {approvedAsset:true,reducedMotion:reduced});
+        modelMotions.push(guardianLocomotion);
         guardianFaceMotion=createApprovedGuardianFaceMotion(guardian,{
           rigSha256:asset.rigModelSha256,expectedRigSha256:asset.rigModelSha256});
         // Only the exact build-time receipt-checked Guardian GLB can signal
@@ -417,6 +460,10 @@ if (renderer) {
       ({home:'residence',work:'command',creativity:'dream',wellbeing:'health',events:'village',style:'closet',staarverse:'universe',staarsonic:'studio'})[world];
     const asset=window.STAAR_APPROVED_WORLD_ASSETS?.[world+'-'+variant];
     if(!asset?.glbBase64)return;
+    if(worldQaEnabled){
+      try{worldPhysicsQa=createWorldPhysicsProbe({worldKey:world+'-'+variant,
+        modelSha256:asset.modelSha256});}catch{worldPhysicsQa=null;}
+    }
     try {
       const raw=atob(asset.glbBase64), bytes=new Uint8Array(raw.length);
       for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
@@ -483,6 +530,7 @@ if (renderer) {
       const t=(now-start)/1000;
       const delta=lastFrameAt===null?0:(now-lastFrameAt)/1000;lastFrameAt=now;
       modelMotions.forEach(motion=>motion.update(delta,visible));
+      worldPhysicsQa?.frame(now);
       walkController?.tick(Math.max(0,Math.min(delta,.075)));
       animated.forEach(fn=>fn(t));controls.update();
       const renderStart=guardianDeviceQa ? performance.now() : 0;
@@ -511,6 +559,6 @@ if (renderer) {
   document.querySelector('#title').textContent=world==='hub'?'STAARWARDD · PORTAL HUB':(singles?'STAAR Love · Singles':names[ids.indexOf(world)]);
   document.querySelector('#status').textContent='Drag to explore · pinch or scroll to move closer · tap a labelled control';
   for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
-  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
+  canvas.addEventListener('webglcontextlost',e=>{worldPhysicsQa?.contextLost();e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
   addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
 }

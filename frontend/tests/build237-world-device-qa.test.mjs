@@ -1,0 +1,47 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {createWorldPhysicsProbe} from '../scene-src/world-physics-qa.js';
+
+test('Build237 runtime measures real movement without inventing physical-iPhone approval',()=>{
+ const p=createWorldPhysicsProbe({worldKey:'relationships-singles',modelSha256:'a'.repeat(64),maxFrames:60});
+ p.navigationReady({groundTriangleCount:12,solidTriangleCount:90,routePassed:true});
+ p.movement({distance:.08,blocked:false,running:false});
+ p.movement({distance:0,blocked:true,running:true});
+ for(let i=0;i<30;i++)p.frame(i*16.667);
+ p.contextLost();
+ const s=p.snapshot();
+ assert.equal(s.worldKey,'relationships-singles');
+ assert.equal(s.steps,2);
+ assert.equal(s.walkSteps,1);
+ assert.equal(s.runSteps,1);
+ assert.equal(s.blockedSteps,1);
+ assert.equal(s.distanceMeters,.08);
+ assert.equal(s.groundTriangles,12);
+ assert.equal(s.collisionTriangles,90);
+ assert.equal(s.routePreflightPassed,true);
+ assert.ok(s.frameIntervalP95Ms<17);
+ assert.equal(s.webglContextLost,true);
+ assert.equal(s.realIphoneCertified,false);
+ assert.equal(s.finalWorldOwnerApproved,false);
+ assert.equal(s.decision,'UNVERIFIED');
+ assert.throws(()=>createWorldPhysicsProbe({worldKey:'home',modelSha256:'wrong'}));
+});
+test('Build236/237 QA must be user opt-in, session scoped and export only through native share sheet',async()=>{
+ const builder=await readFile(new URL('../scene-src/build.mjs',import.meta.url),'utf8');
+ const scene=await readFile(new URL('../scene-src/worlds.js',import.meta.url),'utf8');
+ const host=await readFile(new URL('../components/staarwardd/world-scene.tsx',import.meta.url),'utf8');
+ assert.match(builder,/worldQaMode:boolean=false/);
+ assert.match(builder,/window.STAAR_WORLD_COLLISION_QA/);
+ assert.match(scene,/window.STAAR_WORLD_COLLISION_QA===true && world!=='hub'/);
+ assert.match(scene,/packet.session===session && worldQaEnabled/);
+ assert.match(scene,/worldPhysicsQa\?\.movement/);
+ assert.match(scene,/worldPhysicsQa\?\.frame\(now\)/);
+ assert.match(host,/EXPO_PUBLIC_WORLD_COLLISION_QA === '1'/);
+ assert.match(host,/staar-world-physics-qa-request-v1/);
+ assert.match(host,/staar-guardian-locomotion-qa-command-v1/);
+ assert.match(host,/physicalIphoneOwnerAttestation:false/);
+ assert.match(host,/realDeviceCertification:'UNVERIFIED'/);
+ assert.match(host,/Share\.share/);
+ assert.doesNotMatch(host,/fetch\('https:\/\/.*world-physics/);
+});
