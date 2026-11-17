@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { ARMORED_SOURCE_SHA256, REAL_FACE_SOURCE_SHA256, REQUIRED_FACE_TARGETS, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256, PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256, REJECTED_LEGACY_GUARDIAN_MODEL_SHA256, assertGuardianModelNotRejected, validateArmoredGuardianGlb, loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
+import { ARMORED_SOURCE_SHA256, REAL_FACE_SOURCE_SHA256, REQUIRED_FACE_TARGETS, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256, PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256, PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256, REJECTED_LEGACY_GUARDIAN_MODEL_SHA256, assertGuardianModelNotRejected, validateArmoredGuardianGlb, loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
 
 function model(targetNames=REQUIRED_FACE_TARGETS,{duplicateDeltas=false,emptySpeech=false}={}) {
   // Unlike the old one-accessor fixture, this represents 16 separate real
@@ -141,6 +141,11 @@ test('Build 224 blocks real newly generated Build 222 GLB because actual four-vi
  assert.throws(()=>assertGuardianModelNotRejected(PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256),/guardian_rig_build222_visual_qa_failed/);
 });
 
+
+test('Build 227 corrective rig stays quarantined until exact binary owner acceptance and real iPhone tests',()=>{
+ assert.equal(PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256,'8168758c8d8b3c448069315b451147f7d655227f8e1963adfc7fac915e595ab3');
+ assert.throws(()=>assertGuardianModelNotRejected(PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256),/guardian_rig_build227_not_owner_accepted/);
+});
 
 test('Build 226 blocks actual Build 225 multiview artist review GLB until a new fully accepted model exists',()=>{
  assert.equal(PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256,'3332367a0085c1c7a873704564aa7decbde906a17a95960eb7eb39805d59228a');
