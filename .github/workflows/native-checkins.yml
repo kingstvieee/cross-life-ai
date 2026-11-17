@@ -1,7 +1,17 @@
 name: Native Check-in Compile
 on:
+  # Validate native iOS compilation directly in GitHub; no local Expo login is required.
+  workflow_dispatch:
   pull_request:
     paths:
+      - 'frontend/package.json'
+      - 'frontend/yarn.lock'
+      - 'frontend/app.json'
+      - 'frontend/eas.json'
+      - 'frontend/metro.config.js'
+      - 'frontend/tsconfig.json'
+      - 'frontend/.npmrc'
+      - 'frontend/scripts/verify-native-targets.cjs'
       - 'frontend/modules/staar-watch/**'
       - 'frontend/src/checkins.ts'
       - 'frontend/scene-src/**'
