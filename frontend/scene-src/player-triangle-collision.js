@@ -12,7 +12,7 @@ function slabClip(points,bound,keepAbove) {
   for(let i=0;i<points.length;i++){
     const a=points[i],b=points[(i+1)%points.length];
     const insideA=keepAbove?a[1]>=bound-1e-8:a[1]<=bound+1e-8;
-    const insideB=keepAbove?b[1]<=bound+1e-8:b[1]>=bound-1e-8;
+    const insideB=keepAbove?b[1]>=bound-1e-8:b[1]<=bound+1e-8;
     if(insideA)out.push(a);
     if(insideA!==insideB){
       const d=b[1]-a[1];if(Math.abs(d)<1e-10)continue;
