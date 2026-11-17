@@ -4,6 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createModelMotion, disposeModel } from './model-motion.js';
 import { modelControls, hitControl } from './model-navigation.js';
 import {moveCapsuleXZ, capsuleCollidesXZ, WALK_RADIUS_M} from './player-collision.js';
+import {createTriangleCollisionIndex} from './player-triangle-collision.js';
 import {createApprovedGuardianFaceMotion} from './guardian-face-motion.js';
 import {applyGuardianSpeechFrame} from './guardian-speech-bridge.js';
 import {createGuardianDevicePerformanceProbe} from './guardian-device-performance.js';
@@ -114,10 +115,48 @@ if (renderer) {
     // floor coordinates as raw viewer XZ coordinates.
     model.updateMatrixWorld(true);
     const rawSpawn=new T.Vector3(spawn[0],spawn[1],0).applyMatrix4(model.matrixWorld);
-    const scale=model.scale.x,feet=new T.Box3().setFromObject(model).min.y+.08;
+    const scale=model.scale.x,feet=rawSpawn.y;
     const current={x:rawSpawn.x,z:rawSpawn.z};
     const params={feet,radius:WALK_RADIUS_M*scale,height:1.7*scale};
-    if(capsuleCollidesXZ(current,solids,params))return false;
+    // Exact triangle narrow phase: role-tagged meshes only, transformed by
+    // real Three.js model matrices. Never silently fall back to AABB-only walking.
+    // A missing, corrupt, or oversized collision index fails closed.
+    const triangles=[],p=new T.Vector3();
+    let geometryInvalid=false;
+    colliderScene.updateMatrixWorld(true);
+    colliderScene.traverse(node=>{
+      if(geometryInvalid || !node.isMesh || node.userData?.staarCollisionRole!=='solid')return;
+      const pos=node.geometry?.getAttribute('position'),indices=node.geometry?.index;
+      if(!pos || pos.itemSize!==3 || !Number.isInteger(pos.count) || pos.count<3){
+        geometryInvalid=true;return;
+      }
+      const count=indices?indices.count:pos.count;
+      if(count%3!==0 || count>195000 || triangles.length+count/3>65000){
+        geometryInvalid=true;return;
+      }
+      const vert=i=>{
+        const index=indices?indices.getX(i):i;
+        if(!Number.isInteger(index)||index<0||index>=pos.count){
+          geometryInvalid=true;return [NaN,NaN,NaN];
+        }
+        p.fromBufferAttribute(pos,index).applyMatrix4(node.matrixWorld);
+        return [p.x,p.y,p.z];
+      };
+      for(let k=0;k<count;k+=3){
+        const tri=[vert(k),vert(k+1),vert(k+2)];
+        if(geometryInvalid || tri.some(v=>!v.every(Number.isFinite))){
+          geometryInvalid=true;return;
+        }
+        triangles.push(tri);
+      }
+    });
+    if(geometryInvalid || !triangles.length)return false;
+    const collisionIndex=createTriangleCollisionIndex(triangles,{
+      feet,height:params.height,cellSize:Math.max(.25,Math.min(1,.5*scale))
+    });
+    if(!collisionIndex.ok)return false;
+    const collisionPredicate=point=>collisionIndex.collides(point,params.radius);
+    if(collisionPredicate(current))return false;
     // A small navigation marker is not a replacement for the locked Guardian.
     const marker=new T.Mesh(new T.CylinderGeometry(.20,.20,.09,20),
       new T.MeshStandardMaterial({color:'#e9ce92',metalness:.9,roughness:.15,
@@ -127,9 +166,13 @@ if (renderer) {
     const held=new Set();
     const directions={ArrowUp:'forward',KeyW:'forward',ArrowDown:'back',
       KeyS:'back',ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right'};
-    const onDown=e=>{const key=directions[e.code];if(!key||e.metaKey||e.ctrlKey||e.altKey)return;
+    const onDown=e=>{
+      const key=e.code==='ShiftLeft'||e.code==='ShiftRight'?'run':directions[e.code];
+      if(!key||e.metaKey||e.ctrlKey||e.altKey)return;
       held.add(key);e.preventDefault();requestDraw();};
-    const onUp=e=>{const key=directions[e.code];if(key){held.delete(key);e.preventDefault();}};
+    const onUp=e=>{
+      const key=e.code==='ShiftLeft'||e.code==='ShiftRight'?'run':directions[e.code];
+      if(key){held.delete(key);e.preventDefault();}};
     const onBlur=()=>held.clear();
     addEventListener('keydown',onDown);addEventListener('keyup',onUp);addEventListener('blur',onBlur);
     const pad=document.createElement('div');
@@ -145,6 +188,7 @@ if (renderer) {
       pad.append(btn);
     };
     add('↑','forward',2,1);add('←','left',1,2);add('↓','back',2,2);add('→','right',3,2);
+    add('Run','run',1,1);
     document.body.append(pad);
     walkController={
       pressedCount:()=>held.size,
@@ -158,9 +202,12 @@ if (renderer) {
         const strafe=(held.has('right')?1:0)-(held.has('left')?1:0);
         dx=f*facing.x+strafe*side.x;dz=f*facing.z+strafe*side.z;
         const magnitude=Math.hypot(dx,dz);if(!magnitude)return;
-        const distance=Math.min(delta,.075)*2.6*scale;
+        // Body animation selection remains separate: the approved 3D model must
+        // actually have independently accepted locomotion clips before playback.
+        const speed=(held.has('run')?3.65:1.65)*scale;
+        const distance=Math.min(delta,.075)*speed;
         const result=moveCapsuleXZ(current,{x:dx/magnitude*distance,z:dz/magnitude*distance},solids,
-          {...params,maxDelta:Math.max(.6,3*scale)});
+          {...params,collisionPredicate,maxDelta:Math.max(.6,3*scale)});
         const shiftX=result.point.x-current.x,shiftZ=result.point.z-current.z;
         current.x=result.point.x;current.z=result.point.z;
         marker.position.x=current.x;marker.position.z=current.z;
@@ -177,8 +224,9 @@ if (renderer) {
     camera.position.set(current.x,feet+3.4*scale,current.z+6*scale);
     controls.target.set(current.x,feet+1.15*scale,current.z);
     controls.update();controls.saveState();
-    report('navigation-ready',{collisionMode:'tagged-aabb-capsule',solidMeshes:solids.length,
-      deviceCertified:false});
+    report('navigation-ready',{collisionMode:'tagged-triangle-capsule',
+      solidMeshes:solids.length,solidTriangles:collisionIndex.triangleCount,
+      collisionCells:collisionIndex.gridCellCount,deviceCertified:false});
     return true;
   }
 
