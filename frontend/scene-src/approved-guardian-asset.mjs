@@ -24,6 +24,10 @@ export const PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256 = '3332367a0085c1c7a87
 export const PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256 = '8168758c8d8b3c448069315b451147f7d655227f8e1963adfc7fac915e595ab3';
 // Build 228 has exact-binary founder VISUAL acceptance. Independent neck/armour, viseme-device and release gates remain incomplete.
 export const PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256 = '4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b';
+// Build 229 body is static: unapproved armor/material choice and no physical device proof.
+export const PRIVATE_BUILD229_STATIC_BODY_REVIEW_SHA256 = '84295da28d4b580f83cad8786cf684ea498c45d5185c85a7d09955b9c6b5f5b4';
+// Build 230 is a local programmatic rigging STUDY: joint weights and gait unreviewed.
+export const PRIVATE_BUILD230_EXPERIMENTAL_BODY_RIG_SHA256 = '656a12b79a334e6d0a4301b666df5098f0ab6ae1387a5195904b978fc5415130';
 // Build 210 independent review: neither recovered Build 198 nor revised Build 201
 // possesses founder-approved final facial/profile fidelity; separate mouth QA is not release acceptance.
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
@@ -40,6 +44,8 @@ export function assertGuardianModelNotRejected(modelSha256) {
   if (modelSha256 === PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256) fail('build225_visual_qa_failed');
   if (modelSha256 === PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256) fail('build227_not_owner_accepted');
   if (modelSha256 === PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256) fail('build228_release_requirements_pending');
+  if (modelSha256 === PRIVATE_BUILD229_STATIC_BODY_REVIEW_SHA256) fail('build229_unrigged_body_not_approved');
+  if (modelSha256 === PRIVATE_BUILD230_EXPERIMENTAL_BODY_RIG_SHA256) fail('build230_experimental_rig_not_approved');
   if (REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(modelSha256)) fail('legacy_face_not_approved');
 }
 
