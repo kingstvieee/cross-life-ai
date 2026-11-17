@@ -12,6 +12,9 @@ export const WORLD_VARIANTS = Object.freeze({
 const allEntries=WORLD_IDS.flatMap(id=>WORLD_VARIANTS[id].map(variant=>({id,variant,key:id+'-'+variant})));
 const sha=value=>typeof value==='string' && /^[a-f0-9]{64}$/.test(value);
 const fail=x=>{throw new Error('world_asset_'+x);};
+export function assertWorldModelNotReviewOnly(modelHash){
+ if(REVIEW_ONLY_COLLIDER_WORLD_HASH_SET.has(modelHash)) fail('review_only_collider_model');
+}
 const safeKey=value=>typeof value==='string' && /^[a-z0-9_-]{2,96}$/.test(value);
 
 /** Every approved world needs its own geometry, visual evidence and production permissions.
@@ -46,7 +49,7 @@ export function validateWorldAsset(bytes,receipt,expected) {
  if(!receipt||receipt.schema!=='staar-world-asset-v1'||receipt.worldId!==expected.id||receipt.variant!==expected.variant)fail('wrong_world_receipt');
  const digest=createHash('sha256').update(bytes).digest('hex');
  if(!sha(receipt.modelSha256)||receipt.modelSha256!==digest)fail('model_hash');
- if(REVIEW_ONLY_COLLIDER_WORLD_HASH_SET.has(digest)) fail('review_only_collider_model');
+ assertWorldModelNotReviewOnly(digest);
  if(!safeKey(receipt.assetId)||receipt.exportRightsConfirmed!==true||receipt.founderVisualApproved!==true||
  receipt.deviceCaptureVerified!==true||receipt.animationVerified!==true||receipt.navigationVerified!==true||
  !safeKey(receipt.designEvidenceId)||!safeKey(receipt.actualDeviceCaptureId))fail('missing_acceptance');
