@@ -1,0 +1,41 @@
+{
+  "schema": "staarwardd-guardian-fullbody-finish-lock-v1",
+  "recordedLocalDate": "2026-11-17",
+  "founderSelection": "BLACK TITANIUM + GOLD",
+  "selectedMaterialVariant": 1,
+  "selectedPbrMaterialIndex": 23,
+  "originalChromeMaterialIndex": 18,
+  "scene": "Build 229 full-body armour family; does not overwrite earlier 2D reference",
+  "faceLock": {
+    "founderApprovedBuild228Sha256": "4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b",
+    "preserveExactHeadGeometry": true,
+    "preserveOriginalFacialAnimations": 3
+  },
+  "provenance": {
+    "sourceBuild229Sha256": "84295da28d4b580f83cad8786cf684ea498c45d5185c85a7d09955b9c6b5f5b4",
+    "previousBuild230Sha256": "656a12b79a334e6d0a4301b666df5098f0ab6ae1387a5195904b978fc5415130",
+    "privateBuild231QaSha256": "91bac844779ea58cb45804efd4ffe441f68fab6c2dbbae11e8868f7418b04fbc",
+    "privateArtifactLibraryPath": "/Projects/STAARWAARDD/STAAR Hub/Private Release Staging/STAARWAARDD_Build231_BlackTitaniumGold_Private_Rig_QA_NOT_APPROVED.zip"
+  },
+  "engineeringObserved": {
+    "glbByteLength": 10672372,
+    "skinJointCount": 16,
+    "skinnedBodyVertices": 83446,
+    "rigidMetalMeshComponents": 382,
+    "gloveVerticesMappedToLegJoints": 0,
+    "sourceHeadBytesUnchanged": true,
+    "original3FaceAnimationBuffersUnchanged": true
+  },
+  "acceptance": {
+    "founderColorFinishSelected": true,
+    "build231RigArtistAccepted": false,
+    "realDeviceFaceSyncVerified": false,
+    "tenWorldCollisionAndMemoryAccepted": false,
+    "independentSentinelEnforcingProofVerified": false,
+    "actualEasArchiveInspected": false,
+    "signedIpaVerified": false,
+    "testflightFounderApproved": false
+  },
+  "readyForProduction": false,
+  "notes": "Owner selected the finish, not the experimental rig or Apple release. The old original locked reference remains unchanged."
+}
