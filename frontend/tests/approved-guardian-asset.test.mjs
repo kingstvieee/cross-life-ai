@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { ARMORED_SOURCE_SHA256, REAL_FACE_SOURCE_SHA256, REQUIRED_FACE_TARGETS, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256, PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256, PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256, PRIVATE_BUILD228_UNAPPROVED_ALIGNMENT_SHA256, REJECTED_LEGACY_GUARDIAN_MODEL_SHA256, assertGuardianModelNotRejected, validateArmoredGuardianGlb, loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
+import { ARMORED_SOURCE_SHA256, REAL_FACE_SOURCE_SHA256, REQUIRED_FACE_TARGETS, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256, PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256, PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256, PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256, REJECTED_LEGACY_GUARDIAN_MODEL_SHA256, assertGuardianModelNotRejected, validateArmoredGuardianGlb, loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
 
 function model(targetNames=REQUIRED_FACE_TARGETS,{duplicateDeltas=false,emptySpeech=false}={}) {
   // Unlike the old one-accessor fixture, this represents 16 separate real
@@ -142,9 +142,9 @@ test('Build 224 blocks real newly generated Build 222 GLB because actual four-vi
 });
 
 
-test('Build 228 exact 4.85MB private GLB cannot silently enter release even with a forged receipt',()=>{
- assert.equal(PRIVATE_BUILD228_UNAPPROVED_ALIGNMENT_SHA256,'4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b');
- assert.throws(()=>assertGuardianModelNotRejected(PRIVATE_BUILD228_UNAPPROVED_ALIGNMENT_SHA256),/guardian_rig_build228_not_owner_accepted/);
+test('Build 228 visually accepted GLB remains unreleasable without independent device and final acceptance',()=>{
+ assert.equal(PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256,'4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b');
+ assert.throws(()=>assertGuardianModelNotRejected(PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256),/guardian_rig_build228_release_requirements_pending/);
 });
 
 test('Build 227 corrective rig stays quarantined until exact binary owner acceptance and real iPhone tests',()=>{
