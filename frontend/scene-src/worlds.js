@@ -5,6 +5,7 @@ import { createModelMotion, disposeModel } from './model-motion.js';
 import { modelControls, hitControl } from './model-navigation.js';
 import {moveCapsuleXZ, capsuleCollidesXZ, WALK_RADIUS_M} from './player-collision.js';
 import {createApprovedGuardianFaceMotion} from './guardian-face-motion.js';
+import {applyGuardianSpeechFrame} from './guardian-speech-bridge.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { worldIds, worldNames, fallbackActions } from './navigation.js';
 
@@ -65,6 +66,19 @@ if (renderer) {
   let importedControls = [];
   let walkController = null;
   let guardianFaceMotion = null;
+  // This does not create speech cues. Actual verified audio playback must supply
+  // session-bound, timestamped cue packets. Unverified packets neutralize the face.
+  const onHostFaceFrame=e=>{
+    let packet=e?.data;
+    if(typeof packet==='string'){try{packet=JSON.parse(packet);}catch{return;}}
+    if(!packet||packet.source!=='staar-native-guardian-audio-v1')return;
+    const accepted=applyGuardianSpeechFrame(guardianFaceMotion,packet,{
+      session,modelSha256:window.STAAR_APPROVED_GUARDIAN_MODEL?.rigModelSha256,
+    });
+    if(accepted)requestDraw();
+  };
+  window.addEventListener('message',onHostFaceFrame);
+
   // Only independently accepted production models can be loaded through the
   // approved asset gate. Review-only offline GLBs are never auto-mounted.
   function enableTaggedWalking(model, gltf, colliderScene=model) {
@@ -416,5 +430,5 @@ if (renderer) {
   document.querySelector('#status').textContent='Drag to explore · pinch or scroll to move closer · tap a labelled control';
   for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
   canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
-  addEventListener('pagehide',()=>{disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
+  addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
 }
