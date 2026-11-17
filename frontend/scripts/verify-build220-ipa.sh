@@ -11,9 +11,9 @@ done
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 unzip -qq "$ipa" -d "$tmp"
-mapfile -t apps < <(find "$tmp/Payload" -mindepth 1 -maxdepth 1 -name '*.app' -type d)
-[[ ${#apps[@]} -eq 1 ]] || { echo "expected one signed app" >&2; exit 1; }
-app="${apps[0]}"
+app_count="$(find "$tmp/Payload" -mindepth 1 -maxdepth 1 -name '*.app' -type d | wc -l | tr -d ' ')"
+[[ "$app_count" == "1" ]] || { echo "expected one signed app" >&2; exit 1; }
+app="$(find "$tmp/Payload" -mindepth 1 -maxdepth 1 -name '*.app' -type d | head -n 1)"
 codesign --verify --deep --strict --verbose=2 "$app" >&2
 identity="$(codesign -dv --verbose=4 "$app" 2>&1)"
 printf '%s\n' "$identity" | grep -Fq 'TeamIdentifier=R9BPDSU4BW' || {
