@@ -7,13 +7,18 @@ export type ReleaseEvidence = {
   realProviderAuthReadbackPassed: boolean;
   actualIphoneAndWatchAccepted: boolean;
   nativeSignedIpaVerified: boolean;
+  tenWorldNativeCollisionVerified: boolean;
+  starCenttinelRevocationAndRecoveryVerified: boolean;
+  privateEasArchiveInspected: boolean;
   founderTestFlightAccepted: boolean;
 };
 export const RELEASE_REQUIREMENTS: ReadonlyArray<keyof ReleaseEvidence> = [
   'startupFilmHashPassed', 'elevenVisualMasterHashesPassed',
   'nineLocked3DWorldsAccepted', 'guardianApprovedRigAndLipSync',
   'realProviderAuthReadbackPassed', 'actualIphoneAndWatchAccepted',
-  'nativeSignedIpaVerified', 'founderTestFlightAccepted'
+  'nativeSignedIpaVerified', 'tenWorldNativeCollisionVerified',
+  'starCenttinelRevocationAndRecoveryVerified', 'privateEasArchiveInspected',
+  'founderTestFlightAccepted'
 ] as const;
 export function evaluateProductionReadiness(evidence: Partial<ReleaseEvidence> | null | undefined) {
   const blockers = RELEASE_REQUIREMENTS.filter(k => evidence?.[k] !== true);
