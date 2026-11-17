@@ -72,6 +72,7 @@ jobs:
       - run: node --test tests/build216-mobile-collision-proxy.test.mjs
       - run: node --test tests/build217-guardian-face-motion.test.mjs
       - run: node --test tests/build219-independent-security-evidence.test.mjs
+      - run: node --experimental-strip-types --test tests/build220-testflight-release-gates.test.mjs
       - run: node --test tests/build199-master-review.test.mjs
       - run: node --test tests/release-evidence.test.mjs
       - run: yarn exec eslint components/staarwardd/creativity-studio.tsx components/staarwardd/portal-screen.tsx components/staarwardd/voice-input.tsx
