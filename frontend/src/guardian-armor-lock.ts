@@ -12,6 +12,16 @@ export const LOCKED_ARMORED_GUARDIAN = Object.freeze({
   sourceWidth: 1199,
   sourceHeight: 1312,
   approval: '2d-character-appearance-only',
+  // Founder superseded the ORIGINAL 2D reference's silver paint finish for
+  // Build 229+ full-body production art; the original reference SHA stays locked.
+  fullBodyArmorFinishOverride: {
+    version: '2026-11-17-build229-black-titanium-and-gold',
+    finish: 'black-titanium-and-gold',
+    blackMaterialVariantIndex: 1,
+    originalChromeVariantIndex: 0,
+    originalChromeReviewOnly: true,
+    approvalScope: 'armour-finish-only',
+  },
   visualRequirements: [
     'Maintain face and hairstyle from the locked image without substitution',
     'Short closely cropped hair with visible curved shaved detailing',
@@ -37,6 +47,8 @@ export const PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256 = '4d7
 // Private Build 229 static-body and 230 approximate-body-rig candidates have no owner/full device acceptance.
 export const PRIVATE_BUILD229_STATIC_BODY_REVIEW_SHA256 = '84295da28d4b580f83cad8786cf684ea498c45d5185c85a7d09955b9c6b5f5b4' as const;
 export const PRIVATE_BUILD230_EXPERIMENTAL_BODY_RIG_SHA256 = '656a12b79a334e6d0a4301b666df5098f0ab6ae1387a5195904b978fc5415130' as const;
+// Lock approved BLACK finish; Build232 body rig is still private QA and cannot enter production.
+export const PRIVATE_BUILD232_BLACK_TITANIUM_RIG_QA_SHA256 = 'ecc3c9660cd3bacef39c5ca28193b2c67a4ec5ff433c77347ce58b741bc456f9' as const;
 
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
   'da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395',
@@ -72,6 +84,7 @@ export function canActivateArmoredGuardian3D(
     && evidence.rigModelSha256 !== PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD229_STATIC_BODY_REVIEW_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD230_EXPERIMENTAL_BODY_RIG_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD232_BLACK_TITANIUM_RIG_QA_SHA256
     && !REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(evidence.rigModelSha256)
     && evidence.identityAssetId.trim().length > 0
     && evidence.founderApprovedRig === true
