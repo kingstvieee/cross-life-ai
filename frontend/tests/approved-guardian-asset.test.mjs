@@ -4,9 +4,9 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { ARMORED_SOURCE_SHA256, REAL_FACE_SOURCE_SHA256, REQUIRED_FACE_TARGETS, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256, PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256, PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256, PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256, REJECTED_LEGACY_GUARDIAN_MODEL_SHA256, assertGuardianModelNotRejected, validateArmoredGuardianGlb, loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
+import { ARMORED_SOURCE_SHA256, REAL_FACE_SOURCE_SHA256, REQUIRED_FACE_TARGETS, LOCKED_GUARDIAN_ARMOR_FINISH, BUILD228_APPROVED_FACE_BINARY_PREFIX, PRIVATE_BUILD231_REFINED_RIG_QA_SHA256, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256, PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256, PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256, PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256, REJECTED_LEGACY_GUARDIAN_MODEL_SHA256, assertGuardianModelNotRejected, validateArmoredGuardianGlb, loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
 
-function model(targetNames=REQUIRED_FACE_TARGETS,{duplicateDeltas=false,emptySpeech=false}={}) {
+function model(targetNames=REQUIRED_FACE_TARGETS,{duplicateDeltas=false,emptySpeech=false,tagB229=false}={}) {
   // Unlike the old one-accessor fixture, this represents 16 separate real
   // embedded VEC3 delta buffers so the production independence gate is tested.
   const vertexCount=16, segmentBytes=vertexCount*12, bin=Buffer.alloc((targetNames.length+1)*segmentBytes);
@@ -26,7 +26,7 @@ function model(targetNames=REQUIRED_FACE_TARGETS,{duplicateDeltas=false,emptySpe
     })),
     nodes:[{mesh:0,skin:0}],
     scenes:[{nodes:[0]}],
-    meshes:[{extras:{targetNames},primitives:[{
+    meshes:[{name:tagB229?'B229_private_lineage_test':'test_morph_fixture',extras:{targetNames},primitives:[{
       attributes:{POSITION:0},
       targets:targetNames.map((_,i)=>({POSITION:i+1}))
     }]}],
@@ -45,7 +45,7 @@ function receipt(bytes) {
  return {schema:'staar-armored-guardian-v1',sourceImageSha256:ARMORED_SOURCE_SHA256,
    realFaceSourceSha256:{...REAL_FACE_SOURCE_SHA256},
    rigModelSha256:createHash('sha256').update(bytes).digest('hex'),
-   identityAssetId:'approved-armored-guardian-v1',exportRightsConfirmed:true,
+   identityAssetId:'approved-armored-guardian-v1',exportRightsConfirmed:true,armorFinish:LOCKED_GUARDIAN_ARMOR_FINISH,
    founderApprovedRig:true,faceFidelityReviewed:true,armorFidelityReviewed:true,
    frontThreeQuarterProfileReviewed:true,speechSyncDeviceVerified:true};
 }
@@ -66,6 +66,8 @@ test('wrong face, changed binary, denied approval, tracksuit substitute and abse
    {founderApprovedRig:false},{armorFidelityReviewed:false},{faceFidelityReviewed:false},
    {frontThreeQuarterProfileReviewed:false},{speechSyncDeviceVerified:false},
    {exportRightsConfirmed:false},
+   {armorFinish:'black-titanium-and-gold'},
+   {armorFinish:undefined},
  ]) assert.throws(()=>validateArmoredGuardianGlb(bytes,{...receipt(bytes),...changes}),/guardian_rig_/);
  assert.throws(()=>validateArmoredGuardianGlb(model(['rest','aa']),receipt(bytes)),/guardian_rig_/);
  assert.throws(()=>validateArmoredGuardianGlb(Buffer.from('garbage'),receipt(bytes)),/guardian_rig_/);
@@ -93,6 +95,15 @@ test('scene builder and renderer only enable guardian model if verified assets e
  assert.match(runtime,/approvedArmoredGuardian\(\)/);
 });
 
+
+test('Build 231 lineage cannot substitute another face binary or a rig without device approval',()=>{
+ assert.equal(BUILD228_APPROVED_FACE_BINARY_PREFIX.bytes,4735136);
+ assert.equal(BUILD228_APPROVED_FACE_BINARY_PREFIX.sha256,'ee78ab8bc97a7cad9853c878ace2d11d528ca9f4f981a0d5aff75ac8fc89c03d');
+ const masquerade=model(REQUIRED_FACE_TARGETS,{tagB229:true});
+ assert.throws(()=>validateArmoredGuardianGlb(masquerade,receipt(masquerade)),/guardian_rig_build228_approved_face_binary_changed/);
+ assert.equal(PRIVATE_BUILD231_REFINED_RIG_QA_SHA256,'cca5092a8971c7817dab3301b4540c8a9b53844bc1aa0257840bf9db957a077c');
+ assert.throws(()=>assertGuardianModelNotRejected(PRIVATE_BUILD231_REFINED_RIG_QA_SHA256),/guardian_rig_build231_refined_rig_not_device_approved/);
+});
 
 test('Build 202 visibly rejected 3D model can never be accepted by a forged positive receipt',async()=>{
  const {readFile}=await import('node:fs/promises');
