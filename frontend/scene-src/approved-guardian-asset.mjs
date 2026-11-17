@@ -22,6 +22,8 @@ export const PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256 = '325bc975ccae49db
 export const PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256 = '3332367a0085c1c7a873704564aa7decbde906a17a95960eb7eb39805d59228a';
 // Build 227 is a real private corrective GLB, but has no binary-specific likeness/device acceptance.
 export const PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256 = '8168758c8d8b3c448069315b451147f7d655227f8e1963adfc7fac915e595ab3';
+// Build 228 has exact-binary founder VISUAL acceptance. Independent neck/armour, viseme-device and release gates remain incomplete.
+export const PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256 = '4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b';
 // Build 210 independent review: neither recovered Build 198 nor revised Build 201
 // possesses founder-approved final facial/profile fidelity; separate mouth QA is not release acceptance.
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
@@ -37,6 +39,7 @@ export function assertGuardianModelNotRejected(modelSha256) {
   if (modelSha256 === PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256) fail('build222_visual_qa_failed');
   if (modelSha256 === PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256) fail('build225_visual_qa_failed');
   if (modelSha256 === PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256) fail('build227_not_owner_accepted');
+  if (modelSha256 === PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256) fail('build228_release_requirements_pending');
   if (REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(modelSha256)) fail('legacy_face_not_approved');
 }
 

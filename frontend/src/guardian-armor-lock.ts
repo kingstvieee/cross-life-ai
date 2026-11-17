@@ -32,6 +32,8 @@ export const PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256 = '325bc975ccae49db
 export const PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256 = '3332367a0085c1c7a873704564aa7decbde906a17a95960eb7eb39805d59228a' as const;
 // Review-only Build 227 profile/neck repair has no final likeness or physical-device proof.
 export const PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256 = '8168758c8d8b3c448069315b451147f7d655227f8e1963adfc7fac915e595ab3' as const;
+// Founder has visually accepted the exact Build 228 binary; physical-device/neck/armour/release evidence has NOT been accepted.
+export const PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256 = '4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b' as const;
 
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
   'da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395',
@@ -64,6 +66,7 @@ export function canActivateArmoredGuardian3D(
     && evidence.rigModelSha256 !== PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256
     && !REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(evidence.rigModelSha256)
     && evidence.identityAssetId.trim().length > 0
     && evidence.founderApprovedRig === true
