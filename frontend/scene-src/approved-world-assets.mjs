@@ -56,6 +56,41 @@ export function validateWorldAsset(bytes,receipt,expected) {
  return {id:expected.id,variant:expected.variant,assetId:receipt.assetId,modelSha256:digest,glbBase64:bytes.toString('base64')};
 }
 
+/** Build 216: a mobile-optimized GLB cannot discard collision geometry.
+ * A separate private proxy must be independently hash-pinned to the exact LOD.
+ */
+export function validateWorldCollisionProxy(bytes, receipt, expected) {
+ if(!Buffer.isBuffer(bytes)||bytes.length<80||bytes.length>6*1024*1024)fail('invalid_collision_proxy_size');
+ if(bytes.toString('ascii',0,4)!=='glTF'||bytes.readUInt32LE(4)!==2||
+    bytes.readUInt32LE(8)!==bytes.length)fail('invalid_collision_proxy_header');
+ const len=bytes.readUInt32LE(12);
+ if(len%4||len<8||len+28>bytes.length||bytes.toString('ascii',16,20)!=='JSON')
+    fail('collision_proxy_json_chunk');
+ let meta;
+ try{meta=JSON.parse(bytes.toString('utf8',20,20+len));}
+ catch{fail('collision_proxy_json_invalid');}
+ const tags=meta?.extras;
+ if(meta?.asset?.version!=='2.0'||!Array.isArray(meta?.meshes)||!meta.meshes.length||
+    !Array.isArray(meta?.nodes)||!meta.nodes.length||meta.nodes.length>1024||
+    tags?.schema!=='staar-build216-private-mobile-proxy-v1'||
+    tags.worldKey!==expected.key||tags.mobileLodSha256!==receipt.modelSha256||
+    tags.sourceWorldSha256!==receipt.collisionProxySourceWorldSha256 ||
+    tags.deviceCertified!==false || tags.worldFinalApproved!==false)
+    fail('collision_proxy_unmatched_source');
+ const solids=meta.nodes.filter(node=>node?.extras?.staarCollisionRole==='solid');
+ if(solids.length!==meta.nodes.length||solids.length<1||
+    solids.length!==tags.colliderCount||
+    solids.some(n=>!Number.isInteger(n.mesh)||n.mesh<0||n.mesh>=meta.meshes.length||
+      !Array.isArray(n.translation)||n.translation.length!==3||
+      !n.translation.every(Number.isFinite)||!Array.isArray(n.scale)||
+      n.scale.length!==3||n.scale.some(x=>!Number.isFinite(x)||x<=0)))
+      fail('collision_proxy_invalid_geometry');
+ const digest=createHash('sha256').update(bytes).digest('hex');
+ if(!sha(receipt.collisionProxySha256)||receipt.collisionProxySha256!==digest)
+    fail('collision_proxy_hash');
+ return {sha256:digest,solidProxyCount:solids.length,glbBase64:bytes.toString('base64')};
+}
+
 /** All-or-none release packaging: a partial collection cannot masquerade as 9/9 complete.
  * No files is valid during development; every nonempty production delivery must be complete.
  */
@@ -65,13 +100,26 @@ export async function loadApprovedWorldAssets(root) {
   let bytes,receipt;
   try{bytes=await readFile(path.join(dir,entry.key+'.glb'));}catch(e){if(e.code!=='ENOENT')throw e;}
   try{receipt=JSON.parse(await readFile(path.join(dir,entry.key+'.json'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
-  if(!bytes&&!receipt){missing.push(entry.key);continue;}
+  let proxy;
+  try{proxy=await readFile(path.join(dir,entry.key+'.collision.glb'));}
+  catch(e){if(e.code!=='ENOENT')throw e;}
+  if(!bytes&&!receipt){if(proxy)fail('orphan_collision_proxy_'+entry.key);
+    missing.push(entry.key);continue;}
   if(!bytes||!receipt)fail('partial_pair_'+entry.key);
-  loaded.push(validateWorldAsset(bytes,receipt,entry));
+  const asset=validateWorldAsset(bytes,receipt,entry);
+  if(receipt.mobileLod===true){
+    if(!proxy)fail('mobile_lod_missing_collision_proxy_'+entry.key);
+    const collision=validateWorldCollisionProxy(proxy,receipt,entry);
+    asset.collisionGlbBase64=collision.glbBase64;
+    asset.collisionProxySha256=collision.sha256;
+    asset.solidProxyCount=collision.solidProxyCount;
+  }else if(proxy)fail('unexpected_collision_proxy_'+entry.key);
+  loaded.push(asset);
  }
  if(!loaded.length)return null;
  if(missing.length)fail('missing_worlds_'+missing.join('_'));
- const totalBytes=loaded.reduce((sum,world)=>sum+Math.ceil(world.glbBase64.length*3/4),0);
+ const totalBytes=loaded.reduce((sum,world)=>sum+Math.ceil(world.glbBase64.length*3/4)+
+  (world.collisionGlbBase64?Math.ceil(world.collisionGlbBase64.length*3/4):0),0);
  if(totalBytes>48*1024*1024)fail('mobile_memory_budget');
  const fingerprints=new Set(loaded.map(x=>x.modelSha256));
  if(fingerprints.size!==loaded.length)fail('duplicate_world_models');
