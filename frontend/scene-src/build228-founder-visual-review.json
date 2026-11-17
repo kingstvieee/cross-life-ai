@@ -1,0 +1,23 @@
+{
+  "schema": "staarwardd-guardian-build228-founder-visual-review-v1",
+  "build": 228,
+  "modelSha256": "4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b",
+  "modelBytes": 4853728,
+  "visualAcceptance": {
+    "founderApprovedVisualLikeness": true,
+    "source": "Explicit user reply 'Approve it' to Build 228 comparison and uploaded model",
+    "scope": "Exact Build 228 creative appearance only",
+    "formalCryptographicSignatureProvided": false
+  },
+  "productionEvidence": {
+    "finalArmorAndNeckAccepted": false,
+    "independentLeftProfileEvidenceVerified": false,
+    "realIphoneSpeechSyncVerified": false,
+    "realIphoneWatchAccepted": false,
+    "releaseRightsVerified": false,
+    "signedAppleIPAProduced": false,
+    "appStoreConnectSubmissionReceiptVerified": false
+  },
+  "productionReleaseAllowed": false,
+  "releaseGuard": "Keep Build 228 SHA explicitly quarantined from the runtime and GLB importer until independent evidence and physical-device acceptance are obtained; changing JSON booleans must not override guard."
+}
