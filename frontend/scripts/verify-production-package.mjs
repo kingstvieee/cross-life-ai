@@ -12,7 +12,7 @@ import { loadApprovedWorldAssets, REQUIRED_WORLD_ASSETS } from '../scene-src/app
 import { verifyReleaseEvidence } from './verify-release-evidence.mjs';
 import { verifyApprovedSoundtrack } from './verify-approved-soundtrack.mjs';
 import { verifyStagedNativeSource } from './stage-approved-startup-audio.mjs';
-import { verifyPrivateEasUploadRules } from './prepare-private-eas-archive.mjs';
+import { verifyPrivateEasUploadRules, inspectPrivateEasArchive } from './prepare-private-eas-archive.mjs';
 import {verifyIndependentSecurityEvidence} from './verify-independent-security-evidence.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -86,6 +86,20 @@ export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFli
         repoRoot:path.resolve(root,'..'), frontendRoot:root,
       });
     } catch(err) { fail('private-eas-archive-rules',err?.message ?? err); }
+  }
+
+  // Upload inclusion rules are not evidence of what Expo actually receives.
+  // Require a separate byte-inspected private archive when the approved song
+  // has genuinely been staged. Missing assets stay in the prior fail-closed path.
+  if (facts.approvedAudio && facts.approvedAudioNativeSource) {
+    const archiveRoot=process.env.STAAR_INSPECTED_EAS_ARCHIVE_DIR;
+    if (!archiveRoot) {
+      fail('private-eas-inspected-archive','No authenticated EAS build:inspect archive was supplied');
+    } else {
+      try {
+        facts.privateEasArchive=await inspectPrivateEasArchive({archiveRoot});
+      } catch(err) { fail('private-eas-inspected-archive',err?.message??err); }
+    }
   }
 
   try {
