@@ -57,6 +57,8 @@ export const PRIVATE_BUILD232_BLACK_TITANIUM_RIG_QA_SHA256 = 'ecc3c9660cd3bacef3
 export const PRIVATE_BUILD231_CHROME_GOLD_RIG_QA_SHA256 = 'cca5092a8971c7817dab3301b4540c8a9b53844bc1aa0257840bf9db957a077c' as const;
 // Build233 in-place foot QA is never a founder-approved runtime, independent of finish selection.
 export const PRIVATE_BUILD233_CHROME_FOOT_PLANT_QA_SHA256 = '66e6821f4e776ac7a957e8a566de71731a555cdc006714e1e448d58a85fb80dc' as const;
+// Build234 prototype walk/run tracks are not a verified final actor performance.
+export const PRIVATE_BUILD234_WALK_RUN_QA_SHA256 = '2ae8eda577a5f60a0c82bb73d04be8280065acba9083b7c4d480e572cb0a58b8' as const;
 
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
   'da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395',
@@ -96,6 +98,7 @@ export function canActivateArmoredGuardian3D(
     && evidence.rigModelSha256 !== PRIVATE_BUILD232_BLACK_TITANIUM_RIG_QA_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD231_CHROME_GOLD_RIG_QA_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD233_CHROME_FOOT_PLANT_QA_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD234_WALK_RUN_QA_SHA256
     && !REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(evidence.rigModelSha256)
     && evidence.identityAssetId.trim().length > 0
     && evidence.founderApprovedRig === true
