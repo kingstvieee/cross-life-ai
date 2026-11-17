@@ -83,3 +83,16 @@ test('Build232 exact review-only black rig cannot be activated even with forged 
   };
   assert.equal(canActivateArmoredGuardian3D(fullyForged),false);
 });
+
+test('Owner black finish and Build228 face stay approved without manufacturing rig or Apple acceptance',async()=>{
+  const {readFile}=await import('node:fs/promises');
+  const state=JSON.parse(await readFile(new URL('../scene-src/build232-armor-finish-lock.json',import.meta.url),'utf8'));
+  assert.equal(state.founderApprovedAppearance.bodyArmorFinish,'black-titanium-and-gold');
+  assert.equal(state.founderApprovedAppearance.faceBuild,228);
+  assert.equal(state.founderApprovedAppearance.faceModelSha256,LOCKED_GUARDIAN_FULLBODY_FINISH.approvedBuild228FaceSha256);
+  assert.equal(state.privateModelCandidate.sha256,'ecc3c9660cd3bacef39c5ca28193b2c67a4ec5ff433c77347ce58b741bc456f9');
+  assert.equal(state.binarySpecificAcceptance.fullBodySkinWeightsAccepted,false);
+  assert.equal(state.binarySpecificAcceptance.physicalIphoneLipSyncAccepted,false);
+  assert.equal(state.binarySpecificAcceptance.signedAppleIPAProduced,false);
+  assert.equal(state.productionReleaseAllowed,false);
+});
