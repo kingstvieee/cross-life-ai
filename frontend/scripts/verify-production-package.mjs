@@ -13,6 +13,7 @@ import { verifyReleaseEvidence } from './verify-release-evidence.mjs';
 import { verifyApprovedSoundtrack } from './verify-approved-soundtrack.mjs';
 import { verifyStagedNativeSource } from './stage-approved-startup-audio.mjs';
 import { verifyPrivateEasUploadRules } from './prepare-private-eas-archive.mjs';
+import {verifyIndependentSecurityEvidence} from './verify-independent-security-evidence.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const FRONTEND_ROOT = path.resolve(HERE, '..');
@@ -60,6 +61,16 @@ export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFli
     try {
       facts.externalEvidence = await verifyReleaseEvidence(root, approvedGuardian, approvedWorlds);
     } catch (err) { fail('independent-evidence', err?.message ?? err); }
+  }
+
+  // The separate security project must independently attest the exact GLB.
+  // A review-only model, missing signed nonce or LOCKDOWN always blocks signing.
+  if(approvedGuardian && approvedWorlds){
+    try{
+      facts.starCenttinel = await verifyIndependentSecurityEvidence(root,{
+        expectedGuardianSha256:approvedGuardian.rigModelSha256,
+      });
+    }catch(err){fail('starcenttinel-independent-security',err?.message??err);}
   }
 
   try {
