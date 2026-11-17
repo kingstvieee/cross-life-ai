@@ -60,3 +60,10 @@ test('Build 211 preflight must include a local private EAS upload-rule verificat
  assert.ok(source.includes('facts.privateEasIncludeRules = await verifyPrivateEasUploadRules'));
  assert.ok(source.includes("fail('private-eas-archive-rules'"));
 });
+
+test('Build 221 signing cannot be unblocked by pointing at the current source checkout',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const source=await readFile(new URL('../scripts/verify-production-package.mjs',import.meta.url),'utf8');
+ assert.match(source,/inspectPrivateEasArchive\(\{archiveRoot,checkoutRoot:root\}\)/);
+ assert.match(source,/fail\('private-eas-inspected-archive'/);
+});
