@@ -53,6 +53,8 @@ export const LOCKED_BUILD229_FULLBODY_ARMOR_FINISH = Object.freeze({
 export const PRIVATE_BUILD231_BLACK_TITANIUM_RIG_REVIEW_SHA256 = '91bac844779ea58cb45804efd4ffe441f68fab6c2dbbae11e8868f7418b04fbc' as const;
 // Build232 owner-approved BLACK/GOLD default PBR; body skin/real-device approval still missing.
 export const PRIVATE_BUILD232_BLACK_TITANIUM_RIG_QA_SHA256 = 'ecc3c9660cd3bacef39c5ca28193b2c67a4ec5ff433c77347ce58b741bc456f9' as const;
+// This separate chrome/gold candidate is private QA only, not a material-lock override.
+export const PRIVATE_BUILD231_CHROME_GOLD_RIG_QA_SHA256 = 'cca5092a8971c7817dab3301b4540c8a9b53844bc1aa0257840bf9db957a077c' as const;
 
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
   'da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395',
@@ -90,6 +92,7 @@ export function canActivateArmoredGuardian3D(
     && evidence.rigModelSha256 !== PRIVATE_BUILD230_EXPERIMENTAL_BODY_RIG_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD231_BLACK_TITANIUM_RIG_REVIEW_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD232_BLACK_TITANIUM_RIG_QA_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD231_CHROME_GOLD_RIG_QA_SHA256
     && !REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(evidence.rigModelSha256)
     && evidence.identityAssetId.trim().length > 0
     && evidence.founderApprovedRig === true
