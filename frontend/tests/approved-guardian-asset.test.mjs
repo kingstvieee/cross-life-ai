@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { ARMORED_SOURCE_SHA256, REAL_FACE_SOURCE_SHA256, REQUIRED_FACE_TARGETS, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, REJECTED_LEGACY_GUARDIAN_MODEL_SHA256, assertGuardianModelNotRejected, validateArmoredGuardianGlb, loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
+import { ARMORED_SOURCE_SHA256, REAL_FACE_SOURCE_SHA256, REQUIRED_FACE_TARGETS, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256, REJECTED_LEGACY_GUARDIAN_MODEL_SHA256, assertGuardianModelNotRejected, validateArmoredGuardianGlb, loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
 
 function model(targetNames=REQUIRED_FACE_TARGETS,{duplicateDeltas=false,emptySpeech=false}={}) {
   // Unlike the old one-accessor fixture, this represents 16 separate real
@@ -133,4 +133,10 @@ test('Build 210 keeps actual recovered 198 and distinct-morph 201 legacy face ou
  ]);
  for(const sha of REJECTED_LEGACY_GUARDIAN_MODEL_SHA256)
    assert.throws(()=>assertGuardianModelNotRejected(sha),/guardian_rig_legacy_face_not_approved/);
+});
+
+
+test('Build 224 blocks real newly generated Build 222 GLB because actual four-view likeness QA failed',()=>{
+ assert.equal(PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256,'325bc975ccae49db54e5c5ac761a229d7b66930663cb68f5ff5844a507771a36');
+ assert.throws(()=>assertGuardianModelNotRejected(PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256),/guardian_rig_build222_visual_qa_failed/);
 });
