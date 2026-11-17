@@ -54,7 +54,8 @@ test('Build 223 iPhone telemetry is explicitly opt-in, session-bound and shared 
  assert.match(host,/EXPO_PUBLIC_GUARDIAN_DEVICE_QA === '1'/);
  assert.match(host,/message\.session !== session/);
  assert.match(host,/Share\.share\(/);
- assert.match(host,/physicalIphoneOwnerAttestation:false/);
- assert.match(host,/realDeviceCertification:'UNVERIFIED'/);
+ const sanitizer=readFileSync(new URL('../src/iphone-qa-controls.ts',import.meta.url),'utf8');
+ assert.match(sanitizer,/physicalIphoneOwnerAttestation:false/);
+ assert.match(sanitizer,/certification:'UNVERIFIED'/);
  assert.doesNotMatch(host,/fetch\('https:\/\/.*guardian-device-qa/);
 });
