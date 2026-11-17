@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
 import { guardianWireFrame, type GuardianAudioFrame } from '@/src/guardian-audio-frame';
@@ -16,6 +16,21 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
     const js="window.dispatchEvent(new MessageEvent('message',{data:"+JSON.stringify(packet)+"}));true;";
     webviewRef.current?.injectJavaScript(js);
   };
+  // Explicitly opt-in at build time; disabled in normal production builds.
+  const qaEnabled = world==='hub' && process.env.EXPO_PUBLIC_GUARDIAN_DEVICE_QA === '1';
+  const qaLatest = useRef<string | null>(null);
+  const [qaSummary,setQaSummary] = useState('No on-device Guardian measurements collected');
+  const captureDeviceQa=()=>{
+    const msg={source:'staar-guardian-device-qa-request-v1',session};
+    webviewRef.current?.injectJavaScript(
+      "window.dispatchEvent(new MessageEvent('message',{data:"+JSON.stringify(msg)+"}));true;");
+  };
+  const exportDeviceQa=()=>{
+    if(!qaLatest.current)return;
+    // Only operator-initiated local iOS Share Sheet; no network upload.
+    void Share.share({title:'STAARWAARDD Guardian Device QA',
+      message:qaLatest.current}).catch(()=>{});
+  };
   const [retryCount, setRetryCount] = useState(0);
   const session = useMemo(() => `${Date.now()}_${Math.random().toString(36).slice(2)}`, [world, variant, retryCount]);
   useEffect(()=>{pushGuardianFrame();},[
@@ -28,7 +43,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
     return ()=>audio.setGuardianRigHash(null);
   },[world,variant,session,audio.setGuardianRigHash]);
 
-  const html = useMemo(() => worldSceneHtml(world, variant, session), [world, variant, session]);
+  const html = useMemo(() => worldSceneHtml(world, variant, session, qaEnabled), [world, variant, session, qaEnabled]);
   const [loadFailed, setLoadFailed] = useState(false);
   const sceneReady = useRef(false);
   const lastDispatch = useRef<SceneDispatch | null>(null);
@@ -50,6 +65,23 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
     </Pressable>)}
   </ScrollView>;
   return <View style={{ width: '100%', height: '100%', minHeight: 420 }}>
+    {qaEnabled ? <View style={{ padding: 8, backgroundColor:'#080E1B', gap:6 }}>
+      <Text style={{color:'#E8D9AF',fontSize:12,fontWeight:'600'}}>
+        GUARDIAN DEVICE QA · {qaSummary}
+      </Text>
+      <View style={{flexDirection:'row',gap:12}}>
+        <Pressable onPress={captureDeviceQa} accessibilityRole="button"
+          accessibilityLabel="Capture local Guardian frame metrics"
+          style={{minHeight:44,padding:12,borderWidth:1,borderColor:'#C9AC6D',borderRadius:8}}>
+          <Text style={{color:'#FFFFFF'}}>Capture frame QA</Text>
+        </Pressable>
+        <Pressable onPress={exportDeviceQa} disabled={!qaLatest.current}
+          accessibilityRole="button" accessibilityLabel="Share Guardian device QA report"
+          style={{minHeight:44,padding:12,borderWidth:1,borderColor:'#C9AC6D',borderRadius:8}}>
+          <Text style={{color:'#FFFFFF'}}>Export QA</Text>
+        </Pressable>
+      </View>
+    </View>:null}
     <WebView ref={webviewRef} onLoadEnd={pushGuardianFrame} key={`${world}:${variant}:${retryCount}`} source={{ html }} javaScriptEnabled scrollEnabled={false}
       originWhitelist={['about:blank']} allowFileAccess={false} allowUniversalAccessFromFileURLs={false}
       setSupportMultipleWindows={false} mediaPlaybackRequiresUserAction
@@ -57,7 +89,29 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
       onError={() => setLoadFailed(true)}
       onRenderProcessGone={() => setLoadFailed(true)}
       onContentProcessDidTerminate={() => setLoadFailed(true)}
-      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (!message || typeof message !== 'object' || !('session' in message) || message.session !== session) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'ready' && message.world === world) { sceneReady.current = true; return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && 'modelSha256' in message && message.source === 'staar-scene-v1' && message.type === 'guardian-face-ready' && world === 'hub' && message.world === world && typeof message.modelSha256 === 'string') { audio.setGuardianRigHash(message.modelSha256); return; } const action = sceneAction(message, world); if (action) { const next = { world, action, atMs: Date.now() }; if (shouldDispatchSceneAction(lastDispatch.current, next)) { lastDispatch.current = next; onAction(action); } } } catch { /* Invalid renderer messages are ignored. */ } }}
+      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (!message || typeof message !== 'object' || !('session' in message) || message.session !== session) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'ready' && message.world === world) { sceneReady.current = true; return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && 'modelSha256' in message && message.source === 'staar-scene-v1' && message.type === 'guardian-face-ready' && world === 'hub' && message.world === world && typeof message.modelSha256 === 'string') { audio.setGuardianRigHash(message.modelSha256); return; } if(qaEnabled && 'source' in message && 'type' in message && 'world' in message &&
+        'metrics' in message && message.source==='staar-scene-v1' &&
+        message.type==='guardian-device-qa' && message.world==='hub' &&
+        message.metrics && typeof message.metrics==='object' &&
+        !Array.isArray(message.metrics) &&
+        'schema' in message.metrics &&
+        message.metrics.schema==='staar-guardian-physical-device-qa-telemetry-v1'){
+          const metrics=message.metrics as Record<string,unknown>;
+          const report={
+            ...metrics,
+            exportedAt:new Date().toISOString(),
+            clientPlatform:Platform.OS,
+            renderSession:session,
+            physicalIphoneOwnerAttestation:false,
+            // An exported client report is not external AV latency evidence.
+            realDeviceCertification:'UNVERIFIED',
+          };
+          qaLatest.current=JSON.stringify(report,null,2);
+          setQaSummary(String(metrics.frameCount??0)+' rendered frames; '+
+            (metrics.modelBound===true?'GLB bound':'no approved GLB'));
+          return;
+        }
+        const action = sceneAction(message, world); if (action) { const next = { world, action, atMs: Date.now() }; if (shouldDispatchSceneAction(lastDispatch.current, next)) { lastDispatch.current = next; onAction(action); } } } catch { /* Invalid renderer messages are ignored. */ } }}
       style={{ backgroundColor: '#030713' }} />
   </View>;
 }
