@@ -28,7 +28,9 @@ test('Build235 has ten unique exact reviewed world assets, not certified physics
 test('both original and revised private ten-world models stay quarantined regardless of forged receipts',()=>{
  assert.equal(Object.keys(REVIEW_ONLY_COLLIDER_WORLD_HASHES).length,10);
  assert.equal(Object.keys(REVIEW_ONLY_BUILD235_TRIANGLE_WORLD_HASHES).length,10);
- assert.equal(REVIEW_ONLY_COLLIDER_WORLD_HASH_SET.size,20);
+ // The original Build214 and Build235 SHA sets remain exactly ten each;
+ // Build237 adds ten distinct private floor candidates without unblocking either.
+ assert.equal(REVIEW_ONLY_COLLIDER_WORLD_HASH_SET.size,30);
  for(const hash of [...Object.values(REVIEW_ONLY_COLLIDER_WORLD_HASHES),...Object.values(REVIEW_ONLY_BUILD235_TRIANGLE_WORLD_HASHES)]){
    assert.match(hash,/^[a-f0-9]{64}$/);
    assert.equal(REVIEW_ONLY_COLLIDER_WORLD_HASH_SET.has(hash),true);
