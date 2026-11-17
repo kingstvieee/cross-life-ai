@@ -12,16 +12,21 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
   const sceneReady = useRef(false);
   const [retryCount, setRetryCount] = useState(0);
   const session = useMemo(() => `${Date.now()}_${Math.random().toString(36).slice(2)}`, [world, variant, retryCount]);
+  useEffect(()=>{
+    audio.setGuardianRigHash(null);
+    return ()=>audio.setGuardianRigHash(null);
+  },[world,variant,session,audio.setGuardianRigHash]);
+
   const html = useMemo(() => worldSceneHtml(world, variant, session), [world, variant, session]);
   const [failedScene, setFailedScene] = useState<string | null>(null);
   const pushGuardianFrame=()=>{
     const allowed=audio.master&&audio.voice&&!audio.speechQuiet&&audio.voicePlaybackActive;
     iframe.current?.contentWindow?.postMessage(
-      guardianWireFrame(allowed?guardianAudioFrame:null,session),'*');
+      guardianWireFrame(allowed?(guardianAudioFrame??audio.guardianAudioFrame):null,session),'*');
   };
   useEffect(()=>{pushGuardianFrame();},[
-    guardianAudioFrame,audio.master,audio.voice,audio.speechQuiet,
-    audio.voicePlaybackActive,session,
+    guardianAudioFrame,audio.guardianAudioFrame,audio.master,audio.voice,
+    audio.speechQuiet,audio.voicePlaybackActive,session,
   ]);
 
   const sceneKey = `${world}:${variant}`;
@@ -43,11 +48,16 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
         sceneReady.current = true;
         return;
       }
+      if(event.data?.source === 'staar-scene-v1'&&event.data.type === 'guardian-face-ready'&&
+        world==='hub'&&event.data.world===world&&typeof event.data.modelSha256==='string'){
+        audio.setGuardianRigHash(event.data.modelSha256);
+        return;
+      }
       const action = sceneAction(event.data, world);
       if (action) { const next = { world, action, atMs: Date.now() }; if (shouldDispatchSceneAction(lastDispatch.current, next)) { lastDispatch.current = next; onAction(action); } }
     };
     window.addEventListener('message', receive); return () => window.removeEventListener('message', receive);
-  }, [onAction, world, sceneKey, session]);
+  }, [onAction, world, sceneKey, session, audio.setGuardianRigHash]);
   if (failed) return <div role="region" aria-label="Safe world navigation"
     style={{ padding: 22, background: '#030713', color: '#D6DFEC', minHeight: 420 }}>
     <p role="alert" style={{ color: '#F2DFB4', fontWeight: 700 }}>3D preview unavailable</p>

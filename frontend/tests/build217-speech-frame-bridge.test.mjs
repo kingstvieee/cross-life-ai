@@ -56,8 +56,9 @@ test('Build 217 web and native hosts forward only account-audible scene packets'
  const native=readFileSync(new URL('../components/staarwardd/world-scene.tsx',import.meta.url),'utf8');
  const web=readFileSync(new URL('../components/staarwardd/world-scene.web.tsx',import.meta.url),'utf8');
  for(const source of [native,web]){
-   assert.match(source,/guardianWireFrame\(allowed\?guardianAudioFrame:null,session\)/);
+   assert.match(source,/guardianWireFrame\(allowed\?\(guardianAudioFrame\?\?audio\.guardianAudioFrame\):null,session\)/);
    assert.match(source,/audio\.voicePlaybackActive/);
+   assert.match(source,/audio\.setGuardianRigHash/);
    assert.match(source,/audio\.speechQuiet/);
    assert.match(source,/onLoad/);
  }

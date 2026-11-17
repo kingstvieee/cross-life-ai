@@ -247,8 +247,11 @@ if (renderer) {
         modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
         guardianFaceMotion=createApprovedGuardianFaceMotion(guardian,{
           rigSha256:asset.rigModelSha256,expectedRigSha256:asset.rigModelSha256});
-        // No audio cues are fabricated: actual verified clip playhead input is required.
+        // Only the exact build-time receipt-checked Guardian GLB can signal
+        // readiness. 2D stills and the known rejected 3D models never do.
         guardianFaceMotion.mute();
+        if(guardianFaceMotion.readyForPlayback)
+          report('guardian-face-ready',{modelSha256:asset.rigModelSha256});
         requestDraw();
       },()=>{/* Never display guessed or partial face geometry on load failure. */});
     } catch { /* The locked Guardian artwork remains the fallback. */ }
