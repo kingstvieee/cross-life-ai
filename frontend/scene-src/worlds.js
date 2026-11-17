@@ -4,6 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createModelMotion, disposeModel } from './model-motion.js';
 import { modelControls, hitControl } from './model-navigation.js';
 import {moveCapsuleXZ, capsuleCollidesXZ, WALK_RADIUS_M} from './player-collision.js';
+import {createApprovedGuardianFaceMotion} from './guardian-face-motion.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { worldIds, worldNames, fallbackActions } from './navigation.js';
 
@@ -63,6 +64,7 @@ if (renderer) {
   let disposed = false;
   let importedControls = [];
   let walkController = null;
+  let guardianFaceMotion = null;
   // Only independently accepted production models can be loaded through the
   // approved asset gate. Review-only offline GLBs are never auto-mounted.
   function enableTaggedWalking(model, gltf, colliderScene=model) {
@@ -229,6 +231,10 @@ if (renderer) {
         guardian.position.set(-centre.x*scale,.6-bounds.min.y*scale,1.5-centre.z*scale);
         scene.add(guardian);
         modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
+        guardianFaceMotion=createApprovedGuardianFaceMotion(guardian,{
+          rigSha256:asset.rigModelSha256,expectedRigSha256:asset.rigModelSha256});
+        // No audio cues are fabricated: actual verified clip playhead input is required.
+        guardianFaceMotion.mute();
         requestDraw();
       },()=>{/* Never display guessed or partial face geometry on load failure. */});
     } catch { /* The locked Guardian artwork remains the fallback. */ }
@@ -399,7 +405,7 @@ if (renderer) {
     }
   }
   controls.addEventListener('change',requestDraw);requestDraw();
-  document.addEventListener('visibilitychange',()=>{visible=!document.hidden;lastFrameAt=null;if(!visible)cancelAnimationFrame(frame);frame=0;if(visible)requestDraw();});
+  document.addEventListener('visibilitychange',()=>{visible=!document.hidden;if(!visible)guardianFaceMotion?.mute();lastFrameAt=null;if(!visible)cancelAnimationFrame(frame);frame=0;if(visible)requestDraw();});
   addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);requestDraw();});
   const raycaster=new T.Raycaster();let down=null;
   canvas.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
@@ -410,5 +416,5 @@ if (renderer) {
   document.querySelector('#status').textContent='Drag to explore · pinch or scroll to move closer · tap a labelled control';
   for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
   canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
-  addEventListener('pagehide',()=>{disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
+  addEventListener('pagehide',()=>{disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
 }
