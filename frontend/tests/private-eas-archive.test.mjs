@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {stageApprovedStartupAudio, AUDIO_RELATIVE,PRIVATE_SOURCE_RELATIVE} from '../scripts/stage-approved-startup-audio.mjs';
-import {preparePrivateEasArchive,inspectPrivateEasArchive,generatePrivateEasIgnore,EAS_INCLUDE_PATHS} from '../scripts/prepare-private-eas-archive.mjs';
+import {preparePrivateEasArchive,inspectPrivateEasArchive,generatePrivateEasIgnore,verifyPrivateEasUploadRules,EAS_INCLUDE_PATHS} from '../scripts/prepare-private-eas-archive.mjs';
 
 async function fixture(){
  const root=await mkdtemp(path.join(tmpdir(),'staar-eas-private-'));
@@ -70,4 +70,20 @@ test('frontend-specific ignore rules are rooted at the monorepo Git root, negati
  assert.match(content,/frontend\/frontend-any\//);
  assert.match(content,/frontend\/\*\.pem/);
  assert.ok(content.trimEnd().endsWith('!'+EAS_INCLUDE_PATHS.at(-1)));
+});
+
+
+test('Build 211 signed preflight refuses missing or tampered local EAS upload policy',async()=>{
+ const f=await fixture();
+ try{
+  await assert.rejects(verifyPrivateEasUploadRules({repoRoot:f.root,frontendRoot:f.frontend}),/ENOENT/);
+  await stageApprovedStartupAudio({inputFile:f.source,frontendRoot:f.frontend,expected:f.expected});
+  await preparePrivateEasArchive({repoRoot:f.root,frontendRoot:f.frontend,expected:f.expected});
+  const verified=await verifyPrivateEasUploadRules({repoRoot:f.root,frontendRoot:f.frontend});
+  assert.equal(verified.verifiedLocalUploadRules,true);
+  assert.equal(verified.includePaths.length,2);
+  const ignore=await readFile(path.join(f.root,'.easignore'),'utf8');
+  await writeFile(path.join(f.root,'.easignore'),ignore+'!frontend/secrets.txt\\n');
+  await assert.rejects(verifyPrivateEasUploadRules({repoRoot:f.root,frontendRoot:f.frontend}),/private_eas_ignore_missing_or_noncanonical/);
+ }finally{await rm(f.root,{recursive:true,force:true});}
 });

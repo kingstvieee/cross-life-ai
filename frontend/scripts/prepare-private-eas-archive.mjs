@@ -54,6 +54,26 @@ export function generatePrivateEasIgnore(rootGitignore,frontendGitignore){
  ].join('\n');
 }
 
+/** Build 211: prove the exact generated private EAS include rules exist in the
+ * owner-controlled checkout BEFORE any signed build may be attempted.
+ * This is not a remote EAS archive attestation: inspectPrivateEasArchive remains
+ * necessary to verify that Expo actually receives the approved AAC bytes.
+ */
+export async function verifyPrivateEasUploadRules({
+ repoRoot=REPOSITORY_ROOT,frontendRoot=path.join(repoRoot,'frontend')
+}={}){
+ const [rootIgnore,frontendIgnore,easIgnore]=await Promise.all([
+  readFile(path.join(repoRoot,'.gitignore'),'utf8'),
+  readFile(path.join(frontendRoot,'.gitignore'),'utf8'),
+  readFile(path.join(repoRoot,'.easignore'),'utf8'),
+ ]);
+ const canonical=generatePrivateEasIgnore(rootIgnore,frontendIgnore);
+ if(easIgnore!==canonical)throw Error('private_eas_ignore_missing_or_noncanonical');
+ const digest=createHash('sha256').update(easIgnore,'utf8').digest('hex');
+ return {verifiedLocalUploadRules:true,sha256:digest,includePaths:[...EAS_INCLUDE_PATHS],
+  caveat:'Only local upload-rule parity. Not EAS archive upload, signing, or device playback.'};
+}
+
 export async function preparePrivateEasArchive({
  repoRoot=REPOSITORY_ROOT, frontendRoot=path.join(repoRoot,'frontend'), expected=LOCKED_GUARDIAN_MUSIC
 }={}){

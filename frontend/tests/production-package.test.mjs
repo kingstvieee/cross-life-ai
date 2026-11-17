@@ -53,3 +53,10 @@ test('preflight rejects mismatched Apple identity and invalid EAS target', async
     assert.ok(result.blockers.some(x => x.id === 'eas-production'));
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
+
+
+test('Build 211 preflight must include a local private EAS upload-rule verification',async()=>{
+ const source=await import('node:fs/promises').then(fs=>fs.readFile(new URL('../scripts/verify-production-package.mjs',import.meta.url),'utf8'));
+ assert.ok(source.includes('facts.privateEasIncludeRules = await verifyPrivateEasUploadRules'));
+ assert.ok(source.includes("fail('private-eas-archive-rules'"));
+});
