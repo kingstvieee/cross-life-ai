@@ -30,7 +30,23 @@ export const REVIEW_ONLY_BUILD235_TRIANGLE_WORLD_HASHES = Object.freeze({
   "wellbeing-health": "95720fadf933a90042a5e9c7f8d3c4db02278568df3f0330e48a7c55a2a5249c",
   "work-command": "8029e7994fdc4370d6b39baf96431ab1a3c9968c3985b62163bb3168b75f86f7"
 });
+/** Build237 floor slabs are only `walkable_candidate`; do not accept them as
+ * native physics floor surfaces or use them to bypass a production receipt.
+ */
+export const REVIEW_ONLY_BUILD237_FLOOR_WORLD_HASHES = Object.freeze({
+  "creativity-dream": "0524f57a726deb9deb702a332680a13b23bae2a5f85101ce8957b494bfcda11b",
+  "events-village": "56ca2a915e3ec92a367e8483237cec48633e00f0158751c108c4cfbe5847bdd7",
+  "home-residence": "d92331d7d14aa76b41b524c1236a3589a6a654920e1ce02a90df575e6f65ad60",
+  "relationships-realm": "8541fb3c7d611629b81ee1ba32c9ea578819ff90fc00fa3032a03588590f2fd4",
+  "relationships-singles": "03f3040ec1d97c2c9206a56d99220083081e5a3d75da0669234ea35f7ff45a3a",
+  "staarsonic-studio": "a957fbe433e0a180178007c9bf4375905decc9d39405a6fefef6dc8b0804d7af",
+  "staarverse-universe": "0b81698d02718f5d72a6a8ef811d9f72d0c21f5f644eb6f82bd277a91c77ebdf",
+  "style-closet": "4d7a967532fd3effaea1074c1b370584a7a1334fca7978901303514c63a0b15f",
+  "wellbeing-health": "aa9648c1b65e0d919808ed81ac5522d2421fc56d703a2b9d0b4880f05aff96db",
+  "work-command": "faedc9bbca605a432a31dd4f78e47120a6fb89e2747e72dbc0b56e153cf7e94b"
+});
 export const REVIEW_ONLY_COLLIDER_WORLD_HASH_SET = new Set([
   ...Object.values(REVIEW_ONLY_COLLIDER_WORLD_HASHES),
-  ...Object.values(REVIEW_ONLY_BUILD235_TRIANGLE_WORLD_HASHES)
+  ...Object.values(REVIEW_ONLY_BUILD235_TRIANGLE_WORLD_HASHES),
+  ...Object.values(REVIEW_ONLY_BUILD237_FLOOR_WORLD_HASHES)
 ]);
