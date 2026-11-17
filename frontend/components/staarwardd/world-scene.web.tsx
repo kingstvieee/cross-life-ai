@@ -1,16 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { worldSceneHtml } from '@/generated/world-runtime';
+import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
+import { guardianWireFrame, type GuardianAudioFrame } from '@/src/guardian-audio-frame';
 import { sceneAction, sceneFallbackActions } from '@/src/scene-events';
 import { shouldDispatchSceneAction, type SceneDispatch } from '@/src/scene-action-dedup';
 
-export function WorldScene({ world, variant = 'realm', onAction }: { world: string; variant?: 'realm' | 'singles'; onAction: (action: string) => void }) {
+export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFrame = null }: { world: string; variant?: 'realm' | 'singles'; onAction: (action: string) => void; guardianAudioFrame?: GuardianAudioFrame | null }) {
   const iframe = useRef<HTMLIFrameElement | null>(null);
+  const audio=useStaarAudio();
   const lastDispatch = useRef<SceneDispatch | null>(null);
   const sceneReady = useRef(false);
   const [retryCount, setRetryCount] = useState(0);
   const session = useMemo(() => `${Date.now()}_${Math.random().toString(36).slice(2)}`, [world, variant, retryCount]);
   const html = useMemo(() => worldSceneHtml(world, variant, session), [world, variant, session]);
   const [failedScene, setFailedScene] = useState<string | null>(null);
+  const pushGuardianFrame=()=>{
+    const allowed=audio.master&&audio.voice&&!audio.speechQuiet&&audio.voicePlaybackActive;
+    iframe.current?.contentWindow?.postMessage(
+      guardianWireFrame(allowed?guardianAudioFrame:null,session),'*');
+  };
+  useEffect(()=>{pushGuardianFrame();},[
+    guardianAudioFrame,audio.master,audio.voice,audio.speechQuiet,
+    audio.voicePlaybackActive,session,
+  ]);
+
   const sceneKey = `${world}:${variant}`;
   const failed = failedScene === sceneKey;
   useEffect(() => {
@@ -49,7 +62,7 @@ export function WorldScene({ world, variant = 'realm', onAction }: { world: stri
       </button>)}
     </nav>
   </div>;
-  return <iframe key={`${sceneKey}:${retryCount}`} ref={iframe} title={`${world} navigable 3D environment`} srcDoc={html}
+  return <iframe key={`${sceneKey}:${retryCount}`} ref={iframe} onLoad={pushGuardianFrame} title={`${world} navigable 3D environment`} srcDoc={html}
     onError={() => setFailedScene(sceneKey)}
     sandbox="allow-scripts" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', minHeight: 420, border: 0, display: 'block', background: '#030713' }} />;
 }
