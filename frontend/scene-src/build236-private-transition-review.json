@@ -1,0 +1,51 @@
+{
+  "schema": "staar-build236-private-transition-review-v1",
+  "modelSha256": "283a1d5175c59f07f68373feb81ba417f9ea689de21f41ef0abdeb182fa0cec8",
+  "modelBytes": 10738796,
+  "parentBuild234Sha256": "2ae8eda577a5f60a0c82bb73d04be8280065acba9083b7c4d480e572cb0a58b8",
+  "approvedBuild228FaceBinPrefixSha256": "ee78ab8bc97a7cad9853c878ace2d11d528ca9f4f981a0d5aff75ac8fc89c03d",
+  "approvedBuild228FaceModelSha256": "4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b",
+  "originalMorphTargets": 16,
+  "originalFacialClips": 3,
+  "bodyJoints": 16,
+  "bodyCycles": [
+    "WALK_IN_PLACE_BODY_QA",
+    "RUN_IN_PLACE_BODY_QA"
+  ],
+  "transitions": [
+    {
+      "name": "BUILD236_WALK_START_BODY_QA",
+      "durationSeconds": 0.32,
+      "keyframes": 21,
+      "bodyTracks": 13
+    },
+    {
+      "name": "BUILD236_WALK_STOP_BODY_QA",
+      "durationSeconds": 0.35,
+      "keyframes": 21,
+      "bodyTracks": 13
+    },
+    {
+      "name": "BUILD236_RUN_START_BODY_QA",
+      "durationSeconds": 0.22,
+      "keyframes": 21,
+      "bodyTracks": 13
+    },
+    {
+      "name": "BUILD236_RUN_STOP_BODY_QA",
+      "durationSeconds": 0.28,
+      "keyframes": 21,
+      "bodyTracks": 13
+    }
+  ],
+  "neutralToClipContinuityVerified": true,
+  "clipToNeutralContinuityVerified": true,
+  "originalFaceAndAnimationBytesPreserved": true,
+  "founderFullBodyRigAccepted": false,
+  "realIphoneMotionPassed": false,
+  "naturalHumanMovementCertified": false,
+  "inWorldRootMotionCertified": false,
+  "releaseAllowed": false,
+  "costCAD": 0,
+  "privateArchive": "/Projects/STAARWAARDD/STAAR Hub/Private Release Staging/STAARWAARDD_Build236_Private_Guardian_Transitions_NOT_RELEASE_APPROVED.zip"
+}
