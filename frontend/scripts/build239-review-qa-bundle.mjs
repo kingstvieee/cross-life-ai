@@ -6,6 +6,8 @@
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {REVIEW_ONLY_COLLIDER_WORLD_HASH_SET} from '../scene-src/world-review-only-shas.mjs';
+import {assertGuardianModelNotRejected} from '../scene-src/approved-guardian-asset.mjs';
 
 export const WORLD_QA_ENTRIES=Object.freeze([
  ['home-residence','home','residence'],
@@ -39,6 +41,10 @@ export function examineGuardianQaReport(guardian){
  const m=guardian.metrics;
  if(!obj(m))return record([...issues,'guardian_metrics_missing']);
  requireSafe(m.modelBound===true&&HASH.test(m.modelSha256??''),'guardian_approved_asset_not_bound',issues);
+ if(HASH.test(m.modelSha256??'')){
+  try{assertGuardianModelNotRejected(m.modelSha256)}
+  catch{issues.push('guardian_known_private_or_rejected_model');}
+ }
  requireSafe(guardian.result==='REVIEW_REQUIRED','guardian_not_ready_for_manual_review',issues);
  requireSafe(safeInt(m.frameCount)&&m.frameCount>=300,'guardian_insufficient_frames',issues);
  requireSafe(finite(m.frameP95Ms)&&m.frameP95Ms<=33.34,'guardian_frame_p95_above_30fps_budget',issues);
@@ -86,6 +92,8 @@ export function examineWorldQaBundle(bundle){
    if(m.modelBound===true)modelCount++;
    requireSafe(m.modelBound===true&&HASH.test(m.modelSha256??''),
     'approved_world_model_not_bound',issues);
+   if(HASH.test(m.modelSha256??'')&&REVIEW_ONLY_COLLIDER_WORLD_HASH_SET.has(m.modelSha256))
+     issues.push('known_review_only_world_glb');
    requireSafe(m.worldKey===meta.key,'world_metric_identity_mismatch',issues);
    requireSafe(row.result==='REVIEW_REQUIRED','world_not_ready_for_manual_review',issues);
    requireSafe(safeInt(m.frameCount)&&m.frameCount>=300,'world_insufficient_frames',issues);
