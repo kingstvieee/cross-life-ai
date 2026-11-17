@@ -140,7 +140,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===thisFile){
  const mode=process.argv[2];
  (async()=>{
   if(mode==='prepare')return preparePrivateEasArchive();
-  if(mode==='inspect')return inspectPrivateEasArchive({archiveRoot:process.argv[3]});
+  if(mode==='inspect')return inspectPrivateEasArchive({archiveRoot:process.argv[3],checkoutRoot:FRONTEND_ROOT});
   throw Error('Usage: prepare | inspect <eas-build-inspect-output-directory>');
  })().then(value=>process.stdout.write(JSON.stringify(value,null,2)+'\n'))
    .catch(err=>{process.stderr.write(String(err?.message||err)+'\n');process.exitCode=1});
