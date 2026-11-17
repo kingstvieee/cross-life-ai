@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createModelMotion, disposeModel } from './model-motion.js';
 import {createGuardianLocomotion} from './guardian-locomotion.js';
+import {createWorldPhysicsProbe} from './world-physics-qa.js';
 import { modelControls, hitControl } from './model-navigation.js';
 import {moveCapsuleXZ, routeIsClear, WALK_RADIUS_M} from './player-collision.js';
 import {createTriangleCollisionIndex} from './player-triangle-collision.js';
@@ -71,6 +72,8 @@ if (renderer) {
   let walkController = null;
   let guardianFaceMotion = null;
   let guardianLocomotion = null;
+  const worldQaEnabled=window.STAAR_WORLD_COLLISION_QA===true && world!=='hub';
+  let worldPhysicsQa=null;
   const guardianDeviceQa = window.STAAR_GUARDIAN_QA === true && world === 'hub'
     ? createGuardianDevicePerformanceProbe() : null;
   // This does not create speech cues. Actual verified audio playback must supply
@@ -78,6 +81,13 @@ if (renderer) {
   const onHostFaceFrame=e=>{
     let packet=e?.data;
     if(typeof packet==='string'){try{packet=JSON.parse(packet);}catch{return;}}
+    if(packet?.source==='staar-world-physics-qa-request-v1' &&
+        packet.session===session && worldQaEnabled){
+      report('world-physics-qa',{metrics:worldPhysicsQa?.snapshot()??{
+        schema:'staar-world-physical-device-qa-telemetry-v1',worldKey:world,
+        decision:'UNVERIFIED',reason:'no_verified_world_model'}});
+      return;
+    }
     if(packet?.source==='staar-guardian-locomotion-qa-command-v1' &&
         packet.session===session && window.STAAR_GUARDIAN_QA===true && world==='hub'){
       const accepted=guardianLocomotion?.setMode(packet.mode)===true;
@@ -250,6 +260,8 @@ if (renderer) {
         camera.position.x+=shiftX;camera.position.z+=shiftZ;
         controls.target.x+=shiftX;controls.target.z+=shiftZ;
         if(Math.abs(shiftX)+Math.abs(shiftZ)>.001)controls.update();
+        worldPhysicsQa?.movement({distance:Math.hypot(shiftX,shiftZ),
+          blocked:result.blocked,running:held.has('run')});
       },
       dispose(){
         held.clear();removeEventListener('keydown',onDown);
@@ -260,6 +272,8 @@ if (renderer) {
     camera.position.set(current.x,feet+3.4*scale,current.z+6*scale);
     controls.target.set(current.x,feet+1.15*scale,current.z);
     controls.update();controls.saveState();
+    worldPhysicsQa?.navigationReady({groundTriangleCount:groundIndex.triangleCount,
+      solidTriangleCount:collisionIndex.triangleCount,routePassed:true});
     report('navigation-ready',{collisionMode:'tagged-triangle-capsule',
       solidMeshes:solids.length,solidTriangles:collisionIndex.triangleCount,
       collisionCells:collisionIndex.gridCellCount,
@@ -446,6 +460,10 @@ if (renderer) {
       ({home:'residence',work:'command',creativity:'dream',wellbeing:'health',events:'village',style:'closet',staarverse:'universe',staarsonic:'studio'})[world];
     const asset=window.STAAR_APPROVED_WORLD_ASSETS?.[world+'-'+variant];
     if(!asset?.glbBase64)return;
+    if(worldQaEnabled){
+      try{worldPhysicsQa=createWorldPhysicsProbe({worldKey:world+'-'+variant,
+        modelSha256:asset.modelSha256});}catch{worldPhysicsQa=null;}
+    }
     try {
       const raw=atob(asset.glbBase64), bytes=new Uint8Array(raw.length);
       for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
@@ -512,6 +530,7 @@ if (renderer) {
       const t=(now-start)/1000;
       const delta=lastFrameAt===null?0:(now-lastFrameAt)/1000;lastFrameAt=now;
       modelMotions.forEach(motion=>motion.update(delta,visible));
+      worldPhysicsQa?.frame(now);
       walkController?.tick(Math.max(0,Math.min(delta,.075)));
       animated.forEach(fn=>fn(t));controls.update();
       const renderStart=guardianDeviceQa ? performance.now() : 0;
@@ -540,6 +559,6 @@ if (renderer) {
   document.querySelector('#title').textContent=world==='hub'?'STAARWARDD · PORTAL HUB':(singles?'STAAR Love · Singles':names[ids.indexOf(world)]);
   document.querySelector('#status').textContent='Drag to explore · pinch or scroll to move closer · tap a labelled control';
   for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
-  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
+  canvas.addEventListener('webglcontextlost',e=>{worldPhysicsQa?.contextLost();e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
   addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
 }
