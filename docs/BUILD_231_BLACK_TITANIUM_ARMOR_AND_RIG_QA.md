@@ -1,3 +1,5 @@
+> **SUPERSEDED FINISH RECORD (November 17, 2026):** The explicitly selected finish for the current Guardian full-body production direction is **CHROME + GOLD (variant 0)**, not black titanium. This document describes a historical private black titanium prototype only. Its model remains quarantined. See `docs/BUILD_231_LOCKED_CHROME_GOLD_RIG_QA_AND_APPLE_HOLD.md`. No Apple or device acceptance changed.
+
 # STAARWAARDD Guardian — Build 231 black titanium/gold finish lock and rig refinement
 
 **Founder instruction:** "Lock the Build 229 Guardian armour finish as black titanium and gold. Preserve the founder-approved Build 228 face. Continue production-quality rig refinement and verification without bypassing Apple release safeguards."
