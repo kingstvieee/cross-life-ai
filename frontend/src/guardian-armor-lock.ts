@@ -34,6 +34,9 @@ export const PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256 = '3332367a0085c1c7a87
 export const PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256 = '8168758c8d8b3c448069315b451147f7d655227f8e1963adfc7fac915e595ab3' as const;
 // Founder has visually accepted the exact Build 228 binary; physical-device/neck/armour/release evidence has NOT been accepted.
 export const PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256 = '4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b' as const;
+// Private Build 229 static-body and 230 approximate-body-rig candidates have no owner/full device acceptance.
+export const PRIVATE_BUILD229_STATIC_BODY_REVIEW_SHA256 = '84295da28d4b580f83cad8786cf684ea498c45d5185c85a7d09955b9c6b5f5b4' as const;
+export const PRIVATE_BUILD230_EXPERIMENTAL_BODY_RIG_SHA256 = '656a12b79a334e6d0a4301b666df5098f0ab6ae1387a5195904b978fc5415130' as const;
 
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
   'da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395',
@@ -67,6 +70,8 @@ export function canActivateArmoredGuardian3D(
     && evidence.rigModelSha256 !== PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD229_STATIC_BODY_REVIEW_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD230_EXPERIMENTAL_BODY_RIG_SHA256
     && !REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(evidence.rigModelSha256)
     && evidence.identityAssetId.trim().length > 0
     && evidence.founderApprovedRig === true
