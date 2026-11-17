@@ -74,6 +74,7 @@ jobs:
       - run: node --test tests/build217-speech-frame-bridge.test.mjs
       - run: node --experimental-strip-types --test tests/build217-live-playback.test.mjs
       - run: node --test tests/build223-iphone-performance-probe.test.mjs
+      - run: node --test tests/build228-founder-visual-gate.test.mjs
       - run: node --test tests/build219-independent-security-evidence.test.mjs
       - run: node --test tests/build218-219-live-provisioning.test.mjs
       - run: node --experimental-strip-types --test tests/build220-testflight-release-gates.test.mjs
