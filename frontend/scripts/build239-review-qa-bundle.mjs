@@ -10,16 +10,16 @@ import {REVIEW_ONLY_COLLIDER_WORLD_HASH_SET} from '../scene-src/world-review-onl
 import {assertGuardianModelNotRejected} from '../scene-src/approved-guardian-asset.mjs';
 
 export const WORLD_QA_ENTRIES=Object.freeze([
- ['home-residence','home','residence'],
- ['work-command','work','command'],
- ['creativity-dream','creativity','dream'],
- ['wellbeing-health','wellbeing','health'],
+ ['home-residence','home','realm'],
+ ['work-command','work','realm'],
+ ['creativity-dream','creativity','realm'],
+ ['wellbeing-health','wellbeing','realm'],
  ['relationships-realm','relationships','realm'],
  ['relationships-singles','relationships','singles'],
- ['events-village','events','village'],
- ['style-closet','style','closet'],
- ['staarverse-universe','staarverse','universe'],
- ['staarsonic-studio','staarsonic','studio'],
+ ['events-village','events','realm'],
+ ['style-closet','style','realm'],
+ ['staarverse-universe','staarverse','realm'],
+ ['staarsonic-studio','staarsonic','realm'],
 ].map(([key,scene,variant])=>Object.freeze({key,scene,variant})));
 const WORLD_MAP=new Map(WORLD_QA_ENTRIES.map(x=>[x.key,x]));
 const HASH=/^[a-f0-9]{64}$/;
