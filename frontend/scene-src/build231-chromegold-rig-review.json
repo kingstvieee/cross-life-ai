@@ -1,0 +1,63 @@
+{
+  "schema": "staarwardd-guardian-build231-armor-finish-and-rig-qa-v1",
+  "ownerDecision": {
+    "finish": "chrome-and-gold",
+    "sourceBuild": 229,
+    "scope": "Founder locked material finish; not a new approval for identity rig or Apple distribution",
+    "alternateBlackTitaniumGoldRemainsUnapprovedAsDefault": true,
+    "approvedFaceBuild": 228,
+    "approvedFaceModelSha256": "4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b"
+  },
+  "sourceAssets": {
+    "build229Sha256": "84295da28d4b580f83cad8786cf684ea498c45d5185c85a7d09955b9c6b5f5b4",
+    "build230Sha256": "656a12b79a334e6d0a4301b666df5098f0ab6ae1387a5195904b978fc5415130",
+    "privateBuild231Sha256": "cca5092a8971c7817dab3301b4540c8a9b53844bc1aa0257840bf9db957a077c",
+    "approvedBuild228BinPrefix": {
+      "sizeBytes": 4735136,
+      "sha256": "ee78ab8bc97a7cad9853c878ace2d11d528ca9f4f981a0d5aff75ac8fc89c03d"
+    },
+    "materialEvidence": {
+      "defaultVariantIndex": 0,
+      "finish": "chrome-and-gold",
+      "chromeMaterialIndex": 18,
+      "goldTrimIndex": 19,
+      "goldMaterialIndex": 20,
+      "blackTitaniumAlternativeMaterialIndex": 23
+    }
+  },
+  "rigQa": {
+    "bodyVertices": 83446,
+    "bodyJointCount": 16,
+    "rigidArmourComponents": 480,
+    "rigidVertices": 74907,
+    "softVertices": 8539,
+    "poseTimesSeconds": [
+      0,
+      0.5,
+      1,
+      1.5,
+      2
+    ],
+    "maxSampledVertexTravelMeters": 0.5071657299995422,
+    "maxSampledRigidComponentDistanceErrorMeters": 2.682209014892578e-7,
+    "originalFaceAnimationsPreserved": 3,
+    "originalHeadMorphTargetsPreserved": 16,
+    "verifiedBy": "offline Python CPU skinning and Trimesh GLB load",
+    "bounds": "Not real motion capture, visual owner approval, physical iPhone or collision certification"
+  },
+  "release": {
+    "founderApprovedFinish": true,
+    "founderApprovedFaceAppearance": true,
+    "founderApprovedFullBodyRig": false,
+    "iphoneLipSyncVerified": false,
+    "androidDeviceVerified": false,
+    "tenWorldNativeCollisionVerified": false,
+    "starCenttinelRecoveryVerified": false,
+    "easInspectedArchiveVerified": false,
+    "signedAppleIpaVerified": false,
+    "testFlightUploadCompleted": false,
+    "productionAllowed": false,
+    "directAdditionalSpendCAD": 0
+  },
+  "privateArchiveLibraryPath": "/Projects/STAARWAARDD/STAAR Hub/Private Release Staging/STAARWAARDD_Build231_ChromeGold_Private_Rig_QA_NOT_APPROVED.zip"
+}
