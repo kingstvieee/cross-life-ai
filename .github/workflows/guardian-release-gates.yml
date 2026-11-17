@@ -85,6 +85,9 @@ jobs:
       - run: node --test tests/build235-triangle-runtime.test.mjs
       - run: node --test tests/build236-locomotion-controller.test.mjs
       - run: node --test tests/build237-ground-acceptance.test.mjs
+      - run: node --test tests/build237-world-device-qa.test.mjs
+      - run: node --test tests/build236-locomotion-controller.test.mjs
+      - run: node --test tests/build237-ground-acceptance.test.mjs
       - run: node --test tests/build219-independent-security-evidence.test.mjs
       - run: node --test tests/build218-219-live-provisioning.test.mjs
       - run: node --experimental-strip-types --test tests/build220-testflight-release-gates.test.mjs
