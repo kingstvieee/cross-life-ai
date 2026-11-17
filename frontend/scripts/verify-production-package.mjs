@@ -12,6 +12,7 @@ import { loadApprovedWorldAssets, REQUIRED_WORLD_ASSETS } from '../scene-src/app
 import { verifyReleaseEvidence } from './verify-release-evidence.mjs';
 import { verifyApprovedSoundtrack } from './verify-approved-soundtrack.mjs';
 import { verifyStagedNativeSource } from './stage-approved-startup-audio.mjs';
+import { verifyPrivateEasUploadRules } from './prepare-private-eas-archive.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const FRONTEND_ROOT = path.resolve(HERE, '..');
@@ -65,6 +66,16 @@ export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFli
     facts.approvedAudio = await verifyApprovedSoundtrack(root);
     facts.approvedAudioNativeSource = await verifyStagedNativeSource(root);
   } catch (err) { fail('approved-soundtrack', err?.message ?? err); }
+
+  // Local private bytes alone cannot guarantee EAS receives the approved AAC.
+  // Refuse a build when the exact upload include policy was not staged at Git root.
+  if (facts.approvedAudio && facts.approvedAudioNativeSource) {
+    try {
+      facts.privateEasIncludeRules = await verifyPrivateEasUploadRules({
+        repoRoot:path.resolve(root,'..'), frontendRoot:root,
+      });
+    } catch(err) { fail('private-eas-archive-rules',err?.message ?? err); }
+  }
 
   try {
     const bytes = await readFile(path.join(root, 'assets/videos/guardian-startup.mp4'));
