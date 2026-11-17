@@ -136,6 +136,8 @@ test('Build238 preview profile exposes QA and production profile disables it',as
  assert.match(source,/exportWorldQaArchive\(archive/);
  assert.match(source,/Alert\.alert\('Clear saved world QA\?'/);
  assert.match(source,/Share\.share/);
- assert.match(source,/physicalIphoneOwnerAttestation:false|certification:'UNVERIFIED'/);
+ const sanitizer=await readFile(new URL('../src/iphone-qa-controls.ts',import.meta.url),'utf8');
+ assert.match(sanitizer,/physicalIphoneOwnerAttestation:false/);
+ assert.match(sanitizer,/certification:'UNVERIFIED'/);
  assert.doesNotMatch(source,/fetch\('https:\/\/.*(guardian|world).*qa/);
 });
