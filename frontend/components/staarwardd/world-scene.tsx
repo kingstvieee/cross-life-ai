@@ -16,12 +16,13 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
     const js="window.dispatchEvent(new MessageEvent('message',{data:"+JSON.stringify(packet)+"}));true;";
     webviewRef.current?.injectJavaScript(js);
   };
+  const [retryCount, setRetryCount] = useState(0);
+  const session = useMemo(() => `${Date.now()}_${Math.random().toString(36).slice(2)}`, [world, variant, retryCount]);
   useEffect(()=>{pushGuardianFrame();},[
     guardianAudioFrame,audio.master,audio.voice,audio.speechQuiet,
     audio.voicePlaybackActive,session,
   ]);
-  const [retryCount, setRetryCount] = useState(0);
-  const session = useMemo(() => `${Date.now()}_${Math.random().toString(36).slice(2)}`, [world, variant, retryCount]);
+
   const html = useMemo(() => worldSceneHtml(world, variant, session), [world, variant, session]);
   const [loadFailed, setLoadFailed] = useState(false);
   const sceneReady = useRef(false);
