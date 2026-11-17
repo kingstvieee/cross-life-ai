@@ -2,6 +2,7 @@ import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {REVIEW_ONLY_COLLIDER_WORLD_HASH_SET} from './world-review-only-shas.mjs';
+import {REVIEW_ONLY_MOBILE_PROXY_SHA_SET} from './mobile-proxy-review-hashes.mjs';
 
 export const WORLD_IDS = Object.freeze(['home','work','creativity','wellbeing','relationships','events','style','staarverse','staarsonic']);
 export const WORLD_VARIANTS = Object.freeze({
@@ -88,6 +89,7 @@ export function validateWorldCollisionProxy(bytes, receipt, expected) {
  const digest=createHash('sha256').update(bytes).digest('hex');
  if(!sha(receipt.collisionProxySha256)||receipt.collisionProxySha256!==digest)
     fail('collision_proxy_hash');
+ if(REVIEW_ONLY_MOBILE_PROXY_SHA_SET.has(digest))fail('review_only_mobile_proxy');
  return {sha256:digest,solidProxyCount:solids.length,glbBase64:bytes.toString('base64')};
 }
 
