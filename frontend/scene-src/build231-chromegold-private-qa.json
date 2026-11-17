@@ -1,0 +1,28 @@
+{
+  "schema": "staarwardd-private-chrome-gold-build231-qa-v1",
+  "selectedInThisReview": "chrome-and-gold",
+  "productionFinishAuthority": "Unresolved: concurrent explicit owner instructions in other sessions select black titanium + gold",
+  "build231GlbSha256": "cca5092a8971c7817dab3301b4540c8a9b53844bc1aa0257840bf9db957a077c",
+  "build229SourceSha256": "84295da28d4b580f83cad8786cf684ea498c45d5185c85a7d09955b9c6b5f5b4",
+  "approvedFaceBuild228Sha256": "4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b",
+  "originalFaceBinaryPrefixSha256": "ee78ab8bc97a7cad9853c878ace2d11d528ca9f4f981a0d5aff75ac8fc89c03d",
+  "chromeMaterialIndex": 18,
+  "goldMaterialIndex": 20,
+  "blackTitaniumAlternativeMaterialIndex": 23,
+  "privateArchiveLibraryPath": "/Projects/STAARWAARDD/STAAR Hub/Private Release Staging/STAARWAARDD_Build231_ChromeGold_Private_Rig_QA_NOT_APPROVED.zip",
+  "offlineRigQa": {
+    "skinnedBodyVertices": 83446,
+    "rigidComponents": 480,
+    "joints": 16,
+    "poseSamples": 5,
+    "maxVertexTravelMeters": 0.50716573,
+    "maxRigidPieceDistanceErrorMeters": 2.682209e-7
+  },
+  "noChangesToExistingBuild232Finish": true,
+  "visualFullBodyAccepted": false,
+  "physicalIphoneSyncVerified": false,
+  "appStoreSigned": false,
+  "testflightSubmitted": false,
+  "productionReleaseAuthorized": false,
+  "directAdditionalSpendCAD": 0
+}
