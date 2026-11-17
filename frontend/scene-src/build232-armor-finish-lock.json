@@ -1,0 +1,37 @@
+{
+  "schema": "staarwardd-guardian-build232-fullbody-armor-finish-lock-v1",
+  "ownerInstruction": "Lock the Build 229 Guardian armour finish as black titanium and gold. Preserve the founder-approved Build 228 face.",
+  "effectiveDateToronto": "2026-11-17",
+  "founderApprovedAppearance": {
+    "faceBuild": 228,
+    "faceModelSha256": "4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b",
+    "bodyArmorFinish": "black-titanium-and-gold",
+    "finishSourceBuild": 229,
+    "finishApprovalScope": "Full-body armour finish only; NOT final rig, geometry or iPhone acceptance",
+    "legacyChromeFinish": "Review only; not active by default"
+  },
+  "privateModelCandidate": {
+    "build": 232,
+    "sha256": "ecc3c9660cd3bacef39c5ca28193b2c67a4ec5ff433c77347ce58b741bc456f9",
+    "sourceBuild231Sha256": "cca5092a8971c7817dab3301b4540c8a9b53844bc1aa0257840bf9db957a077c",
+    "bodyJoints": 16,
+    "bodySkinnedVertices": 83446,
+    "rigQAOnly": true,
+    "defaultPbrMaterialIndex": 23,
+    "alternateChromeVariantIndex": 0,
+    "blackVariantIndex": 1,
+    "privateLibraryFolder": "/Projects/STAARWAARDD/STAAR Hub/Private Release Staging/"
+  },
+  "binarySpecificAcceptance": {
+    "faceVisualReferenceApproved": true,
+    "armorFinishApproved": true,
+    "fullBodySkinWeightsAccepted": false,
+    "naturalWalkingAccepted": false,
+    "physicalIphoneLipSyncAccepted": false,
+    "signedAppleIPAProduced": false,
+    "testflightSubmissionReceiptVerified": false
+  },
+  "productionReleaseAllowed": false,
+  "releaseGate": "Reject the exact Build232 SHA. For future candidate require real GLB black default material and gold hardware, independent founder rig/rights/device evidence, StarCenttinel recovery, EAS archive, Apple signing and TestFlight acceptance.",
+  "directAdditionalSpendCAD": 0
+}
