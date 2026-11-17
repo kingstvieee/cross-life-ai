@@ -78,6 +78,7 @@ jobs:
       - run: node --experimental-strip-types --test tests/build229-230-rig-release-hold.test.mjs
       - run: node --experimental-strip-types --test tests/build231-black-titanium-finish-lock.test.mjs
       - run: node --experimental-strip-types --test tests/build232-locked-black-gold-finish.test.mjs
+      - run: node --experimental-strip-types --test tests/build231-chromegold-private-qa.test.mjs
       - run: node --test tests/build219-independent-security-evidence.test.mjs
       - run: node --test tests/build218-219-live-provisioning.test.mjs
       - run: node --experimental-strip-types --test tests/build220-testflight-release-gates.test.mjs
