@@ -2,6 +2,7 @@ import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createModelMotion, disposeModel } from './model-motion.js';
+import {createGuardianLocomotion} from './guardian-locomotion.js';
 import { modelControls, hitControl } from './model-navigation.js';
 import {moveCapsuleXZ, routeIsClear, WALK_RADIUS_M} from './player-collision.js';
 import {createTriangleCollisionIndex} from './player-triangle-collision.js';
@@ -69,6 +70,7 @@ if (renderer) {
   let importedControls = [];
   let walkController = null;
   let guardianFaceMotion = null;
+  let guardianLocomotion = null;
   const guardianDeviceQa = window.STAAR_GUARDIAN_QA === true && world === 'hub'
     ? createGuardianDevicePerformanceProbe() : null;
   // This does not create speech cues. Actual verified audio playback must supply
@@ -76,6 +78,14 @@ if (renderer) {
   const onHostFaceFrame=e=>{
     let packet=e?.data;
     if(typeof packet==='string'){try{packet=JSON.parse(packet);}catch{return;}}
+    if(packet?.source==='staar-guardian-locomotion-qa-command-v1' &&
+        packet.session===session && window.STAAR_GUARDIAN_QA===true && world==='hub'){
+      const accepted=guardianLocomotion?.setMode(packet.mode)===true;
+      report('guardian-locomotion-qa',{accepted,mode:guardianLocomotion?.snapshot().mode??'idle',
+        physicalIphoneMotionCertified:false});
+      if(accepted)requestDraw();
+      return;
+    }
     if(packet?.source==='staar-guardian-device-qa-request-v1' &&
         packet.session===session && guardianDeviceQa){
       report('guardian-device-qa',{metrics:guardianDeviceQa.snapshot()});
@@ -331,6 +341,11 @@ if (renderer) {
         guardian.position.set(-centre.x*scale,.6-bounds.min.y*scale,1.5-centre.z*scale);
         scene.add(guardian);
         modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
+        // Only importer-accepted Guardian assets ever reach this branch.
+        // No experimental Build236 GLB can pass the exact SHA gate.
+        guardianLocomotion=createGuardianLocomotion(guardian,model.animations,
+          {approvedAsset:true,reducedMotion:reduced});
+        modelMotions.push(guardianLocomotion);
         guardianFaceMotion=createApprovedGuardianFaceMotion(guardian,{
           rigSha256:asset.rigModelSha256,expectedRigSha256:asset.rigModelSha256});
         // Only the exact build-time receipt-checked Guardian GLB can signal
