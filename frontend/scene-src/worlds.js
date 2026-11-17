@@ -65,7 +65,7 @@ if (renderer) {
   let walkController = null;
   // Only independently accepted production models can be loaded through the
   // approved asset gate. Review-only offline GLBs are never auto-mounted.
-  function enableTaggedWalking(model, gltf) {
+  function enableTaggedWalking(model, gltf, colliderScene=model) {
     // GLTFLoader does not necessarily copy asset-level extras to scene.userData.
     const nav=gltf?.parser?.json?.extras?.staarNavigationCandidate ||
       model.userData?.staarNavigationCandidate;
@@ -74,7 +74,7 @@ if (renderer) {
       !Number.isFinite(nav?.capsuleRadiusM)||Math.abs(nav.capsuleRadiusM-WALK_RADIUS_M)>.01)
       return false;
     const solids=[];
-    model.traverse(node=>{
+    colliderScene.traverse(node=>{
       if(!node.isMesh || node.userData?.staarCollisionRole!=='solid')return;
       const bounds=new T.Box3().setFromObject(node);
       if(bounds.isEmpty())return;
@@ -345,11 +345,33 @@ if (renderer) {
         clickable.push(...importedControls.map(control=>control.node));
         scene.add(model);
         modelMotions.push(createModelMotion(model,gltf.animations,{reducedMotion:reduced}));
-        const walkingEnabled=enableTaggedWalking(model,gltf);
-        addNavigationFallback();
-        document.querySelector('#status').textContent=walkingEnabled
-          ? '3D walking enabled · WASD, arrow keys, or touch controls'
-          : '3D world loaded · navigation controls below (walking unavailable)';
+        // Mobile LODs must load a separately hash-verified collision proxy.
+        // If it is missing or cannot parse, never enable free 3D walking.
+        const updateWalkStatus=enabled=>{
+          addNavigationFallback();
+          document.querySelector('#status').textContent=enabled
+            ? '3D walking enabled · WASD, arrow keys, or touch controls'
+            : '3D world loaded · navigation controls below (walking unavailable)';
+          requestDraw();
+        };
+        if(asset.collisionGlbBase64){
+          try{
+            const rawProxy=atob(asset.collisionGlbBase64),data=new Uint8Array(rawProxy.length);
+            for(let i=0;i<rawProxy.length;i++)data[i]=rawProxy.charCodeAt(i);
+            new GLTFLoader().parse(data.buffer,'',proxy=>{
+              if(disposed||!proxy?.scene){if(proxy?.scene)disposeModel(proxy.scene);return;}
+              const collisionOnly=proxy.scene;
+              collisionOnly.scale.copy(model.scale);
+              collisionOnly.rotation.copy(model.rotation);
+              collisionOnly.position.copy(model.position);
+              collisionOnly.visible=false;scene.add(collisionOnly);
+              collisionOnly.updateMatrixWorld(true);
+              updateWalkStatus(enableTaggedWalking(model,gltf,collisionOnly));
+            },()=>updateWalkStatus(false));
+          }catch{updateWalkStatus(false);}
+        }else{
+          updateWalkStatus(enableTaggedWalking(model,gltf));
+        }
         requestDraw();
       },()=>{/* Keep working preview scene when offline GLB parsing fails. */});
     }catch{/* Never lose functional preview navigation on model failure. */}
