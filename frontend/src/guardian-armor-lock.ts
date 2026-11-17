@@ -28,6 +28,7 @@ export const LOCKED_ARMORED_GUARDIAN = Object.freeze({
 export const REJECTED_BUILD202_GUARDIAN_MODEL_SHA256 = '847c2f412b0184a372cd8a6a9149b78fcfe33a7e3127297196a80611f5e0f50d' as const;
 
 export const PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256 = '09dcb3cb56b70f5a2b38e5d5f68de627a62df5ad42ad89e2f9d9123d92cf70b5' as const;
+export const PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256 = '325bc975ccae49db54e5c5ac761a229d7b66930663cb68f5ff5844a507771a36' as const;
 
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
   'da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395',
@@ -57,6 +58,7 @@ export function canActivateArmoredGuardian3D(
     && /^[a-f0-9]{64}$/.test(evidence.rigModelSha256)
     && evidence.rigModelSha256 !== REJECTED_BUILD202_GUARDIAN_MODEL_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256
     && !REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(evidence.rigModelSha256)
     && evidence.identityAssetId.trim().length > 0
     && evidence.founderApprovedRig === true
