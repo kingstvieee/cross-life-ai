@@ -97,7 +97,7 @@ export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFli
       fail('private-eas-inspected-archive','No authenticated EAS build:inspect archive was supplied');
     } else {
       try {
-        facts.privateEasArchive=await inspectPrivateEasArchive({archiveRoot});
+        facts.privateEasArchive=await inspectPrivateEasArchive({archiveRoot,checkoutRoot:root});
       } catch(err) { fail('private-eas-inspected-archive',err?.message??err); }
     }
   }
