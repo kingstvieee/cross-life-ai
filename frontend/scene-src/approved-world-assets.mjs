@@ -1,6 +1,7 @@
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
+import {REVIEW_ONLY_COLLIDER_WORLD_HASH_SET} from './world-review-only-shas.mjs';
 
 export const WORLD_IDS = Object.freeze(['home','work','creativity','wellbeing','relationships','events','style','staarverse','staarsonic']);
 export const WORLD_VARIANTS = Object.freeze({
@@ -45,6 +46,7 @@ export function validateWorldAsset(bytes,receipt,expected) {
  if(!receipt||receipt.schema!=='staar-world-asset-v1'||receipt.worldId!==expected.id||receipt.variant!==expected.variant)fail('wrong_world_receipt');
  const digest=createHash('sha256').update(bytes).digest('hex');
  if(!sha(receipt.modelSha256)||receipt.modelSha256!==digest)fail('model_hash');
+ if(REVIEW_ONLY_COLLIDER_WORLD_HASH_SET.has(digest)) fail('review_only_collider_model');
  if(!safeKey(receipt.assetId)||receipt.exportRightsConfirmed!==true||receipt.founderVisualApproved!==true||
  receipt.deviceCaptureVerified!==true||receipt.animationVerified!==true||receipt.navigationVerified!==true||
  !safeKey(receipt.designEvidenceId)||!safeKey(receipt.actualDeviceCaptureId))fail('missing_acceptance');
