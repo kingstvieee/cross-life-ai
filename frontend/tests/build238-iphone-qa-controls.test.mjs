@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {normalizeIphoneQa,iphoneQaStatus} from '../src/iphone-qa-controls.ts';
+import {normalizeIphoneQa,iphoneQaStatus,resolveCanonicalWorldQaKey} from '../src/iphone-qa-controls.ts';
 import {WORLD_QA_KEYS,worldQaKey,readWorldQaArchive,saveWorldQaCapture,worldQaProgress,exportWorldQaArchive,clearWorldQaArchive,WORLD_QA_STORAGE_KEY} from '../src/iphone-qa-archive.ts';
 
 const ctx={scene:'hub',variant:'realm',session:'2026_abc_1',platform:'ios',capturedAt:'2026-11-17T14:15:00.000Z'};
@@ -16,13 +16,42 @@ const guardian=()=>({
  });
 const world=(scene,variant)=>({
  schema:'staar-world-physical-device-qa-telemetry-v1',
- worldKey:scene+'-'+variant,modelSha256:hash,frameCount:650,intervalCount:649,
+ worldKey:resolveCanonicalWorldQaKey(scene,variant),modelSha256:hash,frameCount:650,intervalCount:649,
  frameIntervalP95Ms:16.8,steps:120,blockedSteps:12,walkSteps:80,runSteps:40,
  distanceMeters:15.44,groundTriangles:250,collisionTriangles:890,
  routePreflightPassed:true,webglContextLost:false,
  actualPortalEndpointsCertified:false,physicsEngineCertified:false,
  realIphoneCertified:false,finalWorldOwnerApproved:false,decision:'UNVERIFIED',
  });
+test('Build239 resolves exactly ten canonical world/variant renderer keys despite realm host defaults',()=>{
+ const combos=[
+ ['home','realm','home-residence'],['work','realm','work-command'],
+ ['creativity','realm','creativity-dream'],['wellbeing','realm','wellbeing-health'],
+ ['relationships','realm','relationships-realm'],
+ ['relationships','singles','relationships-singles'],
+ ['events','realm','events-village'],['style','realm','style-closet'],
+ ['staarverse','realm','staarverse-universe'],['staarsonic','realm','staarsonic-studio'],
+ ];
+ assert.equal(combos.length,10);
+ assert.deepEqual(combos.map(([, ,key])=>key).sort(),[...WORLD_QA_KEYS].sort());
+ for(const [scene,variant,key] of combos){
+  assert.equal(resolveCanonicalWorldQaKey(scene,variant),key);
+  assert.equal(worldQaKey(scene,variant),key);
+  const normalized=normalizeIphoneQa('world',world(scene,variant),
+   {...ctx,scene,variant});
+  assert.ok(normalized,'expected sanitized report for '+key);
+  assert.equal(normalized.metrics.worldKey,key);
+  assert.equal(normalized.result,'REVIEW_REQUIRED');
+  assert.equal(normalized.certification,'UNVERIFIED');
+  assert.equal(normalized.physicalIphoneOwnerAttestation,false);
+ }
+ assert.equal(resolveCanonicalWorldQaKey('home','singles'),null);
+ assert.equal(resolveCanonicalWorldQaKey('unknown','realm'),null);
+ assert.equal(resolveCanonicalWorldQaKey('relationships','invalid'),null);
+ assert.equal(normalizeIphoneQa('world',world('home','realm'),
+  {...ctx,scene:'home',variant:'singles'}),null);
+});
+
 test('Build238 strips untrusted renderer data, preserves session and never self-certifies',()=>{
  const input={...guardian(),accessToken:'DO_NOT_EXPORT',audioBytes:'PRIVATE',modelApproved:true};
  const normalized=normalizeIphoneQa('guardian',input,ctx);
