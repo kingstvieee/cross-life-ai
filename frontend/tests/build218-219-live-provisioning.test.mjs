@@ -23,7 +23,7 @@ test('Build 218 independent deployed control plane is deny-by-default and never 
 test('Build 219 never claims upload inclusion rules equal actual EAS private archive proof',()=>{
  const script=read('../scripts/verify-production-package.mjs');
  assert.match(script,/STAAR_INSPECTED_EAS_ARCHIVE_DIR/);
- assert.match(script,/inspectPrivateEasArchive\(\{archiveRoot\}\)/);
+ assert.match(script,/inspectPrivateEasArchive\(\{archiveRoot,checkoutRoot:root\}\)/);
  assert.match(script,/fail\('private-eas-inspected-archive'/);
  const inspector=read('../scripts/prepare-private-eas-archive.mjs');
  assert.match(inspector,/private_audio_absent_or_altered_in_eas_inspected_archive/);
