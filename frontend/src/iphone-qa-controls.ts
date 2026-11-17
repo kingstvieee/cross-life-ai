@@ -92,7 +92,8 @@ export function normalizeIphoneQa(
       metrics.webglContextLost=payload.webglContextLost as boolean;
       keep(payload,metrics,['frameCount','intervalCount','steps','blockedSteps','walkSteps','runSteps','groundTriangles','collisionTriangles'],x=>validCount(x,1000000));
       keep(payload,metrics,['distanceMeters','frameIntervalP95Ms'],x=>validMetric(x,10000000));
-      if(payload.frameCount>=300&&payload.steps>=20&&payload.routePreflightPassed===true&&
+      if(validCount(payload.frameCount,1000000)&&payload.frameCount>=300&&
+         validCount(payload.steps,1000000)&&payload.steps>=20&&payload.routePreflightPassed===true&&
          payload.webglContextLost===false)result='REVIEW_REQUIRED';
     }
   }
