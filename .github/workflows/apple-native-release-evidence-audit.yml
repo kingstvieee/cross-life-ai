@@ -1,0 +1,94 @@
+name: Apple-Native iOS Release Evidence Audit
+
+# Vercel-free and Expo-login-free release source audit.
+# This workflow never signs, distributes, uploads or publishes an iPhone app.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/apple-native-release-evidence-audit.yml'
+      - 'frontend/scripts/verify-production-package.mjs'
+      - 'frontend/scene-src/approved-guardian-asset.mjs'
+      - 'frontend/scene-src/approved-world-assets.mjs'
+      - 'frontend/scripts/verify-independent-security-evidence.mjs'
+      - 'frontend/scripts/verify-approved-soundtrack.mjs'
+      - 'frontend/app.json'
+      - 'frontend/eas.json'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apple-native-release-evidence-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Audit source only (never Apple sign or upload)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Audit locked release evidence and record blockers
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import {appendFileSync} from 'node:fs';
+          import {inspectProductionPackage} from './scripts/verify-production-package.mjs';
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+          if (!summaryPath) throw Error('GitHub step summary unavailable');
+          const report = await inspectProductionPackage();
+          if (!Array.isArray(report.blockers) || typeof report.readyForSignedBuildAttempt !== 'boolean') {
+            throw Error('Unexpected release verifier result; refusing an ambiguous audit');
+          }
+          const blockerLines = report.blockers.length
+            ? report.blockers.map(item =>
+                '- ' + String(item.id).replace(/[\r\n]/g, ' ') + ': ' +
+                String(item.reason).replace(/[\r\n]/g, ' ')).join('\n')
+            : '- No source-gate blockers found; independent signing, private asset provenance and device QA remain required.';
+          const state = report.readyForSignedBuildAttempt ? 'SOURCE CHECKS PASS — NOT SIGNED' : 'BLOCKED — NOT SIGNED';
+          const body = [
+            '# STAAR Hub Apple-native release audit',
+            '',
+            '**Status: ' + state + '**',
+            '',
+            'This is a read-only source check. It does not use Vercel or Expo CLI login, create an IPA,',
+            'check Apple signing certificates, access private owner media, or send a TestFlight build.',
+            '',
+            '## Source evidence blockers',
+            '',
+            blockerLines,
+            '',
+            '## Independent mandatory release checks',
+            '',
+            '- Apple Distribution signing, iPhone and Watch provisioning: NOT VERIFIED',
+            '- Signed IPA certificate/team/bundle verification: NOT VERIFIED',
+            '- Physical iPhone/Watch operation and owner visual review: NOT VERIFIED',
+            '- App Store Connect/TestFlight receipt: NOT VERIFIED',
+            '',
+            'This existing production verifier also requires EAS private-archive evidence;',
+            'do not treat that check as an Apple-native signing receipt or bypass it.',
+            ''
+          ].join('\n');
+          appendFileSync(summaryPath, body);
+          console.log(JSON.stringify({
+            schema: 'staarwardd-apple-native-source-audit-v1',
+            status: state,
+            blockerCount: report.blockers.length,
+            blockers: report.blockers.map(item => item.id),
+            signingPerformed: false,
+            testFlightUploaded: false,
+            vercelUsed: false,
+            expoLoginRequired: false,
+          }, null, 2));
+          if (report.blockers.length) {
+            console.log('::warning::Source release audit is blocked. No signing or TestFlight action was attempted.');
+          }
+          NODE
