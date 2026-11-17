@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createModelMotion, disposeModel } from './model-motion.js';
 import { modelControls, hitControl } from './model-navigation.js';
-import {moveCapsuleXZ, capsuleCollidesXZ, WALK_RADIUS_M} from './player-collision.js';
+import {moveCapsuleXZ, routeIsClear, WALK_RADIUS_M} from './player-collision.js';
 import {createTriangleCollisionIndex} from './player-triangle-collision.js';
 import {createApprovedGuardianFaceMotion} from './guardian-face-motion.js';
 import {applyGuardianSpeechFrame} from './guardian-speech-bridge.js';
@@ -157,6 +157,19 @@ if (renderer) {
     if(!collisionIndex.ok)return false;
     const collisionPredicate=point=>collisionIndex.collides(point,params.radius);
     if(collisionPredicate(current))return false;
+    // Renderer-space route must match the source GLB's reviewed path. Even an
+    // otherwise walkable model fails closed when the authored portal route
+    // contains a blocked segment or incorrect start metadata.
+    const route=nav?.routePointsM;
+    if(!Array.isArray(route)||route.length<2||route.length>1024 ||
+       route.some(v=>!Array.isArray(v)||v.length!==2||!v.every(Number.isFinite)))return false;
+    const transformedRoute=route.map(([x,y])=>{
+      const v=new T.Vector3(x,y,0).applyMatrix4(model.matrixWorld);
+      return {x:v.x,z:v.z};
+    });
+    if(Math.hypot(transformedRoute[0].x-current.x,transformedRoute[0].z-current.z)>.2*scale)
+      return false;
+    if(!routeIsClear(transformedRoute,solids,{...params,collisionPredicate}))return false;
     // A small navigation marker is not a replacement for the locked Guardian.
     const marker=new T.Mesh(new T.CylinderGeometry(.20,.20,.09,20),
       new T.MeshStandardMaterial({color:'#e9ce92',metalness:.9,roughness:.15,
@@ -226,7 +239,9 @@ if (renderer) {
     controls.update();controls.saveState();
     report('navigation-ready',{collisionMode:'tagged-triangle-capsule',
       solidMeshes:solids.length,solidTriangles:collisionIndex.triangleCount,
-      collisionCells:collisionIndex.gridCellCount,deviceCertified:false});
+      collisionCells:collisionIndex.gridCellCount,
+      offlineRouteVerifiedAgainstLoadedTriangles:true,
+      actualPortalEndpointsCertified:false,deviceCertified:false});
     return true;
   }
 
