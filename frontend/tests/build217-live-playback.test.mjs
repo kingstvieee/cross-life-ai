@@ -47,6 +47,8 @@ test('Build 217 actual account-bound alignment used before playback; no syntheti
  assert.ok(provider.includes('fetchGuardianAlignmentForClip(clip,api'));
  assert.ok(provider.includes('guardianRigShaRef.current'));
  assert.ok(provider.includes('setGuardianAudioFrame(null)'));
+ assert.ok(player.includes('Promise.resolve(pending).then'), 'voice does not wait on phoneme extraction');
+ assert.ok(!player.includes('bound = await options.resolveAlignment'), 'speech must not block until mouth alignment');
  assert.ok(scene.includes("report('guardian-face-ready',{modelSha256:asset.rigModelSha256})"));
  assert.ok(!scene.includes('const fabricatedCues='));
 });
