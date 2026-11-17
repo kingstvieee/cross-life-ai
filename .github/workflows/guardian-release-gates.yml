@@ -56,6 +56,7 @@ jobs:
       - run: node --test tests/approved-audio-staging.test.mjs
       - run: node --test tests/private-eas-archive.test.mjs
       - run: node --test tests/eas-workflow-preflight.test.mjs
+      - run: node --test tests/iphone-qa-preview-workflow.test.mjs
       - run: node --test tests/startup-film-sound-default.test.mjs
       - run: node --experimental-strip-types --test tests/startup-audio-gate.test.mjs
       - run: node --test tests/mainline-reconciliation.test.mjs
