@@ -4,8 +4,8 @@ import {readFileSync} from 'node:fs';
 const read=rel=>readFileSync(new URL(rel,import.meta.url),'utf8');
 
 test('Build 218 independent deployed control plane is deny-by-default and never turns on a claimed emergency kill switch',()=>{
-  const edge=read('../backend/starcenttinel_deployment/index.ts');
-  const sql=read('../backend/starcenttinel_deployment/read_only_status.sql');
+  const edge=read('../../backend/starcenttinel_deployment/index.ts');
+  const sql=read('../../backend/starcenttinel_deployment/read_only_status.sql');
   assert.match(edge,/verify_jwt|JWT validation remains ENABLED/);
   assert.match(edge,/ready_for_live_actions:false/);
   assert.match(edge,/reply\(423/);
