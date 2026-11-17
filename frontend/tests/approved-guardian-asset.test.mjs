@@ -29,7 +29,30 @@ function model(targetNames=REQUIRED_FACE_TARGETS,{duplicateDeltas=false,emptySpe
     meshes:[{extras:{targetNames},primitives:[{
       attributes:{POSITION:0},
       targets:targetNames.map((_,i)=>({POSITION:i+1}))
-    }]}],
+    }]},
+      {name:'B229_chrome',primitives:[{attributes:{POSITION:0},material:1,
+        extensions:{KHR_materials_variants:{mappings:[{material:3,variants:[0]},{material:1,variants:[1]}]}}}]},
+      {name:'B229_gold',primitives:[{attributes:{POSITION:0},material:2}]}
+    ],
+    materials:[
+      {name:'face'},
+      {name:'B229_VARIANT_black_titanium_no_silver',
+        pbrMetallicRoughness:{baseColorFactor:[0.1,0.105,0.12,1],metallicFactor:0.95,roughnessFactor:0.22}},
+      {name:'B229_polished_gold',
+        pbrMetallicRoughness:{baseColorFactor:[1,0.77,0.34,1],metallicFactor:1,roughnessFactor:0.16}},
+      {name:'B229_mirror_chrome_armor',
+        pbrMetallicRoughness:{baseColorFactor:[0.9,0.91,0.93,1],metallicFactor:1,roughnessFactor:0.14}},
+    ],
+    extensions:{KHR_materials_variants:{variants:[
+      {name:'Legacy chrome and gold — review only'},
+      {name:'LOCKED black titanium and gold — founder selected'}
+    ]}},
+    extras:{STAAR_Guardian_Armor_Finish_Lock:{
+      founderSelected:'black-titanium-and-gold',
+      approvedBuild228FaceSourceSha256:'4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b',
+      defaultMaterialIndex:1,defaultVariantIndex:1,alternateVariantIndex:0,
+      alternateNotApprovedAsDefault:true,
+    }},
     skins:[{joints:[0]}],
   };
   const source=Buffer.from(JSON.stringify(gltf),'utf8'),pad=(4-source.length%4)%4;
@@ -54,6 +77,8 @@ test('verified offline GLB can be packed only after all 16 viseme targets and so
  assert.equal(result.identityAssetId,'approved-armored-guardian-v1');
  assert.equal(result.sourceImageSha256,ARMORED_SOURCE_SHA256);
  assert.deepEqual(result.blendshapeTargets,REQUIRED_FACE_TARGETS);
+ assert.equal(result.armorFinish.founderSelected,'black-titanium-and-gold');
+ assert.equal(result.armorFinish.defaultBlackTitanium,true);
  assert.deepEqual(Buffer.from(result.glbBase64,'base64'),bytes);
 });
 test('wrong face, changed binary, denied approval, tracksuit substitute and absent visemes are rejected',()=>{
