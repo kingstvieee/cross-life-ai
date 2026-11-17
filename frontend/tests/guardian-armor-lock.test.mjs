@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GUARDIAN_VISEMES, mayAnimateApprovedGuardianFace } from '../src/guardian-visemes.ts';
-import { LOCKED_ARMORED_GUARDIAN, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, REJECTED_LEGACY_GUARDIAN_MODEL_SHA256, canActivateArmoredGuardian3D, armoredGuardianFacialRig } from '../src/guardian-armor-lock.ts';
+import { LOCKED_ARMORED_GUARDIAN, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256, REJECTED_LEGACY_GUARDIAN_MODEL_SHA256, canActivateArmoredGuardian3D, armoredGuardianFacialRig } from '../src/guardian-armor-lock.ts';
 
 const reference = LOCKED_ARMORED_GUARDIAN;
 const valid = {
@@ -59,4 +59,11 @@ test('Build 210 rejects both recovered 198 and reviewed 201 models even when app
    assert.equal(canActivateArmoredGuardian3D({...valid,rigModelSha256:sha}),false);
    assert.equal(armoredGuardianFacialRig({...valid,rigModelSha256:sha}),null);
  }
+});
+
+
+test('Build 224 disallows Build 222 candidate activation with any forged all-true receipt',()=>{
+ assert.equal(PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256,'325bc975ccae49db54e5c5ac761a229d7b66930663cb68f5ff5844a507771a36');
+ assert.equal(canActivateArmoredGuardian3D({...valid,rigModelSha256:PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256}),false);
+ assert.equal(armoredGuardianFacialRig({...valid,rigModelSha256:PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256}),null);
 });

@@ -18,6 +18,7 @@ export const REJECTED_BUILD202_GUARDIAN_MODEL_SHA256 = '847c2f412b0184a372cd8a6a
 // Build 208 has distinct mouth geometry but the underlying legacy face was never accepted.
 // Engineering QA is not facial identity or device-signoff evidence.
 export const PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256 = '09dcb3cb56b70f5a2b38e5d5f68de627a62df5ad42ad89e2f9d9123d92cf70b5';
+export const PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256 = '325bc975ccae49db54e5c5ac761a229d7b66930663cb68f5ff5844a507771a36';
 // Build 210 independent review: neither recovered Build 198 nor revised Build 201
 // possesses founder-approved final facial/profile fidelity; separate mouth QA is not release acceptance.
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
@@ -30,6 +31,7 @@ export function assertGuardianModelNotRejected(modelSha256) {
   if (!isSha(modelSha256)) fail('invalid_model_hash');
   if (modelSha256 === REJECTED_BUILD202_GUARDIAN_MODEL_SHA256) fail('build202_visual_rejection');
   if (modelSha256 === PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256) fail('build208_not_final_likeness');
+  if (modelSha256 === PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256) fail('build222_visual_qa_failed');
   if (REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(modelSha256)) fail('legacy_face_not_approved');
 }
 
