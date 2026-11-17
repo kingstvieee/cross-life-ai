@@ -7,6 +7,7 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from guardian_store import GuardianStore
+from starcenttinel_gate import inspect_independent_control_plane
 
 
 class GuardianMissionUpdate(BaseModel):
@@ -373,5 +374,12 @@ def build_guardian_router(*, db: Any, get_current_user: Any, get_trusted_worker:
             return await store.arbitrate_portal_weave(user["user_id"], workflow_id)
         except (KeyError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.get("/safety-readiness")
+    async def safety_readiness(authorization: Optional[str] = Header(None)):
+        # This endpoint never impersonates the owner's WebAuthn or revokes tokens.
+        # A health check failing closed keeps the app in read-only safety mode.
+        await account_user(authorization)
+        return await inspect_independent_control_plane()
 
     return router
