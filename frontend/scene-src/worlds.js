@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createModelMotion, disposeModel } from './model-motion.js';
 import { modelControls, hitControl } from './model-navigation.js';
+import {moveCapsuleXZ, capsuleCollidesXZ, WALK_RADIUS_M} from './player-collision.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { worldIds, worldNames, fallbackActions } from './navigation.js';
 
@@ -61,6 +62,97 @@ if (renderer) {
   const animated = [], clickable = [], modelMotions = [];
   let disposed = false;
   let importedControls = [];
+  let walkController = null;
+  // Only independently accepted production models can be loaded through the
+  // approved asset gate. Review-only offline GLBs are never auto-mounted.
+  function enableTaggedWalking(model, gltf) {
+    // GLTFLoader does not necessarily copy asset-level extras to scene.userData.
+    const nav=gltf?.parser?.json?.extras?.staarNavigationCandidate ||
+      model.userData?.staarNavigationCandidate;
+    const spawn=nav?.testedFreeStart||nav?.spawnFixture;
+    if(!Array.isArray(spawn)||spawn.length!==2||spawn.some(n=>!Number.isFinite(n))||
+      !Number.isFinite(nav?.capsuleRadiusM)||Math.abs(nav.capsuleRadiusM-WALK_RADIUS_M)>.01)
+      return false;
+    const solids=[];
+    model.traverse(node=>{
+      if(!node.isMesh || node.userData?.staarCollisionRole!=='solid')return;
+      const bounds=new T.Box3().setFromObject(node);
+      if(bounds.isEmpty())return;
+      const b={minX:bounds.min.x,maxX:bounds.max.x,
+        minZ:bounds.min.z,maxZ:bounds.max.z,
+        minY:bounds.min.y,maxY:bounds.max.y};
+      if(Object.values(b).every(Number.isFinite))solids.push(b);
+    });
+    if(!solids.length||solids.length>1024)return false;
+    const scale=model.scale.x,feet=model.position.y+.08;
+    const current={x:model.position.x+spawn[0]*scale,
+      z:model.position.z+spawn[1]*scale};
+    const params={feet,radius:WALK_RADIUS_M*scale,height:1.7*scale};
+    if(capsuleCollidesXZ(current,solids,params))return false;
+    // A small navigation marker is not a replacement for the locked Guardian.
+    const marker=new T.Mesh(new T.CylinderGeometry(.20,.20,.09,20),
+      new T.MeshStandardMaterial({color:'#e9ce92',metalness:.9,roughness:.15,
+      emissive:'#b28e55',emissiveIntensity:.45}));
+    marker.position.set(current.x,feet+.045,current.z);
+    scene.add(marker);
+    const held=new Set();
+    const directions={ArrowUp:'forward',KeyW:'forward',ArrowDown:'back',
+      KeyS:'back',ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right'};
+    const onDown=e=>{const key=directions[e.code];if(!key||e.metaKey||e.ctrlKey||e.altKey)return;
+      held.add(key);e.preventDefault();requestDraw();};
+    const onUp=e=>{const key=directions[e.code];if(key){held.delete(key);e.preventDefault();}};
+    const onBlur=()=>held.clear();
+    addEventListener('keydown',onDown);addEventListener('keyup',onUp);addEventListener('blur',onBlur);
+    const pad=document.createElement('div');
+    pad.setAttribute('role','group');pad.setAttribute('aria-label','Move through 3D world');
+    pad.style.cssText='position:absolute;right:12px;bottom:90px;z-index:5;display:grid;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(2,44px);gap:4px;touch-action:none';
+    const add=(label,key,col,row)=>{
+      const btn=document.createElement('button');btn.textContent=label;
+      btn.setAttribute('aria-label','Walk '+key);btn.style.gridColumn=String(col);
+      btn.style.gridRow=String(row);btn.style.touchAction='none';
+      btn.addEventListener('pointerdown',e=>{e.preventDefault();held.add(key);requestDraw();});
+      for(const eventName of ['pointerup','pointercancel','pointerleave'])
+        btn.addEventListener(eventName,()=>held.delete(key));
+      pad.append(btn);
+    };
+    add('↑','forward',2,1);add('←','left',1,2);add('↓','back',2,2);add('→','right',3,2);
+    document.body.append(pad);
+    walkController={
+      pressedCount:()=>held.size,
+      tick(delta){
+        if(!held.size||!Number.isFinite(delta)||delta<=0)return;
+        const facing=controls.target.clone().sub(camera.position);facing.y=0;
+        if(facing.lengthSq()<.0001)return;facing.normalize();
+        const side=new T.Vector3(-facing.z,0,facing.x);
+        let dx=0,dz=0;
+        const f=(held.has('forward')?1:0)-(held.has('back')?1:0);
+        const strafe=(held.has('right')?1:0)-(held.has('left')?1:0);
+        dx=f*facing.x+strafe*side.x;dz=f*facing.z+strafe*side.z;
+        const magnitude=Math.hypot(dx,dz);if(!magnitude)return;
+        const distance=Math.min(delta,.075)*2.6*scale;
+        const result=moveCapsuleXZ(current,{x:dx/magnitude*distance,z:dz/magnitude*distance},solids,
+          {...params,maxDelta:Math.max(.6,3*scale)});
+        const shiftX=result.point.x-current.x,shiftZ=result.point.z-current.z;
+        current.x=result.point.x;current.z=result.point.z;
+        marker.position.x=current.x;marker.position.z=current.z;
+        camera.position.x+=shiftX;camera.position.z+=shiftZ;
+        controls.target.x+=shiftX;controls.target.z+=shiftZ;
+        if(Math.abs(shiftX)+Math.abs(shiftZ)>.001)controls.update();
+      },
+      dispose(){
+        held.clear();removeEventListener('keydown',onDown);
+        removeEventListener('keyup',onUp);removeEventListener('blur',onBlur);
+        pad.remove();scene.remove(marker);marker.geometry.dispose();marker.material.dispose();
+      },
+    };
+    camera.position.set(current.x,feet+3.4*scale,current.z+6*scale);
+    controls.target.set(current.x,feet+1.15*scale,current.z);
+    controls.update();controls.saveState();
+    report('navigation-ready',{collisionMode:'tagged-aabb-capsule',solidMeshes:solids.length,
+      deviceCertified:false});
+    return true;
+  }
+
   const material = (color,metalness=0,roughness=.4,emissive='#000000',emissiveIntensity=0) => new T.MeshStandardMaterial({color,metalness,roughness,emissive,emissiveIntensity});
   const chrome = material('#c8d4e1',1,.16), gold = material('#cba15b',1,.22), black = material('#090f18',.75,.2), white = material('#f0ede6',.15,.55);
   const blue = material('#56c9ff',.3,.2,'#008aff',2), amber = material('#ffc377',.5,.2,'#ff861c',2), violet = material('#baaeff',.4,.2,'#7930ff',2), ruby = material('#8c1536',.2,.4), green = material('#345d3b',.05,.8);
@@ -243,8 +335,11 @@ if (renderer) {
         clickable.push(...importedControls.map(control=>control.node));
         scene.add(model);
         modelMotions.push(createModelMotion(model,gltf.animations,{reducedMotion:reduced}));
+        const walkingEnabled=enableTaggedWalking(model,gltf);
         addNavigationFallback();
-        document.querySelector('#status').textContent='Approved 3D world loaded · use the controls below to explore';
+        document.querySelector('#status').textContent=walkingEnabled
+          ? '3D walking enabled · WASD, arrow keys, or touch controls'
+          : '3D world loaded · navigation controls below (walking unavailable)';
         requestDraw();
       },()=>{/* Keep working preview scene when offline GLB parsing fails. */});
     }catch{/* Never lose functional preview navigation on model failure. */}
@@ -259,10 +354,11 @@ if (renderer) {
       const t=(now-start)/1000;
       const delta=lastFrameAt===null?0:(now-lastFrameAt)/1000;lastFrameAt=now;
       modelMotions.forEach(motion=>motion.update(delta,visible));
+      walkController?.tick(Math.max(0,Math.min(delta,.075)));
       animated.forEach(fn=>fn(t));controls.update();renderer.render(scene,camera);
       // A scene is ready only after WebGL has successfully drawn its first frame.
       if(!firstFrameReady){firstFrameReady=true;report('ready',{geometry:true,objects:scene.children.length});}
-      if(!reduced)requestDraw();
+      if(!reduced || walkController?.pressedCount())requestDraw();
     } catch {
       visible=false;cancelAnimationFrame(frame);frame=0;
       document.querySelector('#reset').hidden=true;
@@ -282,5 +378,5 @@ if (renderer) {
   document.querySelector('#status').textContent='Drag to explore · pinch or scroll to move closer · tap a labelled control';
   for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
   canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
-  addEventListener('pagehide',()=>{disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
+  addEventListener('pagehide',()=>{disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
 }
