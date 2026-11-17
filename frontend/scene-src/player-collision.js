@@ -29,6 +29,20 @@ export function capsuleCollidesXZ(point, boxes, options={}) {
   return false;
 }
 
+/** A real triangle index may supply a collision predicate. Fail closed for
+ * malformed output or exceptions. Existing AABB behavior remains compatible.
+ */
+function collisionAt(point,solids,options) {
+  if(options.collisionPredicate !== undefined) {
+    if(typeof options.collisionPredicate !== 'function')return true;
+    try{
+      const response=options.collisionPredicate(point);
+      return response===true?true:response===false?false:true;
+    }catch{return true;}
+  }
+  return capsuleCollidesXZ(point,solids,options);
+}
+
 export function moveCapsuleXZ(current, displacement, solids, options={}) {
   if(!isPoint(current)||!isPoint(displacement)||!Array.isArray(solids)||solids.length>1024)
     return {point:current,blocked:true,reason:'invalid_inputs'};
@@ -38,18 +52,18 @@ export function moveCapsuleXZ(current, displacement, solids, options={}) {
   if(!finite(stepLimit)||stepLimit<=0||stepLimit>0.25||
      !finite(maxDelta)||maxDelta<=0||maxDelta>3||maxDistance>maxDelta)
     return {point:{...current},blocked:true,reason:'invalid_step'};
-  if(capsuleCollidesXZ(current,solids,options))
+  if(collisionAt(current,solids,options))
     return {point:{...current},blocked:true,reason:'spawn_overlaps_solid'};
   const iterations=Math.max(1,Math.ceil(maxDistance/stepLimit));
   let p={x:current.x,z:current.z},blocked=false;
   for(let i=0;i<iterations;i++){
     const dx=displacement.x/iterations,dz=displacement.z/iterations;
     const both={x:p.x+dx,z:p.z+dz};
-    if(!capsuleCollidesXZ(both,solids,options)){p=both;continue;}
+    if(!collisionAt(both,solids,options)){p=both;continue;}
     // Axis slide, never tunnel through the larger movement diagonal.
     blocked=true;
-    if(!capsuleCollidesXZ({x:p.x+dx,z:p.z},solids,options))p.x+=dx;
-    if(!capsuleCollidesXZ({x:p.x,z:p.z+dz},solids,options))p.z+=dz;
+    if(!collisionAt({x:p.x+dx,z:p.z},solids,options))p.x+=dx;
+    if(!collisionAt({x:p.x,z:p.z+dz},solids,options))p.z+=dz;
   }
   return {point:p,blocked,reason:blocked?'solid_contact':null};
 }
@@ -59,12 +73,12 @@ export function routeIsClear(points,solids,options={}) {
      !points.every(isPoint)) return false;
   for(let i=1;i<points.length;i++){
     const start=points[i-1],end=points[i];
-    if(capsuleCollidesXZ(start,solids,options))return false;
+    if(collisionAt(start,solids,options))return false;
     const vx=end.x-start.x,vz=end.z-start.z,steps=Math.ceil(Math.hypot(vx,vz)/0.08);
     if(steps>10000)return false;
     for(let j=1;j<=Math.max(1,steps);j++){
       const p={x:start.x+vx*j/Math.max(1,steps),z:start.z+vz*j/Math.max(1,steps)};
-      if(capsuleCollidesXZ(p,solids,options))return false;
+      if(collisionAt(p,solids,options))return false;
     }
   }
   return true;
