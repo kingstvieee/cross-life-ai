@@ -1,0 +1,47 @@
+{
+  "schema": "staarwardd-guardian-build234-private-walkrun-review-v1",
+  "modelSha256": "2ae8eda577a5f60a0c82bb73d04be8280065acba9083b7c4d480e572cb0a58b8",
+  "modelBytes": 10708008,
+  "sourceBuild233Sha256": "66e6821f4e776ac7a957e8a566de71731a555cdc006714e1e448d58a85fb80dc",
+  "approvedFaceBuild228Sha256": "4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b",
+  "protectedOriginalFaceBinSha256": "ee78ab8bc97a7cad9853c878ace2d11d528ca9f4f981a0d5aff75ac8fc89c03d",
+  "preservedOriginalFacialAnimations": 3,
+  "preservedFacialMorphTargets": 16,
+  "prototypeBodyJoints": 16,
+  "bodyAnimationClips": [
+    {
+      "clip": "WALK_IN_PLACE_BODY_QA",
+      "seconds": 1.35,
+      "sampledFrames": 65,
+      "tracks": 13,
+      "simulatedRootSpeedMps": 1.65,
+      "maxStanceSlipM": 2.967312877633077e-7,
+      "maxFootLiftM": 0.11496435100187208
+    },
+    {
+      "clip": "RUN_IN_PLACE_BODY_QA",
+      "seconds": 0.88,
+      "sampledFrames": 65,
+      "tracks": 13,
+      "simulatedRootSpeedMps": 3.65,
+      "maxStanceSlipM": 4.5301428475141847e-7,
+      "maxFootLiftM": 0.290000006
+    }
+  ],
+  "artworkFinishOfPrivateCandidate": "chrome-and-gold",
+  "officialMainlineFinishChoiceUnchanged": true,
+  "noExportOfPrivateModelToPublicGithub": true,
+  "privateLibraryArchive": "/Projects/STAARWAARDD/STAAR Hub/Private Release Staging/STAARWAARDD_Build234_Private_WalkRun_Animation_QA_NOT_APPROVED.zip",
+  "qa": {
+    "actualGlbParsed": true,
+    "independentCpuForwardKinematicsPassed": true,
+    "professionallyNaturalAnimationAccepted": false,
+    "physicalIphonePlaybackVerified": false,
+    "finalOwnerBodyRigApproved": false,
+    "realCameraAndColliderPerformanceVerified": false,
+    "rightsVerified": false,
+    "appleSignedIPA": false,
+    "productionAllowed": false
+  },
+  "additionalExternalSpendCAD": 0
+}
