@@ -1,11 +1,11 @@
 """Build 218: live security-plane readiness must fail closed under any missing proof."""
+import asyncio
 import hashlib
 import hmac
 import json
 from datetime import datetime, timedelta, timezone
 
 import httpx
-import pytest
 
 from starcenttinel_gate import (HEALTH_HOST, HEALTH_PATH, allowed_health_url,
                                 inspect_independent_control_plane)
@@ -52,28 +52,31 @@ def test_bad_endpoint_is_rejected_before_connecting():
       "https://"+HEALTH_HOST+".evil.example"+HEALTH_PATH,
     ]: assert not allowed_health_url(url)
 
-@pytest.mark.asyncio
-async def test_live_sentinel_cannot_be_declared_active_from_unsigned_or_lockdown_response():
-    assert not (await inspect_independent_control_plane(environ={})).get("ready")
-    for kw in [{},{'tamper':True},{'stale':True},{'missing_signature':True}]:
-        async with make_client(**kw) as client:
+def test_live_sentinel_cannot_be_declared_active_from_unsigned_or_lockdown_response():
+    async def run():
+        assert not (await inspect_independent_control_plane(environ={})).get("ready")
+        for kw in [{},{'tamper':True},{'stale':True},{'missing_signature':True}]:
+            async with make_client(**kw) as client:
+                result=await inspect_independent_control_plane(client=client,environ=CONFIG,
+                    nonce="a"*48)
+                assert result['ready'] is False
+                assert result['mode']=="LOCKDOWN"
+    asyncio.run(run())
+
+def test_only_real_fresh_owner_bound_server_attestation_unlocks_readback():
+    async def run():
+        async with make_client(active=True) as client:
             result=await inspect_independent_control_plane(client=client,environ=CONFIG,
-                nonce="a"*48)
-            assert result['ready'] is False
-            assert result['mode']=="LOCKDOWN"
+                nonce="b"*48)
+        assert result["ready"] is True
+        assert result["revision"]==1
+        assert result["external_authority_verified"] is True
+    asyncio.run(run())
 
-@pytest.mark.asyncio
-async def test_only_real_fresh_owner_bound_server_attestation_unlocks_readback():
-    async with make_client(active=True) as client:
-        result=await inspect_independent_control_plane(client=client,environ=CONFIG,
-            nonce="b"*48)
-    assert result["ready"] is True
-    assert result["revision"]==1
-    assert result["external_authority_verified"] is True
-
-@pytest.mark.asyncio
-async def test_no_owner_bearer_or_hmac_key_never_unblocks_service():
-    for key in ("STARCENTTINEL_HEALTH_JWT","STARCENTTINEL_PROOF_KEY"):
-        partial={k:v for k,v in CONFIG.items() if k!=key}
-        result=await inspect_independent_control_plane(environ=partial)
-        assert result["ready"] is False
+def test_no_owner_bearer_or_hmac_key_never_unblocks_service():
+    async def run():
+        for key in ("STARCENTTINEL_HEALTH_JWT","STARCENTTINEL_PROOF_KEY"):
+            partial={k:v for k,v in CONFIG.items() if k!=key}
+            result=await inspect_independent_control_plane(environ=partial)
+            assert result["ready"] is False
+    asyncio.run(run())
