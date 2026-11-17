@@ -68,6 +68,7 @@ jobs:
       - run: node --test tests/build212-founder-facial-likeness.test.mjs
       - run: node --test tests/build214-ten-worlds-offline-collider.test.mjs
       - run: node --test tests/build215-collision-runtime.test.mjs
+      - run: node --test tests/build216-mobile-collision-proxy.test.mjs
       - run: node --test tests/build199-master-review.test.mjs
       - run: node --test tests/release-evidence.test.mjs
       - run: yarn exec eslint components/staarwardd/creativity-studio.tsx components/staarwardd/portal-screen.tsx components/staarwardd/voice-input.tsx
