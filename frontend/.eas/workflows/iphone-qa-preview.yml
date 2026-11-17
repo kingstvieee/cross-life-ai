@@ -1,0 +1,52 @@
+name: STAAR Hub Internal iPhone QA Preview
+
+# Manual only. Does not submit to App Store Connect/TestFlight.
+# An approved source check never bypasses the separate human EAS build approval.
+on:
+  workflow_dispatch:
+    inputs:
+      candidate:
+        type: choice
+        description: Explicitly select the INTERNAL QA build, not a production release
+        required: true
+        options:
+          - '1.0.4 (106) - INTERNAL IPHONE QA ONLY'
+
+concurrency:
+  group: staar-hub-internal-iphone-qa-preview
+  cancel_in_progress: false
+
+jobs:
+  preflight:
+    name: Validate internal QA preview source and Apple configuration
+    environment: preview
+    steps:
+      - uses: eas/checkout
+      - name: Confirm iPhone QA controls and fail-closed asset policy
+        run: |
+          set -eu
+          if [ -f scripts/verify-internal-iphone-qa-preview.mjs ]; then
+            node scripts/verify-internal-iphone-qa-preview.mjs
+          elif [ -f frontend/scripts/verify-internal-iphone-qa-preview.mjs ]; then
+            cd frontend
+            node scripts/verify-internal-iphone-qa-preview.mjs
+          else
+            echo 'Internal iPhone QA source preflight is missing' >&2
+            exit 1
+          fi
+
+  owner_build_approval:
+    name: Owner approves iOS internal build and any Expo usage
+    needs: [preflight]
+    type: require-approval
+
+  build_ios:
+    name: Sign internal iPhone QA 1.0.4 (106) with registered devices
+    needs: [preflight, owner_build_approval]
+    environment: preview
+    type: build
+    params:
+      platform: ios
+      profile: preview
+      refresh_ad_hoc_provisioning_profile: true
+      message: Guardian and ten-world private QA controls only; no TestFlight or production approval
