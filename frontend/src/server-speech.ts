@@ -39,8 +39,15 @@ export async function playServerSpeech(fetchLine: (signal: AbortSignal) => Promi
     // Alignment is privately retrieved only when a production-approved 3D
     // Guardian is actually mounted. Failure keeps audio working and face neutral.
     let bound: GuardianAlignedClip | null = null;
-    try { bound = await options.resolveAlignment?.(clip, controller.signal) ?? null; }
-    catch { bound = null; }
+    // Start authenticated playback without waiting for the offline mouth
+    // aligner to finish. While it runs, the avatar remains neutral. Only a
+    // current, unrevoked clip may attach a late alignment to live playback.
+    try {
+      const pending = options.resolveAlignment?.(clip, controller.signal);
+      if(pending)void Promise.resolve(pending).then(result=>{
+        if(current===generation && !controller.signal.aborted) bound=result ?? null;
+      }).catch(()=>{if(current===generation)bound=null;});
+    } catch { bound = null; }
     if (current !== generation) return;
     await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
     if (current !== generation) return;
