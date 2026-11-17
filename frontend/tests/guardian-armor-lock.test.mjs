@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GUARDIAN_VISEMES, mayAnimateApprovedGuardianFace } from '../src/guardian-visemes.ts';
-import { LOCKED_ARMORED_GUARDIAN, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256, PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256, PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256, PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256, REJECTED_LEGACY_GUARDIAN_MODEL_SHA256, canActivateArmoredGuardian3D, armoredGuardianFacialRig } from '../src/guardian-armor-lock.ts';
+import { LOCKED_ARMORED_GUARDIAN, LOCKED_GUARDIAN_ARMOR_FINISH, PRIVATE_BUILD231_REFINED_RIG_QA_SHA256, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256, PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256, PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256, PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256, REJECTED_LEGACY_GUARDIAN_MODEL_SHA256, canActivateArmoredGuardian3D, armoredGuardianFacialRig } from '../src/guardian-armor-lock.ts';
 
 const reference = LOCKED_ARMORED_GUARDIAN;
 const valid = {
   sourceImageSha256: reference.sourceImageSha256,
   identityAssetId: 'guardian-armor-v1-production-model',
   rigModelSha256: 'a'.repeat(64),
+  armorFinish: 'chrome-and-gold',
   founderApprovedRig: true, faceFidelityReviewed: true,
   armorFidelityReviewed: true, frontThreeQuarterProfileReviewed: true,
   speechSyncDeviceVerified: true,
@@ -18,6 +19,10 @@ test('locked visual is a fingerprinted, approved ARMOURED design, not a model', 
   assert.equal(reference.sourceImageSha256, 'd7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c');
   assert.equal(reference.sourceWidth, 1199);
   assert.equal(reference.sourceHeight, 1312);
+  assert.equal(LOCKED_GUARDIAN_ARMOR_FINISH.id,'chrome-and-gold');
+  assert.equal(LOCKED_GUARDIAN_ARMOR_FINISH.sourceBuild,229);
+  assert.equal(LOCKED_GUARDIAN_ARMOR_FINISH.approvedFaceBuild228Sha256,'4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b');
+  assert.equal(LOCKED_GUARDIAN_ARMOR_FINISH.bodyRigReleaseApproved,false);
   assert.ok(reference.visualRequirements.some(x => x.includes('maple-leaf')));
   assert.ok(reference.visualRequirements.some(x => x.includes('not a tracksuit')));
 });
@@ -26,6 +31,8 @@ test('no rig enters runtime without exact reference and every founder acceptance
   assert.equal(canActivateArmoredGuardian3D({ ...valid, founderApprovedRig: false }), false);
   assert.equal(canActivateArmoredGuardian3D({ ...valid, sourceImageSha256: 'b'.repeat(64) }), false);
   assert.equal(canActivateArmoredGuardian3D({ ...valid, rigModelSha256: '' }), false);
+  assert.equal(canActivateArmoredGuardian3D({ ...valid, armorFinish: 'black-titanium-and-gold' }), false);
+  assert.equal(canActivateArmoredGuardian3D({ ...valid, armorFinish: undefined }), false);
   assert.equal(canActivateArmoredGuardian3D({ ...valid, armorFidelityReviewed: false }), false);
   assert.equal(canActivateArmoredGuardian3D({ ...valid, faceFidelityReviewed: false }), false);
   assert.equal(canActivateArmoredGuardian3D({ ...valid, frontThreeQuarterProfileReviewed: false }), false);
@@ -40,6 +47,12 @@ test('only a verified armoured model can create the original facial runtime appr
   assert.equal(mayAnimateApprovedGuardianFace(rig, reference.sourceImageSha256), true);
 });
 
+
+test('Build 231 actual refined rig cannot enter native release without physical device proof',()=>{
+ assert.equal(PRIVATE_BUILD231_REFINED_RIG_QA_SHA256,'cca5092a8971c7817dab3301b4540c8a9b53844bc1aa0257840bf9db957a077c');
+ assert.equal(canActivateArmoredGuardian3D({...valid,rigModelSha256:PRIVATE_BUILD231_REFINED_RIG_QA_SHA256}),false);
+ assert.equal(armoredGuardianFacialRig({...valid,rigModelSha256:PRIVATE_BUILD231_REFINED_RIG_QA_SHA256}),null);
+});
 
 test('Build 202 rejected model is denied by native Guardian activation even with every approval boolean true',()=>{
  assert.equal(canActivateArmoredGuardian3D({ ...valid, rigModelSha256: REJECTED_BUILD202_GUARDIAN_MODEL_SHA256 }),false);
