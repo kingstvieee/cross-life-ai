@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GUARDIAN_VISEMES, mayAnimateApprovedGuardianFace } from '../src/guardian-visemes.ts';
-import { LOCKED_ARMORED_GUARDIAN, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256, PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256, PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256, PRIVATE_BUILD228_UNAPPROVED_ALIGNMENT_SHA256, REJECTED_LEGACY_GUARDIAN_MODEL_SHA256, canActivateArmoredGuardian3D, armoredGuardianFacialRig } from '../src/guardian-armor-lock.ts';
+import { LOCKED_ARMORED_GUARDIAN, REJECTED_BUILD202_GUARDIAN_MODEL_SHA256, PRIVATE_BUILD208_QA_ONLY_MODEL_SHA256, PRIVATE_BUILD222_UNAPPROVED_ARTIST_MODEL_SHA256, PRIVATE_BUILD225_UNAPPROVED_MULTIVIEW_SHA256, PRIVATE_BUILD227_UNAPPROVED_PROFILE_QA_SHA256, PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256, REJECTED_LEGACY_GUARDIAN_MODEL_SHA256, canActivateArmoredGuardian3D, armoredGuardianFacialRig } from '../src/guardian-armor-lock.ts';
 
 const reference = LOCKED_ARMORED_GUARDIAN;
 const valid = {
@@ -69,10 +69,10 @@ test('Build 224 disallows Build 222 candidate activation with any forged all-tru
 });
 
 
-test('Build 228 cannot be installed as final rig through any all-true forged receipt',()=>{
- assert.equal(PRIVATE_BUILD228_UNAPPROVED_ALIGNMENT_SHA256,'4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b');
- assert.equal(canActivateArmoredGuardian3D({...valid,rigModelSha256:PRIVATE_BUILD228_UNAPPROVED_ALIGNMENT_SHA256}),false);
- assert.equal(armoredGuardianFacialRig({...valid,rigModelSha256:PRIVATE_BUILD228_UNAPPROVED_ALIGNMENT_SHA256}),null);
+test('Build 228 visual likeness approval cannot authorize unverified production runtime',()=>{
+ assert.equal(PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256,'4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b');
+ assert.equal(canActivateArmoredGuardian3D({...valid,rigModelSha256:PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256}),false);
+ assert.equal(armoredGuardianFacialRig({...valid,rigModelSha256:PRIVATE_BUILD228_OWNER_VISUAL_APPROVED_DEVICE_PENDING_SHA256}),null);
 });
 
 test('Build 227 cannot activate privately revised facial model using an all-true forged receipt',()=>{
