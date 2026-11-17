@@ -12,7 +12,7 @@ export const SENTINEL_RELEASE_FIELDS=Object.freeze([
  'schema','service','issuedAt','nonce','mode','revision',
  'externalAuthorityVerified','ownerWebauthnVerified',
  'providerRevocationVerified','ninePortalEnforcementVerified',
- 'sourceProjectId','appSourceCommitSha256'
+ 'sourceProjectId','guardianModelSha256'
 ]);
 
 export function signIndependentReadback(fields,key) {
@@ -23,7 +23,7 @@ export function signIndependentReadback(fields,key) {
 export async function verifyIndependentSecurityEvidence(root,{
  proofKey=process.env.STARCENTTINEL_RELEASE_PROOF_KEY,
  now=Date.now(),
- expectedSourceSha256,
+ expectedGuardianSha256,
 }={}) {
  const file=path.resolve(root,'scene-src','assets','evidence','starcenttinel-live-readback.json');
  let evidence;
@@ -38,9 +38,9 @@ export async function verifyIndependentSecurityEvidence(root,{
     evidence?.ninePortalEnforcementVerified!==true ||
     evidence?.sourceProjectId!=='khpprzhqovzhgxdltarq' ||
     !Number.isInteger(evidence?.revision)||evidence.revision<1 ||
-    !isSha(evidence.appSourceCommitSha256) ||
-    !isSha(expectedSourceSha256) ||
-    evidence.appSourceCommitSha256!==expectedSourceSha256)
+    !isSha(evidence.guardianModelSha256) ||
+    !isSha(expectedGuardianSha256) ||
+    evidence.guardianModelSha256!==expectedGuardianSha256)
     fail('unverified_authority_or_release_source');
  const issued=Date.parse(evidence.issuedAt);
  if(!Number.isFinite(issued)||!Number.isFinite(now)||
@@ -53,6 +53,6 @@ export async function verifyIndependentSecurityEvidence(root,{
  if(!timingSafeEqual(Buffer.from(signature,'hex'),Buffer.from(expected,'hex')))
     fail('invalid_signature');
  return {verified:true,mode:evidence.mode,revision:evidence.revision,
-  sourceProjectId:evidence.sourceProjectId,sourceSha256:evidence.appSourceCommitSha256,
+  sourceProjectId:evidence.sourceProjectId,sourceSha256:evidence.guardianModelSha256,
   caveat:'Valid private proof file; external live action/physical device testing remains separate.'};
 }
