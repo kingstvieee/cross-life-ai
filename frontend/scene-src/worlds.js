@@ -476,6 +476,10 @@ if (renderer) {
         // 'sliceZ' denotes avatar height). Convert only explicitly tagged GLBs.
         if(nav && (Array.isArray(nav.sliceZ)||Array.isArray(nav.verticalSliceM)))
           model.rotation.x=-Math.PI/2;
+        // Update the rotated scene matrix before computing viewer-space bounds.
+        // Build 241: the Z-up source transform must be reflected in centering
+        // and scale calculations, not only in the rendered scene.
+        model.updateMatrixWorld(true);
         const bounds=new T.Box3().setFromObject(model),size=bounds.getSize(new T.Vector3());
         if(!Number.isFinite(size.x+size.y+size.z)||Math.max(size.x,size.y,size.z)<=.01){disposeModel(model);return;}
         const scale=Math.min(20/Math.max(size.x,size.z,.1),12/Math.max(size.y,.1),8);
