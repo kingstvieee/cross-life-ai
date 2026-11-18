@@ -48,5 +48,5 @@ jobs:
     params:
       platform: ios
       profile: preview
-      refresh_ad_hoc_provisioning_profile: true
+      refresh_ad_hoc_provisioning_profile: false
       message: Guardian and ten-world private QA controls only; no TestFlight or production approval
