@@ -22,7 +22,8 @@
       },
       "env": {
         "EXPO_PUBLIC_GUARDIAN_DEVICE_QA": "1",
-        "EXPO_PUBLIC_WORLD_COLLISION_QA": "1"
+        "EXPO_PUBLIC_WORLD_COLLISION_QA": "1",
+        "STAAR_IPHONE_ONLY_QA": "1"
       }
     },
     "production": {
