@@ -12,8 +12,9 @@ test('all nine portal routes expose the opt-in 3D environment without replacing 
   const environment = read('../app/environment.tsx');
   assert.equal(worldIds.length, 9);
   assert.equal(new Set(worldIds).size, 9);
-  assert.match(page, /pathname: '\/environment', params: \{ world: id \}/);
-  assert.match(page, /source=\{world\.image\}/);
+  assert.match(page, /pathname: '\/environment', params: \{ world \}/);
+  assert.match(page, /WORLD_BY_ID\[id\] \? id : 'hub'/);
+  assert.match(page, /<Redirect href=/);
   assert.match(environment, /3D DEVELOPMENT PREVIEW/);
   assert.match(environment, /Locked artwork, facial animation/);
 });
