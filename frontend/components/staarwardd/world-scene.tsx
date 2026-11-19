@@ -94,7 +94,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
     void readWorldQaArchive(AsyncStorage).then(archive=>{
       if(!active)return;
       const progress=worldQaProgress(archive);
-      setArchiveSummary(progress.captured+'/10 world QA captures saved; '+progress.withModel+' with approved GLB');
+      setArchiveSummary(progress.captured+'/10 world QA captures saved; '+progress.withModel+' reporting model-bound telemetry (not certified)');
       setArchiveReady(progress.captured>0);
     }).catch(()=>{if(active)setArchiveSummary('Local archive unavailable');});
     return ()=>{active=false;};
@@ -218,7 +218,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
           if(report){
             void saveWorldQaCapture(AsyncStorage,report).then(archive=>{
               const progress=worldQaProgress(archive);
-              setArchiveSummary(progress.captured+'/10 world QA captures saved; '+progress.withModel+' with approved GLB');
+              setArchiveSummary(progress.captured+'/10 world QA captures saved; '+progress.withModel+' reporting model-bound telemetry (not certified)');
               setArchiveReady(progress.captured>0);
             }).catch(()=>setArchiveSummary('Local archive unavailable'));
           }

@@ -23,7 +23,7 @@ export function evaluateIphoneQaPreview({app,eas,sceneHost,qaBoundary,qaArchive,
  require(exact(ios?.bundleIdentifier,EXPECTED_APP.bundleId),'wrong_apple_bundle');
  require(exact(ios?.appleTeamId,EXPECTED_APP.appleTeamId),'wrong_apple_team');
  require(exact(expo?.version,'1.0.4'),'unexpected_app_version');
- require(exact(ios?.buildNumber,'106'),'unexpected_ios_build_number');
+ require(exact(ios?.buildNumber,'109'),'unexpected_ios_build_number');
  require(Array.isArray(expo?.plugins)&&expo.plugins.includes('@bacons/apple-targets'),
    'watch_target_plugin_absent');
  require(exact(eas?.build?.preview?.distribution,'internal'),'preview_not_internal');
@@ -64,7 +64,7 @@ export function evaluateIphoneQaPreview({app,eas,sceneHost,qaBoundary,qaArchive,
    blockers:blocked,
    releaseMode:'INTERNAL_IOS_QA_ONLY',
    version:'1.0.4',
-   iosBuild:'106',
+   iosBuild:'109',
    noSigningOrSubmissionPerformed:true,
    noOwnerDeviceOrAppleCredentialsInspected:true,
    noPhysicalIphoneTestPerformed:true,
@@ -85,8 +85,27 @@ export async function verifyIphoneQaPreview(root=FRONTEND){
    file('src/guardian-armor-lock.ts'),
    file('scene-src/world-review-only-shas.mjs'),
  ]);
- return evaluateIphoneQaPreview({
+ const base=evaluateIphoneQaPreview({
    app,eas,sceneHost,qaBoundary,qaArchive,guardianLock,worldLock,
+ });
+ // Explicit owner-directed diagnostic packaging authorization. This is NOT
+ // independent certification, asset rights evidence or a production override.
+ if(process.env.STAAR_DEVELOPER_OVERRIDE!=='INTERNAL_QA_BUILD_109')return base;
+ const record=await json('release/owner-internal-qa-override-109.json');
+ const valid=record.schema==='staarwardd-owner-qa-override-v1' &&
+   record.build==='109' && record.profile==='preview' &&
+   record.scope==='INTERNAL_DEVICE_QA_ONLY' &&
+   record.ownerAuthorized===true &&
+   record.independentCertificationProvided===false &&
+   record.productionReleaseAuthorized===false &&
+   record.testFlightSubmissionAuthorized===false;
+ return Object.freeze({...base,
+   sourceReadyForOwnerBuildApproval:base.sourceReadyForOwnerBuildApproval&&valid,
+   blockers:valid?base.blockers:[...base.blockers,'invalid_owner_qa_override'],
+   ownerDeveloperOverrideAccepted:valid,
+   independentCertificationProvided:false,
+   productionReleaseAuthorized:false,
+   note:base.note+' Owner authorization applies only to internal build 109; all release evidence remains pending.'
  });
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){

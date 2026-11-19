@@ -25,7 +25,7 @@ export function WorldHub() {
   const [guardianMessage, setGuardianMessage] = useState('Guardian standing by.');
   const [greetingError, setGreetingError] = useState(false);
   const [guardianSpeaking, setGuardianSpeaking] = useState(false);
-  const portalSize = width >= 900 ? 225 : width >= 600 ? 185 : Math.max(96, Math.floor((width - 68) / 3));
+  const portalSize = width >= 900 ? 340 : width >= 600 ? 260 : Math.max(148, Math.floor((width - 58) / 2));
   const drift = useRef(new Animated.Value(0)).current;
   const arrival = useRef(new Animated.Value(0)).current;
   const [greetingEnabled, setGreetingEnabled] = useState(false);
@@ -130,10 +130,10 @@ export function WorldHub() {
     if (!audio.master || !audio.voice || audio.speechQuiet) { setGuardianMessage('Voice is muted or disabled. Use settings to enable audio.'); return; }
     // Transport emits playback-active only after the voice actually starts.
     setGuardianState('hover'); setGuardianSpeaking(true);
-    setGuardianMessage('Welcome back. Your nine worlds are ready.');
+    setGuardianMessage('Welcome back. Your connected worlds are ready.');
     try {
       setGreetingError(false);
-      const spoken = await audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.');
+      const spoken = await audio.speak('Welcome back. Guardian is here. Your connected worlds are ready when you are.');
       if (!spoken && focused.current && epoch === voiceEpoch.current) {
         setGreetingError(true);
         setGuardianMessage('Guardian is present, but voice playback is unavailable. Continue in chat.');
@@ -201,9 +201,9 @@ export function WorldHub() {
           const target = Math.max(380, Math.min(560, available * 1.06));
           if (Math.abs(stageHeight - target) > 1) setStageHeight(target);
         }}>
-          <Image source={require('@/assets/images/staarwardd/toronto-skyline-pan.png')} resizeMode="cover" style={s.skyline} />
+          <Image source={require('@/assets/images/staarwardd/locked/homepage.png')} resizeMode="cover" style={s.skyline} />
           <AccessField />
-          <View style={s.guardianFigure}><GuardianCharacter state={audio.voicePlaybackActive ? 'speaking' : guardianState} size={Math.min(width * 0.56, 285)} reducedMotion={motionReduced} onMotionEnd={onGuardianMotionEnd} /></View>
+          {/* Approved signed-in Hub master; the former layered Guardian pose was an unapproved rectangular composite. */}
           <Animated.View style={[s.stageCopy, { opacity: arrival, transform: [{ translateY: arrival.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }] }]}><Text style={s.micro}>{companion.toUpperCase()} · YOUR COMPANION</Text><Text style={s.title}>STAARWAARDD</Text><Text style={s.description}>{guardianMessage}</Text></Animated.View>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian welcome" accessibilityHint="Plays only when Guardian voice is enabled and consent permits" disabled={guardianSpeaking} onPress={() => { void greet(); }} style={s.greetButton}><Ionicons name="volume-high-outline" size={18} color="#F1F3F7" /><Text style={s.greetLabel}>{audio.voicePlaybackActive ? 'GUARDIAN SPEAKING' : guardianSpeaking ? 'GUARDIAN PREPARING VOICE' : greetingError ? 'RETRY GUARDIAN VOICE' : 'HEAR GUARDIAN'}</Text></Pressable>
@@ -214,12 +214,12 @@ export function WorldHub() {
           </BlurView>
         </LinearGradient>
         <View style={s.voiceRow}><View style={{ flex: 1 }}><Text style={s.panelTitle}>Guardian welcome</Text><Text style={s.description}>{!audio.master ? 'Enable master audio in settings to hear greetings.' : greetingEnabled ? 'Greets after arrival only with verified consent and during permitted hours.' : 'Automatic welcome off. Tap the microphone or chat to speak.'}</Text></View><Pressable accessibilityRole="switch" accessibilityState={{ checked: greetingActive }} accessibilityLabel="Proactive Guardian greeting" disabled={!greetingKey || !preferenceReady || !serverConsentReady || savingGreeting || serverPrivate || serverSpeechQuiet} onPress={() => setGreeting(!greetingActive)} style={[s.toggle, greetingActive && s.toggleOn]}><Text style={[s.toggleText, greetingActive && s.toggleTextOn]}>{greetingActive ? 'ON' : 'OFF'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Silence Guardian" onPress={() => { voiceEpoch.current += 1; audio.setSpeechQuiet(true); audio.stopAll(); setGuardianSpeaking(false); setGuardianState('hover'); }} style={s.silence}><Ionicons name="volume-mute-outline" size={21} color="#F3F4F6" /></Pressable></View>
-        <View style={s.section}><Text style={s.micro}>ENTER YOUR NINE WORLDS</Text><Text style={s.count}>09</Text></View>
-        <View style={s.grid}>{WORLDS.map((world, index) => <Pressable key={world.id} accessibilityRole="button" accessibilityLabel={`Open ${world.name}`} disabled={selected !== null} onPress={() => { setSelected(world.id); router.push({ pathname: '/environment', params: { world: world.id } } as never); }} style={({ pressed }) => [s.world, { width: portalSize, height: portalSize, borderRadius: portalSize / 2 }, pressed && s.pressed]}>
+        <View style={s.section}><Text style={s.micro}>EXPLORE YOUR IMMERSIVE WORLDS</Text><Text style={s.count}>{String(WORLDS.length).padStart(2, '0')}</Text></View>
+        <View style={s.grid}>{WORLDS.map((world, index) => <Pressable key={world.id} accessibilityRole="button" accessibilityLabel={`Open ${world.name}`} disabled={selected !== null} onPress={() => { setSelected(world.id); router.push({ pathname: '/world/[id]', params: { id: world.id } } as never); }} style={({ pressed }) => [s.world, { width: portalSize, height: portalSize, borderRadius: 22 }, pressed && s.pressed]}>
           <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [index % 2 ? 4 : -4, index % 2 ? -4 : 4] }) }, { scale: drift.interpolate({ inputRange: [0, 1], outputRange: [1.02, 1.08] }) }] }]}><Image source={world.image} style={s.art} accessibilityLabel={`${world.name} approved portal artwork`} /></Animated.View>
-          <Animated.View pointerEvents="none" style={[s.glassRing, { borderRadius: portalSize / 2, opacity: drift.interpolate({ inputRange: [0, 1], outputRange: [0.58, 0.96] }), transform: [{ scale: drift.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1.035] }) }] }]} />
+          <Animated.View pointerEvents="none" style={[s.glassRing, { borderRadius: 22, opacity: drift.interpolate({ inputRange: [0, 1], outputRange: [0.58, 0.96] }), transform: [{ scale: drift.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1.035] }) }] }]} />
           <Animated.View pointerEvents="none" style={[s.glassSheen, {
-            borderRadius: portalSize / 2,
+            borderRadius: 22,
             opacity: motionReduced ? 0.48 : drift.interpolate({ inputRange: [0, 1], outputRange: index % 2 ? [0.16, 0.55] : [0.55, 0.16] }),
             transform: [{ scale: motionReduced ? 1 : drift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.045] }) }],
           }]}>
@@ -234,6 +234,11 @@ export function WorldHub() {
           <View style={s.worldTop}><Text style={s.number}>{String(index + 1).padStart(2, '0')}</Text><Ionicons name="arrow-forward-outline" size={18} color="#DDE3EB" /></View>
           <View style={s.worldCopy}><Text style={s.worldName}>{world.name}</Text><Text style={s.worldDetail}>{world.title}</Text></View>
         </Pressable>)}</View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Explore STAAR Love Singles Lounge" accessibilityHint="Opens the separate Singles Lounge 3D development preview" onPress={() => router.push({ pathname: '/environment', params: { world: 'relationships', variant: 'singles' } } as never)} style={s.singlesCard}>
+          <Image source={require('@/assets/images/staarwardd/locked/love-singles.png')} resizeMode="cover" style={StyleSheet.absoluteFill} accessibilityLabel="Approved STAAR Love Singles Lounge visual reference" />
+          <LinearGradient colors={['rgba(3,4,5,.05)', 'rgba(3,4,5,.72)', '#080A0D']} locations={[0, .58, 1]} style={StyleSheet.absoluteFill} />
+          <View style={s.singlesCopy}><Text style={s.micro}>ADDITIONAL IMMERSIVE ENVIRONMENT · 10 OF 10</Text><Text style={s.worldName}>STAAR LOVE · SINGLES LOUNGE</Text><Text style={s.worldDetail}>Explore the separate development preview</Text></View>
+        </Pressable>
         <Pressable accessibilityRole="button" onPress={() => router.push('/device-checks')} style={s.icon}><Text style={s.panelTitle}>Voice & device checks</Text></Pressable>
         <Pressable accessibilityRole="button" onPress={() => router.push('/guardian-tools')} style={s.icon}><Text style={s.panelTitle}>Life Map & Guardian controls</Text></Pressable>
         <Text style={s.footer}>GUARDIAN AT THE HEART. YOU IN CONTROL.</Text>
@@ -244,11 +249,12 @@ export function WorldHub() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#030405' }, safe: { flex: 1 }, content: { padding: 22, paddingBottom: 38, width: '100%', maxWidth: 1200, alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, brand: { color: '#F3F5F8', fontSize: 18, letterSpacing: 4, fontWeight: '700' }, micro: { color: '#B2BAC5', fontSize: 10, letterSpacing: 2, lineHeight: 17 }, icon: { padding: 12, borderWidth: 1, borderColor: '#4D555F', borderRadius: 16 },
-  stage: { height: 380, overflow: 'hidden', marginVertical: 12, borderRadius: 26, borderWidth: 1, borderColor: '#747F8C' }, skyline: { position: 'absolute', width: '100%', height: '100%', opacity: 0.35 }, guardianFigure: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' }, stageCopy: { position: 'absolute', bottom: 12, left: 12, right: 12, padding: 12, borderRadius: 14, backgroundColor: 'rgba(3,4,6,.78)', gap: 4 }, greetButton: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#7F8995', padding: 12, borderRadius: 20, marginBottom: 12 }, greetLabel: { color: '#F1F3F7', fontSize: 11, letterSpacing: 1.2, fontWeight: '700' }, title: { color: '#F1F3F7', fontSize: 28, lineHeight: 34, letterSpacing: -1.5, fontWeight: '600' }, description: { color: '#B3BCC9', fontSize: 13, lineHeight: 21 },
+  stage: { height: 380, overflow: 'hidden', marginVertical: 12, borderRadius: 26, borderWidth: 1, borderColor: '#747F8C' }, skyline: { position: 'absolute', width: '100%', height: '100%', opacity: 1 }, guardianFigure: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' }, stageCopy: { position: 'absolute', bottom: 12, left: 12, right: 12, padding: 12, borderRadius: 14, backgroundColor: 'rgba(3,4,6,.85)', gap: 4 }, greetButton: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#7F8995', padding: 12, borderRadius: 20, marginBottom: 12 }, greetLabel: { color: '#F1F3F7', fontSize: 11, letterSpacing: 1.2, fontWeight: '700' }, title: { color: '#F1F3F7', fontSize: 28, lineHeight: 34, letterSpacing: -1.5, fontWeight: '600' }, description: { color: '#B3BCC9', fontSize: 13, lineHeight: 21 },
   frame: { borderRadius: 21, padding: 1 }, companion: { borderRadius: 20, overflow: 'hidden', padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: 'rgba(10,13,17,.8)' }, panelTitle: { color: '#F1F3F6', fontSize: 18, fontWeight: '600' }, primary: { padding: 15, borderRadius: 18, backgroundColor: '#D4DAE2' },
   voiceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, padding: 12, borderRadius: 18, borderColor: '#747B85', borderWidth: 1, backgroundColor: '#101318' }, toggle: { paddingHorizontal: 13, paddingVertical: 10, borderRadius: 18, borderWidth: 1, borderColor: '#AAB2BD' }, toggleOn: { backgroundColor: '#CFD5DF' }, toggleText: { color: '#F3F4F6', fontWeight: '800' }, toggleTextOn: { color: '#101317' }, silence: { padding: 10 }, glassRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 3, borderColor: 'rgba(235,240,248,.72)', borderTopColor: 'rgba(255,255,255,.95)', borderBottomColor: 'rgba(125,135,149,.55)' },
   glassSheen: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,.38)' },
   glassHighlight: { position: 'absolute', top: '10%', left: '12%', backgroundColor: 'rgba(255,255,255,.22)' },
-  section: { marginTop: 30, marginBottom: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, count: { color: '#858E9A', fontSize: 20 }, grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', gap: 8 },
-  world: { overflow: 'hidden', borderWidth: 1, borderColor: '#DDE3EC', backgroundColor: '#12161B' }, art: { width: '100%', height: '100%', resizeMode: 'cover' }, worldTop: { position: 'absolute', top: 17, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between' }, number: { color: '#E3E8EF', fontSize: 11, letterSpacing: 3 }, worldCopy: { position: 'absolute', bottom: 18, left: 20, right: 20, gap: 6 }, worldName: { color: '#F4F6F9', fontSize: 13, fontWeight: '600', letterSpacing: .3 }, worldDetail: { color: '#C0C8D2', fontSize: 9, lineHeight: 19 }, pressed: { opacity: .7 }, footer: { color: '#7F8996', fontSize: 9, letterSpacing: 2, textAlign: 'center', marginTop: 30 },
+  section: { marginTop: 30, marginBottom: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, count: { color: '#858E9A', fontSize: 20 }, grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
+  singlesCard: { height: 220, overflow: 'hidden', borderRadius: 22, borderWidth: 1, borderColor: '#A9B7CA', marginTop: 16, justifyContent: 'flex-end' }, singlesCopy: { padding: 20, gap: 8 },
+  world: { overflow: 'hidden', borderWidth: 1, borderColor: '#A9B7CA', backgroundColor: '#12161B' }, art: { width: '100%', height: '100%', resizeMode: 'cover' }, worldTop: { position: 'absolute', top: 17, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between' }, number: { color: '#E3E8EF', fontSize: 11, letterSpacing: 3 }, worldCopy: { position: 'absolute', bottom: 18, left: 20, right: 20, gap: 6 }, worldName: { color: '#F4F6F9', fontSize: 17, fontWeight: '600', letterSpacing: .3 }, worldDetail: { color: '#C0C8D2', fontSize: 9, lineHeight: 19 }, pressed: { opacity: .7 }, footer: { color: '#7F8996', fontSize: 9, letterSpacing: 2, textAlign: 'center', marginTop: 30 },
 });
