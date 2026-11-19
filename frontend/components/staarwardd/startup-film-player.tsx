@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet } from "react-native";
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { decideStartupPlayback } from "./startup-audio-gate";
@@ -16,6 +16,7 @@ export type FilmProps = { muted: boolean; playing: boolean; onEnd: () => void; o
 export default function StartupFilmPlayer({ muted, playing, onEnd, onError, onReady }: FilmProps) {
   const [audioSessionReady, setAudioSessionReady] = useState(false);
   const [approvedMusicFailed, setApprovedMusicFailed] = useState(false);
+  const playbackProgress = useRef({ lastTime: 0, lastAdvanceAt: Date.now(), startedAt: Date.now() });
   const approvedMusicAvailable = approvedStartupSoundtrackSource !== null;
   const soundtrack = useAudioPlayer(approvedStartupSoundtrackSource);
   const soundtrackStatus = useAudioPlayerStatus(soundtrack);
@@ -107,6 +108,31 @@ export default function StartupFilmPlayer({ muted, playing, onEnd, onError, onRe
       setApprovedMusicFailed(true);
     }
   }, [audioSessionReady, gate.playFilm, gate.playApprovedMusic, player, soundtrack, onError]);
+
+  // iOS can leave a video frame frozen without emitting playToEnd or an error.
+  // Never strand the user behind the full-screen startup overlay.
+  useEffect(() => {
+    if (!playing || !audioSessionReady || !gate.playFilm) {
+      playbackProgress.current = { lastTime: player.currentTime || 0, lastAdvanceAt: Date.now(), startedAt: Date.now() };
+      return;
+    }
+    playbackProgress.current = { lastTime: player.currentTime || 0, lastAdvanceAt: Date.now(), startedAt: Date.now() };
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const current = player.currentTime || 0;
+      const progress = playbackProgress.current;
+      if (current > progress.lastTime + 0.1) {
+        progress.lastTime = current;
+        progress.lastAdvanceAt = now;
+      }
+      if (player.duration > 0 && current >= player.duration - 0.2) {
+        onEnd();
+      } else if (now - progress.startedAt > 8000 && now - progress.lastAdvanceAt > 6500) {
+        onError(); // Expose Enter app; do not pretend the cinematic completed.
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [playing, audioSessionReady, gate.playFilm, player, onEnd, onError]);
 
   return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls={false} playsInline />;
 }
