@@ -1,0 +1,50 @@
+# STAARWAARDD Build 109: iPhone-only internal QA.
+# Do not start until Apple signing is configured in Codemagic and local
+# Build 109 changes are committed to the selected GitHub branch.
+workflows:
+  staar-iphone-qa-109:
+    name: STAARWAARDD 109 - iPhone Internal QA
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    triggering:
+      events: []
+    environment:
+      node: 22
+      xcode: latest
+      ios_signing:
+        distribution_type: ad_hoc
+        bundle_identifier: com.emergent.crosslifeai.z79271
+      vars:
+        STAAR_IPHONE_ONLY_QA: '1'
+        EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '1'
+        EXPO_PUBLIC_WORLD_COLLISION_QA: '1'
+        EXPO_PUBLIC_BACKEND_URL: https://cross-life-ai.emergent.host
+    scripts:
+      - name: Install dependencies
+        script: |
+          cd frontend
+          corepack enable
+          yarn install --frozen-lockfile
+      - name: Generate iOS project
+        script: |
+          cd frontend
+          npx expo prebuild --platform ios --non-interactive --clean
+      - name: Install CocoaPods
+        script: |
+          cd frontend/ios
+          pod install
+      - name: Apply ad hoc signing profiles
+        script: |
+          cd frontend
+          xcode-project use-profiles
+      - name: Archive signed internal iPhone IPA
+        script: |
+          cd frontend
+          WORKSPACE=$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)
+          test -n "$WORKSPACE"
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcode-project build-ipa --workspace "$WORKSPACE" --scheme "$SCHEME"
+    artifacts:
+      - frontend/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+[exit status 0]
