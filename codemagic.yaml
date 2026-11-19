@@ -47,4 +47,3 @@ workflows:
     artifacts:
       - frontend/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-[exit status 0]
