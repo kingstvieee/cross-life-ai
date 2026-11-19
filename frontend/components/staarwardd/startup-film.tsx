@@ -41,6 +41,8 @@ export function StartupFilmBoundary({ children }: { children: React.ReactNode })
   }, [visible, ready, reduced, instance]);
   const onReady = useCallback(() => { setReady(true); setFailed(false); }, []);
   const onError = useCallback(() => { setFailed(true); setPlaying(false); }, []);
+  // If native video playback stalls, return control to the app automatically.
+  useEffect(() => { if (!failed || !visible) return; const timer = setTimeout(finish, 1800); return () => clearTimeout(timer); }, [failed, visible, finish]);
   const replay = useCallback(() => {
     if (reduced) return;
     finishing.current = false;
