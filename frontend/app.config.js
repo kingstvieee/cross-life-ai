@@ -1,12 +1,7 @@
-// Internal iPhone QA must not embed the Watch app signed with an App Store profile.
-// Preserve the Watch target for production and non-iPhone-only builds.
-module.exports = ({ config }) => {
-  if (process.env.STAAR_IPHONE_ONLY_QA === '1') {
-    return {
-      ...config,
-      plugins: (config.plugins || []).filter(plugin =>
-        (Array.isArray(plugin) ? plugin[0] : plugin) !== '@bacons/apple-targets'),
-    };
-  }
-  return config;
-};
+// The internal iPhone preview excludes the Watch target so Ad Hoc export
+// cannot accidentally use an App Store Watch provisioning profile.
+// Production builds retain the Watch target unchanged.
+module.exports = ({ config }) => process.env.STAAR_IPHONE_ONLY_QA === '1'
+  ? { ...config, plugins: (config.plugins || []).filter(plugin =>
+      (Array.isArray(plugin) ? plugin[0] : plugin) !== '@bacons/apple-targets') }
+  : config;
