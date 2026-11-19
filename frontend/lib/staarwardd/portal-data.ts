@@ -2,13 +2,13 @@ import type { DimensionProfile, PortalId } from "@/lib/staarwardd/types";
 import { PORTAL_META } from "@/lib/staarwardd/portal-meta";
 
 const images: Record<PortalId, number> = {
-  creativity: require("@/assets/images/staarwardd/portal-creativity-chrome.webp"),
-  work: require("@/assets/images/staarwardd/portal-work-chrome.webp"),
-  home: require("@/assets/images/staarwardd/portal-home-chrome.webp"),
-  wellbeing: require("@/assets/images/staarwardd/portal-wellbeing-chrome.webp"),
-  relationships: require("@/assets/images/staarwardd/portal-relationships-chrome.webp"),
-  events: require("@/assets/images/staarwardd/portal-community-chrome.webp"),
-  style: require("@/assets/images/staarwardd/portal-style-chrome.webp"),
+  creativity: require("@/assets/images/staarwardd/locked/creativity.png"),
+  work: require("@/assets/images/staarwardd/locked/work.png"),
+  home: require("@/assets/images/staarwardd/locked/home.png"),
+  wellbeing: require("@/assets/images/staarwardd/locked/wellbeing.png"),
+  relationships: require("@/assets/images/staarwardd/locked/love.png"),
+  events: require("@/assets/images/staarwardd/locked/events.png"),
+  style: require("@/assets/images/staarwardd/locked/style.png"),
 };
 
 export const PORTALS: DimensionProfile[] = PORTAL_META.map((portal) => ({ ...portal, image: images[portal.id] }));
@@ -17,8 +17,8 @@ export const INTERACTION_MODES = ["Listen", "Coach", "Plan", "Create", "Operate"
 
 // Music and games are artwork previews, not new permission or workflow domains.
 const previewWorlds = [...PORTALS,
-  { id: "staarsonic", name: "STAARSONIC", image: require("@/assets/images/staarwardd/portal-staarsonic-chrome.webp") },
-  { id: "staarverse", name: "STARVERSE", image: require("@/assets/images/staarwardd/portal-staarverse-chrome.webp") },
+  { id: "staarsonic", name: "STAARSONIC", image: require("@/assets/images/staarwardd/locked/staarsonic.png") },
+  { id: "staarverse", name: "STARVERSE", image: require("@/assets/images/staarwardd/locked/staarverse.png") },
 ];
 
 const approvedOrder = ["home", "work", "creativity", "wellbeing", "relationships", "events", "style", "staarverse", "staarsonic"];
