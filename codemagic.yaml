@@ -12,8 +12,10 @@ workflows:
       node: 22
       xcode: latest
       ios_signing:
-        distribution_type: ad_hoc
-        bundle_identifier: com.emergent.crosslifeai.z79271
+        provisioning_profiles:
+          - STAAR_QA109_Codemagic_AdHoc
+        certificates:
+          - STAAR QA 109 Distribution
       vars:
         STAAR_IPHONE_ONLY_QA: '1'
         EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '1'
