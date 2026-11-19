@@ -38,7 +38,7 @@ test('Internal iPhone build workflow is manual, owner-approved and never silentl
  assert.match(wf,/build_ios:[\s\S]*?needs: \[preflight, owner_build_approval\]/);
  assert.match(wf,/profile: preview/);
  assert.match(wf,/environment: preview/);
- assert.match(wf,/refresh_ad_hoc_provisioning_profile: true/);
+ assert.match(wf,/refresh_ad_hoc_provisioning_profile: false/);
  assert.doesNotMatch(wf,/\n\s*push:|\n\s*schedule:|type: testflight|eas submit|profile: production|type: submit/);
 });
 
