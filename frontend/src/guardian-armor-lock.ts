@@ -72,6 +72,8 @@ export const PRIVATE_BUILD247_TITANIUM_MATCH_REVIEW_ONLY_SHA256 = '22d91cf0f516d
 // Exact Build248 duplicate-ear fixes remain private, not final identity acceptance.
 export const PRIVATE_BUILD248_CHROME_EAR_CLEANUP_REVIEW_ONLY_SHA256 = '2a3ef97275db797daa4247297770b3c062051fcc6461adb39c4faa99a8205c8d' as const;
 export const PRIVATE_BUILD248_TITANIUM_EAR_CLEANUP_REVIEW_ONLY_SHA256 = '3b3ccefe72bd5f9dc3828fc09f8f080c06d7f9f356e771e108e57e6db9d8d525' as const;
+// Build249 is a texture/proportion/collar experiment; no exact-model owner/device proof.
+export const PRIVATE_BUILD249_FACE_COLLAR_REVIEW_SHA256 = 'f2465c2a670af1e22d884689253bffc6ade39094313d11be7269f00e26774114' as const;
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
   'da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395',
   'e6e81a37cbc142c4d82fe8aff53adce3fb39b18f364aac18b599dccb4a80b8a1',
@@ -120,6 +122,7 @@ export function canActivateArmoredGuardian3D(
     && evidence.rigModelSha256 !== PRIVATE_BUILD247_TITANIUM_MATCH_REVIEW_ONLY_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD248_CHROME_EAR_CLEANUP_REVIEW_ONLY_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD248_TITANIUM_EAR_CLEANUP_REVIEW_ONLY_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD249_FACE_COLLAR_REVIEW_SHA256
     && !REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(evidence.rigModelSha256)
     && evidence.identityAssetId.trim().length > 0
     && evidence.founderApprovedRig === true
