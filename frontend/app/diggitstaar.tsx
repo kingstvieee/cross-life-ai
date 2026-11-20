@@ -24,6 +24,7 @@ export default function Diggitstaar() {
   const [audience, setAudience] = useState('');
   const [goal, setGoal] = useState('');
   const [script, setScript] = useState('');
+  const [focusPanel, setFocusPanel] = useState('');
   useEffect(() => {
     let active = true; setLoaded(false); setTasks([]); setNotice('');
     if (!authorized) { setLoaded(true); return () => { active = false; }; }
@@ -60,12 +61,13 @@ export default function Diggitstaar() {
     {!fullDesk && <Text style={{ color: '#F3D9A4', fontSize: 29, fontWeight: '900', letterSpacing: 1 }}>DIGGITSTAAR</Text>}
     {!fullDesk && <Text style={{ color: '#C6D9EF' }}>YOUR IMMERSIVE 3D WORKSTATION · TOUCH THE HOLOGRAPHIC SCREENS</Text>}
     <View style={{ height: sceneExpanded ? (fullDesk ? Dimensions.get('window').height * .72 : 420) : 0, overflow: 'hidden', borderRadius: 20, borderWidth: sceneExpanded ? 1 : 0, borderColor: '#9BCBFF', backgroundColor: '#DCEEFF' }}>
-      {sceneExpanded && <WorldScene world="diggitstaar" onAction={action => { if (action === 'diggitstaar:website') website(); else if (action === 'diggitstaar:studio') { setSceneExpanded(false); setFullDesk(false); setNotice('Production workstation controls are below.'); } }} />}
+      {sceneExpanded && <WorldScene world="diggitstaar" onAction={action => { if (action === 'diggitstaar:website') { website(); return; } if (action.startsWith('diggitstaar:')) { setFocusPanel(action.slice(12)); setSceneExpanded(false); setFullDesk(false); setNotice('Selected ' + action.slice(12) + ' workstation controls.'); } }} />}
     </View>
     {button(fullDesk ? 'Open production controls' : 'Return to immersive 3D desk', () => { setFullDesk(!fullDesk); setSceneExpanded(fullDesk ? false : true); })}
     {fullDesk && button('Back to STAARWAARDD portals', () => router.replace('/hub'))}
     {fullDesk && button('Visit DIGGITSTAAR website', website)}
     {!fullDesk && <View style={{ gap: 14 }}>
+    {!!focusPanel && <Text accessibilityRole="header" style={{ color: '#A8D9FF', fontWeight: '800', fontSize: 19 }}>Selected touchscreen: {focusPanel.toUpperCase()}</Text>}
     {button('Visit www.diggitstaar.com', website)}
     <Text style={{ color: '#D5DFEE', fontSize: 15 }}>AI Content Agency · Business Command Centre</Text>
     <View style={{ padding: 17, backgroundColor: '#121D2D', borderRadius: 18, borderWidth: 1, borderColor: '#6C7990', gap: 10 }}>

@@ -469,14 +469,14 @@ if (renderer) {
     for (let row=0;row<4;row++) for(let key=0;key<16;key++)
       box(-2.5+key*.33,1.03,.68+row*.27,.24,.025,.17,key%5===0?blue:chrome);
     for(const x of [-5.8,5.8]) cylinder(x,.48,2,.16,.95,gold);
-    const glass = material('#eafaff',.15,.28,'#5bbfff',.55);
+    const glass = new T.MeshPhysicalMaterial({color:'#d7f3ff',metalness:.12,roughness:.09,transmission:.68,thickness:.7,transparent:true,opacity:.85,clearcoat:1,clearcoatRoughness:.04,emissive:'#5bbfff',emissiveIntensity:.09});
     // Five oversized curved-arc displays, translucent Liquid Glass framing.
     const screens=[
-      ['GMAIL · CONNECT','diggitstaar:studio',-8.7,4,-4,blue],
-      ['AI CONTENT STUDIO','diggitstaar:studio',-4.35,4.2,-6,amber],
-      ['VIDEO PRODUCTION','diggitstaar:studio',0,4.3,-6.5,blue],
-      ['PROJECT WORKLOAD','diggitstaar:studio',4.35,4.2,-6,amber],
-      ['LEADS & CLIENTS','diggitstaar:studio',8.7,4,-4,blue]
+      ['GMAIL · CONNECT','diggitstaar:gmail',-8.7,4,-4,blue],
+      ['AI CONTENT STUDIO','diggitstaar:creative',-4.35,4.2,-6,amber],
+      ['VIDEO PRODUCTION','diggitstaar:video',0,4.3,-6.5,blue],
+      ['PROJECT WORKLOAD','diggitstaar:workload',4.35,4.2,-6,amber],
+      ['LEADS & CLIENTS','diggitstaar:leads',8.7,4,-4,blue]
     ];
     screens.forEach(([label,action,x,y,z,accent],i)=>{
       const g=new T.Group();g.position.set(x,y,z);g.rotation.y=(i-2)*-.095;scene.add(g);
@@ -486,8 +486,10 @@ if (renderer) {
       for(const side of [-1,1])box(side*2.1,0,.05,.055,3.6,.12,accent,g);
       text(label,0,1.22,.14,3.85,g);
       for(let row=0;row<4;row++)box(-.25,.68-row*.55,.15,2.8,.07,.04,row%2?chrome:blue,g);
+      const pulse=box(-1.73,-1.33,.18,.12,.15,.025,accent,g);
+      const scan=box(0,.92,.18,3.6,.018,.012,accent,g);
       g.userData={label,action};clickable.push(g);
-      animated.push(t=>{if(!reduced)g.position.y=y+Math.sin(t*.65+i)*.055;});
+      animated.push(t=>{if(!reduced){g.position.y=y+Math.sin(t*.65+i)*.055;pulse.position.x=-1.73+3.4*(.5+.5*Math.sin(t*.9+i));scan.position.y=.85-2.15*((t*.16+i*.19)%1);}});
     });
     text('DIGGITSTAAR · YOUR WORKSTATION',0,7.7,-9,10);
     panel('OPEN STUDIO','diggitstaar:studio',-2.4,1.5,-.8,blue,3.5);

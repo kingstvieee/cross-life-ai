@@ -7,7 +7,7 @@ export function sceneAction(value: unknown, world: string): string | null {
   const action = event.action;
   if (world === 'hub') return action.startsWith('world:') && worlds.has(action.slice(6)) && action !== 'world:hub' ? action : null;
   if (!worlds.has(world)) return null;
-  if (world === 'diggitstaar' && (action === 'diggitstaar:studio' || action === 'diggitstaar:website')) return action;
+  if (world === 'diggitstaar' && (['studio','website','gmail','creative','video','workload','leads'].includes(action.slice(12)) && action.startsWith('diggitstaar:'))) return action;
   if (action === 'connections' || /^conversation:[012]$/.test(action)) return action;
   return world === 'home' && action === 'checkins' ? action : null;
 }
