@@ -55,6 +55,8 @@ export const PRIVATE_BUILD248_CHROME_EAR_CLEANUP_REVIEW_ONLY_SHA256 = '2a3ef9727
 export const PRIVATE_BUILD248_TITANIUM_EAR_CLEANUP_REVIEW_ONLY_SHA256 = '3b3ccefe72bd5f9dc3828fc09f8f080c06d7f9f356e771e108e57e6db9d8d525';
 // Build249 is a texture/proportion/collar experiment; no exact-model owner/device proof.
 export const PRIVATE_BUILD249_FACE_COLLAR_REVIEW_SHA256 = 'f2465c2a670af1e22d884689253bffc6ade39094313d11be7269f00e26774114';
+// Build250 material/neck repair remains private pending owner/device sign-off.
+export const PRIVATE_BUILD250_CHROME_NECK_REVIEW_SHA256 = '057099cac71e04d6e1282b23fb52c9d593b8c1a4e055309254ca1f5609a42134';
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
   'da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395',
   'e6e81a37cbc142c4d82fe8aff53adce3fb39b18f364aac18b599dccb4a80b8a1',
@@ -86,6 +88,7 @@ export function assertGuardianModelNotRejected(modelSha256) {
   if (modelSha256 === PRIVATE_BUILD248_CHROME_EAR_CLEANUP_REVIEW_ONLY_SHA256) fail('build248_chrome_not_final_artist_or_device_approved');
   if (modelSha256 === PRIVATE_BUILD248_TITANIUM_EAR_CLEANUP_REVIEW_ONLY_SHA256) fail('build248_titanium_not_final_artist_or_device_approved');
   if (modelSha256 === PRIVATE_BUILD249_FACE_COLLAR_REVIEW_SHA256) fail('build249_private_likeness_and_device_not_approved');
+  if (modelSha256 === PRIVATE_BUILD250_CHROME_NECK_REVIEW_SHA256) fail('build250_private_art_device_not_approved');
   if (REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(modelSha256)) fail('legacy_face_not_approved');
 }
 
