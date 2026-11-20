@@ -77,7 +77,9 @@ test('Build238 does not accept renderer claims of device certification or invali
  assert.equal(normalizeIphoneQa('guardian',{...guardian(),acceptedAudioPacketCount:1000},ctx),null);
  assert.equal(normalizeIphoneQa('guardian',guardian(),{...ctx,session:'../escape'}),null);
  assert.equal(normalizeIphoneQa('guardian',{...guardian(),modelBound:false,modelSha256:null,frameCount:0,
-   audioPacketCount:0,acceptedAudioPacketCount:0},ctx)?.result,'NO_APPROVED_ASSET');
+   audioPacketCount:0,acceptedAudioPacketCount:0,guardianIdleFrames:0,
+   guardianWalkFrames:0,guardianRunFrames:0,
+   neckPoseBound:false,neckCollarPresent:false,neckPoseSamples:0},ctx)?.result,'NO_APPROVED_ASSET');
  assert.equal(normalizeIphoneQa('world',{...world('home','realm'),realIphoneCertified:true},
    {...ctx,scene:'home'}),null);
  assert.equal(normalizeIphoneQa('world',{...world('home','realm'),worldKey:'work-realm'},
