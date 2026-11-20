@@ -90,6 +90,7 @@ jobs:
       - run: node --experimental-strip-types --test tests/build238-iphone-qa-controls.test.mjs
       - run: node --test tests/build239-guardian-world-review-bundle.test.mjs
       - run: node --test tests/build240-locomotion-reentry.test.mjs
+      - run: node --test tests/build241-guardian-head-tracking.test.mjs
       - run: node --test tests/build240-ten-world-synthetic-collision.test.mjs
       - run: node --test tests/build219-independent-security-evidence.test.mjs
       - run: node --test tests/build218-219-live-provisioning.test.mjs
