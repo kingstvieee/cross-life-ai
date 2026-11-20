@@ -24,7 +24,7 @@ test('Build245 local renderer motion telemetry is sanitized and never hardware-c
  }
  const data=qa.snapshot();
  assert.equal(data.neckPoseBound,true);
- assert.equal(data.neckPoseSamples,12);
+ assert.equal(data.neckPoseSamples,20);
  assert.equal(data.decision,'UNVERIFIED');
  const exportObj=normalizeIphoneQa('guardian',data,CONTEXT);
  assert.equal(exportObj?.result,'REVIEW_REQUIRED');
