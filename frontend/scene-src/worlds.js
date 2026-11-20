@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createModelMotion, disposeModel } from './model-motion.js';
 import {createGuardianLocomotion} from './guardian-locomotion.js';
+import {createGuardianHeadTracking} from './guardian-head-tracking.js';
 import {createWorldPhysicsProbe} from './world-physics-qa.js';
 import { modelControls, hitControl } from './model-navigation.js';
 import {moveCapsuleXZ, routeIsClear, WALK_RADIUS_M} from './player-collision.js';
@@ -72,6 +73,7 @@ if (renderer) {
   let walkController = null;
   let guardianFaceMotion = null;
   let guardianLocomotion = null;
+  let guardianHeadTracking = null;
   const worldQaEnabled=window.STAAR_WORLD_COLLISION_QA===true && world!=='hub';
   let worldPhysicsQa=null;
   const guardianDeviceQa = window.STAAR_GUARDIAN_QA === true && world === 'hub'
@@ -345,6 +347,11 @@ if (renderer) {
         if(!model?.scene)return;
         if(disposed){disposeModel(model.scene);return;}
         const guardian=model.scene;
+        // Verified exact GLB may explicitly declare its real source coordinates.
+        // Preserve existing Y-up models and never guess an unspecified axis.
+        const upAxis=model.parser?.json?.extras?.STAAR_Guardian_Coordinates?.upAxis;
+        if(upAxis==='Z')guardian.rotation.x=-Math.PI/2;
+        else if(upAxis && upAxis!=='Y'){disposeModel(guardian);return;}
         const bounds=new T.Box3().setFromObject(guardian);
         const dimensions=bounds.getSize(new T.Vector3());
         if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000){disposeModel(guardian);return;}
@@ -360,6 +367,11 @@ if (renderer) {
         guardianLocomotion=createGuardianLocomotion(guardian,model.animations,
           {approvedAsset:true,reducedMotion:reduced});
         modelMotions.push(guardianLocomotion);
+        // The head controller is bound to the exact same release-gated GLB,
+        // without any writes to the approved face meshes, jaw or viseme curves.
+        guardianHeadTracking=createGuardianHeadTracking(guardian,
+          {approvedAsset:true,reducedMotion:reduced});
+        modelMotions.push(guardianHeadTracking);
         guardianFaceMotion=createApprovedGuardianFaceMotion(guardian,{
           rigSha256:asset.rigModelSha256,expectedRigSha256:asset.rigModelSha256});
         // Only the exact build-time receipt-checked Guardian GLB can signal
@@ -558,6 +570,22 @@ if (renderer) {
   const raycaster=new T.Raycaster();let down=null;
   canvas.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
   canvas.addEventListener('pointercancel',()=>{down=null;});
+  const portalFocusPosition=new T.Vector3();
+  canvas.addEventListener('pointermove',e=>{
+    if(world!=='hub'||!guardianHeadTracking?.ready||disposed)return;
+    const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;
+    raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,
+      -(e.clientY-r.top)/r.height*2+1),camera);
+    const hit=raycaster.intersectObjects(clickable,true)[0];
+    let node=hit?.object;
+    while(node&&!node.userData?.action)node=node.parent;
+    if(typeof node?.userData?.action==='string'&&node.userData.action.startsWith('world:')){
+      node.getWorldPosition(portalFocusPosition);
+      guardianHeadTracking.setTargetWorld(portalFocusPosition);
+    }else guardianHeadTracking.clearTarget();
+    requestDraw();
+  });
+  canvas.addEventListener('pointerleave',()=>{guardianHeadTracking?.clearTarget();requestDraw();});
   canvas.addEventListener('pointerup',e=>{const origin=down;down=null;if(!origin||Math.hypot(e.clientX-origin[0],e.clientY-origin[1])>7)return;const r=canvas.getBoundingClientRect();raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);const hit=raycaster.intersectObjects(clickable,true)[0];if(hit){if(importedControls.length){const control=hitControl(hit.object,importedControls);if(control)report('select',{action:control.action});}else{let n=hit.object;while(n&&!n.userData.action)n=n.parent;if(n)report('select',{action:n.userData.action});}}});
   document.querySelector('#reset').addEventListener('click',()=>{controls.reset();requestDraw();});
   document.querySelector('#title').textContent=world==='hub'?'STAARWARDD · PORTAL HUB':(singles?'STAAR Love · Singles':names[ids.indexOf(world)]);
