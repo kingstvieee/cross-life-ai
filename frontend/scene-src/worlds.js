@@ -13,6 +13,7 @@ import {createGroundSupportIndex} from './player-ground-support.js';
 import {createApprovedGuardianFaceMotion} from './guardian-face-motion.js';
 import {applyGuardianSpeechFrame} from './guardian-speech-bridge.js';
 import {createGuardianDevicePerformanceProbe} from './guardian-device-performance.js';
+import {createGuardianNeckPoseProbe} from './guardian-neck-pose-probe.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { worldIds, worldNames, fallbackActions } from './navigation.js';
 
@@ -75,6 +76,7 @@ if (renderer) {
   let guardianFaceMotion = null;
   let guardianLocomotion = null;
   let guardianHeadTracking = null;
+  let guardianNeckPoseQa = null;
   const worldQaEnabled=window.STAAR_WORLD_COLLISION_QA===true && world!=='hub';
   let worldPhysicsQa=null;
   const guardianDeviceQa = window.STAAR_GUARDIAN_QA === true && world === 'hub'
@@ -385,6 +387,10 @@ if (renderer) {
         guardianFaceMotion.mute();
         if(guardianFaceMotion.readyForPlayback){
           guardianDeviceQa?.modelReady(asset.rigModelSha256);
+          // Bind geometry diagnostics only inside the internal iPhone QA run.
+          // A private review-only GLB still cannot pass the asset importer.
+          if(guardianDeviceQa)guardianNeckPoseQa=createGuardianNeckPoseProbe(guardian,
+            {approvedAsset:true});
           report('guardian-face-ready',{modelSha256:asset.rigModelSha256});
         }
         requestDraw();
@@ -557,8 +563,11 @@ if (renderer) {
       animated.forEach(fn=>fn(t));controls.update();
       const renderStart=guardianDeviceQa ? performance.now() : 0;
       renderer.render(scene,camera);
-      if(guardianDeviceQa)guardianDeviceQa.recordFrame(performance.now(),
-        performance.now()-renderStart);
+      if(guardianDeviceQa){
+        guardianDeviceQa.recordFrame(performance.now(),performance.now()-renderStart);
+        guardianNeckPoseQa?.sample(performance.now());
+        if(guardianNeckPoseQa)guardianDeviceQa.recordNeckPose(guardianNeckPoseQa.snapshot());
+      }
       // A scene is ready only after WebGL has successfully drawn its first frame.
       if(!firstFrameReady){firstFrameReady=true;report('ready',{geometry:true,objects:scene.children.length});}
       if(!reduced || walkController?.pressedCount())requestDraw();
@@ -602,5 +611,5 @@ if (renderer) {
   document.querySelector('#status').textContent='Drag to explore · pinch or scroll to move closer · tap a labelled control';
   for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
   canvas.addEventListener('webglcontextlost',e=>{worldPhysicsQa?.contextLost();e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
-  addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
+  addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();guardianNeckPoseQa?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
 }
