@@ -565,6 +565,9 @@ if (renderer) {
       renderer.render(scene,camera);
       if(guardianDeviceQa){
         guardianDeviceQa.recordFrame(performance.now(),performance.now()-renderStart);
+        // Count only post-render body-animation frames, not accepted button commands.
+        guardianDeviceQa.recordMotionMode(guardianLocomotion?.snapshot().mode,
+          guardianLocomotion?.ready===true);
         guardianNeckPoseQa?.sample(performance.now());
         if(guardianNeckPoseQa)guardianDeviceQa.recordNeckPose(guardianNeckPoseQa.snapshot());
       }
