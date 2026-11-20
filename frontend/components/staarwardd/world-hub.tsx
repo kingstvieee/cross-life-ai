@@ -21,7 +21,7 @@ export function WorldHub() {
   const { width } = useWindowDimensions();
   const [selected, setSelected] = useState<string | null>(null);
   const [guardianState, setGuardianState] = useState<GuardianState>('flying');
-  const [stageHeight, setStageHeight] = useState(380);
+  const [worldPickerOpen, setWorldPickerOpen] = useState(false);
   const [guardianMessage, setGuardianMessage] = useState('Guardian standing by.');
   const [greetingError, setGreetingError] = useState(false);
   const [guardianSpeaking, setGuardianSpeaking] = useState(false);
@@ -191,62 +191,76 @@ export function WorldHub() {
   const greetingActive = greetingEnabled && serverGreetingConsent && !serverPrivate && !serverSpeechQuiet;
   const companion = user?.companion === 'kaia' ? 'Kaia' : user?.companion === 'guardian' ? 'Guardian' : 'Atlas';
   useFocusEffect(useCallback(() => { setSelected(null); }, []));
+  // The Hub is a fixed immersive viewport. Navigation happens inside overlays,
+  // never by vertically scrolling the homepage or stretching the approved art.
+  const openWorld = (id: string) => {
+    setSelected(id);
+    setWorldPickerOpen(false);
+    router.push({ pathname: '/world/[id]', params: { id } } as never);
+  };
+  const hotspots = [
+    { id: 'work', x: 0.16, y: 0.36, label: 'STAAR WORK' },
+    { id: 'creativity', x: 0.50, y: 0.36, label: 'STAAR DREAMS' },
+    { id: 'wellbeing', x: 0.84, y: 0.36, label: 'STAAR HEALTH' },
+    { id: 'style', x: 0.16, y: 0.66, label: 'STAAR STYLE' },
+    { id: 'staarverse', x: 0.84, y: 0.66, label: 'STARVERSE' },
+  ];
+  
   return <View style={s.root}>
-    <LinearGradient colors={['#171A1E', '#030405', '#111418']} style={StyleSheet.absoluteFill} />
-    <SafeAreaView style={s.safe}>
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        <View style={s.header}><View><Text style={s.brand}>STAARWAARDD</Text><Text style={s.micro}>YOUR CONNECTED UNIVERSE</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => router.push('/settings')} style={s.icon}><Ionicons name="options-outline" size={22} color="#E4E8EE" /></Pressable></View>
-        <View style={[s.stage, { height: stageHeight }]} onLayout={event => {
-          const available = event.nativeEvent.layout.width;
-          const target = Math.max(380, Math.min(560, available * 1.06));
-          if (Math.abs(stageHeight - target) > 1) setStageHeight(target);
-        }}>
-          <Image source={require('@/assets/images/staarwardd/locked/homepage.png')} resizeMode="cover" style={s.skyline} />
-          <AccessField />
-          {/* Approved signed-in Hub master; the former layered Guardian pose was an unapproved rectangular composite. */}
-          <Animated.View style={[s.stageCopy, { opacity: arrival, transform: [{ translateY: arrival.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }] }]}><Text style={s.micro}>{companion.toUpperCase()} · YOUR COMPANION</Text><Text style={s.title}>STAARWAARDD</Text><Text style={s.description}>{guardianMessage}</Text></Animated.View>
+    <Image source={require('@/assets/images/staarwardd/locked/homepage.png')} resizeMode="cover" style={s.fullWorld} accessibilityLabel="Approved STAARWAARDD immersive portal hub" />
+    <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,.52)', 'transparent', 'transparent', 'rgba(0,0,0,.78)']} locations={[0, .18, .67, 1]} style={StyleSheet.absoluteFill} />
+    <SafeAreaView style={s.fixedSafe} edges={['top','bottom']}>
+      <View style={s.topBar}>
+        <View><Text style={s.brand}>STAARWAARDD</Text><Text style={s.micro}>YOUR CONNECTED UNIVERSE</Text></View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => router.push('/settings')} style={s.roundControl}><Ionicons name="settings-outline" size={21} color="#F3F6FB" /></Pressable>
+      </View>
+      <View style={s.portalField}>
+        {hotspots.map(portal => <Pressable key={portal.id} accessibilityRole="button" accessibilityLabel={`Enter ${portal.label}`} disabled={selected !== null} onPress={() => openWorld(portal.id)} style={[s.portalHotspot, { left: `${(portal.x-.145)*100}%`, top: `${(portal.y-.135)*100}%`, width: '29%', height: '27%' }]} />)}
+      </View>
+      <View style={s.fixedDock}>
+        <View style={s.statusRow}><View style={s.statusCopy}><Text style={s.micro}>{companion.toUpperCase()} · YOUR COMPANION</Text><Text style={s.dockTitle} numberOfLines={1}>{guardianMessage}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian" disabled={guardianSpeaking} onPress={() => { void greet(); }} style={s.roundControl}><Ionicons name="volume-high-outline" size={22} color="#F4F7FC" /></Pressable></View>
+        <View style={s.actionRow}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Open all immersive worlds" onPress={() => setWorldPickerOpen(true)} style={s.dockAction}><Ionicons name="planet-outline" size={20} color="#F4F7FC" /><Text style={s.actionLabel}>WORLDS</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Speak with ${companion}`} onPress={() => router.push('/chat')} style={s.dockAction}><Ionicons name="chatbubble-ellipses-outline" size={20} color="#F4F7FC" /><Text style={s.actionLabel}>{companion.toUpperCase()}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Guardian controls" onPress={() => router.push('/guardian-tools')} style={s.dockAction}><Ionicons name="shield-checkmark-outline" size={20} color="#F4F7FC" /><Text style={s.actionLabel}>GUARDIAN</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Mute Guardian" onPress={() => { voiceEpoch.current += 1; audio.setSpeechQuiet(true); audio.stopAll(); setGuardianSpeaking(false); setGuardianState('hover'); }} style={s.roundControl}><Ionicons name="volume-mute-outline" size={21} color="#F4F7FC" /></Pressable>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian welcome" accessibilityHint="Plays only when Guardian voice is enabled and consent permits" disabled={guardianSpeaking} onPress={() => { void greet(); }} style={s.greetButton}><Ionicons name="volume-high-outline" size={18} color="#F1F3F7" /><Text style={s.greetLabel}>{audio.voicePlaybackActive ? 'GUARDIAN SPEAKING' : guardianSpeaking ? 'GUARDIAN PREPARING VOICE' : greetingError ? 'RETRY GUARDIAN VOICE' : 'HEAR GUARDIAN'}</Text></Pressable>
-        <LinearGradient colors={['#BBC2CB', '#3A414A', '#8B949F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.frame}>
-          <BlurView intensity={35} tint="dark" style={s.companion}>
-            <View style={{ flex: 1, gap: 7 }}><Text style={s.panelTitle}>Speak with {companion}</Text><Text style={s.description}>Ask a question or continue a conversation. Recording requires a tap.</Text></View>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Open conversation with ${companion}`} onPress={() => router.push('/chat')} style={s.primary}><Ionicons name="chatbubble-ellipses-outline" size={23} color="#101317" /></Pressable>
-          </BlurView>
-        </LinearGradient>
-        <View style={s.voiceRow}><View style={{ flex: 1 }}><Text style={s.panelTitle}>Guardian welcome</Text><Text style={s.description}>{!audio.master ? 'Enable master audio in settings to hear greetings.' : greetingEnabled ? 'Greets after arrival only with verified consent and during permitted hours.' : 'Automatic welcome off. Tap the microphone or chat to speak.'}</Text></View><Pressable accessibilityRole="switch" accessibilityState={{ checked: greetingActive }} accessibilityLabel="Proactive Guardian greeting" disabled={!greetingKey || !preferenceReady || !serverConsentReady || savingGreeting || serverPrivate || serverSpeechQuiet} onPress={() => setGreeting(!greetingActive)} style={[s.toggle, greetingActive && s.toggleOn]}><Text style={[s.toggleText, greetingActive && s.toggleTextOn]}>{greetingActive ? 'ON' : 'OFF'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Silence Guardian" onPress={() => { voiceEpoch.current += 1; audio.setSpeechQuiet(true); audio.stopAll(); setGuardianSpeaking(false); setGuardianState('hover'); }} style={s.silence}><Ionicons name="volume-mute-outline" size={21} color="#F3F4F6" /></Pressable></View>
-        <View style={s.section}><Text style={s.micro}>EXPLORE YOUR IMMERSIVE WORLDS</Text><Text style={s.count}>{String(WORLDS.length).padStart(2, '0')}</Text></View>
-        <View style={s.grid}>{WORLDS.map((world, index) => <Pressable key={world.id} accessibilityRole="button" accessibilityLabel={`Open ${world.name}`} disabled={selected !== null} onPress={() => { setSelected(world.id); router.push({ pathname: '/world/[id]', params: { id: world.id } } as never); }} style={({ pressed }) => [s.world, { width: portalSize, height: portalSize, borderRadius: 22 }, pressed && s.pressed]}>
-          <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [index % 2 ? 4 : -4, index % 2 ? -4 : 4] }) }, { scale: drift.interpolate({ inputRange: [0, 1], outputRange: [1.02, 1.08] }) }] }]}><Image source={world.image} style={s.art} accessibilityLabel={`${world.name} approved portal artwork`} /></Animated.View>
-          <Animated.View pointerEvents="none" style={[s.glassRing, { borderRadius: 22, opacity: drift.interpolate({ inputRange: [0, 1], outputRange: [0.58, 0.96] }), transform: [{ scale: drift.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1.035] }) }] }]} />
-          <Animated.View pointerEvents="none" style={[s.glassSheen, {
-            borderRadius: 22,
-            opacity: motionReduced ? 0.48 : drift.interpolate({ inputRange: [0, 1], outputRange: index % 2 ? [0.16, 0.55] : [0.55, 0.16] }),
-            transform: [{ scale: motionReduced ? 1 : drift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.045] }) }],
-          }]}>
-            <LinearGradient colors={['rgba(255,255,255,.42)', 'rgba(223,234,247,.08)', 'rgba(240,245,255,.03)', 'rgba(225,235,250,.2)']} locations={[0, .24, .7, 1]} start={{ x: 0.08, y: 0.03 }} end={{ x: 0.95, y: 1 }} style={StyleSheet.absoluteFill} />
-          </Animated.View>
-          <Animated.View pointerEvents="none" style={[s.glassHighlight, {
-            width: portalSize * .48, height: portalSize * .18, borderRadius: portalSize,
-            opacity: motionReduced ? .42 : drift.interpolate({ inputRange: [0, 1], outputRange: [.25, .7] }),
-            transform: [{ rotate: '-28deg' }]
-          }]} />
-          <LinearGradient colors={['transparent', 'rgba(3,4,5,.65)', '#080A0D']} locations={[0, .45, 1]} style={StyleSheet.absoluteFill} />
-          <View style={s.worldTop}><Text style={s.number}>{String(index + 1).padStart(2, '0')}</Text><Ionicons name="arrow-forward-outline" size={18} color="#DDE3EB" /></View>
-          <View style={s.worldCopy}><Text style={s.worldName}>{world.name}</Text><Text style={s.worldDetail}>{world.title}</Text></View>
-        </Pressable>)}</View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Explore STAAR Love Singles Lounge" accessibilityHint="Opens the separate Singles Lounge 3D development preview" onPress={() => router.push({ pathname: '/environment', params: { world: 'relationships', variant: 'singles' } } as never)} style={s.singlesCard}>
-          <Image source={require('@/assets/images/staarwardd/locked/love-singles.png')} resizeMode="cover" style={StyleSheet.absoluteFill} accessibilityLabel="Approved STAAR Love Singles Lounge visual reference" />
-          <LinearGradient colors={['rgba(3,4,5,.05)', 'rgba(3,4,5,.72)', '#080A0D']} locations={[0, .58, 1]} style={StyleSheet.absoluteFill} />
-          <View style={s.singlesCopy}><Text style={s.micro}>ADDITIONAL IMMERSIVE ENVIRONMENT · 10 OF 10</Text><Text style={s.worldName}>STAAR LOVE · SINGLES LOUNGE</Text><Text style={s.worldDetail}>Explore the separate development preview</Text></View>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/device-checks')} style={s.icon}><Text style={s.panelTitle}>Voice & device checks</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/guardian-tools')} style={s.icon}><Text style={s.panelTitle}>Life Map & Guardian controls</Text></Pressable>
-        <Text style={s.footer}>GUARDIAN AT THE HEART. YOU IN CONTROL.</Text>
-      </ScrollView>
+      </View>
+      {worldPickerOpen && <View style={s.pickerBackdrop}>
+        <View style={s.pickerPanel}>
+          <View style={s.pickerHeader}><Text style={s.pickerTitle}>CHOOSE YOUR WORLD</Text><Pressable accessibilityRole="button" accessibilityLabel="Close world selector" onPress={() => setWorldPickerOpen(false)} style={s.roundControl}><Ionicons name="close" size={22} color="#FFFFFF" /></Pressable></View>
+          <ScrollView style={s.pickerScroll} contentContainerStyle={s.pickerGrid} showsVerticalScrollIndicator={false}>
+            {WORLDS.map(world => <Pressable key={world.id} accessibilityRole="button" accessibilityLabel={`Enter ${world.name}`} onPress={() => openWorld(world.id)} style={s.pickerWorld}><Image source={world.image} style={s.pickerArt} /><Text style={s.pickerWorldLabel} numberOfLines={1}>{world.name}</Text></Pressable>)}
+            <Pressable accessibilityRole="button" accessibilityLabel="Explore STAAR Love Singles Lounge" onPress={() => { setWorldPickerOpen(false); router.push({ pathname: '/environment', params: { world: 'relationships', variant: 'singles' } } as never); }} style={s.pickerWorld}><Image source={require('@/assets/images/staarwardd/locked/love-singles.png')} style={s.pickerArt} /><Text style={s.pickerWorldLabel}>SINGLES LOUNGE</Text></Pressable>
+          </ScrollView>
+        </View>
+      </View>}
     </SafeAreaView>
   </View>;
 }
 const s = StyleSheet.create({
+  fullWorld: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
+  fixedSafe: { flex: 1, justifyContent: 'space-between' },
+  topBar: { paddingHorizontal: 20, paddingTop: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  portalField: { flex: 1, position: 'relative' },
+  portalHotspot: { position: 'absolute', borderRadius: 40 },
+  fixedDock: { marginHorizontal: 12, marginBottom: 5, padding: 12, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(222,230,242,.55)', backgroundColor: 'rgba(4,7,12,.84)', gap: 10 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  statusCopy: { flex: 1 },
+  dockTitle: { color: '#F3F6FA', fontSize: 15, fontWeight: '600', marginTop: 3 },
+  roundControl: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: 'rgba(235,242,255,.5)', justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(10,14,20,.56)' },
+  actionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+  dockAction: { flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(215,226,242,.3)' },
+  actionLabel: { color: '#F4F7FC', fontSize: 10, fontWeight: '700', letterSpacing: .4 },
+  pickerBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,.85)', justifyContent: 'center', padding: 14 },
+  pickerPanel: { flex: 1, maxHeight: 650, backgroundColor: '#0B0F16', borderColor: '#A8B5C8', borderWidth: 1, borderRadius: 22, padding: 14 },
+  pickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  pickerTitle: { color: '#F4F7FC', fontSize: 17, fontWeight: '700', letterSpacing: 1.5 },
+  pickerScroll: { flex: 1 },
+  pickerGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12, paddingBottom: 12 },
+  pickerWorld: { width: '47%', borderRadius: 14, overflow: 'hidden', backgroundColor: '#19202A' },
+  pickerArt: { width: '100%', height: 120, resizeMode: 'cover' },
+  pickerWorldLabel: { color: '#FFFFFF', fontSize: 12, fontWeight: '700', padding: 10 },
   root: { flex: 1, backgroundColor: '#030405' }, safe: { flex: 1 }, content: { padding: 22, paddingBottom: 38, width: '100%', maxWidth: 1200, alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, brand: { color: '#F3F5F8', fontSize: 18, letterSpacing: 4, fontWeight: '700' }, micro: { color: '#B2BAC5', fontSize: 10, letterSpacing: 2, lineHeight: 17 }, icon: { padding: 12, borderWidth: 1, borderColor: '#4D555F', borderRadius: 16 },
   stage: { height: 380, overflow: 'hidden', marginVertical: 12, borderRadius: 26, borderWidth: 1, borderColor: '#747F8C' }, skyline: { position: 'absolute', width: '100%', height: '100%', opacity: 1 }, guardianFigure: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' }, stageCopy: { position: 'absolute', bottom: 12, left: 12, right: 12, padding: 12, borderRadius: 14, backgroundColor: 'rgba(3,4,6,.85)', gap: 4 }, greetButton: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#7F8995', padding: 12, borderRadius: 20, marginBottom: 12 }, greetLabel: { color: '#F1F3F7', fontSize: 11, letterSpacing: 1.2, fontWeight: '700' }, title: { color: '#F1F3F7', fontSize: 28, lineHeight: 34, letterSpacing: -1.5, fontWeight: '600' }, description: { color: '#B3BCC9', fontSize: 13, lineHeight: 21 },
@@ -258,3 +272,5 @@ const s = StyleSheet.create({
   singlesCard: { height: 220, overflow: 'hidden', borderRadius: 22, borderWidth: 1, borderColor: '#A9B7CA', marginTop: 16, justifyContent: 'flex-end' }, singlesCopy: { padding: 20, gap: 8 },
   world: { overflow: 'hidden', borderWidth: 1, borderColor: '#A9B7CA', backgroundColor: '#12161B' }, art: { width: '100%', height: '100%', resizeMode: 'cover' }, worldTop: { position: 'absolute', top: 17, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between' }, number: { color: '#E3E8EF', fontSize: 11, letterSpacing: 3 }, worldCopy: { position: 'absolute', bottom: 18, left: 20, right: 20, gap: 6 }, worldName: { color: '#F4F6F9', fontSize: 17, fontWeight: '600', letterSpacing: .3 }, worldDetail: { color: '#C0C8D2', fontSize: 9, lineHeight: 19 }, pressed: { opacity: .7 }, footer: { color: '#7F8996', fontSize: 9, letterSpacing: 2, textAlign: 'center', marginTop: 30 },
 });
+
+// Fixed-screen presentation: the only vertical scrolling is inside the optional world picker.
