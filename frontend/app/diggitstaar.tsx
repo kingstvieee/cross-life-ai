@@ -6,6 +6,8 @@ import { useAuth } from '@/src/auth';
 import { WorldScene } from '@/components/staarwardd/world-scene';
 
 const PREFIX = 'diggitstaar:studio-command:v1';
+type Lead = { id: string; company: string; contact: string; opportunity: string; stage: 'Research' | 'Qualified' | 'Draft ready' | 'Contacted' | 'Closed'; verified: boolean };
+const LEAD_STAGES: Lead['stage'][] = ['Research', 'Qualified', 'Draft ready', 'Contacted', 'Closed'];
 type Task = { id: string; title: string; client: string; status: 'Inbox' | 'In production' | 'Awaiting approval' | 'Delivered' };
 const STATES: Task['status'][] = ['Inbox', 'In production', 'Awaiting approval', 'Delivered'];
 export default function Diggitstaar() {
@@ -14,6 +16,10 @@ export default function Diggitstaar() {
   const authorized = !!user?.user_id && !user.is_demo;
   const key = `${PREFIX}:${encodeURIComponent(authorized ? user!.user_id : 'guest')}`;
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [leadCompany, setLeadCompany] = useState('');
+  const [leadContact, setLeadContact] = useState('');
+  const [leadOpportunity, setLeadOpportunity] = useState('');
   const [client, setClient] = useState('');
   const [title, setTitle] = useState('');
   const [loaded, setLoaded] = useState(false);
@@ -35,9 +41,24 @@ export default function Diggitstaar() {
     }).catch(() => { if (active) { setLoaded(true); setNotice('Local workload could not be loaded.'); } });
     return () => { active = false; };
   }, [key, authorized]);
+  useEffect(() => {
+    let active = true; setLeads([]);
+    if (!authorized) return () => { active = false; };
+    void AsyncStorage.getItem(key + ':leads').then(raw => { if (!active || !raw) return; const data: unknown = JSON.parse(raw); if (Array.isArray(data)) setLeads(data.filter(x => x && typeof x.id === 'string' && typeof x.company === 'string' && LEAD_STAGES.includes(x.stage))); }).catch(() => { if (active) setNotice('Lead register could not be loaded.'); });
+    return () => { active = false; };
+  }, [key, authorized]);
   const save = (next: Task[]) => {
     if (!authorized) return;
     void AsyncStorage.setItem(key, JSON.stringify(next)).then(() => setTasks(next)).catch(() => Alert.alert('Not saved', 'Could not save workload on this device.'));
+  };
+  const saveLeads = (next: Lead[]) => {
+    if (!authorized) return;
+    void AsyncStorage.setItem(key + ':leads', JSON.stringify(next)).then(() => setLeads(next)).catch(() => setNotice('Could not save leads on this device.'));
+  };
+  const addLead = () => {
+    if (!authorized || !leadCompany.trim() || !leadOpportunity.trim()) return;
+    saveLeads([...leads, { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, company: leadCompany.trim(), contact: leadContact.trim(), opportunity: leadOpportunity.trim(), stage: 'Research', verified: false }]);
+    setLeadCompany(''); setLeadContact(''); setLeadOpportunity('');
   };
   const generate = () => {
     if (!authorized || !loaded || !client.trim() || !offer.trim() || !audience.trim() || !goal.trim()) { setNotice('Enter a client, offer, audience and campaign objective first.'); return; }
@@ -91,6 +112,23 @@ export default function Diggitstaar() {
     <Text style={{ color: '#F3D9A4', fontSize: 21, fontWeight: '800' }}>Production tools</Text>
     {button('Open AI creative assistant', () => router.push('/chat'))}
     <Text style={{ color: '#C5D9F0' }}>Gmail, video generation, editing, lead sourcing and analytics require separately authorized, verified integrations. No connection is implied by these controls.</Text>
+    <View style={{ padding: 16, borderRadius: 16, borderColor: '#A4D4FF', borderWidth: 1, backgroundColor: '#17283E', gap: 10 }}>
+      <Text style={{ color: '#F3D9A4', fontSize: 21, fontWeight: '800' }}>Client Leads & Opportunities</Text>
+      <Text style={{ color: '#C5D9F0' }}>Private, account-scoped lead register. No contacts are invented, automatically researched or emailed.</Text>
+      {field('Prospective company', leadCompany, setLeadCompany)}
+      {field('Contact details (optional)', leadContact, setLeadContact)}
+      {field('Potential project', leadOpportunity, setLeadOpportunity)}
+      {button('Add lead for research', addLead, !authorized || !leadCompany.trim() || !leadOpportunity.trim())}
+      {leads.map(lead => <View key={lead.id} style={{ borderColor: '#6B829A', borderWidth: 1, padding: 12, borderRadius: 12, gap: 7 }}>
+        <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{lead.company}</Text>
+        <Text style={{ color: '#C5D9F0' }}>{lead.opportunity}{lead.contact ? ` · ${lead.contact}` : ''}</Text>
+        <Text style={{ color: lead.verified ? '#B4EDCB' : '#F1C9A0' }}>{lead.verified ? 'Manually marked verified' : 'Unverified — research required'}</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{LEAD_STAGES.map(stage => <Pressable key={stage} accessibilityRole="button" onPress={() => saveLeads(leads.map(l => l.id === lead.id ? { ...l, stage } : l))} style={{ backgroundColor: stage === lead.stage ? '#6D5A38' : '#26394E', borderRadius: 8, padding: 9 }}><Text style={{ color: '#FFFFFF' }}>{stage}</Text></Pressable>)}</View>
+        {button(lead.verified ? 'Mark verification pending' : 'Mark manually verified', () => saveLeads(leads.map(l => l.id === lead.id ? { ...l, verified: !l.verified } : l)))}
+        {button('Remove lead', () => saveLeads(leads.filter(l => l.id !== lead.id)))}
+      </View>)}
+      {button('Share leads for review', () => { void Share.share({ message: leads.map(l => `${l.company} | ${l.opportunity} | ${l.stage} | ${l.verified ? 'Manually verified' : 'Unverified'}`).join('\n') || 'No leads recorded' }).catch(() => setNotice('Sharing unavailable.')); }, !authorized)}
+    </View>
     <Text style={{ color: '#F3D9A4', fontSize: 21, fontWeight: '800' }}>Workload overview</Text>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{STATES.map(status => <View key={status} style={{ backgroundColor: '#152237', borderRadius: 12, padding: 12, minWidth: '45%', flexGrow: 1 }}><Text style={{ color: '#D7E3F1', fontSize: 12 }}>{status}</Text><Text style={{ color: '#FFFFFF', fontSize: 25, fontWeight: '800' }}>{tasks.filter(t => t.status === status).length}</Text></View>)}</View>
     <Text style={{ color: '#D8E2EE', fontWeight: '700' }}>Add a client task manually</Text>

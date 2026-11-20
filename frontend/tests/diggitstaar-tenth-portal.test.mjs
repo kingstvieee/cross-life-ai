@@ -29,3 +29,12 @@ test('seated 3D workstation has five touch-target holograms and secure native ac
  assert.match(studio, /https:\/\/www\.diggitstaar\.com/);
  assert.match(studio, /Generate script \+ workload/);
 });
+
+test('lead register is local, account scoped and requires manual verification', async () => {
+ const studio = await read('app/diggitstaar.tsx');
+ assert.match(studio, /key \+ ':leads'/);
+ assert.match(studio, /AsyncStorage\.setItem\(key \+ ':leads'/);
+ assert.match(studio, /Unverified — research required/);
+ assert.match(studio, /Mark manually verified/);
+ assert.match(studio, /No contacts are invented, automatically researched or emailed/);
+});
