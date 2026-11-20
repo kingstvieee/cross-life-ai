@@ -92,8 +92,21 @@ export function normalizeIphoneQa(
       keep(payload,metrics,['neckMaxPositiveGapUnits','neckMaxVerticalOverlapUnits',
         'neckMaxHeadTranslationDriftUnits'],x=>validMetric(x,100));
     }
+    // "Ready for review" requires actual rendered gait and collar measurements.
+    // Tap acknowledgements, generic frame counts and voice packets alone cannot
+    // satisfy an animation QA review, let alone grant production acceptance.
+    keep(payload,metrics,['guardianIdleFrames','guardianWalkFrames','guardianRunFrames'],
+      x=>validCount(x,36000));
+    const gaitEvidence=validCount(payload.guardianWalkFrames,36000)&&
+      validCount(payload.guardianRunFrames,36000)&&
+      payload.guardianWalkFrames>=60&&payload.guardianRunFrames>=60;
+    const neckEvidence=payload.neckPoseBound===true&&
+      payload.neckCollarPresent===true&&
+      validCount(payload.neckPoseSamples,100000)&&payload.neckPoseSamples>=16&&
+      payload.neckPoseFailures===0;
     if(!payload.modelBound)result='NO_APPROVED_ASSET';
-    else if(payload.frameCount>=300&&validCount(payload.acceptedAudioPacketCount)&&payload.acceptedAudioPacketCount>0)
+    else if(payload.frameCount>=300&&payload.acceptedAudioPacketCount>0&&
+      gaitEvidence&&neckEvidence)
       result='REVIEW_REQUIRED';
   }else{
     if(payload.schema!=='staar-world-physical-device-qa-telemetry-v1'||
