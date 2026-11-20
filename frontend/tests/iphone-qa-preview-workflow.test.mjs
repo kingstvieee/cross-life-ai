@@ -66,10 +66,10 @@ test('Wrong app identity, QA profile misconfiguration, accidental production QA 
  }
 });
 
-test('TestFlight production workflow is separate and still requires its existing strict preflight',async()=>{
+test('TestFlight production workflow is separate and requires owner candidate preflight',async()=>{
  const release=await read('.eas/workflows/testflight-release.yml');
  const internal=await read('.eas/workflows/iphone-qa-preview.yml');
- assert.match(release,/node scripts\/verify-production-package\.mjs/);
+ assert.match(release,/node scripts\/verify-owner-testflight-candidate\.mjs/);
  assert.match(release,/type: testflight/);
  assert.match(release,/founder_acceptance/);
  assert.doesNotMatch(internal,/founder_acceptance|type: testflight/);
