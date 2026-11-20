@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth';
 import { WorldScene } from '@/components/staarwardd/world-scene';
+import * as WebBrowser from 'expo-web-browser';
 
 const PREFIX = 'diggitstaar:studio-command:v1';
 type Lead = { id: string; company: string; contact: string; opportunity: string; stage: 'Research' | 'Qualified' | 'Draft ready' | 'Contacted' | 'Closed'; verified: boolean };
@@ -12,11 +13,16 @@ type Task = { id: string; title: string; client: string; status: 'Inbox' | 'In p
 const STATES: Task['status'][] = ['Inbox', 'In production', 'Awaiting approval', 'Delivered'];
 export default function Diggitstaar() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, api } = useAuth();
   const authorized = !!user?.user_id && !user.is_demo;
   const key = `${PREFIX}:${encodeURIComponent(authorized ? user!.user_id : 'guest')}`;
   const [tasks, setTasks] = useState<Task[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [gmailFlow, setGmailFlow] = useState<string | null>(null);
+  const [gmailConnected, setGmailConnected] = useState(false);
+  const [gmailConfigured, setGmailConfigured] = useState(false);
+  const [gmailBusy, setGmailBusy] = useState(false);
+  const [gmailMessages, setGmailMessages] = useState<Array<{ id: string; from: string; subject: string; date: string; snippet: string }>>([]);
   const [leadCompany, setLeadCompany] = useState('');
   const [leadContact, setLeadContact] = useState('');
   const [leadOpportunity, setLeadOpportunity] = useState('');
@@ -47,6 +53,47 @@ export default function Diggitstaar() {
     void AsyncStorage.getItem(key + ':leads').then(raw => { if (!active || !raw) return; const data: unknown = JSON.parse(raw); if (Array.isArray(data)) setLeads(data.filter(x => x && typeof x.id === 'string' && typeof x.company === 'string' && LEAD_STAGES.includes(x.stage))); }).catch(() => { if (active) setNotice('Lead register could not be loaded.'); });
     return () => { active = false; };
   }, [key, authorized]);
+  const checkGmail = async () => {
+    if (!authorized) return;
+    try { const r = await api('/api/connections'); if (!r.ok) return; const rows: Array<{id:string;configured:boolean;connected:boolean}> = await r.json(); const gmail = rows.find(row => row.id === 'gmail'); setGmailConfigured(!!gmail?.configured); setGmailConnected(!!gmail?.connected); } catch { setNotice('Gmail status unavailable.'); }
+  };
+  useEffect(() => { void checkGmail(); }, [key, authorized]);
+  const startGmail = async () => {
+    if (!authorized || gmailBusy) return;
+    setGmailBusy(true);
+    try { const response = await api('/api/connections/gmail/start', { method: 'POST' });
+      if (!response.ok) { setNotice(response.status === 503 ? 'Gmail OAuth application credentials are not configured on the server.' : 'Could not start Gmail authorization.'); return; }
+      const data: { flow: string; url: string } = await response.json();
+      if (!data.url.startsWith('https://accounts.google.com/')) throw new Error('unexpected_oauth_host');
+      setGmailFlow(data.flow); await WebBrowser.openBrowserAsync(data.url);
+      setNotice('After granting Gmail read-only access, select Finish Gmail connection.');
+    } catch { setNotice('Gmail authorization was not completed.'); } finally { setGmailBusy(false); }
+  };
+  const finishGmail = async () => {
+    if (!gmailFlow || gmailBusy) return;
+    setGmailBusy(true);
+    try { const response = await api('/api/connections/gmail/finish/' + encodeURIComponent(gmailFlow), { method: 'POST' });
+      if (!response.ok) { setNotice('Gmail authorization is pending, expired, or its read permission could not be verified.'); return; }
+      setGmailFlow(null); await checkGmail(); setNotice('Gmail read-only access verified by the server.');
+    } catch { setNotice('Gmail connection verification failed.'); } finally { setGmailBusy(false); }
+  };
+  const readGmail = async () => {
+    if (!gmailConnected || gmailBusy) return;
+    setGmailBusy(true);
+    try { const response = await api('/api/connections/gmail/inbox');
+      if (!response.ok) { setNotice('Gmail inbox read failed or authorization expired.'); await checkGmail(); return; }
+      const data: { messages: Array<{id:string;from:string;subject:string;date:string;snippet:string}> } = await response.json();
+      setGmailMessages(data.messages); setNotice('Read-only inbox refreshed. No messages sent or modified.');
+    } catch { setNotice('Gmail inbox unavailable.'); } finally { setGmailBusy(false); }
+  };
+  const disconnectGmail = async () => {
+    if (gmailBusy) return;
+    setGmailBusy(true);
+    try { const response = await api('/api/connections/gmail', { method: 'DELETE' });
+      if (!response.ok) { setNotice('Could not disconnect Gmail.'); return; }
+      setGmailConnected(false); setGmailFlow(null); setGmailMessages([]); setNotice('Stored Gmail connection removed.');
+    } catch { setNotice('Could not disconnect Gmail.'); } finally { setGmailBusy(false); }
+  };
   const save = (next: Task[]) => {
     if (!authorized) return;
     void AsyncStorage.setItem(key, JSON.stringify(next)).then(() => setTasks(next)).catch(() => Alert.alert('Not saved', 'Could not save workload on this device.'));
@@ -93,10 +140,13 @@ export default function Diggitstaar() {
     <Text style={{ color: '#D5DFEE', fontSize: 15 }}>AI Content Agency · Business Command Centre</Text>
     <View style={{ padding: 17, backgroundColor: '#121D2D', borderRadius: 18, borderWidth: 1, borderColor: '#6C7990', gap: 10 }}>
       <Text style={{ color: '#F5E3BE', fontSize: 19, fontWeight: '800' }}>Gmail workspace</Text>
-      <Text style={{ color: '#F1C9A0', fontWeight: '700' }}>Not connected</Text>
-      <Text style={{ color: '#D2DAE6', lineHeight: 21 }}>The studio will use a separate, consent-based Google authorization to read selected business mail and build a reviewable client inbox. Signing in to STAARWAARDD does not grant Gmail access.</Text>
-      <Text style={{ color: '#C3CDDB', lineHeight: 20 }}>Planned permissions: read-only Gmail access, revocable at any time. No automatic sending, deleting, or sharing. Inbox classification, deadlines, and client matching stay disabled until a secure connection is implemented and verified.</Text>
-      {button('Gmail connection · Setup pending', () => setNotice('Secure Gmail authorization is not yet available in this build. No mailbox has been accessed.'), true)}
+      <Text style={{ color: gmailConnected ? '#B4EDCB' : '#F1C9A0', fontWeight: '700' }}>{gmailConnected ? 'Read-only connected' : gmailConfigured ? 'Not connected' : 'Server OAuth configuration required'}</Text>
+      <Text style={{ color: '#D2DAE6', lineHeight: 21 }}>Separate Google consent with Gmail read-only permission. No sending, deleting, modifying, or automatic outreach. Mail is fetched only when requested.</Text>
+      {!gmailConnected && button('Authorize Gmail read-only access', () => { void startGmail(); }, !authorized || !gmailConfigured || gmailBusy)}
+      {!!gmailFlow && button('Finish Gmail connection', () => { void finishGmail(); }, gmailBusy)}
+      {gmailConnected && button('Refresh inbox · read-only', () => { void readGmail(); }, gmailBusy)}
+      {gmailMessages.map(message => <View key={message.id} style={{ padding: 10, borderWidth: 1, borderColor: '#506985', borderRadius: 10, gap: 4 }}><Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{message.subject || '(no subject)'}</Text><Text style={{ color: '#D2DAE6' }}>{message.from}</Text><Text style={{ color: '#AEBED0' }}>{message.snippet}</Text></View>)}
+      {gmailConnected && button('Disconnect Gmail', () => { void disconnectGmail(); }, gmailBusy)}
     </View>
     <View style={{ padding: 16, borderRadius: 16, borderColor: '#A4D4FF', borderWidth: 1, backgroundColor: '#17283E', gap: 11 }}>
       <Text style={{ color: '#F3D9A4', fontSize: 21, fontWeight: '800' }}>AI Creative Production</Text>

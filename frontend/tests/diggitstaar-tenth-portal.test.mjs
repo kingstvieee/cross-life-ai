@@ -11,9 +11,9 @@ test('DIGGITSTAAR workload is account scoped and Gmail stays fail closed until O
  const studio = await read('app/diggitstaar.tsx');
  assert.match(studio, /diggitstaar:studio-command:v1/);
  assert.match(studio, /AsyncStorage\.setItem\(key/);
- assert.match(studio, /Gmail connection · Setup pending/);
+ assert.match(studio, /Authorize Gmail read-only access/);
  assert.match(studio, /Not connected/);
- assert.match(studio, /No automatic sending, deleting, or sharing/);
+ assert.match(studio, /No sending, deleting, modifying, or automatic outreach/);
  for (const stage of ['Inbox', 'In production', 'Awaiting approval', 'Delivered']) assert.ok(studio.includes(stage));
 });
 
@@ -37,4 +37,15 @@ test('lead register is local, account scoped and requires manual verification', 
  assert.match(studio, /Unverified — research required/);
  assert.match(studio, /Mark manually verified/);
  assert.match(studio, /No contacts are invented, automatically researched or emailed/);
+});
+
+test('Gmail OAuth uses backend flow and requires verified readback', async () => {
+ const studio = await read('app/diggitstaar.tsx');
+ const provider = await read('../backend/provider_connections.py');
+ assert.match(studio, /api\('\/api\/connections\/gmail\/start/);
+ assert.match(studio, /api\('\/api\/connections\/gmail\/finish\//);
+ assert.match(studio, /api\('\/api\/connections\/gmail\/inbox/);
+ assert.match(provider, /gmail\.readonly/);
+ assert.match(provider, /readback_verified/);
+ assert.match(provider, /@router\.delete\("\/{provider}"\)/);
 });
