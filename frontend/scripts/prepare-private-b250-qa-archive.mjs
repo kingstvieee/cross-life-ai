@@ -23,6 +23,7 @@ export function makePrivateB250QaIgnore(rootGitignore,frontendGitignore){
  const production=generatePrivateEasIgnore(rootGitignore,frontendGitignore);
  return production.trimEnd()+'\n'+
   '# Additional internal QA-only biometric GLB; NEVER use this ignore in production.\n'+
+  '!frontend/scene-src/assets/private-guardian-qa/\n'+
   '!'+QA_PRIVATE_INCLUDE+'\n';
 }
 async function filmSha(frontend){
