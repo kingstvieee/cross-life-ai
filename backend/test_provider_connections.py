@@ -36,7 +36,7 @@ class Collection:
 def make(monkeypatch, calendar_status=200, calendar_payload=None):
     monkeypatch.setenv('PROVIDER_TOKEN_ENCRYPTION_KEY', Fernet.generate_key().decode())
     monkeypatch.setenv('CONNECT_CALLBACK_ORIGIN', 'https://hub.example.test')
-    for provider in ['GOOGLE', 'MICROSOFT']:
+    for provider in ['GOOGLE', 'MICROSOFT', 'GMAIL']:
         monkeypatch.setenv('CONNECT_' + provider + '_CLIENT_ID', 'test-id')
         monkeypatch.setenv('CONNECT_' + provider + '_CLIENT_SECRET', 'test-secret')
     db = SimpleNamespace(provider_flows=Collection(), provider_connections=Collection())
@@ -49,6 +49,9 @@ def make(monkeypatch, calendar_status=200, calendar_payload=None):
         active_calendar_status = calendar_status['value'] if isinstance(calendar_status, dict) else calendar_status
         if req.method == 'POST': return httpx.Response(200, json={'access_token': 'private-provider-token', 'refresh_token': 'private-refresh', 'expires_in': 3600})
         if calendar_payload is not None: return httpx.Response(active_calendar_status, json=calendar_payload)
+        if 'gmail.googleapis.com' in str(req.url):
+            if '/messages/' in str(req.url): return httpx.Response(active_calendar_status, json={'snippet':'A client enquiry','payload':{'headers':[{'name':'From','value':'buyer@example.test'},{'name':'Subject','value':'Video campaign'}]}})
+            return httpx.Response(active_calendar_status, json={'messages':[{'id':'msg1'}]})
         if 'graph.microsoft.com' in str(req.url): return httpx.Response(active_calendar_status, json={'value': []})
         return httpx.Response(active_calendar_status, json={'items': [{'id': '1', 'summary': 'Meeting', 'start': {'dateTime': '2026-11-20T13:00:00Z'}, 'attendees': [{'email': 'private@example.test'}], 'description': 'private body'}]})
     app = FastAPI(); app.include_router(build_provider_router(db=db, require_account_user=account, limiter=lambda *args: None, http_client=lambda: httpx.AsyncClient(transport=httpx.MockTransport(respond))), prefix='/api')
@@ -216,3 +219,24 @@ def test_calendar_finish_rejects_non_event_records_before_saving_auth(monkeypatc
     assert denied.status_code == 502
     assert denied.json()['detail'] == 'provider_read_unavailable'
     assert not db.provider_connections.docs
+
+def test_gmail_readonly_authorization_and_metadata(monkeypatch):
+    from urllib.parse import parse_qs, urlsplit
+    client, db, requests = make(monkeypatch)
+    flow = client.post('/api/connections/gmail/start', headers={'Authorization': 'Bearer alice'})
+    assert flow.status_code == 200
+    data = flow.json()
+    params = parse_qs(urlsplit(data['url']).query)
+    assert params['scope'] == ['https://www.googleapis.com/auth/gmail.readonly']
+    assert 'gmail.send' not in data['url']
+    assert client.get('/api/connections/gmail/callback', params={'state':params['state'][0], 'code':'approved'}).status_code == 200
+    linked = client.post('/api/connections/gmail/finish/' + data['flow'], headers={'Authorization': 'Bearer alice'})
+    assert linked.status_code == 200
+    assert linked.json()['readback_verified'] is True
+    inbox = client.get('/api/connections/gmail/inbox', headers={'Authorization': 'Bearer alice'})
+    assert inbox.status_code == 200
+    assert inbox.json()['messages'][0]['subject'] == 'Video campaign'
+    assert client.get('/api/connections/gmail/inbox', headers={'Authorization': 'Bearer bob'}).status_code == 409
+    assert client.get('/api/connections/gmail/calendar', headers={'Authorization': 'Bearer alice'}).status_code == 404
+    assert client.delete('/api/connections/gmail', headers={'Authorization': 'Bearer alice'}).status_code == 200
+    assert client.get('/api/connections/gmail/inbox', headers={'Authorization': 'Bearer alice'}).status_code == 409

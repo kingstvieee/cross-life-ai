@@ -67,3 +67,21 @@ test('Build 221 signing cannot be unblocked by pointing at the current source ch
  assert.match(source,/inspectPrivateEasArchive\(\{archiveRoot,checkoutRoot:root\}\)/);
  assert.match(source,/fail\('private-eas-inspected-archive'/);
 });
+
+test('public CI can inspect source without private provenance, but cannot claim release approval', async () => {
+  const previous = process.env.STAAR_PRIVATE_REVIEW_DIR;
+  delete process.env.STAAR_PRIVATE_REVIEW_DIR;
+  const dir = await makeFixture(106);
+  try {
+    const { verifyLocalCreatorManifest } = await import('../scripts/asset-provenance-manifest.mjs');
+    await assert.rejects(verifyLocalCreatorManifest(), /STAAR_PRIVATE_REVIEW_DIR required/);
+    const report = await inspectProductionPackage(dir);
+    assert.equal(report.readyForSignedBuildAttempt, false);
+    assert.ok(report.blockers.some(item => item.id === 'guardian'));
+    assert.ok(report.blockers.some(item => item.id === 'worlds'));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+    if (previous === undefined) delete process.env.STAAR_PRIVATE_REVIEW_DIR;
+    else process.env.STAAR_PRIVATE_REVIEW_DIR = previous;
+  }
+});

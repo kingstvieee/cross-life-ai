@@ -10,7 +10,7 @@ on:
         description: Explicitly select the INTERNAL QA build, not a production release
         required: true
         options:
-          - '1.0.4 (106) - INTERNAL IPHONE QA ONLY'
+          - '1.0.4 (108) - INTERNAL IPHONE QA ONLY'
 
 concurrency:
   group: staar-hub-internal-iphone-qa-preview
@@ -41,7 +41,7 @@ jobs:
     type: require-approval
 
   build_ios:
-    name: Sign internal iPhone QA 1.0.4 (106) with registered devices
+    name: Sign internal iPhone QA 1.0.4 (108) with registered devices
     needs: [preflight, owner_build_approval]
     environment: preview
     type: build

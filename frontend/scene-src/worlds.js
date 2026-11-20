@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createModelMotion, disposeModel } from './model-motion.js';
 import {createGuardianLocomotion} from './guardian-locomotion.js';
+import {createGuardianPresence3D} from './guardian-presence-3d.js';
 import {createWorldPhysicsProbe} from './world-physics-qa.js';
 import { modelControls, hitControl } from './model-navigation.js';
 import {moveCapsuleXZ, routeIsClear, WALK_RADIUS_M} from './player-collision.js';
@@ -48,7 +49,7 @@ catch {
 }
 if (renderer) {
   const scene = new T.Scene();
-  const bright = ['work','wellbeing','style'].includes(world);
+  const bright = ['work','wellbeing','style','diggitstaar'].includes(world);
   scene.background = new T.Color(bright ? '#c8dcec' : '#020611');
   scene.fog = new T.Fog(scene.background, 38, 150);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
@@ -72,6 +73,8 @@ if (renderer) {
   let walkController = null;
   let guardianFaceMotion = null;
   let guardianLocomotion = null;
+  let guardianPresence = null;
+  const hubPortalAnchors = new Map();
   const worldQaEnabled=window.STAAR_WORLD_COLLISION_QA===true && world!=='hub';
   let worldPhysicsQa=null;
   const guardianDeviceQa = window.STAAR_GUARDIAN_QA === true && world === 'hub'
@@ -348,11 +351,13 @@ if (renderer) {
         const bounds=new T.Box3().setFromObject(guardian);
         const dimensions=bounds.getSize(new T.Vector3());
         if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000){disposeModel(guardian);return;}
-        const scale=Math.min(3.65/dimensions.y,4.5/Math.max(dimensions.x,dimensions.z,.1));
+        // Human-scale, not the 3.65-metre giant used by the old plinth preview.
+        // User-facing camera and portals are in metric Three.js units.
+        const scale=Math.min(1.90/dimensions.y,2.5/Math.max(dimensions.x,dimensions.z,.1));
         guardian.scale.setScalar(scale);
         // Centre approved full armour above the existing Guardian plinth, never crop the emblem.
         const centre=bounds.getCenter(new T.Vector3());
-        guardian.position.set(-centre.x*scale,.6-bounds.min.y*scale,1.5-centre.z*scale);
+        guardian.position.set(-centre.x*scale,.04-bounds.min.y*scale,1.5-centre.z*scale);
         scene.add(guardian);
         modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
         // Only importer-accepted Guardian assets ever reach this branch.
@@ -360,6 +365,12 @@ if (renderer) {
         guardianLocomotion=createGuardianLocomotion(guardian,model.animations,
           {approvedAsset:true,reducedMotion:reduced});
         modelMotions.push(guardianLocomotion);
+        guardianPresence=createGuardianPresence3D(guardian,{
+          camera,locomotion:guardianLocomotion,portals:hubPortalAnchors,reducedMotion:reduced,
+          onStatus:status=>report('guardian-presence',{status,modelVerified:true,
+            physicalIphoneCertified:false}),
+        });
+        modelMotions.push(guardianPresence);
         guardianFaceMotion=createApprovedGuardianFaceMotion(guardian,{
           rigSha256:asset.rigModelSha256,expectedRigSha256:asset.rigModelSha256});
         // Only the exact build-time receipt-checked Guardian GLB can signal
@@ -374,12 +385,48 @@ if (renderer) {
     } catch { /* The locked Guardian artwork remains the fallback. */ }
   }
   function hub() {
-    floor(15);stars();skyline();plinth(0,1.5,3);
+    floor(15);stars();skyline();
+    // The live actor needs an uninterrupted floor, not a raised plinth to walk off.
+    // Preview-only scenes retain the old ornamental plinth until a certified rig is bundled.
+    if (window.STAAR_APPROVED_GUARDIAN_MODEL) {
+      ring(0,.04,1.5,3,.035,amber,true);
+      ring(0,.025,1.5,2.7,.018,chrome,true);
+    } else plinth(0,1.5,3);
     for(const r of[2,2.4,2.8])ring(0,3+(r-2)*2,1.5,r,.022,r<2.5?blue:amber,true);
     for(const x of[-11.5,11.5]){plinth(x,1,1,amber);diamond(x,1.7,1,.8);}
-    ids.forEach((id,i)=>{const a=(i-4)*.31,x=Math.sin(a)*11,z=-Math.cos(a)*8,g=arch(x,z,1.55,i%2?blue:amber);g.rotation.y=-a;sphere(0,2.6,-.1,.65,[blue,amber,violet][i%3],g).scale.z=.45;box(0,.55,.1,2.65,.85,.2,black,g);text(names[i],0,.6,.23,2.5,g);g.userData={action:'world:'+id,label:names[i]};clickable.push(g);cylinder(x,.12,z,1.8,.24);});
+    ids.forEach((id,i)=>{const a=(i-4)*.31,x=Math.sin(a)*11,z=-Math.cos(a)*8,g=arch(x,z,1.55,i%2?blue:amber);g.rotation.y=-a;sphere(0,2.6,-.1,.65,[blue,amber,violet][i%3],g).scale.z=.45;box(0,.55,.1,2.65,.85,.2,black,g);text(names[i],0,.6,.23,2.5,g);g.userData={action:'world:'+id,label:names[i]};hubPortalAnchors.set(id,{x,z:z+1.5});clickable.push(g);cylinder(x,.12,z,1.8,.24);});
     approvedArmoredGuardian();
-    text('STAARWARDD',0,7.1,-9,10);text('PORTAL HUB',0,6.3,-9,5);camera.position.set(0,6,19);controls.target.set(0,2.5,-2);
+    text('STAARWARDD',0,7.1,-9,10);text('PORTAL HUB',0,6.3,-9,5);
+    // Personal, eye-level default: the actor faces the viewer at human scale.
+    // A dedicated gallery camera shows all nine physical portals on demand.
+    camera.position.set(0,2.7,7.3);
+    controls.target.set(0,1.8,0);
+    controls.minDistance=3.5;controls.maxDistance=68;
+    controls.saveState();
+    const galleryButton=document.createElement('button');
+    galleryButton.id='portal-overview';
+    galleryButton.textContent='All 9 portals';
+    galleryButton.setAttribute('aria-label','Show all nine three-dimensional portal doors');
+    galleryButton.style.marginLeft='9px';
+    let overview=false;
+    galleryButton.addEventListener('click',()=>{
+      overview=!overview;
+      if(overview){
+        const aspect=Math.max(.45,innerWidth/innerHeight);
+        const dist=29/(2*Math.tan(camera.fov*Math.PI/360)*aspect);
+        camera.position.set(0,5.5,Math.max(25,dist-2));
+        controls.target.set(0,2.4,-3);
+        galleryButton.textContent='Face the Guardian';
+        galleryButton.setAttribute('aria-label','Return to face-to-face Guardian view');
+      }else{
+        camera.position.set(0,2.7,7.3);
+        controls.target.set(0,1.8,0);
+        galleryButton.textContent='All 9 portals';
+        galleryButton.setAttribute('aria-label','Show all nine three-dimensional portal doors');
+      }
+      controls.update();requestDraw();
+    });
+    document.querySelector('header')?.appendChild(galleryButton);
   }
   function home() {shell();for(const r of[1.8,2.05,2.3])ring(0,2.6,-5,r,.12);ring(0,2.6,-4.85,2.05,.03,amber);sofa(-3,1,.2);sofa(2.2,-1.8,-.4);cylinder(-.6,.55,1.7,1.35,.15,black);cylinder(-.6,.28,1.7,.32,.5,gold);sphere(3.8,1.8,1,.5,blue);ring(3.8,1.8,1,.8,.025,blue);panel('Smart controls','connections',-4,2.7,-2);panel('Rooms & routines','conversation:0',3.8,2.7,-3);panel('Daily check-in','checkins',0,.9,4,amber);}
   function work() {shell(true);plinth(0,-1,3.8);globe(0,3.7,-1,2);cylinder(0,.85,-1,3.4,.6);ring(0,1.2,-1,3.2,.04,blue,true);for(let i=0;i<12;i++){const a=i*Math.PI/6;box(Math.sin(a)*3,1.23,-1+Math.cos(a)*3,.65,.04,.4,blue).rotation.y=a;}['Employment','Businesses','Career','Teams'].forEach((n,i)=>panel(n,i===0?'conversation:0':'connections',(i-1.5)*3,2,2.5,amber,2.6));panel('Connect workplace','connections',0,.85,5,blue,4);sofa(8,-3,-.6);}
@@ -451,8 +498,54 @@ if (renderer) {
   function village() {floor(15);skyline();stars();cylinder(0,.8,-4,4.4,1.6).scale.z=.65;ring(0,1.65,-4,4.3,.06,violet,true).scale.y=.65;text('SCOTIABANK ARENA DISTRICT',0,2.6,-3,8);for(let i=0;i<4;i++){const x=(i-1.5)*4;plinth(x,3,1.35);diamond(x,1.2,3,.28);}['Toronto','Brampton','Mississauga','Scarborough'].forEach((n,i)=>panel(n,'connections',(i-1.5)*3.7,2.3,2.5,violet,3.2));for(const x of[-5.5,0,5.5])line([[x,.05,4],[x+1,.05,0],[x,.05,-7]],blue,.035);panel('Events, transit & community','connections',0,.8,6,amber,6);}
   function closet() {shell(true);cylinder(0,.06,0,4.5,.13,white);for(const side of[-1,1]){const x=side*6.5;box(x,2,-2,.09,4,.09);box(x,2,3,.09,4,.09);box(x,4,.5,.09,.09,5.1);for(let i=0;i<7;i++){const z=-1.6+i*.65;line([[x,3.95,z],[x-.45,3.6,z],[x+.45,3.6,z],[x,3.95,z]],gold);box(x,2.6,z,1,1.8,.1,i%3===0?black:white);diamond(x,3.05,z+.07,.07);}}box(0,2.6,-6,4,5,.25);box(0,2.6,-5.84,3.75,4.75,.04,black);text('RISING STAARFORM',0,5.7,-6,7);for(let i=0;i<26;i++){const a=i*Math.PI*2/26,m=sphere(Math.sin(a)*4.5,.16,Math.cos(a)*4.5,.3,white);m.scale.set(1.5,.25,1);animated.push(t=>{if(!reduced)m.position.y=.16+Math.sin(t*.7+i)*.014;});}panel('My wardrobe','conversation:1',-2.5,1.4,4,amber);panel('RSF & shopping tools','connections',2.5,1.4,4,amber);}
   function studio() {shell();stars();for(const x of[-8.5,8.5]){island(x,5.5,-6,2.2,black);tree(x,-6,material('#c56b15'),5.6,.8);waterfall(x-.3,2.6,-4.5,5.6);}plinth(0,-2.5,3);const g=new T.Group();g.position.set(0,3.5,-2.5);scene.add(g);mesh(new T.TorusGeometry(1.7,.16,12,64,Math.PI),chrome,0,0,0,g);for(const s of[-1,1]){cylinder(s*1.7,-.2,0,.65,.35,chrome,g).rotation.z=Math.PI/2;cylinder(s*1.48,-.2,0,.54,.25,material('#5d2e1b',.05,.65),g).rotation.z=Math.PI/2;ring(s*1.9,-.2,0,.45,.025,amber,false,g).rotation.y=Math.PI/2;}animated.push(t=>{if(!reduced)g.rotation.y=t*Math.PI*2/30;});box(0,.8,2.2,10,.3,2.2);for(let i=0;i<30;i++){const x=-4.7+i*.32;box(x,.98,2.6,.04,.03,.65,black);box(x,1.02,2.6+Math.sin(i)*.25,.12,.08,.15,white);for(let j=0;j<3;j++)cylinder(x,1,1.7+j*.18,.035,.06,j%2?blue:amber);}for(const x of[-3.6,0,3.6]){box(x,1.65,1.4,2.7,1.3,.15,black);for(let i=0;i<20;i++)box(x-1.2+i*.126,1.6,1.49,.035,.1+Math.abs(Math.sin(i*2.1+x))*.8,.02,x===0?amber:blue);}for(const x of[-5.6,5.6]){box(x,1.45,1.3,.9,2.9,.8,black);for(const y of[.7,1.5,2.3]){cylinder(x,y,1.73,.28,.05,gold).rotation.x=Math.PI/2;sphere(x,y,1.79,.12,black).scale.z=.4;}}panel('Music library','conversation:0',-4.5,2.4,-2,amber);panel('AI tools & studio','connections',4.5,2.4,-2);panel('Plan a release','conversation:1',0,.7,4.5,amber,4);}
+  // DIGGITSTAAR: seated first-person, real WebGL workstation with touch-selectable
+  // spatial displays. Distinct from the approved 9 portal environments.
+  function diggitstaar() {
+    scene.background = new T.Color('#dceeff');
+    scene.fog = new T.Fog('#dceeff', 42, 115);
+    floor(16, white); skyline(true);
+    for (const r of [7, 8, 9]) ring(0, 9, -3, r, .07, r===8 ? blue : chrome, true);
+    // Floor-to-ceiling windows and bright executive studio framing.
+    for (let i=-4;i<=4;i++) { box(i*3.3,4,-12,.08,8,.13,chrome); box(i*3.3,8,-12,3.3,.1,.13,gold); }
+    for (const x of [-10,10]) { tree(x,-5,green,5,.75); tree(x,4,green,3,.5); }
+    sofa(-9,-3,.8,white); sofa(9,-3,.8,white);
+    // Operator sits at the curved desk; physical keyboard and controls ahead.
+    box(0,.86,1.9,13,.2,3.4,white);
+    box(0,.97,1.9,12.5,.08,3.2,chrome);
+    box(0,.99,1.1,5.4,.045,1.2,black);
+    for (let row=0;row<4;row++) for(let key=0;key<16;key++)
+      box(-2.5+key*.33,1.03,.68+row*.27,.24,.025,.17,key%5===0?blue:chrome);
+    for(const x of [-5.8,5.8]) cylinder(x,.48,2,.16,.95,gold);
+    const glass = new T.MeshPhysicalMaterial({color:'#d7f3ff',metalness:.12,roughness:.09,transmission:.68,thickness:.7,transparent:true,opacity:.85,clearcoat:1,clearcoatRoughness:.04,emissive:'#5bbfff',emissiveIntensity:.09});
+    // Five oversized curved-arc displays, translucent Liquid Glass framing.
+    const screens=[
+      ['GMAIL · CONNECT','diggitstaar:gmail',-8.7,4,-4,blue],
+      ['AI CONTENT STUDIO','diggitstaar:creative',-4.35,4.2,-6,amber],
+      ['VIDEO PRODUCTION','diggitstaar:video',0,4.3,-6.5,blue],
+      ['PROJECT WORKLOAD','diggitstaar:workload',4.35,4.2,-6,amber],
+      ['LEADS & CLIENTS','diggitstaar:leads',8.7,4,-4,blue]
+    ];
+    screens.forEach(([label,action,x,y,z,accent],i)=>{
+      const g=new T.Group();g.position.set(x,y,z);g.rotation.y=(i-2)*-.095;scene.add(g);
+      box(0,0,0,4.2,3.6,.09,glass,g);
+      box(0,1.77,.05,4.25,.055,.12,accent,g);
+      box(0,-1.77,.05,4.25,.055,.12,accent,g);
+      for(const side of [-1,1])box(side*2.1,0,.05,.055,3.6,.12,accent,g);
+      text(label,0,1.22,.14,3.85,g);
+      for(let row=0;row<4;row++)box(-.25,.68-row*.55,.15,2.8,.07,.04,row%2?chrome:blue,g);
+      const pulse=box(-1.73,-1.33,.18,.12,.15,.025,accent,g);
+      const scan=box(0,.92,.18,3.6,.018,.012,accent,g);
+      g.userData={label,action};clickable.push(g);
+      animated.push(t=>{if(!reduced){g.position.y=y+Math.sin(t*.65+i)*.055;pulse.position.x=-1.73+3.4*(.5+.5*Math.sin(t*.9+i));scan.position.y=.85-2.15*((t*.16+i*.19)%1);}});
+    });
+    text('DIGGITSTAAR · YOUR WORKSTATION',0,7.7,-9,10);
+    panel('OPEN STUDIO','diggitstaar:studio',-2.4,1.5,-.8,blue,3.5);
+    panel('DIGGITSTAAR.COM','diggitstaar:website',2.4,1.5,-.8,amber,3.5);
+    camera.position.set(0,2.15,6.7);controls.target.set(0,3.3,-5);
+    controls.minDistance=2;controls.maxDistance=10;controls.enablePan=false;
+  }
   const previewBaseline=new Set(scene.children);
-  ({hub,home,work,creativity:()=>dreams(),wellbeing:health,relationships:()=>singles?singlesLounge():love(),events:village,style:closet,staarverse,staarsonic:studio})[world]();
+  ({hub,home,work,creativity:()=>dreams(),wellbeing:health,relationships:()=>singles?singlesLounge():love(),events:village,style:closet,staarverse,staarsonic:studio,diggitstaar})[world]();
   const previewWorldObjects=scene.children.filter(object=>!previewBaseline.has(object));
   function importApprovedWorld() {
     if(world==='hub')return;
@@ -525,6 +618,9 @@ if (renderer) {
     }catch{/* Never lose functional preview navigation on model failure. */}
   }
   importApprovedWorld();
+  // The identical verified model can reappear in each 3D world after the portal
+  // transition. A review-only model, poster, or generic placeholder cannot appear.
+  if (world !== 'hub') approvedArmoredGuardian();
   controls.update();controls.saveState();
   let frame=0,visible=true,firstFrameReady=false,lastFrameAt=null;const start=performance.now();
   function requestDraw(){if(!frame&&visible)frame=requestAnimationFrame(draw);}
@@ -555,14 +651,23 @@ if (renderer) {
   controls.addEventListener('change',requestDraw);requestDraw();
   document.addEventListener('visibilitychange',()=>{visible=!document.hidden;if(!visible)guardianFaceMotion?.mute();lastFrameAt=null;if(!visible)cancelAnimationFrame(frame);frame=0;if(visible)requestDraw();});
   addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);requestDraw();});
+  const activateDoor=action=>{
+    if(typeof action!=='string')return;
+    const id=action.startsWith('world:')?action.slice(6):null;
+    if(world==='hub'&&id&&guardianPresence?.approachPortal(id,
+      ()=>report('select',{action}))) {
+      requestDraw();return;
+    }
+    report('select',{action});
+  };
   const raycaster=new T.Raycaster();let down=null;
-  canvas.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
+  canvas.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];const r=canvas.getBoundingClientRect();if(r.width>0)guardianPresence?.lookTowardScreen(((e.clientX-r.left)/r.width)*2-1);});
   canvas.addEventListener('pointercancel',()=>{down=null;});
-  canvas.addEventListener('pointerup',e=>{const origin=down;down=null;if(!origin||Math.hypot(e.clientX-origin[0],e.clientY-origin[1])>7)return;const r=canvas.getBoundingClientRect();raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);const hit=raycaster.intersectObjects(clickable,true)[0];if(hit){if(importedControls.length){const control=hitControl(hit.object,importedControls);if(control)report('select',{action:control.action});}else{let n=hit.object;while(n&&!n.userData.action)n=n.parent;if(n)report('select',{action:n.userData.action});}}});
+  canvas.addEventListener('pointerup',e=>{const origin=down;down=null;if(!origin||Math.hypot(e.clientX-origin[0],e.clientY-origin[1])>7)return;const r=canvas.getBoundingClientRect();raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);const hit=raycaster.intersectObjects(clickable,true)[0];if(hit){if(importedControls.length){const control=hitControl(hit.object,importedControls);if(control)activateDoor(control.action);}else{let n=hit.object;while(n&&!n.userData.action)n=n.parent;if(n)activateDoor(n.userData.action);}}});
   document.querySelector('#reset').addEventListener('click',()=>{controls.reset();requestDraw();});
   document.querySelector('#title').textContent=world==='hub'?'STAARWARDD · PORTAL HUB':(singles?'STAAR Love · Singles':names[ids.indexOf(world)]);
   document.querySelector('#status').textContent='Drag to explore · pinch or scroll to move closer · tap a labelled control';
-  for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
+  for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>activateDoor(g.userData.action));document.querySelector('#actions').append(b);}
   canvas.addEventListener('webglcontextlost',e=>{worldPhysicsQa?.contextLost();e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
   addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
 }

@@ -18,6 +18,7 @@ from fastapi.responses import HTMLResponse
 
 SPECS = {
     "google": {"authorize": "https://accounts.google.com/o/oauth2/v2/auth", "token": "https://oauth2.googleapis.com/token", "scope": "https://www.googleapis.com/auth/calendar.events.readonly", "api": "https://www.googleapis.com/calendar/v3/calendars/primary/events"},
+    "gmail": {"authorize": "https://accounts.google.com/o/oauth2/v2/auth", "token": "https://oauth2.googleapis.com/token", "scope": "https://www.googleapis.com/auth/gmail.readonly", "api": "https://gmail.googleapis.com/gmail/v1/users/me/messages"},
     "microsoft": {"authorize": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize", "token": "https://login.microsoftonline.com/common/oauth2/v2.0/token", "scope": "offline_access Calendars.ReadBasic", "api": "https://graph.microsoft.com/v1.0/me/calendarView"},
 }
 
@@ -79,7 +80,7 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
             linked = await db.provider_connections.find_one({"user_id": user["user_id"], "provider": provider}, {"_id": 0, "linked_at": 1, "reconnect_required": 1, "tokens": 1})
             # Never return the token; its presence is required for a truthful status.
             has_token = bool(linked and isinstance(linked.get("tokens"), str) and linked["tokens"])
-            output.append({"id": provider, "configured": configured, "connected": bool(has_token and not linked.get("reconnect_required")), "reconnect_required": bool(linked and (linked.get("reconnect_required") or not has_token)), "linked_at": linked.get("linked_at") if linked else None, "capability": "calendar_read_only"})
+            output.append({"id": provider, "configured": configured, "connected": bool(has_token and not linked.get("reconnect_required")), "reconnect_required": bool(linked and (linked.get("reconnect_required") or not has_token)), "linked_at": linked.get("linked_at") if linked else None, "capability": "gmail_read_only" if provider == "gmail" else "calendar_read_only"})
         return output
 
     @router.post("/{provider}/start")
@@ -91,7 +92,7 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
         await db.provider_flows.delete_many({"user_id": user["user_id"], "provider": provider})
         await db.provider_flows.insert_one({"state": hashed(state), "flow": hashed(flow), "user_id": user["user_id"], "provider": provider, "verifier": seal({"verifier": verifier}), "expires_at": now() + timedelta(minutes=10), "status": "waiting"})
         query = {"client_id": cfg["client_id"], "redirect_uri": cfg["redirect_uri"], "response_type": "code", "scope": SPECS[provider]["scope"], "state": state, "code_challenge": challenge, "code_challenge_method": "S256", "prompt": "consent"}
-        if provider == "google": query.update(access_type="offline", include_granted_scopes="false")
+        if provider in ("google", "gmail"): query.update(access_type="offline", include_granted_scopes="false")
         return {"flow": flow, "url": SPECS[provider]["authorize"] + "?" + urlencode(query)}
 
     @router.get("/{provider}/callback", response_class=HTMLResponse)
@@ -110,7 +111,7 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
             if not isinstance(tokens.get("access_token"), str) or not tokens["access_token"]: raise ValueError("invalid_token")
             tokens["expires_at"] = (now() + timedelta(seconds=max(0, min(int(tokens.get("expires_in", 3600)), 86400)))).timestamp()
             await db.provider_flows.update_one({"flow": flow["flow"]}, {"$set": {"status": "consented", "tokens": seal(tokens)}, "$unset": {"verifier": ""}})
-            return HTMLResponse("<h1>Calendar permission received</h1><p>Return to STAAR Hub and choose Finish connection. No calendar has been read yet.</p>", headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'"})
+            return HTMLResponse("<h1>Provider permission received</h1><p>Return to STAAR Hub and choose Finish connection. No mailbox or calendar has been read yet.</p>", headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'"})
         except (ValueError, httpx.HTTPError, KeyError):
             await db.provider_flows.delete_one({"flow": flow["flow"]})
             raise HTTPException(400, "provider_consent_failed")
@@ -126,11 +127,11 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
         if not isinstance(token, str) or not token: raise HTTPException(409, "provider_reconnect_required")
         try:
             async with make_client() as client:
-                probe = await client.get(SPECS[provider]["api"], params=calendar_query(provider), headers={"Authorization": "Bearer " + token})
+                probe = await client.get(SPECS[provider]["api"], params=({"maxResults": 5, "q": "in:anywhere"} if provider == "gmail" else calendar_query(provider)), headers={"Authorization": "Bearer " + token})
             if probe.status_code in (401, 403): raise HTTPException(409, "provider_reconnect_required")
             if probe.status_code != 200: raise HTTPException(502, "provider_read_unavailable")
             payload = probe.json()
-            items = payload.get("items" if provider == "google" else "value")
+            items = payload.get("messages", []) if provider == "gmail" else payload.get("items" if provider == "google" else "value")
             if not isinstance(items, list) or any(not isinstance(item, dict) for item in items[:25]): raise HTTPException(502, "provider_read_unavailable")
         except (httpx.HTTPError, ValueError, AttributeError):
             raise HTTPException(502, "provider_read_unavailable")
@@ -138,7 +139,7 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
         consumed = await db.provider_flows.find_one_and_delete(query)
         if not consumed: raise HTTPException(409, "consent_not_finished_or_expired")
         await db.provider_connections.update_one({"user_id": user["user_id"], "provider": provider}, {"$set": {"tokens": consumed["tokens"], "linked_at": now(), "reconnect_required": False}}, upsert=True)
-        return {"connected": True, "capability": "calendar_read_only", "readback_verified": True}
+        return {"connected": True, "capability": "gmail_read_only" if provider == "gmail" else "calendar_read_only", "readback_verified": True}
 
     @router.delete("/{provider}")
     async def disconnect(provider: str, authorization: str = Header(None)):
@@ -150,6 +151,7 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
 
     @router.get("/{provider}/calendar")
     async def calendar(provider: str, authorization: str = Header(None)):
+        if provider == "gmail": raise HTTPException(404, "calendar_not_supported")
         user = await account(authorization); limiter("provider_read:" + user["user_id"], 30, 60); cfg = configuration(provider)
         record = await db.provider_connections.find_one({"user_id": user["user_id"], "provider": provider})
         if not record: raise HTTPException(409, "provider_not_connected")
@@ -184,4 +186,49 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
                     raise HTTPException(502, "provider_read_unavailable")
                 return {"provider": provider, "read_at": now().isoformat(), "events": [event_summary(provider, x) for x in items[:25]]}
             except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError): raise HTTPException(502, "provider_read_unavailable")
+    @router.get("/gmail/inbox")
+    async def gmail_inbox(authorization: str = Header(None)):
+        user = await account(authorization)
+        limiter("gmail_read:" + user["user_id"], 12, 60)
+        cfg = configuration("gmail")
+        record = await db.provider_connections.find_one({"user_id": user["user_id"], "provider": "gmail"})
+        if not record or record.get("reconnect_required") or not record.get("tokens"):
+            raise HTTPException(409, "gmail_not_connected")
+        tokens = unseal(record["tokens"])
+        async with make_client() as client:
+            try:
+                if float(tokens.get("expires_at", 0)) <= now().timestamp() + 60:
+                    if not tokens.get("refresh_token"):
+                        await invalidate_revoked_token(record)
+                        raise HTTPException(409, "provider_reconnect_required")
+                    refreshed = await client.post(SPECS["gmail"]["token"], data={**cfg, "grant_type": "refresh_token", "refresh_token": tokens["refresh_token"]})
+                    if refreshed.status_code in (400, 401, 403):
+                        await invalidate_revoked_token(record)
+                        raise HTTPException(409, "provider_reconnect_required")
+                    if refreshed.status_code != 200: raise HTTPException(502, "gmail_refresh_unavailable")
+                    new_tokens = refreshed.json()
+                    if not new_tokens.get("access_token"): raise HTTPException(502, "gmail_refresh_unavailable")
+                    tokens.update(new_tokens)
+                    tokens["expires_at"] = (now() + timedelta(seconds=max(0, min(int(tokens.get("expires_in", 3600)), 86400)))).timestamp()
+                    await db.provider_connections.update_one({"_id": record["_id"], "tokens": record["tokens"]}, {"$set": {"tokens": seal(tokens)}})
+                headers = {"Authorization": "Bearer " + tokens["access_token"]}
+                response = await client.get(SPECS["gmail"]["api"], params={"maxResults": 10, "labelIds": "INBOX"}, headers=headers)
+                if response.status_code in (401, 403):
+                    await invalidate_revoked_token(record)
+                    raise HTTPException(409, "provider_reconnect_required")
+                if response.status_code != 200: raise HTTPException(502, "gmail_read_unavailable")
+                messages = response.json().get("messages", [])
+                if not isinstance(messages, list): raise HTTPException(502, "gmail_read_unavailable")
+                output = []
+                for item in messages[:10]:
+                    mid = item.get("id") if isinstance(item, dict) else None
+                    if not isinstance(mid, str) or not mid or len(mid) > 128: continue
+                    detail = await client.get(SPECS["gmail"]["api"] + "/" + mid, params={"format": "metadata", "metadataHeaders": ["From", "Subject", "Date"]}, headers=headers)
+                    if detail.status_code != 200: raise HTTPException(502, "gmail_read_unavailable")
+                    data = detail.json()
+                    metadata = {h.get("name", "").lower(): h.get("value", "")[:300] for h in data.get("payload", {}).get("headers", []) if isinstance(h, dict) and isinstance(h.get("value"), str)}
+                    output.append({"id": mid, "from": metadata.get("from", ""), "subject": metadata.get("subject", ""), "date": metadata.get("date", ""), "snippet": str(data.get("snippet", ""))[:300]})
+                return {"provider": "gmail", "read_at": now().isoformat(), "messages": output, "read_only": True}
+            except (httpx.HTTPError, ValueError, TypeError, KeyError, AttributeError):
+                raise HTTPException(502, "gmail_read_unavailable")
     return router

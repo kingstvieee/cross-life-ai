@@ -15,7 +15,7 @@ test('latest mainline polish preserves release guardian server consent and owner
   assert.match(hub, /serverPrivate \|\| serverSpeechQuiet/);
   assert.match(hub, /isProactiveWelcomeTime/);
   assert.match(hub, /accountStorageKey\(/);
-  assert.match(hub, /setArrivalComplete\(/);
+  assert.doesNotMatch(hub, /setArrivalComplete\(/); // Do not restart the mismatched Guardian on arrival.
   assert.match(hub, /glassSheen/);
   assert.match(hub, /glassHighlight/);
 });

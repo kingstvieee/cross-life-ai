@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '@/src/auth';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
 
-/** Mounted above the router: controls persist while navigating between all nine worlds. */
+/** Mounted above the router: controls persist while navigating between the connected worlds. */
 export function GuardianVoiceDock() {
   const { user } = useAuth();
   const audio = useStaarAudio();

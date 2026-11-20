@@ -94,7 +94,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
     void readWorldQaArchive(AsyncStorage).then(archive=>{
       if(!active)return;
       const progress=worldQaProgress(archive);
-      setArchiveSummary(progress.captured+'/10 world QA captures saved; '+progress.withModel+' with approved GLB');
+      setArchiveSummary(progress.captured+'/10 world QA captures saved; '+progress.withModel+' reporting model-bound telemetry (not certified)');
       setArchiveReady(progress.captured>0);
     }).catch(()=>{if(active)setArchiveSummary('Local archive unavailable');});
     return ()=>{active=false;};
@@ -193,7 +193,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
       onError={() => setLoadFailed(true)}
       onRenderProcessGone={() => setLoadFailed(true)}
       onContentProcessDidTerminate={() => setLoadFailed(true)}
-      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (!message || typeof message !== 'object' || !('session' in message) || message.session !== session) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'ready' && message.world === world) { sceneReady.current = true; return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && 'modelSha256' in message && message.source === 'staar-scene-v1' && message.type === 'guardian-face-ready' && world === 'hub' && message.world === world && typeof message.modelSha256 === 'string') { audio.setGuardianRigHash(message.modelSha256); return; } if(qaEnabled && 'source' in message && 'type' in message && 'world' in message &&
+      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (!message || typeof message !== 'object' || !('session' in message) || message.session !== session) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'ready' && message.world === world) { sceneReady.current = true; return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && 'modelSha256' in message && message.source === 'staar-scene-v1' && message.type === 'guardian-face-ready' && message.world === world && typeof message.modelSha256 === 'string') { audio.setGuardianRigHash(message.modelSha256); return; } if(qaEnabled && 'source' in message && 'type' in message && 'world' in message &&
         'metrics' in message && message.source==='staar-scene-v1' &&
         message.type==='guardian-device-qa' && message.world==='hub' &&
         message.metrics && typeof message.metrics==='object' &&
@@ -218,7 +218,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
           if(report){
             void saveWorldQaCapture(AsyncStorage,report).then(archive=>{
               const progress=worldQaProgress(archive);
-              setArchiveSummary(progress.captured+'/10 world QA captures saved; '+progress.withModel+' with approved GLB');
+              setArchiveSummary(progress.captured+'/10 world QA captures saved; '+progress.withModel+' reporting model-bound telemetry (not certified)');
               setArchiveReady(progress.captured>0);
             }).catch(()=>setArchiveSummary('Local archive unavailable'));
           }

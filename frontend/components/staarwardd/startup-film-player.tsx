@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+/* eslint-disable react-hooks/immutability, react-hooks/set-state-in-effect -- expo-video and expo-audio expose intentionally mutable native player handles; failover state is required. */
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet } from "react-native";
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { decideStartupPlayback } from "./startup-audio-gate";
@@ -16,6 +17,9 @@ export type FilmProps = { muted: boolean; playing: boolean; onEnd: () => void; o
 export default function StartupFilmPlayer({ muted, playing, onEnd, onError, onReady }: FilmProps) {
   const [audioSessionReady, setAudioSessionReady] = useState(false);
   const [approvedMusicFailed, setApprovedMusicFailed] = useState(false);
+  const ended = useRef(false);
+  const finishOnce = () => { if (!ended.current) { ended.current = true; onEnd(); } };
+  const playbackProgress = useRef({ lastTime: 0, lastAdvanceAt: 0, startedAt: 0 });
   const approvedMusicAvailable = approvedStartupSoundtrackSource !== null;
   const soundtrack = useAudioPlayer(approvedStartupSoundtrackSource);
   const soundtrackStatus = useAudioPlayerStatus(soundtrack);
@@ -50,7 +54,7 @@ export default function StartupFilmPlayer({ muted, playing, onEnd, onError, onRe
   }, []);
 
   useEffect(() => {
-    const end = player.addListener("playToEnd", onEnd);
+    const end = player.addListener("playToEnd", finishOnce);
     const status = player.addListener("statusChange", event => {
       if (event.status === "error") onError();
       if (event.status === "readyToPlay") onReady();
@@ -107,6 +111,46 @@ export default function StartupFilmPlayer({ muted, playing, onEnd, onError, onRe
       setApprovedMusicFailed(true);
     }
   }, [audioSessionReady, gate.playFilm, gate.playApprovedMusic, player, soundtrack, onError]);
+
+  // iOS can leave a video frame frozen without emitting playToEnd or an error.
+  // Never strand the user behind the full-screen startup overlay.
+  useEffect(() => {
+    if (!playing || !audioSessionReady || !gate.playFilm) {
+      playbackProgress.current = { lastTime: player.currentTime || 0, lastAdvanceAt: Date.now(), startedAt: Date.now() };
+      return;
+    }
+    playbackProgress.current = { lastTime: player.currentTime || 0, lastAdvanceAt: Date.now(), startedAt: Date.now() };
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const current = player.currentTime || 0;
+      const progress = playbackProgress.current;
+      if (current > progress.lastTime + 0.1) {
+        progress.lastTime = current;
+        progress.lastAdvanceAt = now;
+      }
+      if (player.duration > 0 && current >= player.duration - 0.35) {
+        finishOnce();
+      } else if (player.duration > 0 && current >= player.duration - 3
+        && now - progress.lastAdvanceAt > 1700) {
+        // Near the portal finale, do not display a stuck final frame for seconds.
+        // Preserve the original movie bytes and dissolve into the already-mounted Hub.
+        finishOnce();
+      } else if (now - progress.startedAt > 5000 && now - progress.lastAdvanceAt > 3000) {
+        onError(); // Fail fast on a frozen frame; the boundary transitions to the Hub.
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [playing, audioSessionReady, gate.playFilm, player, onEnd, onError]);
+
+  // A native decoder may freeze at the final frame while reporting stale duration.
+  // This safety ceiling is not an edit to the locked film; it prevents indefinite lockup.
+  useEffect(() => {
+    if (!playing) return;
+    const timer = setTimeout(() => {
+      if (!ended.current) onError();
+    }, 60000);
+    return () => clearTimeout(timer);
+  }, [playing, onError]);
 
   return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls={false} playsInline />;
 }

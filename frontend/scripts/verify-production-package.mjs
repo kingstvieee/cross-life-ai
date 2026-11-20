@@ -14,6 +14,7 @@ import { verifyApprovedSoundtrack } from './verify-approved-soundtrack.mjs';
 import { verifyStagedNativeSource } from './stage-approved-startup-audio.mjs';
 import { verifyPrivateEasUploadRules, inspectPrivateEasArchive } from './prepare-private-eas-archive.mjs';
 import {verifyIndependentSecurityEvidence} from './verify-independent-security-evidence.mjs';
+import {verifyLocalCreatorManifest} from './asset-provenance-manifest.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const FRONTEND_ROOT = path.resolve(HERE, '..');
@@ -54,6 +55,13 @@ export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFli
       }
     }
   } catch (err) { fail('worlds', err?.message ?? err); }
+
+  // Accept signed local creator provenance as a distinct, non-release record.
+  // It does not replace independent rights, physical-device or security evidence.
+  if(process.env.STAAR_PRIVATE_REVIEW_DIR){
+    try{facts.localCreatorProvenance=await verifyLocalCreatorManifest();}
+    catch(err){fail('local-creator-provenance',err?.message??err);}
+  }
 
   // JSON acceptance booleans are insufficient. Re-verify real independent
   // model-specific visual, rights and physical-device evidence by file hash.

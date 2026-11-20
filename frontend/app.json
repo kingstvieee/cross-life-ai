@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.emergent.crosslifeai.z79271",
-      "buildNumber": "106",
+      "buildNumber": "109",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocalNetworkUsageDescription": "STAAR Hub connects to the Home Assistant server you choose to read your home devices and send light commands you request."

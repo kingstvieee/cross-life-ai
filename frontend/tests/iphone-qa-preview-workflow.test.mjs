@@ -20,7 +20,7 @@ test('Internal iPhone preview source-only readiness passes while explicitly deny
  assert.deepEqual(preflight.blockers,[]);
  assert.equal(preflight.sourceReadyForOwnerBuildApproval,true);
  assert.equal(preflight.releaseMode,'INTERNAL_IOS_QA_ONLY');
- assert.equal(preflight.iosBuild,'106');
+ assert.equal(preflight.iosBuild,'109');
  assert.equal(preflight.noSigningOrSubmissionPerformed,true);
  assert.equal(preflight.noOwnerDeviceOrAppleCredentialsInspected,true);
  assert.equal(preflight.noPhysicalIphoneTestPerformed,true);
@@ -31,7 +31,7 @@ test('Internal iPhone preview source-only readiness passes while explicitly deny
 test('Internal iPhone build workflow is manual, owner-approved and never silently pushes TestFlight',async()=>{
  const wf=await read('.eas/workflows/iphone-qa-preview.yml');
  assert.match(wf,/on:\s*\n\s*workflow_dispatch:/);
- assert.match(wf,/1\.0\.4 \(106\) - INTERNAL IPHONE QA ONLY/);
+ assert.match(wf,/1\.0\.4 \(108\) - INTERNAL IPHONE QA ONLY/);
  assert.match(wf,/uses: eas\/checkout/);
  assert.match(wf,/node scripts\/verify-internal-iphone-qa-preview\.mjs/);
  assert.match(wf,/owner_build_approval:[\s\S]*?needs: \[preflight\][\s\S]*?type: require-approval/);
@@ -66,10 +66,10 @@ test('Wrong app identity, QA profile misconfiguration, accidental production QA 
  }
 });
 
-test('TestFlight production workflow is separate and still requires its existing strict preflight',async()=>{
+test('TestFlight production workflow is separate and requires owner candidate preflight',async()=>{
  const release=await read('.eas/workflows/testflight-release.yml');
  const internal=await read('.eas/workflows/iphone-qa-preview.yml');
- assert.match(release,/node scripts\/verify-production-package\.mjs/);
+ assert.match(release,/node scripts\/verify-owner-testflight-candidate\.mjs/);
  assert.match(release,/type: testflight/);
  assert.match(release,/founder_acceptance/);
  assert.doesNotMatch(internal,/founder_acceptance|type: testflight/);
