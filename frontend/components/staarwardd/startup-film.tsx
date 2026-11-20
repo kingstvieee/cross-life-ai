@@ -25,7 +25,9 @@ export function StartupFilmBoundary({ children }: { children: React.ReactNode })
     finishing.current = true;
     setPlaying(false);
     setEntered(true);
-    Animated.timing(opacity, { toValue: 0, duration: reduced ? 0 : 450, useNativeDriver: true }).start(() => setVisible(false));
+    // Keep the approved portal world mounted underneath the final cinematic frame.
+    // Its centred Guardian flies in as the video dissolves, without page scrolling.
+    Animated.timing(opacity, { toValue: 0, duration: reduced ? 0 : 1100, useNativeDriver: true }).start(() => setVisible(false));
   }, [opacity, reduced]);
   useEffect(() => {
     let active = true;
@@ -42,7 +44,7 @@ export function StartupFilmBoundary({ children }: { children: React.ReactNode })
   const onReady = useCallback(() => { setReady(true); setFailed(false); }, []);
   const onError = useCallback(() => { setFailed(true); setPlaying(false); }, []);
   // If native video playback stalls, return control to the app automatically.
-  useEffect(() => { if (!failed || !visible) return; const timer = setTimeout(finish, 1800); return () => clearTimeout(timer); }, [failed, visible, finish]);
+  useEffect(() => { if (!failed || !visible) return; const timer = setTimeout(finish, 250); return () => clearTimeout(timer); }, [failed, visible, finish]);
   const replay = useCallback(() => {
     if (reduced) return;
     finishing.current = false;

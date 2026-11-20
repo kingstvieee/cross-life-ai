@@ -22,6 +22,7 @@ export function WorldHub() {
   const [selected, setSelected] = useState<string | null>(null);
   const [guardianState, setGuardianState] = useState<GuardianState>('flying');
   const [worldPickerOpen, setWorldPickerOpen] = useState(false);
+  const [guardianArrived, setGuardianArrived] = useState(false);
   const [guardianMessage, setGuardianMessage] = useState('Guardian standing by.');
   const [greetingError, setGreetingError] = useState(false);
   const [guardianSpeaking, setGuardianSpeaking] = useState(false);
@@ -215,6 +216,9 @@ export function WorldHub() {
         <Pressable accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => router.push('/settings')} style={s.roundControl}><Ionicons name="settings-outline" size={21} color="#F3F6FB" /></Pressable>
       </View>
       <View style={s.portalField}>
+        <View pointerEvents="none" style={s.guardianCenter} accessibilityLabel="Guardian arriving at the centre of the immersive Hub">
+          <GuardianCharacter state={guardianArrived ? (guardianSpeaking ? 'speaking' : 'hover') : 'flying'} size={Math.min(240, width * 0.52)} reducedMotion={motionReduced} onMotionEnd={() => setGuardianArrived(true)} />
+        </View>
         {hotspots.map(portal => <Pressable key={portal.id} accessibilityRole="button" accessibilityLabel={`Enter ${portal.label}`} disabled={selected !== null} onPress={() => openWorld(portal.id)} style={[s.portalHotspot, { left: `${(portal.x-.145)*100}%`, top: `${(portal.y-.135)*100}%`, width: '29%', height: '27%' }]} />)}
       </View>
       <View style={s.fixedDock}>
@@ -243,6 +247,7 @@ const s = StyleSheet.create({
   fixedSafe: { flex: 1, justifyContent: 'space-between' },
   topBar: { paddingHorizontal: 20, paddingTop: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   portalField: { flex: 1, position: 'relative' },
+  guardianCenter: { position: 'absolute', left: 0, right: 0, top: '27%', bottom: '4%', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
   portalHotspot: { position: 'absolute', borderRadius: 40 },
   fixedDock: { marginHorizontal: 12, marginBottom: 5, padding: 12, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(222,230,242,.55)', backgroundColor: 'rgba(4,7,12,.84)', gap: 10 },
   statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
