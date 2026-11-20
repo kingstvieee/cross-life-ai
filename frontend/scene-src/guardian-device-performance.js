@@ -14,11 +14,13 @@ export function createGuardianDevicePerformanceProbe({maxSamples=3600}={}){
    throw new Error('invalid_probe_sample_bound');
  let modelSha256=null,lastFrameAt=null,packetCount=0,acceptedPacketCount=0;
  let frameCount=0,renderFailures=0,firstAt=null,lastAt=null,neckPose=null;
+ const motionFrames={idle:0,walk:0,run:0};
  const intervals=[],renderDurations=[],visemes=new Set();
  function modelReady(hash){
    if(!sha(hash))return false;
    modelSha256=hash;lastFrameAt=null;frameCount=0;renderFailures=0;
    packetCount=0;acceptedPacketCount=0;firstAt=null;lastAt=null;neckPose=null;
+   motionFrames.idle=0;motionFrames.walk=0;motionFrames.run=0;
    intervals.length=0;renderDurations.length=0;visemes.clear();
    return true;
  }
@@ -49,6 +51,13 @@ export function createGuardianDevicePerformanceProbe({maxSamples=3600}={}){
        break;
      }
    }
+ }
+ function recordMotionMode(mode,ready){
+   // Only the exact model-bound animator can supply actual rendered frame modes.
+   // This is a local diagnostic, not physical movement or release certification.
+   if(!modelSha256||ready!==true||!['idle','walk','run'].includes(mode))return false;
+   motionFrames[mode]=Math.min(maxSamples,motionFrames[mode]+1);
+   return true;
  }
  function recordNeckPose(p){
    // Metrics from WebView are diagnostic only; retain a strict known schema.
@@ -83,6 +92,9 @@ export function createGuardianDevicePerformanceProbe({maxSamples=3600}={}){
      renderFailures,
      audioPacketCount:packetCount,acceptedAudioPacketCount:acceptedPacketCount,
      observedVisemes:[...visemes].sort(),
+     guardianIdleFrames:motionFrames.idle,
+     guardianWalkFrames:motionFrames.walk,
+     guardianRunFrames:motionFrames.run,
      neckPoseBound:neckPose?.neckPoseBound??false,
      neckCollarPresent:neckPose?.neckCollarPresent??false,
      neckPoseSamples:neckPose?.neckPoseSamples??0,
@@ -98,5 +110,5 @@ export function createGuardianDevicePerformanceProbe({maxSamples=3600}={}){
      decision:'UNVERIFIED',
    };
  }
- return {modelReady,recordFrame,recordNeckPose,packet,failedFrame,snapshot};
+ return {modelReady,recordFrame,recordMotionMode,recordNeckPose,packet,failedFrame,snapshot};
 }
