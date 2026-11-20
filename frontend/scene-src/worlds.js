@@ -581,6 +581,10 @@ if (renderer) {
     while(node&&!node.userData?.action)node=node.parent;
     if(typeof node?.userData?.action==='string'&&node.userData.action.startsWith('world:')){
       node.getWorldPosition(portalFocusPosition);
+      // The locked hub portals sit behind the camera-facing Guardian.
+      // Use their on-screen horizontal/vertical bearing, projected onto the
+      // camera-facing focus plane, instead of twisting the neck backwards.
+      portalFocusPosition.z=camera.position.z;
       guardianHeadTracking.setTargetWorld(portalFocusPosition);
     }else guardianHeadTracking.clearTarget();
     requestDraw();
