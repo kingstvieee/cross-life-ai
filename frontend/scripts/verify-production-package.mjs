@@ -26,7 +26,8 @@ export const EXPECTED_APP = Object.freeze({
   ascAppId: '6834467523'
 });
 
-export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFlightBuild = 105) {
+export const VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK = 108; // Authenticated Expo ledger, 2026-11-20: highest preview 108, App Store 105.
+export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFlightBuild = VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK) {
   const blockers = [];
   const facts = {};
   let approvedGuardian = null;
@@ -115,8 +116,12 @@ export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFli
     const ios = expo.ios ?? {};
     const build = Number(ios.buildNumber);
     facts.iosBuildNumber = ios.buildNumber;
-    if (!Number.isSafeInteger(build) || build <= lastTestFlightBuild)
-      fail('ios-build-number', 'Candidate iOS build number must exceed the current TestFlight build');
+    facts.expoHighestKnownIssuedIosBuild = VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK;
+    // Older TestFlight receipts cannot override the higher verified Expo preview.
+    const issuedFloor=Math.max(VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK,
+      Number.isSafeInteger(lastTestFlightBuild) ? lastTestFlightBuild : Number.POSITIVE_INFINITY);
+    if (!Number.isSafeInteger(build) || build <= issuedFloor)
+      fail('ios-build-number', 'Candidate iOS build number must exceed every known Expo iOS build (issued high-water mark 108; refresh ledger before signing)');
     if (ios.bundleIdentifier !== EXPECTED_APP.bundleId || ios.appleTeamId !== EXPECTED_APP.appleTeamId)
       fail('ios-identity', 'Apple app identity differs from the locked target');
     if (expo.owner !== EXPECTED_APP.easOwner ||
