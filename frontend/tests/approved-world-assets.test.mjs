@@ -67,7 +67,8 @@ test('approved world geometry loads only if accepted and fallback remains',async
  const renderer=await readFile(new URL('../scene-src/worlds.js',import.meta.url),'utf8');
  assert.match(builder,/loadApprovedWorldAssets\(root\)/);
  assert.match(builder,/STAAR_APPROVED_WORLD_ASSETS=/);
- assert.match(renderer,/asset=window\.STAAR_APPROVED_WORLD_ASSETS/);
+ assert.match(renderer,/window\.STAAR_APPROVED_WORLD_ASSETS/);
+ assert.match(renderer,/worldQaEnabled&&window\.STAAR_PRIVATE_WORLDS_QA/); 
  assert.match(renderer,/previewWorldObjects/);
  assert.match(renderer,/addNavigationFallback\(\)/);
 });

@@ -1,0 +1,83 @@
+workflows:
+  staar-testflight-110:
+    name: STAAR Hub 110 — 10 Worlds + Guardian — Internal TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    triggering:
+      events: []
+    integrations:
+      app_store_connect: STAAR Codemagic QA 109
+    environment:
+      groups:
+        - staar-private-110
+      node: 22
+      xcode: 26.6
+      ios_signing:
+        provisioning_profiles:
+          - STAARHub_AppStore_Codemagic_2026_11_20
+        certificates:
+          - STAAR QA 109 Distribution
+      vars:
+        EAS_BUILD_PROFILE: preview
+        STAAR_IPHONE_ONLY_QA: '1'
+        EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '1'
+        EXPO_PUBLIC_WORLD_COLLISION_QA: '1'
+        EXPO_PUBLIC_BACKEND_URL: https://cross-life-ai.emergent.host
+    scripts:
+      - name: Download and authenticate PRIVATE encrypted 3D assets
+        script: |
+          set -eu
+          curl --fail --silent --show-error -L --retry 3 \
+            'https://drive.google.com/uc?export=download&id=1E-bR8B2V_o33Mb519iA6ea_ouCM_gUWV' \
+            -o /tmp/STAAR_PRIVATE_110.enc
+          node scripts/decrypt-private-b110.mjs /tmp/STAAR_PRIVATE_110.enc
+          rm -f /tmp/STAAR_PRIVATE_110.enc
+          cd frontend
+          node scripts/stage-private-guardian-b250-qa.mjs
+          node --input-type=module -e "import('./scene-src/internal-ten-world-qa.mjs').then(m=>m.loadInternalTenWorldQaAssets(process.cwd()+'/scene-src').then(w=>{if(Object.keys(w).length!==10)throw Error('ten_worlds_missing');console.log('10 GLBs hash verified')}))"
+          node scripts/prepare-private-b250-qa-archive.mjs prepare
+      - name: Set unique iPhone TestFlight version 110
+        script: |
+          cd frontend
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const name='app.json',data=JSON.parse(fs.readFileSync(name,'utf8'));
+          if(data.expo.version!=='1.0.4'||data.expo.ios.buildNumber!=='109')
+            throw Error('Incorrect base version — refuse to build with duplicate number');
+          data.expo.ios.buildNumber='110';
+          fs.writeFileSync(name,JSON.stringify(data,null,2)+'\n');
+          NODE
+      - name: Install Expo dependencies and bundle the real Guardian and 10 GLBs
+        script: |
+          cd frontend
+          corepack enable
+          yarn install --frozen-lockfile
+          node --test tests/build252-private-b250-iphone-qa-loader.test.mjs tests/build252-private-preview-archive-policy.test.mjs
+      - name: Native iOS prebuild
+        script: |
+          cd frontend
+          npx expo prebuild --platform ios --non-interactive --clean
+      - name: CocoaPods
+        script: |
+          cd frontend/ios
+          pod install
+      - name: Set App Store Connect signing
+        script: |
+          cd frontend
+          xcode-project use-profiles --custom-export-options='{"testFlightInternalTestingOnly": true}'
+      - name: Archive signed internal-only TestFlight IPA
+        script: |
+          cd frontend
+          WORKSPACE=$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)
+          test -n "$WORKSPACE"
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcode-project build-ipa --workspace "$WORKSPACE" --scheme "$SCHEME"
+    artifacts:
+      - frontend/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
+        beta_groups: []
