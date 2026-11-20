@@ -67,6 +67,8 @@ export const PRIVATE_BUILD241_REVIEW_ONLY_SHA256 = '667f68dc172cd8dde66b25227604
 export const PRIVATE_BUILD242_REVIEW_ONLY_SHA256 = '8c2ed15001070453e232809492de8916d2e46313d835d21556e6a8fc80dcb768' as const;
 export const PRIVATE_BUILD243_REVIEW_ONLY_SHA256 = '804f4e0f714bcbde63572d8ac83cb11a9a6c2e6ee888117b749a591df163ae78' as const;
 export const PRIVATE_BUILD244_REVIEW_ONLY_SHA256 = 'afdf2b3deccc96786faf7cc8357f2d9abed9dd20796bec7b6bd848ff8cc5cfcc' as const;
+export const PRIVATE_BUILD247_CHROME_MATCH_REVIEW_ONLY_SHA256 = '41ee34c1fb2baf82082a7f8aa6426242be0a69df636617858c467f87fb8897a4' as const;
+export const PRIVATE_BUILD247_TITANIUM_MATCH_REVIEW_ONLY_SHA256 = '22d91cf0f516d95d1f98f1c69826ec8f3219d14daafd8e9e62c9c0b7305d5755' as const;
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
   'da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395',
   'e6e81a37cbc142c4d82fe8aff53adce3fb39b18f364aac18b599dccb4a80b8a1',
@@ -111,6 +113,8 @@ export function canActivateArmoredGuardian3D(
     && evidence.rigModelSha256 !== PRIVATE_BUILD242_REVIEW_ONLY_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD243_REVIEW_ONLY_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD244_REVIEW_ONLY_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD247_CHROME_MATCH_REVIEW_ONLY_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD247_TITANIUM_MATCH_REVIEW_ONLY_SHA256
     && !REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(evidence.rigModelSha256)
     && evidence.identityAssetId.trim().length > 0
     && evidence.founderApprovedRig === true
