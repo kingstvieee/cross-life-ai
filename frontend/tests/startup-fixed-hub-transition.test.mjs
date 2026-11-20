@@ -21,3 +21,12 @@ test('startup movie has decoder freeze recovery and the hub crossfades underneat
  assert.match(boundary, /duration: reduced \? 0 : 1100/);
  assert.match(boundary, /setTimeout\(finish, 250\)/);
 });
+
+test('all five pictured portal names are visibly rendered, with motion-safe glow', async () => {
+ const hub = await read('components/staarwardd/world-hub.tsx');
+ for (const label of ['STAAR WORK','STAAR DREAMS','STAAR HEALTH','STAAR STYLE','STARVERSE']) assert.ok(hub.includes(label), `Missing ${label}`);
+ assert.match(hub, /style=\{s\.portalNamePlate\}/);
+ assert.match(hub, /style=\{s\.portalNameText\}/);
+ assert.match(hub, /if \(motionReduced \|\| !appActive \|\| worldPickerOpen\)/);
+ assert.match(hub, /Animated\.loop/);
+});

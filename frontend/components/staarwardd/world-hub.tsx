@@ -23,6 +23,7 @@ export function WorldHub() {
   const [guardianState, setGuardianState] = useState<GuardianState>('flying');
   const [worldPickerOpen, setWorldPickerOpen] = useState(false);
   const [guardianArrived, setGuardianArrived] = useState(false);
+  const portalGlow = useRef(new Animated.Value(0)).current;
   const [guardianMessage, setGuardianMessage] = useState('Guardian standing by.');
   const [greetingError, setGreetingError] = useState(false);
   const [guardianSpeaking, setGuardianSpeaking] = useState(false);
@@ -194,6 +195,16 @@ export function WorldHub() {
   useFocusEffect(useCallback(() => { setSelected(null); }, []));
   // The Hub is a fixed immersive viewport. Navigation happens inside overlays,
   // never by vertically scrolling the homepage or stretching the approved art.
+  // Keep labelled portal outlines gently alive without animating or altering locked artwork.
+  useEffect(() => {
+    if (motionReduced || !appActive || worldPickerOpen) { portalGlow.stopAnimation(); portalGlow.setValue(0); return; }
+    const pulse = Animated.loop(Animated.sequence([
+      Animated.timing(portalGlow, { toValue: 1, duration: 1700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(portalGlow, { toValue: 0, duration: 1700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ]));
+    pulse.start();
+    return () => pulse.stop();
+  }, [motionReduced, appActive, worldPickerOpen, portalGlow]);
   const openWorld = (id: string) => {
     setSelected(id);
     setWorldPickerOpen(false);
@@ -219,7 +230,10 @@ export function WorldHub() {
         <View pointerEvents="none" style={s.guardianCenter} accessibilityLabel="Guardian arriving at the centre of the immersive Hub">
           <GuardianCharacter state={guardianArrived ? (guardianSpeaking ? 'speaking' : 'hover') : 'flying'} size={Math.min(240, width * 0.52)} reducedMotion={motionReduced} onMotionEnd={() => setGuardianArrived(true)} />
         </View>
-        {hotspots.map(portal => <Pressable key={portal.id} accessibilityRole="button" accessibilityLabel={`Enter ${portal.label}`} disabled={selected !== null} onPress={() => openWorld(portal.id)} style={[s.portalHotspot, { left: `${(portal.x-.145)*100}%`, top: `${(portal.y-.135)*100}%`, width: '29%', height: '27%' }]} />)}
+        {hotspots.map(portal => <Pressable key={portal.id} accessibilityRole="button" accessibilityLabel={`Enter ${portal.label}`} disabled={selected !== null} onPress={() => openWorld(portal.id)} style={[s.portalHotspot, { left: `${(portal.x-.145)*100}%`, top: `${(portal.y-.135)*100}%`, width: '29%', height: '27%' }]}>
+          <Animated.View pointerEvents="none" style={[s.portalGlow, { opacity: portalGlow.interpolate({ inputRange: [0, 1], outputRange: [.2, .72] }) }]} />
+          <View pointerEvents="none" style={s.portalNamePlate}><Text style={s.portalNameText} adjustsFontSizeToFit minimumFontScale={.72} numberOfLines={1}>{portal.label}</Text></View>
+        </Pressable>)}
       </View>
       <View style={s.fixedDock}>
         <View style={s.statusRow}><View style={s.statusCopy}><Text style={s.micro}>{companion.toUpperCase()} · YOUR COMPANION</Text><Text style={s.dockTitle} numberOfLines={1}>{guardianMessage}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian" disabled={guardianSpeaking} onPress={() => { void greet(); }} style={s.roundControl}><Ionicons name="volume-high-outline" size={22} color="#F4F7FC" /></Pressable></View>
@@ -248,7 +262,10 @@ const s = StyleSheet.create({
   topBar: { paddingHorizontal: 20, paddingTop: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   portalField: { flex: 1, position: 'relative' },
   guardianCenter: { position: 'absolute', left: 0, right: 0, top: '27%', bottom: '4%', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
-  portalHotspot: { position: 'absolute', borderRadius: 40 },
+  portalHotspot: { position: 'absolute', borderRadius: 40, justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 2 },
+  portalGlow: { ...StyleSheet.absoluteFill, borderRadius: 40, borderWidth: 1.5, borderColor: '#DCEAFF', backgroundColor: 'rgba(115,150,225,.08)' },
+  portalNamePlate: { maxWidth: '98%', minWidth: '88%', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(220,231,248,.8)', backgroundColor: 'rgba(0,3,12,.92)', paddingHorizontal: 3, paddingVertical: 5, alignItems: 'center' },
+  portalNameText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900', letterSpacing: .3, textAlign: 'center', textShadowColor: '#000', textShadowRadius: 4 },
   fixedDock: { marginHorizontal: 12, marginBottom: 5, padding: 12, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(222,230,242,.55)', backgroundColor: 'rgba(4,7,12,.84)', gap: 10 },
   statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   statusCopy: { flex: 1 },
