@@ -95,6 +95,7 @@ jobs:
       - run: node --experimental-strip-types --test tests/build244-review-asset-quarantine.test.mjs
       - run: node --experimental-strip-types --test tests/build247-visual-match-private-quarantine.test.mjs
       - run: node --experimental-strip-types --test tests/build248-ear-cleanup-review-quarantine.test.mjs
+      - run: node --experimental-strip-types --test tests/build249-cinematic-private-quarantine.test.mjs
       - run: node --test tests/build245-neck-pose-threejs.test.mjs
       - run: node --experimental-strip-types --test tests/build245-neck-pose-report-contract.test.mjs
       - run: node --experimental-strip-types --test tests/build246-guardian-review-evidence-gates.test.mjs
