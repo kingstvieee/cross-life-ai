@@ -49,3 +49,62 @@ workflows:
     artifacts:
       - frontend/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+
+  # Separate App Store Connect signing path. Manual trigger only.
+  # This creates a TestFlight INTERNAL-ONLY app build, never an App Store release.
+  staar-testflight-109:
+    name: STAARWAARDD 109 - TestFlight Internal QA
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    triggering:
+      events: []
+    integrations:
+      app_store_connect: STAAR Codemagic QA 109
+    environment:
+      node: 22
+      xcode: latest
+      ios_signing:
+        provisioning_profiles:
+          - STAARHub_AppStore_Codemagic_2026_11_20
+        certificates:
+          - STAAR QA 109 Distribution
+      vars:
+        STAAR_IPHONE_ONLY_QA: '1'
+        EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '1'
+        EXPO_PUBLIC_WORLD_COLLISION_QA: '1'
+        EXPO_PUBLIC_BACKEND_URL: https://cross-life-ai.emergent.host
+    scripts:
+      - name: Install dependencies
+        script: |
+          cd frontend
+          corepack enable
+          yarn install --frozen-lockfile
+      - name: Generate native iOS project
+        script: |
+          cd frontend
+          npx expo prebuild --platform ios --non-interactive --clean
+      - name: Install CocoaPods
+        script: |
+          cd frontend/ios
+          pod install
+      - name: Configure App Store signed internal-only TestFlight export
+        script: |
+          cd frontend
+          xcode-project use-profiles --custom-export-options='{"testFlightInternalTestingOnly": true}'
+      - name: Archive App Store signed iPhone IPA
+        script: |
+          cd frontend
+          WORKSPACE=$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)
+          test -n "$WORKSPACE"
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcode-project build-ipa --workspace "$WORKSPACE" --scheme "$SCHEME"
+    artifacts:
+      - frontend/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Team (Expo)
+        submit_to_app_store: false
