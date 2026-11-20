@@ -23,7 +23,7 @@ test('Build 220 macOS signed IPA verifier checks real archive signing and fixed 
  const code=await readFile(new URL('../scripts/verify-build220-ipa.sh',import.meta.url),'utf8');
  for(const marker of ['codesign --verify --deep --strict',
    'TeamIdentifier=R9BPDSU4BW','com.emergent.crosslifeai.z79271',
-   '"$build" == "106"','"$version" == "1.0.4"','SIGNED_IPA_SHA256']){
+   '"$build" == "109"','"$version" == "1.0.4"','SIGNED_IPA_SHA256']){
   assert.ok(code.includes(marker),marker);
  }
 });
@@ -31,7 +31,15 @@ test('Build 220 macOS signed IPA verifier checks real archive signing and fixed 
 test('Build 220 founder approval and actual signed build remain required in EAS workflow',async()=>{
  const wf=await readFile(new URL('../.eas/workflows/testflight-release.yml',import.meta.url),'utf8');
  assert.ok(wf.includes('type: require-approval'));
- assert.ok(wf.includes('node scripts/verify-production-package.mjs'));
+ assert.ok(wf.includes('node scripts/verify-owner-testflight-candidate.mjs'));
+ const gate=await readFile(new URL('../scripts/verify-owner-testflight-candidate.mjs',import.meta.url),'utf8');
+ // Candidate exception is limited to owner-supplied fallback visual assets.
+ // Identity, private media hash, archive, signing and permission checks remain.
+ assert.match(gate,/inspectProductionPackage/);
+ assert.match(gate,/new Set\(\['guardian','worlds','independent-evidence'\]\)/);
+ assert.match(gate,/const blockers=result\.blockers\.filter/);
+ assert.match(gate,/testFlightCandidateReady:blockers\.length===0/);
+ assert.match(gate,/productionAssetCertification:false/);
  assert.ok(wf.includes('type: testflight'));
  assert.ok(wf.includes('needs: [build_ios, founder_acceptance]'));
 });

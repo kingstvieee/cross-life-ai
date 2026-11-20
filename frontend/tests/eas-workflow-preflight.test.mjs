@@ -8,16 +8,22 @@ const frontend = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const workflow = readFileSync(path.join(frontend, '.eas/workflows/testflight-release.yml'), 'utf8');
 const app = JSON.parse(readFileSync(path.join(frontend, 'app.json'), 'utf8'));
 
-test('EAS build is blocked by verified production package preflight', () => {
+test('EAS Build 109 uses owner-directed preflight backed by the strict production verifier', () => {
   assert.match(workflow, /jobs:\s*\n\s*preflight:/);
   assert.match(workflow, /uses: eas\/checkout/);
-  assert.match(workflow, /node scripts\/verify-production-package\.mjs/);
+  assert.match(workflow, /node scripts\/verify-owner-testflight-candidate\.mjs/);
+  const candidateGate = readFileSync(path.join(frontend, 'scripts/verify-owner-testflight-candidate.mjs'), 'utf8');
+  assert.match(candidateGate, /inspectProductionPackage/);
+  assert.match(candidateGate, /const blockers=result\.blockers\.filter/);
+  assert.match(candidateGate, /new Set\(\['guardian','worlds','independent-evidence'\]\)/);
+  assert.match(candidateGate, /testFlightCandidateReady:blockers\.length===0/);
+  assert.match(candidateGate, /productionAssetCertification:false/);
   assert.match(workflow, /build_ios:\s*\n\s*needs: \[preflight\]/);
   assert.match(workflow, /founder_acceptance:[\s\S]*?needs: \[build_ios\][\s\S]*?type: require-approval/);
   assert.match(workflow, /submit_ios:[\s\S]*?needs: \[build_ios, founder_acceptance\]/);
 });
 
-test('TestFlight workflow is still pinned to old build 109 and cannot silently target current build 109', () => {
+test('TestFlight release remains explicitly pinned to Build 109 and manual dispatch', () => {
   assert.equal(app.expo.ios.buildNumber, '109');
   assert.match(workflow, /1\.0\.4 \(109\)/);
   assert.match(workflow, /Submit build 109 to TestFlight/);

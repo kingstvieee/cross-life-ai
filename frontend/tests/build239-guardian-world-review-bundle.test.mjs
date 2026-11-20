@@ -126,11 +126,14 @@ test('Guardian absent asset, no audio, poor FPS or forged owner/device flags fai
  ];
  for(const edit of variants){const g=guardian();edit(g);assert.equal(examineGuardianQaReport(g).reviewCandidate,false);}
 });
-test('Build239 reads exports locally only and does not replace release gate or alter queued Build106',async()=>{
+test('Build239 reads exports locally only and does not replace release gate or alter the configured iOS Build109',async()=>{
  const source=await readFile(new URL('../scripts/build239-review-qa-bundle.mjs',import.meta.url),'utf8');
  assert.doesNotMatch(source,/fetch\(|https:\/\/|GenUI|eas build|eas submit|Apple API/i);
  assert.match(source,/releasePermitted:false/);
  assert.match(source,/finalWorldsAccepted:0/);
  const app=JSON.parse(await readFile(new URL('../app.json',import.meta.url),'utf8'));
- assert.equal(app.expo.ios.buildNumber,'108');
+ // Guard against stale QA harness expectations rewriting a release version.
+ // This must match the existing Expo baseline, not consume another build slot.
+ assert.equal(app.expo.ios.buildNumber,'109');
+ assert.doesNotMatch(source,/writeFile.*app\.json|eas build|eas submit/i);
 });
