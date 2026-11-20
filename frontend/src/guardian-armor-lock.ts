@@ -62,6 +62,11 @@ export const PRIVATE_BUILD234_WALK_RUN_QA_SHA256 = '2ae8eda577a5f60a0c82bb73d04b
 // Build 236 transition GLB is private and not a physical-iPhone or full-rig acceptance.
 export const PRIVATE_BUILD236_TRANSITION_QA_SHA256 = '283a1d5175c59f07f68373feb81ba417f9ea689de21f41ef0abdeb182fa0cec8' as const;
 
+// Exact review-only 3D assets, including the private collar variant, cannot be released.
+export const PRIVATE_BUILD241_REVIEW_ONLY_SHA256 = '667f68dc172cd8dde66b25227604929582d2b86e39e50c1eb87a368e94bd59da' as const;
+export const PRIVATE_BUILD242_REVIEW_ONLY_SHA256 = '8c2ed15001070453e232809492de8916d2e46313d835d21556e6a8fc80dcb768' as const;
+export const PRIVATE_BUILD243_REVIEW_ONLY_SHA256 = '804f4e0f714bcbde63572d8ac83cb11a9a6c2e6ee888117b749a591df163ae78' as const;
+export const PRIVATE_BUILD244_REVIEW_ONLY_SHA256 = 'afdf2b3deccc96786faf7cc8357f2d9abed9dd20796bec7b6bd848ff8cc5cfcc' as const;
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
   'da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395',
   'e6e81a37cbc142c4d82fe8aff53adce3fb39b18f364aac18b599dccb4a80b8a1',
@@ -102,6 +107,10 @@ export function canActivateArmoredGuardian3D(
     && evidence.rigModelSha256 !== PRIVATE_BUILD233_CHROME_FOOT_PLANT_QA_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD234_WALK_RUN_QA_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD236_TRANSITION_QA_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD241_REVIEW_ONLY_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD242_REVIEW_ONLY_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD243_REVIEW_ONLY_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD244_REVIEW_ONLY_SHA256
     && !REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(evidence.rigModelSha256)
     && evidence.identityAssetId.trim().length > 0
     && evidence.founderApprovedRig === true
