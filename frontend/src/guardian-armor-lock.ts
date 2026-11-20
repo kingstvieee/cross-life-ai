@@ -69,6 +69,9 @@ export const PRIVATE_BUILD243_REVIEW_ONLY_SHA256 = '804f4e0f714bcbde63572d8ac83c
 export const PRIVATE_BUILD244_REVIEW_ONLY_SHA256 = 'afdf2b3deccc96786faf7cc8357f2d9abed9dd20796bec7b6bd848ff8cc5cfcc' as const;
 export const PRIVATE_BUILD247_CHROME_MATCH_REVIEW_ONLY_SHA256 = '41ee34c1fb2baf82082a7f8aa6426242be0a69df636617858c467f87fb8897a4' as const;
 export const PRIVATE_BUILD247_TITANIUM_MATCH_REVIEW_ONLY_SHA256 = '22d91cf0f516d95d1f98f1c69826ec8f3219d14daafd8e9e62c9c0b7305d5755' as const;
+// Exact Build248 duplicate-ear fixes remain private, not final identity acceptance.
+export const PRIVATE_BUILD248_CHROME_EAR_CLEANUP_REVIEW_ONLY_SHA256 = '2a3ef97275db797daa4247297770b3c062051fcc6461adb39c4faa99a8205c8d' as const;
+export const PRIVATE_BUILD248_TITANIUM_EAR_CLEANUP_REVIEW_ONLY_SHA256 = '3b3ccefe72bd5f9dc3828fc09f8f080c06d7f9f356e771e108e57e6db9d8d525' as const;
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
   'da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395',
   'e6e81a37cbc142c4d82fe8aff53adce3fb39b18f364aac18b599dccb4a80b8a1',
@@ -115,6 +118,8 @@ export function canActivateArmoredGuardian3D(
     && evidence.rigModelSha256 !== PRIVATE_BUILD244_REVIEW_ONLY_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD247_CHROME_MATCH_REVIEW_ONLY_SHA256
     && evidence.rigModelSha256 !== PRIVATE_BUILD247_TITANIUM_MATCH_REVIEW_ONLY_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD248_CHROME_EAR_CLEANUP_REVIEW_ONLY_SHA256
+    && evidence.rigModelSha256 !== PRIVATE_BUILD248_TITANIUM_EAR_CLEANUP_REVIEW_ONLY_SHA256
     && !REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(evidence.rigModelSha256)
     && evidence.identityAssetId.trim().length > 0
     && evidence.founderApprovedRig === true
