@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native';
+import { Alert, Dimensions, Linking, Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth';
@@ -19,6 +19,7 @@ export default function Diggitstaar() {
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState('');
   const [sceneExpanded, setSceneExpanded] = useState(true);
+  const [fullDesk, setFullDesk] = useState(true);
   const [offer, setOffer] = useState('');
   const [audience, setAudience] = useState('');
   const [goal, setGoal] = useState('');
@@ -54,14 +55,17 @@ export default function Diggitstaar() {
   };
   const button = (label: string, action: () => void, disabled = false) => <Pressable accessibilityRole="button" disabled={disabled} onPress={action} style={{ padding: 14, borderRadius: 13, borderWidth: 1, borderColor: '#B8A274', backgroundColor: disabled ? '#30343A' : '#1B2738', minHeight: 46 }}><Text style={{ color: '#F4E5C4', fontWeight: '800', textAlign: 'center' }}>{label}</Text></Pressable>;
   const field = (label: string, value: string, change: (v: string) => void) => <TextInput accessibilityLabel={label} placeholder={label} placeholderTextColor="#9EA9BA" value={value} onChangeText={change} editable={authorized && loaded} style={{ color: '#FFFFFF', borderWidth: 1, borderColor: '#68768B', borderRadius: 12, padding: 13, minHeight: 46 }} />;
-  return <ScrollView style={{ flex: 1, backgroundColor: '#060B14' }} contentContainerStyle={{ padding: 20, paddingTop: 60, paddingBottom: 65, gap: 16 }}>
-    {button('Back to STAARWAARDD portals', () => router.replace('/hub'))}
-    <Text style={{ color: '#F3D9A4', fontSize: 29, fontWeight: '900', letterSpacing: 1 }}>DIGGITSTAAR</Text>
-    <Text style={{ color: '#C6D9EF' }}>YOUR IMMERSIVE 3D WORKSTATION · TOUCH THE HOLOGRAPHIC SCREENS</Text>
-    <View style={{ height: sceneExpanded ? 330 : 0, overflow: 'hidden', borderRadius: 20, borderWidth: sceneExpanded ? 1 : 0, borderColor: '#9BCBFF', backgroundColor: '#DCEEFF' }}>
-      {sceneExpanded && <WorldScene world="diggitstaar" onAction={action => { if (action === 'diggitstaar:website') website(); else if (action === 'diggitstaar:studio') { setSceneExpanded(false); setNotice('Production workstation controls are below.'); } }} />}
+  return <ScrollView scrollEnabled={!fullDesk} style={{ flex: 1, backgroundColor: fullDesk ? '#EAF5FF' : '#060B14' }} contentContainerStyle={{ padding: 20, paddingTop: fullDesk ? 25 : 60, paddingBottom: 65, gap: 16 }}>
+    {!fullDesk && button('Back to STAARWAARDD portals', () => router.replace('/hub'))}
+    {!fullDesk && <Text style={{ color: '#F3D9A4', fontSize: 29, fontWeight: '900', letterSpacing: 1 }}>DIGGITSTAAR</Text>}
+    {!fullDesk && <Text style={{ color: '#C6D9EF' }}>YOUR IMMERSIVE 3D WORKSTATION · TOUCH THE HOLOGRAPHIC SCREENS</Text>}
+    <View style={{ height: sceneExpanded ? (fullDesk ? Dimensions.get('window').height * .72 : 420) : 0, overflow: 'hidden', borderRadius: 20, borderWidth: sceneExpanded ? 1 : 0, borderColor: '#9BCBFF', backgroundColor: '#DCEEFF' }}>
+      {sceneExpanded && <WorldScene world="diggitstaar" onAction={action => { if (action === 'diggitstaar:website') website(); else if (action === 'diggitstaar:studio') { setSceneExpanded(false); setFullDesk(false); setNotice('Production workstation controls are below.'); } }} />}
     </View>
-    {button(sceneExpanded ? 'Expand production controls' : 'Return to 3D desk', () => setSceneExpanded(!sceneExpanded))}
+    {button(fullDesk ? 'Open production controls' : 'Return to immersive 3D desk', () => { setFullDesk(!fullDesk); setSceneExpanded(fullDesk ? false : true); })}
+    {fullDesk && button('Back to STAARWAARDD portals', () => router.replace('/hub'))}
+    {fullDesk && button('Visit DIGGITSTAAR website', website)}
+    {!fullDesk && <View style={{ gap: 14 }}>
     {button('Visit www.diggitstaar.com', website)}
     <Text style={{ color: '#D5DFEE', fontSize: 15 }}>AI Content Agency · Business Command Centre</Text>
     <View style={{ padding: 17, backgroundColor: '#121D2D', borderRadius: 18, borderWidth: 1, borderColor: '#6C7990', gap: 10 }}>
@@ -96,5 +100,6 @@ export default function Diggitstaar() {
     {button('Share workload summary', () => { void Share.share({ message: `DIGGITSTAAR workload\n${tasks.map(t => `${t.status}: ${t.client} — ${t.title}`).join('\n') || 'No tasks recorded'}` }).catch(() => setNotice('Sharing is unavailable.')); }, !authorized)}
     <Text style={{ color: '#AEBBCD', lineHeight: 20 }}>Local, account-scoped preview only. Gmail, Drive, Calendar, and production integrations are not yet connected. No messages are read or sent from this screen.</Text>
     {!!notice && <Text accessibilityRole="alert" style={{ color: '#F1D9AA' }}>{notice}</Text>}
+    </View>}
   </ScrollView>;
 }
