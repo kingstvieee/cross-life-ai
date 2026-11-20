@@ -29,11 +29,17 @@ jobs:
             node scripts/verify-internal-iphone-qa-preview.mjs
             # Fail before owner approval or EAS credit if the private QA asset is absent.
             node scripts/stage-private-guardian-b250-qa.mjs
+            # Compare exact GLB, locked startup and AAC; write preview-only EAS rules.
+            # Missing private files fail BEFORE any signed build is initiated.
+            node scripts/prepare-private-b250-qa-archive.mjs prepare
           elif [ -f frontend/scripts/verify-internal-iphone-qa-preview.mjs ]; then
             cd frontend
             node scripts/verify-internal-iphone-qa-preview.mjs
             # Fail before owner approval or EAS credit if the private QA asset is absent.
             node scripts/stage-private-guardian-b250-qa.mjs
+            # Compare exact GLB, locked startup and AAC; write preview-only EAS rules.
+            # Missing private files fail BEFORE any signed build is initiated.
+            node scripts/prepare-private-b250-qa-archive.mjs prepare
           else
             echo 'Internal iPhone QA source preflight is missing' >&2
             exit 1
