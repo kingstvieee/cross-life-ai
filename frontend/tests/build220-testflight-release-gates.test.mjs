@@ -23,7 +23,7 @@ test('Build 220 macOS signed IPA verifier checks real archive signing and fixed 
  const code=await readFile(new URL('../scripts/verify-build220-ipa.sh',import.meta.url),'utf8');
  for(const marker of ['codesign --verify --deep --strict',
    'TeamIdentifier=R9BPDSU4BW','com.emergent.crosslifeai.z79271',
-   '"$build" == "106"','"$version" == "1.0.4"','SIGNED_IPA_SHA256']){
+   '"$build" == "109"','"$version" == "1.0.4"','SIGNED_IPA_SHA256']){
   assert.ok(code.includes(marker),marker);
  }
 });

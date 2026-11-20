@@ -14,7 +14,7 @@ const validApp = buildNumber => ({
 });
 const validEas = { build: { production: { distribution: 'store', ios: { simulator: false } } },
   submit: { production: { ios: { ascAppId: EXPECTED_APP.ascAppId } } } };
-const makeFixture = async (buildNumber = 106) => {
+const makeFixture = async (buildNumber = 109) => {
   const dir = await mkdtemp(path.join(tmpdir(), 'staar-release-'));
   await writeFile(path.join(dir, 'app.json'), JSON.stringify(validApp(buildNumber)));
   await writeFile(path.join(dir, 'eas.json'), JSON.stringify(validEas));
@@ -27,7 +27,7 @@ test('release preflight reports missing real art and startup film rather than in
     const result = await inspectProductionPackage(dir);
     assert.equal(result.readyForSignedBuildAttempt, false);
     assert.deepEqual(result.blockers.map(x => x.id).sort(), ['approved-soundtrack','guardian','startup-film','worlds']);
-    assert.equal(result.facts.iosBuildNumber, '106');
+    assert.equal(result.facts.iosBuildNumber, '109');
     assert.match(result.caveat, /Apple signature/);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
@@ -42,7 +42,7 @@ test('preflight refuses reusing TestFlight build 105', async () => {
 });
 
 test('preflight rejects mismatched Apple identity and invalid EAS target', async () => {
-  const dir = await makeFixture(106);
+  const dir = await makeFixture(109);
   try {
     const app = validApp(106);
     app.expo.ios.bundleIdentifier = 'com.unknown.app';

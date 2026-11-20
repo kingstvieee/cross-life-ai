@@ -23,7 +23,7 @@ bundle="$(plutil -extract CFBundleIdentifier raw -o - "$app/Info.plist")"
 build="$(plutil -extract CFBundleVersion raw -o - "$app/Info.plist")"
 version="$(plutil -extract CFBundleShortVersionString raw -o - "$app/Info.plist")"
 [[ "$bundle" == "com.emergent.crosslifeai.z79271" ]] || { echo "wrong iOS bundle id" >&2;exit 1; }
-[[ "$build" == "106" && "$version" == "1.0.4" ]] || { echo "wrong iOS release build" >&2;exit 1; }
+[[ "$build" == "109" && "$version" == "1.0.4" ]] || { echo "wrong iOS release build" >&2;exit 1; }
 # Cryptographically verifiable local signature and archive hash. Actual App
 # Store Connect upload, iPhone install and founder acceptance remain separate.
 printf 'SIGNED_IPA_SHA256='

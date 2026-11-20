@@ -1,0 +1,62 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,writeFile,rm,readFile} from 'node:fs/promises';
+import path from 'node:path';
+import {tmpdir} from 'node:os';
+import {
+ inspectProductionPackage,VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK,EXPECTED_APP
+} from '../scripts/verify-production-package.mjs';
+
+const app=build=>({expo:{version:'1.0.4',
+ owner:EXPECTED_APP.easOwner,ios:{buildNumber:String(build),
+ bundleIdentifier:EXPECTED_APP.bundleId,appleTeamId:EXPECTED_APP.appleTeamId},
+ extra:{eas:{projectId:EXPECTED_APP.easProjectId}}}});
+const eas={build:{production:{distribution:'store',ios:{simulator:false}}},
+ submit:{production:{ios:{ascAppId:EXPECTED_APP.ascAppId}}}};
+
+async function fixture(build){
+ const root=await mkdtemp(path.join(tmpdir(),'staar-b251-ios-'));
+ await writeFile(path.join(root,'app.json'),JSON.stringify(app(build)));
+ await writeFile(path.join(root,'eas.json'),JSON.stringify(eas));
+ return root;
+}
+test('Verified Expo ledger distinguishes App Store 105 from higher internal issued 108',()=>{
+ assert.equal(VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK,108);
+});
+test('Older 106, 107 and 108 source builds are rejected even if TestFlight is only 105',async()=>{
+ for(const build of [105,106,107,108]){
+  const root=await fixture(build);
+  try{
+   const r=await inspectProductionPackage(root,105);
+   assert.equal(r.readyForSignedBuildAttempt,false);
+   assert.ok(r.blockers.some(x=>x.id==='ios-build-number'),String(build));
+  }finally{await rm(root,{recursive:true,force:true});}
+ }
+});
+test('109 passes number uniqueness but never invents media or Guardian acceptance',async()=>{
+ const root=await fixture(109);
+ try{
+  const r=await inspectProductionPackage(root,105);
+  assert.equal(r.facts.iosBuildNumber,'109');
+  assert.equal(r.facts.expoHighestKnownIssuedIosBuild,108);
+  assert.equal(r.blockers.some(x=>x.id==='ios-build-number'),false);
+  assert.equal(r.readyForSignedBuildAttempt,false);
+  for(const k of ['guardian','worlds','approved-soundtrack','startup-film'])
+   assert.ok(r.blockers.some(x=>x.id===k),k);
+ }finally{await rm(root,{recursive:true,force:true});}
+});
+test('Production signing workflow is manual and uses one coherent 109 build identity',async()=>{
+ const root=new URL('../',import.meta.url);
+ const appCfg=JSON.parse(await readFile(new URL('app.json',root),'utf8'));
+ const production=await readFile(new URL('.eas/workflows/testflight-release.yml',root),'utf8');
+ const qa=await readFile(new URL('.eas/workflows/iphone-qa-preview.yml',root),'utf8');
+ const verifier=await readFile(new URL('scripts/verify-build220-ipa.sh',root),'utf8');
+ assert.equal(appCfg.expo.ios.buildNumber,'109');
+ for(const file of [production,qa,verifier]){
+  assert.ok(file.includes('109'));
+  assert.ok(!file.includes('1.0.4 (106)'));
+ }
+ assert.match(production,/type: require-approval/);
+ assert.match(qa,/type: require-approval/);
+ assert.match(production,/node scripts\/verify-production-package.mjs/);
+});

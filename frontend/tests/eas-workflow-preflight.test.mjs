@@ -17,11 +17,11 @@ test('EAS build is blocked by verified production package preflight', () => {
   assert.match(workflow, /submit_ios:[\s\S]*?needs: \[build_ios, founder_acceptance\]/);
 });
 
-test('TestFlight candidate is unique build 106 and requires an explicit dispatch', () => {
-  assert.equal(app.expo.ios.buildNumber, '106');
-  assert.match(workflow, /1\.0\.4 \(106\)/);
-  assert.match(workflow, /Submit build 106 to TestFlight/);
-  assert.doesNotMatch(workflow, /\(105\)|Submit build 105/);
+test('TestFlight candidate 109 follows verified Expo issued 108 and requires explicit dispatch', () => {
+  assert.equal(app.expo.ios.buildNumber, '109');
+  assert.match(workflow, /1\.0\.4 \(109\)/);
+  assert.match(workflow, /Submit build 109 to TestFlight/);
+  assert.doesNotMatch(workflow, /\(105\)|Submit build 105|\(106\)|\(107\)|\(108\)/);
   assert.match(workflow, /workflow_dispatch:/);
   assert.doesNotMatch(workflow, /\n\s*push:|\n\s*schedule:/);
 });

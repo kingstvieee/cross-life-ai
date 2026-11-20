@@ -23,7 +23,7 @@ export function evaluateIphoneQaPreview({app,eas,sceneHost,qaBoundary,qaArchive,
  require(exact(ios?.bundleIdentifier,EXPECTED_APP.bundleId),'wrong_apple_bundle');
  require(exact(ios?.appleTeamId,EXPECTED_APP.appleTeamId),'wrong_apple_team');
  require(exact(expo?.version,'1.0.4'),'unexpected_app_version');
- require(exact(ios?.buildNumber,'106'),'unexpected_ios_build_number');
+ require(exact(ios?.buildNumber,'109'),'unexpected_ios_build_number');
  require(Array.isArray(expo?.plugins)&&expo.plugins.includes('@bacons/apple-targets'),
    'watch_target_plugin_absent');
  require(exact(eas?.build?.preview?.distribution,'internal'),'preview_not_internal');
@@ -64,7 +64,7 @@ export function evaluateIphoneQaPreview({app,eas,sceneHost,qaBoundary,qaArchive,
    blockers:blocked,
    releaseMode:'INTERNAL_IOS_QA_ONLY',
    version:'1.0.4',
-   iosBuild:'106',
+   iosBuild:'109',
    noSigningOrSubmissionPerformed:true,
    noOwnerDeviceOrAppleCredentialsInspected:true,
    noPhysicalIphoneTestPerformed:true,
