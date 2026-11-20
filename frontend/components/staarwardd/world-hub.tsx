@@ -160,6 +160,8 @@ export function WorldHub() {
   }, [arrivalComplete, appActive, preferenceReady, serverConsentReady, serverGreetingConsent, serverPrivate, serverSpeechQuiet, greetingKey, greetingEnabled, foregroundEpoch, audio.master, audio.voice, audio.speechQuiet, greet]);
   const setGreeting = (enabled: boolean) => {
     if (!greetingKey || !preferenceReady || !serverConsentReady || savingGreeting) return;
+    // A direct call may not override private mode or the speech-quiet preference.
+    if (serverPrivate || serverSpeechQuiet) return;
     const savedFor = greetingKey;
     setSavingGreeting(true);
     // Revocation is immediate locally; enabling never triggers speech before server acknowledgement.
@@ -247,6 +249,17 @@ export function WorldHub() {
       {worldPickerOpen && <View style={s.pickerBackdrop}>
         <View style={s.pickerPanel}>
           <View style={s.pickerHeader}><Text style={s.pickerTitle}>CHOOSE YOUR WORLD</Text><Pressable accessibilityRole="button" accessibilityLabel="Close world selector" onPress={() => setWorldPickerOpen(false)} style={s.roundControl}><Ionicons name="close" size={22} color="#FFFFFF" /></Pressable></View>
+          <Pressable accessibilityRole="switch" accessibilityLabel="Automatic Guardian greetings"
+            accessibilityHint="Requires verified permission and is unavailable in private or speech-quiet mode"
+            accessibilityState={{ checked: greetingActive }}
+            disabled={!greetingKey || !preferenceReady || !serverConsentReady || savingGreeting || serverPrivate || serverSpeechQuiet}
+            onPress={() => setGreeting(!greetingActive)}
+            style={{ borderColor: '#5E6B83', borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 10,
+              opacity: !greetingKey || !preferenceReady || !serverConsentReady || savingGreeting || serverPrivate || serverSpeechQuiet ? .5 : 1,
+              backgroundColor: '#152032', flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={{ color: '#F0F4F9', fontWeight: '700' }}>AUTOMATIC GUARDIAN GREETINGS</Text>
+            <Text style={{ color: '#B0E1ED', fontWeight: '800' }}>{greetingActive ? 'ON' : 'OFF'}</Text>
+          </Pressable>
           <ScrollView style={s.pickerScroll} contentContainerStyle={s.pickerGrid} showsVerticalScrollIndicator={false}>
             {WORLDS.map(world => <Pressable key={world.id} accessibilityRole="button" accessibilityLabel={`Enter ${world.name}`} onPress={() => openWorld(world.id)} style={s.pickerWorld}><Image source={world.image} style={s.pickerArt} /><Text style={s.pickerWorldLabel} numberOfLines={1}>{world.name}</Text></Pressable>)}
             <Pressable accessibilityRole="button" accessibilityLabel="Enter DIGGITSTAAR business command centre" onPress={() => { setWorldPickerOpen(false); router.push('/diggitstaar'); }} style={s.pickerWorld}>
