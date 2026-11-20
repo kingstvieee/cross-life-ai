@@ -4,6 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createModelMotion, disposeModel } from './model-motion.js';
 import {createGuardianLocomotion} from './guardian-locomotion.js';
 import {createGuardianHeadTracking} from './guardian-head-tracking.js';
+import {inspectGuardianRigIntegrity} from './guardian-rig-integrity.js';
 import {createWorldPhysicsProbe} from './world-physics-qa.js';
 import { modelControls, hitControl } from './model-navigation.js';
 import {moveCapsuleXZ, routeIsClear, WALK_RADIUS_M} from './player-collision.js';
@@ -347,6 +348,11 @@ if (renderer) {
         if(!model?.scene)return;
         if(disposed){disposeModel(model.scene);return;}
         const guardian=model.scene;
+        // Build242 repair acceptance: full-body neck must truly carry the protected
+        // head skin. Do not show a frozen head, disable two-sided face rendering,
+        // or retain zero-scale legacy silver/chrome armour in the live scene.
+        const integrity=inspectGuardianRigIntegrity(guardian,{detachHiddenLegacy:true});
+        if(!integrity.valid){disposeModel(guardian);return;}
         // Verified exact GLB may explicitly declare its real source coordinates.
         // Preserve existing Y-up models and never guess an unspecified axis.
         const upAxis=model.parser?.json?.extras?.STAAR_Guardian_Coordinates?.upAxis;
