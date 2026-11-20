@@ -74,6 +74,24 @@ export function normalizeIphoneQa(
     if(Array.isArray(payload.observedVisemes)&&payload.observedVisemes.length<=16&&
        payload.observedVisemes.every(x=>typeof x==='string'&&/^[A-Za-z]{1,4}$/.test(x)))
       metrics.observedVisemes=payload.observedVisemes;
+    // Motion/neck readings are bounded scalar aggregates only. They never
+    // prove visual collar contact or a real iPhone hardware session.
+    if('neckPoseBound' in payload){
+      if(typeof payload.neckPoseBound!=='boolean'||
+         typeof payload.neckCollarPresent!=='boolean'||
+         (payload.neckPoseBound&&!payload.modelBound)||
+         !validCount(payload.neckPoseSamples,100000)||
+         !validCount(payload.neckPoseFailures,100000)||
+         (!payload.neckPoseBound&&payload.neckPoseSamples!==0)||
+         !validMetric(payload.neckMaxPositiveGapUnits,100)||
+         !validMetric(payload.neckMaxVerticalOverlapUnits,100)||
+         !validMetric(payload.neckMaxHeadTranslationDriftUnits,100))return null;
+      metrics.neckPoseBound=payload.neckPoseBound;
+      metrics.neckCollarPresent=payload.neckCollarPresent;
+      keep(payload,metrics,['neckPoseSamples','neckPoseFailures'],x=>validCount(x,100000));
+      keep(payload,metrics,['neckMaxPositiveGapUnits','neckMaxVerticalOverlapUnits',
+        'neckMaxHeadTranslationDriftUnits'],x=>validMetric(x,100));
+    }
     if(!payload.modelBound)result='NO_APPROVED_ASSET';
     else if(payload.frameCount>=300&&validCount(payload.acceptedAudioPacketCount)&&payload.acceptedAudioPacketCount>0)
       result='REVIEW_REQUIRED';
