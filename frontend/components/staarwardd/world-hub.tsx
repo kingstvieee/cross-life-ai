@@ -12,6 +12,8 @@ import { useAuth } from '@/src/auth';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
 import { accountStorageKey } from '@/src/account-storage';
 import { isProactiveWelcomeTime } from '@/src/guardian-greeting-policy';
+import { WorldScene } from './world-scene';
+import { hasIdentityApprovedGuardian3D } from '@/generated/world-runtime';
 
 export function WorldHub() {
   const router = useRouter();
@@ -222,20 +224,28 @@ export function WorldHub() {
         <Pressable accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => router.push('/settings')} style={s.roundControl}><Ionicons name="settings-outline" size={21} color="#F3F6FB" /></Pressable>
       </View>
       <View style={s.portalField}>
-        <View style={s.portalScene} accessible={false}>
+        {hasIdentityApprovedGuardian3D
+          ? <View style={s.liveWorldStage}>
+              <WorldScene world="hub" onAction={action => {
+                if (action.startsWith('world:')) openWorld(action.slice(6));
+              }} />
+            </View>
+          : <View style={s.portalScene} accessible={false}>
           <Image source={require('@/assets/images/staarwardd/locked/homepage.png')} resizeMode="contain" style={s.sceneArt} accessibilityLabel="Full approved STAARWAARDD portal hub with all nine doorways" />
           {/* Transparent tappable doors preserve the original picture's titles rather than replacing them. */}
           {hotspots.map(portal => <Pressable key={portal.id} accessibilityRole="button" accessibilityLabel={`Enter ${portal.label}`} disabled={selected !== null} onPress={() => openWorld(portal.id)}
               style={[s.portalHotspot, { left: `${(portal.x-.075)*100}%`, top: `${(portal.y-.13)*100}%`, width: '15%', height: '26%' }]}>
             <Animated.View pointerEvents="none" style={[s.portalGlow, { opacity: portalGlow.interpolate({ inputRange: [0, 1], outputRange: [0, .45] }) }]} />
           </Pressable>)}
-        </View>
+        </View>}
         <Pressable accessibilityRole="button" accessibilityLabel="Explore all nine portal worlds in large immersive cards" onPress={() => setWorldPickerOpen(true)} style={s.portalSceneCallout}>
           <Ionicons name="planet-outline" color="#F4D595" size={19}/>
           <Text style={s.portalSceneCalloutText}>EXPLORE ALL 9 PORTALS</Text>
           <Ionicons name="chevron-forward" size={18} color="#E8D6B2"/>
         </Pressable>
-        <Text style={s.guardianNotice} numberOfLines={2}>GUARDIAN ONLINE · NINE WORLDS AWAIT</Text>
+        <Text style={s.guardianNotice} numberOfLines={2}>{hasIdentityApprovedGuardian3D
+          ? 'GUARDIAN · LIVE 3D PRESENCE'
+          : 'GUARDIAN 3D IDENTITY VERIFICATION PENDING · PORTALS REMAIN ACCESSIBLE'}</Text>
       </View>
       <View style={s.fixedDock}>
         <View style={s.statusRow}><View style={s.statusCopy}><Text style={s.micro}>{audio.voicePlaybackActive ? 'GUARDIAN SPEAKING' : guardianSpeaking ? 'GUARDIAN PREPARING VOICE' : companion.toUpperCase() + ' · YOUR COMPANION'}</Text><Text style={s.dockTitle} numberOfLines={1}>{guardianMessage}</Text>{greetingError && <Text style={s.micro} numberOfLines={1}>Voice unavailable · text chat ready</Text>}</View><Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian" disabled={guardianSpeaking} onPress={() => { void greet(); }} style={s.roundControl}><Ionicons name="volume-high-outline" size={22} color="#F4F7FC" /></Pressable></View>
@@ -280,6 +290,7 @@ const s = StyleSheet.create({
   brandBlock: { flex: 1, minWidth: 0 },
   brandPhone: { fontSize: 15, letterSpacing: 2 },
   portalField: { flex: 1, position: 'relative', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 8, gap: 14 },
+  liveWorldStage: { width: '100%', flex: 1, minHeight: 390, borderRadius: 15, overflow: 'hidden' },
   portalScene: { width: '100%', maxWidth: 940, aspectRatio: 1672 / 941, alignSelf: 'center', position: 'relative', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(210,224,248,.45)', borderRadius: 15, backgroundColor: '#030407' },
   sceneArt: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
   portalSceneCallout: { minHeight: 50, paddingHorizontal: 18, borderWidth: 1, borderColor: '#D8C08A', backgroundColor: 'rgba(2,7,20,.9)', borderRadius: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },

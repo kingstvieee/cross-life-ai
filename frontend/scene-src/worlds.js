@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createModelMotion, disposeModel } from './model-motion.js';
 import {createGuardianLocomotion} from './guardian-locomotion.js';
+import {createGuardianPresence3D} from './guardian-presence-3d.js';
 import {createWorldPhysicsProbe} from './world-physics-qa.js';
 import { modelControls, hitControl } from './model-navigation.js';
 import {moveCapsuleXZ, routeIsClear, WALK_RADIUS_M} from './player-collision.js';
@@ -72,6 +73,8 @@ if (renderer) {
   let walkController = null;
   let guardianFaceMotion = null;
   let guardianLocomotion = null;
+  let guardianPresence = null;
+  const hubPortalAnchors = new Map();
   const worldQaEnabled=window.STAAR_WORLD_COLLISION_QA===true && world!=='hub';
   let worldPhysicsQa=null;
   const guardianDeviceQa = window.STAAR_GUARDIAN_QA === true && world === 'hub'
@@ -352,7 +355,7 @@ if (renderer) {
         guardian.scale.setScalar(scale);
         // Centre approved full armour above the existing Guardian plinth, never crop the emblem.
         const centre=bounds.getCenter(new T.Vector3());
-        guardian.position.set(-centre.x*scale,.6-bounds.min.y*scale,1.5-centre.z*scale);
+        guardian.position.set(-centre.x*scale,.04-bounds.min.y*scale,1.5-centre.z*scale);
         scene.add(guardian);
         modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
         // Only importer-accepted Guardian assets ever reach this branch.
@@ -360,6 +363,12 @@ if (renderer) {
         guardianLocomotion=createGuardianLocomotion(guardian,model.animations,
           {approvedAsset:true,reducedMotion:reduced});
         modelMotions.push(guardianLocomotion);
+        guardianPresence=createGuardianPresence3D(guardian,{
+          camera,locomotion:guardianLocomotion,portals:hubPortalAnchors,reducedMotion:reduced,
+          onStatus:status=>report('guardian-presence',{status,modelVerified:true,
+            physicalIphoneCertified:false}),
+        });
+        modelMotions.push(guardianPresence);
         guardianFaceMotion=createApprovedGuardianFaceMotion(guardian,{
           rigSha256:asset.rigModelSha256,expectedRigSha256:asset.rigModelSha256});
         // Only the exact build-time receipt-checked Guardian GLB can signal
@@ -374,10 +383,16 @@ if (renderer) {
     } catch { /* The locked Guardian artwork remains the fallback. */ }
   }
   function hub() {
-    floor(15);stars();skyline();plinth(0,1.5,3);
+    floor(15);stars();skyline();
+    // The live actor needs an uninterrupted floor, not a raised plinth to walk off.
+    // Preview-only scenes retain the old ornamental plinth until a certified rig is bundled.
+    if (window.STAAR_APPROVED_GUARDIAN_MODEL) {
+      ring(0,.04,1.5,3,.035,amber,true);
+      ring(0,.025,1.5,2.7,.018,chrome,true);
+    } else plinth(0,1.5,3);
     for(const r of[2,2.4,2.8])ring(0,3+(r-2)*2,1.5,r,.022,r<2.5?blue:amber,true);
     for(const x of[-11.5,11.5]){plinth(x,1,1,amber);diamond(x,1.7,1,.8);}
-    ids.forEach((id,i)=>{const a=(i-4)*.31,x=Math.sin(a)*11,z=-Math.cos(a)*8,g=arch(x,z,1.55,i%2?blue:amber);g.rotation.y=-a;sphere(0,2.6,-.1,.65,[blue,amber,violet][i%3],g).scale.z=.45;box(0,.55,.1,2.65,.85,.2,black,g);text(names[i],0,.6,.23,2.5,g);g.userData={action:'world:'+id,label:names[i]};clickable.push(g);cylinder(x,.12,z,1.8,.24);});
+    ids.forEach((id,i)=>{const a=(i-4)*.31,x=Math.sin(a)*11,z=-Math.cos(a)*8,g=arch(x,z,1.55,i%2?blue:amber);g.rotation.y=-a;sphere(0,2.6,-.1,.65,[blue,amber,violet][i%3],g).scale.z=.45;box(0,.55,.1,2.65,.85,.2,black,g);text(names[i],0,.6,.23,2.5,g);g.userData={action:'world:'+id,label:names[i]};hubPortalAnchors.set(id,{x,z:z+1.5});clickable.push(g);cylinder(x,.12,z,1.8,.24);});
     approvedArmoredGuardian();
     text('STAARWARDD',0,7.1,-9,10);text('PORTAL HUB',0,6.3,-9,5);camera.position.set(0,6,19);controls.target.set(0,2.5,-2);
   }
@@ -571,6 +586,9 @@ if (renderer) {
     }catch{/* Never lose functional preview navigation on model failure. */}
   }
   importApprovedWorld();
+  // The identical verified model can reappear in each 3D world after the portal
+  // transition. A review-only model, poster, or generic placeholder cannot appear.
+  if (world !== 'hub') approvedArmoredGuardian();
   controls.update();controls.saveState();
   let frame=0,visible=true,firstFrameReady=false,lastFrameAt=null;const start=performance.now();
   function requestDraw(){if(!frame&&visible)frame=requestAnimationFrame(draw);}
@@ -601,14 +619,23 @@ if (renderer) {
   controls.addEventListener('change',requestDraw);requestDraw();
   document.addEventListener('visibilitychange',()=>{visible=!document.hidden;if(!visible)guardianFaceMotion?.mute();lastFrameAt=null;if(!visible)cancelAnimationFrame(frame);frame=0;if(visible)requestDraw();});
   addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);requestDraw();});
+  const activateDoor=action=>{
+    if(typeof action!=='string')return;
+    const id=action.startsWith('world:')?action.slice(6):null;
+    if(world==='hub'&&id&&guardianPresence?.approachPortal(id,
+      ()=>report('select',{action}))) {
+      requestDraw();return;
+    }
+    report('select',{action});
+  };
   const raycaster=new T.Raycaster();let down=null;
-  canvas.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
+  canvas.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];const r=canvas.getBoundingClientRect();if(r.width>0)guardianPresence?.lookTowardScreen(((e.clientX-r.left)/r.width)*2-1);});
   canvas.addEventListener('pointercancel',()=>{down=null;});
-  canvas.addEventListener('pointerup',e=>{const origin=down;down=null;if(!origin||Math.hypot(e.clientX-origin[0],e.clientY-origin[1])>7)return;const r=canvas.getBoundingClientRect();raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);const hit=raycaster.intersectObjects(clickable,true)[0];if(hit){if(importedControls.length){const control=hitControl(hit.object,importedControls);if(control)report('select',{action:control.action});}else{let n=hit.object;while(n&&!n.userData.action)n=n.parent;if(n)report('select',{action:n.userData.action});}}});
+  canvas.addEventListener('pointerup',e=>{const origin=down;down=null;if(!origin||Math.hypot(e.clientX-origin[0],e.clientY-origin[1])>7)return;const r=canvas.getBoundingClientRect();raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);const hit=raycaster.intersectObjects(clickable,true)[0];if(hit){if(importedControls.length){const control=hitControl(hit.object,importedControls);if(control)activateDoor(control.action);}else{let n=hit.object;while(n&&!n.userData.action)n=n.parent;if(n)activateDoor(n.userData.action);}}});
   document.querySelector('#reset').addEventListener('click',()=>{controls.reset();requestDraw();});
   document.querySelector('#title').textContent=world==='hub'?'STAARWARDD · PORTAL HUB':(singles?'STAAR Love · Singles':names[ids.indexOf(world)]);
   document.querySelector('#status').textContent='Drag to explore · pinch or scroll to move closer · tap a labelled control';
-  for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
+  for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>activateDoor(g.userData.action));document.querySelector('#actions').append(b);}
   canvas.addEventListener('webglcontextlost',e=>{worldPhysicsQa?.contextLost();e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
   addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
 }

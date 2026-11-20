@@ -35,7 +35,9 @@ test('do not launch a mismatched post-film Guardian video',async()=>{
  const hub=await read('components/staarwardd/world-hub.tsx');
  assert.doesNotMatch(hub,/<GuardianCharacter/);
  assert.doesNotMatch(hub,/state=\{'flying'\}/);
- assert.match(hub,/GUARDIAN ONLINE · NINE WORLDS AWAIT/);
+ assert.match(hub,/hasIdentityApprovedGuardian3D/);
+ assert.match(hub,/GUARDIAN · LIVE 3D PRESENCE/);
+ assert.match(hub,/GUARDIAN 3D IDENTITY VERIFICATION PENDING/);
 });
 test('mobile wordmark is measured and shrinkable',async()=>{
  const boundary=await read('components/staarwardd/startup-film.tsx');
