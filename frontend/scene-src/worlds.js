@@ -351,7 +351,9 @@ if (renderer) {
         const bounds=new T.Box3().setFromObject(guardian);
         const dimensions=bounds.getSize(new T.Vector3());
         if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000){disposeModel(guardian);return;}
-        const scale=Math.min(3.65/dimensions.y,4.5/Math.max(dimensions.x,dimensions.z,.1));
+        // Human-scale, not the 3.65-metre giant used by the old plinth preview.
+        // User-facing camera and portals are in metric Three.js units.
+        const scale=Math.min(1.90/dimensions.y,2.5/Math.max(dimensions.x,dimensions.z,.1));
         guardian.scale.setScalar(scale);
         // Centre approved full armour above the existing Guardian plinth, never crop the emblem.
         const centre=bounds.getCenter(new T.Vector3());
@@ -394,7 +396,37 @@ if (renderer) {
     for(const x of[-11.5,11.5]){plinth(x,1,1,amber);diamond(x,1.7,1,.8);}
     ids.forEach((id,i)=>{const a=(i-4)*.31,x=Math.sin(a)*11,z=-Math.cos(a)*8,g=arch(x,z,1.55,i%2?blue:amber);g.rotation.y=-a;sphere(0,2.6,-.1,.65,[blue,amber,violet][i%3],g).scale.z=.45;box(0,.55,.1,2.65,.85,.2,black,g);text(names[i],0,.6,.23,2.5,g);g.userData={action:'world:'+id,label:names[i]};hubPortalAnchors.set(id,{x,z:z+1.5});clickable.push(g);cylinder(x,.12,z,1.8,.24);});
     approvedArmoredGuardian();
-    text('STAARWARDD',0,7.1,-9,10);text('PORTAL HUB',0,6.3,-9,5);camera.position.set(0,6,19);controls.target.set(0,2.5,-2);
+    text('STAARWARDD',0,7.1,-9,10);text('PORTAL HUB',0,6.3,-9,5);
+    // Personal, eye-level default: the actor faces the viewer at human scale.
+    // A dedicated gallery camera shows all nine physical portals on demand.
+    camera.position.set(0,2.7,7.3);
+    controls.target.set(0,1.8,0);
+    controls.minDistance=3.5;controls.maxDistance=68;
+    controls.saveState();
+    const galleryButton=document.createElement('button');
+    galleryButton.id='portal-overview';
+    galleryButton.textContent='All 9 portals';
+    galleryButton.setAttribute('aria-label','Show all nine three-dimensional portal doors');
+    galleryButton.style.marginLeft='9px';
+    let overview=false;
+    galleryButton.addEventListener('click',()=>{
+      overview=!overview;
+      if(overview){
+        const aspect=Math.max(.45,innerWidth/innerHeight);
+        const dist=29/(2*Math.tan(camera.fov*Math.PI/360)*aspect);
+        camera.position.set(0,5.5,Math.max(25,dist-2));
+        controls.target.set(0,2.4,-3);
+        galleryButton.textContent='Face the Guardian';
+        galleryButton.setAttribute('aria-label','Return to face-to-face Guardian view');
+      }else{
+        camera.position.set(0,2.7,7.3);
+        controls.target.set(0,1.8,0);
+        galleryButton.textContent='All 9 portals';
+        galleryButton.setAttribute('aria-label','Show all nine three-dimensional portal doors');
+      }
+      controls.update();requestDraw();
+    });
+    document.querySelector('header')?.appendChild(galleryButton);
   }
   function home() {shell();for(const r of[1.8,2.05,2.3])ring(0,2.6,-5,r,.12);ring(0,2.6,-4.85,2.05,.03,amber);sofa(-3,1,.2);sofa(2.2,-1.8,-.4);cylinder(-.6,.55,1.7,1.35,.15,black);cylinder(-.6,.28,1.7,.32,.5,gold);sphere(3.8,1.8,1,.5,blue);ring(3.8,1.8,1,.8,.025,blue);panel('Smart controls','connections',-4,2.7,-2);panel('Rooms & routines','conversation:0',3.8,2.7,-3);panel('Daily check-in','checkins',0,.9,4,amber);}
   function work() {shell(true);plinth(0,-1,3.8);globe(0,3.7,-1,2);cylinder(0,.85,-1,3.4,.6);ring(0,1.2,-1,3.2,.04,blue,true);for(let i=0;i<12;i++){const a=i*Math.PI/6;box(Math.sin(a)*3,1.23,-1+Math.cos(a)*3,.65,.04,.4,blue).rotation.y=a;}['Employment','Businesses','Career','Teams'].forEach((n,i)=>panel(n,i===0?'conversation:0':'connections',(i-1.5)*3,2,2.5,amber,2.6));panel('Connect workplace','connections',0,.85,5,blue,4);sofa(8,-3,-.6);}

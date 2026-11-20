@@ -10,9 +10,10 @@ import { MathUtils, Quaternion, Vector3 } from 'three';
  */
 const HEAD_YAW_LIMIT = 0.27; // about 15.5 degrees per bone, safely within rig bounds
 const MAX_STEP = .075;
-const WALK_SPEED = 1.65;
+const WALK_SPEED = 0.86; // ~0.86m per 1.16s gait cycle reduces visible foot skating
 const STOP_DISTANCE = 1.4;
 const Y_AXIS = new Vector3(0, 1, 0);
+const Z_AXIS = new Vector3(0, 0, 1);
 const normalizeAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
 const clamp = (x, min, max) => Math.min(max, Math.max(min, x));
 const finite = n => typeof n === 'number' && Number.isFinite(n);
@@ -31,9 +32,10 @@ export function createGuardianPresence3D(root, {
   root.traverse(node => {
     // All authored gaze axes must be tagged by the character rigger.
     // Never guess a neck-bone basis or modify mouth/face morph targets.
-    if (node.isBone && node.userData?.staarGazeAxis === 'localY' &&
+    if (node.isBone && ['localY','localZ'].includes(node.userData?.staarGazeAxis) &&
       ['head', 'neck'].includes(String(node.userData?.staarGazeRole || '').toLowerCase())) {
-      taggedGazeBones.push({ node, base: node.quaternion.clone(), current: 0 });
+      taggedGazeBones.push({ node, base: node.quaternion.clone(), current: 0,
+        axis: node.userData.staarGazeAxis === 'localZ' ? Z_AXIS : Y_AXIS });
     }
   });
   let state = 'idle', target = null, arrival = null, disabled = false;
@@ -52,7 +54,7 @@ export function createGuardianPresence3D(root, {
       -HEAD_YAW_LIMIT, HEAD_YAW_LIMIT);
     for (const bone of taggedGazeBones) {
       bone.current = MathUtils.damp(bone.current, eyeCorrection / taggedGazeBones.length, 7, dt);
-      bone.node.quaternion.copy(bone.base).multiply(offset.setFromAxisAngle(Y_AXIS, bone.current));
+      bone.node.quaternion.copy(bone.base).multiply(offset.setFromAxisAngle(bone.axis, bone.current));
     }
   };
   const resetGaze = () => {
@@ -93,11 +95,21 @@ export function createGuardianPresence3D(root, {
       if (state === 'walking' && target) {
         const distance = Math.hypot(target.x - root.position.x, target.z - root.position.z);
         face(yawTo(target), dt);
-        if (distance <= STOP_DISTANCE) {
+        if (distance <= STOP_DISTANCE + .005) {
           state = 'idle'; target = null;
           locomotion.setMode('idle');
           resetGaze();
           const callback = arrival; arrival = null;
+          if (typeof locomotion.openPortal === 'function' && locomotion.openPortal(() => {
+            if (disabled || state !== 'opening') return;
+            state = 'idle';
+            onStatus({ state: 'arrived' });
+            callback?.();
+          })) {
+            state = 'opening';
+            onStatus({ state: 'portalOpening' });
+            return;
+          }
           onStatus({ state: 'arrived' });
           callback?.();
           return;
@@ -108,10 +120,11 @@ export function createGuardianPresence3D(root, {
         root.position.z += (target.z - root.position.z) / distance * step;
         return;
       }
-      faceCamera(dt);
+      if (state !== 'opening') faceCamera(dt);
     },
     cancel() {
       target = null; arrival = null; state = 'idle';
+      locomotion?.cancelPortal?.();
       if (canWalk) locomotion.setMode('idle');
       root.position.copy(bodyHome);
       resetGaze();
