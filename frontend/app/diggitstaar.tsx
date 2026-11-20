@@ -145,6 +145,13 @@ export default function Diggitstaar() {
     void AsyncStorage.setItem(key, JSON.stringify(next)).then(() => { setTasks(next); setScript(draft); setNotice('Seven production tasks saved. Script is a draft, not rendered content.'); }).catch(() => setNotice('Could not save production workload.'));
   };
   const website = () => { void Linking.openURL('https://www.diggitstaar.com').catch(() => setNotice('Website could not be opened.')); };
+  // No Google Cloud OAuth registration is needed for this external handoff.
+  // The user's mail stays inside their chosen Gmail browser or installed app.
+  const openGmailExternally = () => {
+    void Linking.openURL('https://mail.google.com/mail/').catch(() => {
+      setNotice('Gmail could not be opened. Open Gmail on this device directly.');
+    });
+  };
   const add = () => {
     if (!title.trim() || !authorized) return;
     save([...tasks, { id: makeLocalRecordId(), title: title.trim(), client: client.trim(), status: 'Inbox' }]);
@@ -171,8 +178,10 @@ export default function Diggitstaar() {
     <View style={{ padding: 17, backgroundColor: '#121D2D', borderRadius: 18, borderWidth: 1, borderColor: '#6C7990', gap: 10 }}>
       <Text style={{ color: '#F5E3BE', fontSize: 19, fontWeight: '800' }}>Gmail workspace</Text>
       <Text style={{ color: gmailConnected ? '#B4EDCB' : '#F1C9A0', fontWeight: '700' }}>{gmailConnected ? 'Read-only connected' : gmailConfigured ? 'Not connected' : 'Server OAuth configuration required'}</Text>
-      <Text style={{ color: '#D2DAE6', lineHeight: 21 }}>Separate Google consent with Gmail read-only permission. No sending, deleting, modifying, or automatic outreach. Mail is fetched only when requested.</Text>
-      {!gmailConnected && button('Authorize Gmail read-only access', () => { void startGmail(); }, !authorized || !gmailConfigured || gmailBusy)}
+      <Text style={{ color: '#D2DAE6', lineHeight: 21 }}>Open your Gmail account directly without setting up Google Cloud billing, OAuth credentials, or sharing access with DIGGITSTAAR. You sign in within Gmail and choose the correct account. No inbox data is imported into this Studio.</Text>
+      {button('Open Gmail directly · no setup needed', openGmailExternally)}
+      <Text style={{ color: '#BBCBDA', lineHeight: 20 }}>Optional native integration: separate Google consent with Gmail read-only permission. When unavailable, the direct Gmail button above remains usable. Native inbox access never sends, deletes, modifies, or automatically replies to email.</Text>
+      {!gmailConnected && gmailConfigured && button('Authorize native Gmail read-only access', () => { void startGmail(); }, !authorized || gmailBusy)}
       {!!gmailFlow && button('Finish Gmail connection', () => { void finishGmail(); }, gmailBusy)}
       {gmailConnected && button('Refresh inbox · read-only', () => { void readGmail(); }, gmailBusy)}
       {gmailMessages.map(message => <View key={message.id} style={{ padding: 10, borderWidth: 1, borderColor: '#506985', borderRadius: 10, gap: 4 }}><Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{message.subject || '(no subject)'}</Text><Text style={{ color: '#D2DAE6' }}>{message.from}</Text><Text style={{ color: '#AEBED0' }}>{message.snippet}</Text></View>)}

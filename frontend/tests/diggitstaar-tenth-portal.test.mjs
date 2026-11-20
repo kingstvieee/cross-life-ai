@@ -11,9 +11,11 @@ test('DIGGITSTAAR workload is account scoped and Gmail stays fail closed until O
  const studio = await read('app/diggitstaar.tsx');
  assert.match(studio, /diggitstaar:studio-command:v1/);
  assert.match(studio, /AsyncStorage\.setItem\(key/);
- assert.match(studio, /Authorize Gmail read-only access/);
+ assert.match(studio, /Authorize native Gmail read-only access/);
+ assert.match(studio, /!gmailConnected && gmailConfigured && button/);
+ assert.match(studio, /Open Gmail directly · no setup needed/);
  assert.match(studio, /Not connected/);
- assert.match(studio, /No sending, deleting, modifying, or automatic outreach/);
+ assert.match(studio, /Native inbox access never sends, deletes, modifies, or automatically replies to email/);
  for (const stage of ['Inbox', 'In production', 'Awaiting approval', 'Delivered']) assert.ok(studio.includes(stage));
 });
 
