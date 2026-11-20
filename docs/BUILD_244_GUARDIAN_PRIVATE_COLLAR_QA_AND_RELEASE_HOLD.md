@@ -17,6 +17,9 @@ Build244 appends two tiny unskinned, removable collar-continuity meshes under ex
 - Visually, frontal collar line looks less abrupt; side collar still appears hard. This is **not** artistic neck-seam or profile likeness approval.
 - No official Khronos glTF validator invocation, physical iPhone frame telemetry, externally filmed foot contact, real speaker sync, Apple signed IPA or TestFlight activity was performed.
 
+## Animated imported-source review — additional caution
+VTK independently enumerated all **11** clips in both exact binary files, then played `WALK_IN_PLACE_BODY_QA` at **0, 0.34, 0.65 and 1.00 seconds**, with a fixed camera. New private comparison image: `Guardian_Build243_244_AnimatedWalk_NeckQA.png`. The moving renders exhibit an **apparent difference in head/collar position** between Build243 and Build244. Because the original skin, head joints and animation bytes remain identical, a renderer-specific skin-child processing effect is possible. The mismatch is **unresolved**, not approved or explained away. It requires explicit Three.js/WKWebView QA, owner review, and physical-device readback before any final asset sign-off. Neither study replaces production identity.
+
 ## Source-side release safety hardening
 - Both the offline GLB release importer and the native `canActivateArmoredGuardian3D` now explicitly reject exact private **Build241, Build242, Build243 and Build244** SHA-256 digests, even if an attacker supplies all-positive founder/device booleans.
 - Added `frontend/tests/build244-review-asset-quarantine.test.mjs` and included it in the Guardian CI release gates.
