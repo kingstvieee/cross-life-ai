@@ -48,6 +48,8 @@ export const PRIVATE_BUILD241_REVIEW_ONLY_SHA256 = '667f68dc172cd8dde66b25227604
 export const PRIVATE_BUILD242_REVIEW_ONLY_SHA256 = '8c2ed15001070453e232809492de8916d2e46313d835d21556e6a8fc80dcb768';
 export const PRIVATE_BUILD243_REVIEW_ONLY_SHA256 = '804f4e0f714bcbde63572d8ac83cb11a9a6c2e6ee888117b749a591df163ae78';
 export const PRIVATE_BUILD244_REVIEW_ONLY_SHA256 = 'afdf2b3deccc96786faf7cc8357f2d9abed9dd20796bec7b6bd848ff8cc5cfcc';
+export const PRIVATE_BUILD247_CHROME_MATCH_REVIEW_ONLY_SHA256 = '41ee34c1fb2baf82082a7f8aa6426242be0a69df636617858c467f87fb8897a4';
+export const PRIVATE_BUILD247_TITANIUM_MATCH_REVIEW_ONLY_SHA256 = '22d91cf0f516d95d1f98f1c69826ec8f3219d14daafd8e9e62c9c0b7305d5755';
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
   'da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395',
   'e6e81a37cbc142c4d82fe8aff53adce3fb39b18f364aac18b599dccb4a80b8a1',
@@ -74,6 +76,8 @@ export function assertGuardianModelNotRejected(modelSha256) {
   if (modelSha256 === PRIVATE_BUILD242_REVIEW_ONLY_SHA256) fail('build242_private_qa_unapproved');
   if (modelSha256 === PRIVATE_BUILD243_REVIEW_ONLY_SHA256) fail('build243_private_qa_unapproved');
   if (modelSha256 === PRIVATE_BUILD244_REVIEW_ONLY_SHA256) fail('build244_private_qa_unapproved');
+  if (modelSha256 === PRIVATE_BUILD247_CHROME_MATCH_REVIEW_ONLY_SHA256) fail('build247_chrome_visual_match_not_owner_accepted');
+  if (modelSha256 === PRIVATE_BUILD247_TITANIUM_MATCH_REVIEW_ONLY_SHA256) fail('build247_titanium_visual_match_not_owner_accepted');
   if (REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(modelSha256)) fail('legacy_face_not_approved');
 }
 
