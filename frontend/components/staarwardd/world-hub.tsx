@@ -249,6 +249,10 @@ export function WorldHub() {
           <View style={s.pickerHeader}><Text style={s.pickerTitle}>CHOOSE YOUR WORLD</Text><Pressable accessibilityRole="button" accessibilityLabel="Close world selector" onPress={() => setWorldPickerOpen(false)} style={s.roundControl}><Ionicons name="close" size={22} color="#FFFFFF" /></Pressable></View>
           <ScrollView style={s.pickerScroll} contentContainerStyle={s.pickerGrid} showsVerticalScrollIndicator={false}>
             {WORLDS.map(world => <Pressable key={world.id} accessibilityRole="button" accessibilityLabel={`Enter ${world.name}`} onPress={() => openWorld(world.id)} style={s.pickerWorld}><Image source={world.image} style={s.pickerArt} /><Text style={s.pickerWorldLabel} numberOfLines={1}>{world.name}</Text></Pressable>)}
+            <Pressable accessibilityRole="button" accessibilityLabel="Enter DIGGITSTAAR business command centre" onPress={() => { setWorldPickerOpen(false); router.push('/diggitstaar'); }} style={s.pickerWorld}>
+              <View style={[s.pickerArt, { backgroundColor: '#101C2E', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#D9BE86' }]}><Ionicons name="sparkles-outline" size={42} color="#E6D3A4" /><Text style={{ color: '#E6D3A4', fontSize: 12, fontWeight: '900', letterSpacing: 2, marginTop: 8 }}>DIGGITSTAAR</Text></View>
+              <Text style={s.pickerWorldLabel}>DIGGITSTAAR · STUDIO</Text>
+            </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="Explore STAAR Love Singles Lounge" onPress={() => { setWorldPickerOpen(false); router.push({ pathname: '/environment', params: { world: 'relationships', variant: 'singles' } } as never); }} style={s.pickerWorld}><Image source={require('@/assets/images/staarwardd/locked/love-singles.png')} style={s.pickerArt} /><Text style={s.pickerWorldLabel}>SINGLES LOUNGE</Text></Pressable>
           </ScrollView>
         </View>
