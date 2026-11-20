@@ -496,7 +496,8 @@ if (renderer) {
     if(world==='hub')return;
     const variant=world==='relationships' ? (singles?'singles':'realm') :
       ({home:'residence',work:'command',creativity:'dream',wellbeing:'health',events:'village',style:'closet',staarverse:'universe',staarsonic:'studio'})[world];
-    const asset=window.STAAR_APPROVED_WORLD_ASSETS?.[world+'-'+variant];
+    const qaWorld=worldQaEnabled&&window.STAAR_PRIVATE_WORLDS_QA?.[world+'-'+variant];
+    const asset=qaWorld?.internalQaOnly===true&&qaWorld?.productionApproved===false ? qaWorld : window.STAAR_APPROVED_WORLD_ASSETS?.[world+'-'+variant];
     if(!asset?.glbBase64)return;
     if(worldQaEnabled){
       try{worldPhysicsQa=createWorldPhysicsProbe({worldKey:world+'-'+variant,
@@ -524,6 +525,8 @@ if (renderer) {
         model.scale.setScalar(scale);
         const centre=bounds.getCenter(new T.Vector3());
         model.position.set(-centre.x*scale,-bounds.min.y*scale,-centre.z*scale);
+        // The owner-approved QA stage is visible on a signed INTERNAL TestFlight build only.
+        if(qaWorld)document.querySelector('#title').textContent='WORLD · INTERNAL IPHONE QA';
         // Hide procedural blockouts ONLY if the independently approved full GLB loads.
         for(const item of previewWorldObjects)item.visible=false;
         clickable.length=0;
