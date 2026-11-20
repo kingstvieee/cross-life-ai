@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Alert, Dimensions, Linking, Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Linking, Pressable, ScrollView, Share, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth';
@@ -9,12 +9,14 @@ import { DiggitstaarCinematicIntro } from '@/components/staarwardd/diggitstaar-c
 import { DIGGITSTAAR_MEDIA_READY } from '@/lib/staarwardd/diggitstaar-cinematic-sources';
 
 const PREFIX = 'diggitstaar:studio-command:v1';
+function makeLocalRecordId(): string { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2); }
 type Lead = { id: string; company: string; contact: string; opportunity: string; stage: 'Research' | 'Qualified' | 'Draft ready' | 'Contacted' | 'Closed'; verified: boolean };
 const LEAD_STAGES: Lead['stage'][] = ['Research', 'Qualified', 'Draft ready', 'Contacted', 'Closed'];
 type Task = { id: string; title: string; client: string; status: 'Inbox' | 'In production' | 'Awaiting approval' | 'Delivered' };
 const STATES: Task['status'][] = ['Inbox', 'In production', 'Awaiting approval', 'Delivered'];
 export default function Diggitstaar() {
   const router = useRouter();
+  const { height: deviceHeight } = useWindowDimensions();
   const { user, api } = useAuth();
   const authorized = !!user?.user_id && !user.is_demo;
   const key = `${PREFIX}:${encodeURIComponent(authorized ? user!.user_id : 'guest')}`;
@@ -24,7 +26,7 @@ export default function Diggitstaar() {
   const [gmailConnected, setGmailConnected] = useState(false);
   const [gmailConfigured, setGmailConfigured] = useState(false);
   const [gmailBusy, setGmailBusy] = useState(false);
-  const [gmailMessages, setGmailMessages] = useState<Array<{ id: string; from: string; subject: string; date: string; snippet: string }>>([]);
+  const [gmailMessages, setGmailMessages] = useState<{ id: string; from: string; subject: string; date: string; snippet: string }[]>([]);
   const [leadCompany, setLeadCompany] = useState('');
   const [leadContact, setLeadContact] = useState('');
   const [leadOpportunity, setLeadOpportunity] = useState('');
@@ -42,8 +44,12 @@ export default function Diggitstaar() {
   const [introVisible, setIntroVisible] = useState(DIGGITSTAAR_MEDIA_READY);
   const closeIntro = () => setIntroVisible(false);
   useEffect(() => {
-    let active = true; setLoaded(false); setTasks([]); setNotice('');
-    if (!authorized) { setLoaded(true); return () => { active = false; }; }
+    let active = true;
+    // Clear prior account records before asynchronously rehydrating.
+    void Promise.resolve().then(() => {
+      if (active) { setLoaded(!authorized); setTasks([]); setNotice(''); }
+    });
+    if (!authorized) return () => { active = false; };
     void AsyncStorage.getItem(key).then(raw => {
       if (!active) return;
       if (raw) { const parsed: unknown = JSON.parse(raw); if (Array.isArray(parsed)) setTasks(parsed.filter(x => x && typeof x.id === 'string' && typeof x.title === 'string' && STATES.includes(x.status))); }
@@ -52,16 +58,34 @@ export default function Diggitstaar() {
     return () => { active = false; };
   }, [key, authorized]);
   useEffect(() => {
-    let active = true; setLeads([]);
+    let active = true;
+    void Promise.resolve().then(() => { if (active) setLeads([]); });
     if (!authorized) return () => { active = false; };
     void AsyncStorage.getItem(key + ':leads').then(raw => { if (!active || !raw) return; const data: unknown = JSON.parse(raw); if (Array.isArray(data)) setLeads(data.filter(x => x && typeof x.id === 'string' && typeof x.company === 'string' && LEAD_STAGES.includes(x.stage))); }).catch(() => { if (active) setNotice('Lead register could not be loaded.'); });
     return () => { active = false; };
   }, [key, authorized]);
-  const checkGmail = async () => {
+  const checkGmail = useCallback(async (signal?: AbortSignal) => {
     if (!authorized) return;
-    try { const r = await api('/api/connections'); if (!r.ok) return; const rows: Array<{id:string;configured:boolean;connected:boolean}> = await r.json(); const gmail = rows.find(row => row.id === 'gmail'); setGmailConfigured(!!gmail?.configured); setGmailConnected(!!gmail?.connected); } catch { setNotice('Gmail status unavailable.'); }
-  };
-  useEffect(() => { void checkGmail(); }, [key, authorized]);
+    try {
+      const r = await api('/api/connections', { signal });
+      if (!r.ok || signal?.aborted) return;
+      const rows: {id:string;configured:boolean;connected:boolean}[] = await r.json();
+      if (signal?.aborted) return;
+      const gmail = rows.find(row => row.id === 'gmail');
+      setGmailConfigured(!!gmail?.configured); setGmailConnected(!!gmail?.connected);
+    } catch { if (!signal?.aborted) setNotice('Gmail status unavailable.'); }
+  }, [authorized, api]);
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    const accountScope = key;
+    void Promise.resolve().then(() => {
+      if (!active || !accountScope) return;
+      setGmailConnected(false); setGmailConfigured(false); setGmailMessages([]);
+      return checkGmail(controller.signal);
+    });
+    return () => { active = false; controller.abort(); };
+  }, [key, checkGmail]);
   const startGmail = async () => {
     if (!authorized || gmailBusy) return;
     setGmailBusy(true);
@@ -86,7 +110,7 @@ export default function Diggitstaar() {
     setGmailBusy(true);
     try { const response = await api('/api/connections/gmail/inbox');
       if (!response.ok) { setNotice('Gmail inbox read failed or authorization expired.'); await checkGmail(); return; }
-      const data: { messages: Array<{id:string;from:string;subject:string;date:string;snippet:string}> } = await response.json();
+      const data: { messages: {id:string;from:string;subject:string;date:string;snippet:string}[] } = await response.json();
       setGmailMessages(data.messages); setNotice('Read-only inbox refreshed. No messages sent or modified.');
     } catch { setNotice('Gmail inbox unavailable.'); } finally { setGmailBusy(false); }
   };
@@ -108,7 +132,7 @@ export default function Diggitstaar() {
   };
   const addLead = () => {
     if (!authorized || !leadCompany.trim() || !leadOpportunity.trim()) return;
-    saveLeads([...leads, { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, company: leadCompany.trim(), contact: leadContact.trim(), opportunity: leadOpportunity.trim(), stage: 'Research', verified: false }]);
+    saveLeads([...leads, { id: makeLocalRecordId(), company: leadCompany.trim(), contact: leadContact.trim(), opportunity: leadOpportunity.trim(), stage: 'Research', verified: false }]);
     setLeadCompany(''); setLeadContact(''); setLeadOpportunity('');
   };
   const generate = () => {
@@ -116,14 +140,14 @@ export default function Diggitstaar() {
     const brand = client.trim(), service = offer.trim(), target = audience.trim(), objective = goal.trim();
     const draft = `DIGGITSTAAR | ${brand}\nAudience: ${target}\nOffer: ${service}\nObjective: ${objective}\n\n30-SECOND CONTENT DRAFT\n00–03s: Attention hook for ${target}.\n03–09s: Introduce the problem addressed by ${service}.\n09–17s: Show client-approved visuals and explain the offer.\n17–24s: Insert verified proof or a demonstration (client to supply).\n24–30s: Invite viewers to enquire about ${service}.\n\nCaption: Discover ${service} with ${brand}. Contact the team to learn more.\n\nProduction: 9:16 vertical; 5 shots; accessible captions; licensed footage; client-approved brand assets.\nStatus: Draft only; video not rendered or sent.`;
     const steps = ['Verify client brief and brand assets', 'Approve creative concept and claims', 'Create script and storyboard', 'Produce video and image assets', 'Edit and add captions', 'Request client review', 'Export approved deliverables'];
-    const batch = Date.now().toString();
+    const batch = makeLocalRecordId();
     const next = [...tasks, ...steps.map((step, index) => ({ id: `${batch}-${index}`, client: brand, title: step, status: 'Inbox' as const }))];
     void AsyncStorage.setItem(key, JSON.stringify(next)).then(() => { setTasks(next); setScript(draft); setNotice('Seven production tasks saved. Script is a draft, not rendered content.'); }).catch(() => setNotice('Could not save production workload.'));
   };
   const website = () => { void Linking.openURL('https://www.diggitstaar.com').catch(() => setNotice('Website could not be opened.')); };
   const add = () => {
     if (!title.trim() || !authorized) return;
-    save([...tasks, { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, title: title.trim(), client: client.trim(), status: 'Inbox' }]);
+    save([...tasks, { id: makeLocalRecordId(), title: title.trim(), client: client.trim(), status: 'Inbox' }]);
     setTitle(''); setClient('');
   };
   const button = (label: string, action: () => void, disabled = false) => <Pressable accessibilityRole="button" disabled={disabled} onPress={action} style={{ padding: 14, borderRadius: 13, borderWidth: 1, borderColor: '#B8A274', backgroundColor: disabled ? '#30343A' : '#1B2738', minHeight: 46 }}><Text style={{ color: '#F4E5C4', fontWeight: '800', textAlign: 'center' }}>{label}</Text></Pressable>;
@@ -133,7 +157,7 @@ export default function Diggitstaar() {
     {!fullDesk && button('Back to STAARWAARDD portals', () => router.replace('/hub'))}
     {!fullDesk && <Text style={{ color: '#F3D9A4', fontSize: 29, fontWeight: '900', letterSpacing: 1 }}>DIGGITSTAAR</Text>}
     {!fullDesk && <Text style={{ color: '#C6D9EF' }}>YOUR IMMERSIVE 3D WORKSTATION · TOUCH THE HOLOGRAPHIC SCREENS</Text>}
-    <View style={{ height: sceneExpanded ? (fullDesk ? Dimensions.get('window').height * .72 : 420) : 0, overflow: 'hidden', borderRadius: 20, borderWidth: sceneExpanded ? 1 : 0, borderColor: '#9BCBFF', backgroundColor: '#DCEEFF' }}>
+    <View style={{ height: sceneExpanded ? (fullDesk ? deviceHeight * .72 : 420) : 0, overflow: 'hidden', borderRadius: 20, borderWidth: sceneExpanded ? 1 : 0, borderColor: '#9BCBFF', backgroundColor: '#DCEEFF' }}>
       {sceneExpanded && <WorldScene world="diggitstaar" onAction={action => { if (action === 'diggitstaar:website') { website(); return; } if (action.startsWith('diggitstaar:')) { setFocusPanel(action.slice(12)); setSceneExpanded(false); setFullDesk(false); setNotice('Selected ' + action.slice(12) + ' workstation controls.'); } }} />}
     </View>
     {button(fullDesk ? 'Open production controls' : 'Return to immersive 3D desk', () => { setFullDesk(!fullDesk); setSceneExpanded(fullDesk ? false : true); })}

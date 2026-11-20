@@ -18,7 +18,7 @@ The installer checks SHA-256 for BOTH source videos and requires the exact corre
 
 ## Production evidence status
 
-- Local pre-staging TypeScript and five DIGGITSTAAR regression tests pass on the working candidate.
+- Local pre-staging TypeScript, native Studio/source ESLint, and eight targeted DIGGITSTAAR regression tests pass on the working candidate.
 - 2 cinematic MP4 assets are **NOT** on this Git branch until ZIP import. The downloaded ChatGPT artifacts cannot be assumed accessible from the cloud computer.
 - OAuth transport code exists in the Studio; provider connection/actual Gmail readback are separate certification gates. Video generation is NOT authorized/verified.
 - WorldScene is a 3D WebView runtime; its actual real-device performance is not certified by a clean TypeScript run.
