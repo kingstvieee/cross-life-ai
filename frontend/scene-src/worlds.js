@@ -3,6 +3,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createModelMotion, disposeModel } from './model-motion.js';
 import {createGuardianLocomotion} from './guardian-locomotion.js';
+import {createGuardianHeadTracking} from './guardian-head-tracking.js';
+import {inspectGuardianRigIntegrity} from './guardian-rig-integrity.js';
 import {createWorldPhysicsProbe} from './world-physics-qa.js';
 import { modelControls, hitControl } from './model-navigation.js';
 import {moveCapsuleXZ, routeIsClear, WALK_RADIUS_M} from './player-collision.js';
@@ -11,6 +13,7 @@ import {createGroundSupportIndex} from './player-ground-support.js';
 import {createApprovedGuardianFaceMotion} from './guardian-face-motion.js';
 import {applyGuardianSpeechFrame} from './guardian-speech-bridge.js';
 import {createGuardianDevicePerformanceProbe} from './guardian-device-performance.js';
+import {createGuardianNeckPoseProbe} from './guardian-neck-pose-probe.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { worldIds, worldNames, fallbackActions } from './navigation.js';
 
@@ -72,6 +75,8 @@ if (renderer) {
   let walkController = null;
   let guardianFaceMotion = null;
   let guardianLocomotion = null;
+  let guardianHeadTracking = null;
+  let guardianNeckPoseQa = null;
   const worldQaEnabled=window.STAAR_WORLD_COLLISION_QA===true && world!=='hub';
   let worldPhysicsQa=null;
   const guardianDeviceQa = window.STAAR_GUARDIAN_QA === true && world === 'hub'
@@ -345,6 +350,16 @@ if (renderer) {
         if(!model?.scene)return;
         if(disposed){disposeModel(model.scene);return;}
         const guardian=model.scene;
+        // Build242 repair acceptance: full-body neck must truly carry the protected
+        // head skin. Do not show a frozen head, disable two-sided face rendering,
+        // or retain zero-scale legacy silver/chrome armour in the live scene.
+        const integrity=inspectGuardianRigIntegrity(guardian,{detachHiddenLegacy:true});
+        if(!integrity.valid){disposeModel(guardian);return;}
+        // Verified exact GLB may explicitly declare its real source coordinates.
+        // Preserve existing Y-up models and never guess an unspecified axis.
+        const upAxis=model.parser?.json?.extras?.STAAR_Guardian_Coordinates?.upAxis;
+        if(upAxis==='Z')guardian.rotation.x=-Math.PI/2;
+        else if(upAxis && upAxis!=='Y'){disposeModel(guardian);return;}
         const bounds=new T.Box3().setFromObject(guardian);
         const dimensions=bounds.getSize(new T.Vector3());
         if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000){disposeModel(guardian);return;}
@@ -360,6 +375,11 @@ if (renderer) {
         guardianLocomotion=createGuardianLocomotion(guardian,model.animations,
           {approvedAsset:true,reducedMotion:reduced});
         modelMotions.push(guardianLocomotion);
+        // The head controller is bound to the exact same release-gated GLB,
+        // without any writes to the approved face meshes, jaw or viseme curves.
+        guardianHeadTracking=createGuardianHeadTracking(guardian,
+          {approvedAsset:true,reducedMotion:reduced});
+        modelMotions.push(guardianHeadTracking);
         guardianFaceMotion=createApprovedGuardianFaceMotion(guardian,{
           rigSha256:asset.rigModelSha256,expectedRigSha256:asset.rigModelSha256});
         // Only the exact build-time receipt-checked Guardian GLB can signal
@@ -367,6 +387,10 @@ if (renderer) {
         guardianFaceMotion.mute();
         if(guardianFaceMotion.readyForPlayback){
           guardianDeviceQa?.modelReady(asset.rigModelSha256);
+          // Bind geometry diagnostics only inside the internal iPhone QA run.
+          // A private review-only GLB still cannot pass the asset importer.
+          if(guardianDeviceQa)guardianNeckPoseQa=createGuardianNeckPoseProbe(guardian,
+            {approvedAsset:true});
           report('guardian-face-ready',{modelSha256:asset.rigModelSha256});
         }
         requestDraw();
@@ -539,8 +563,14 @@ if (renderer) {
       animated.forEach(fn=>fn(t));controls.update();
       const renderStart=guardianDeviceQa ? performance.now() : 0;
       renderer.render(scene,camera);
-      if(guardianDeviceQa)guardianDeviceQa.recordFrame(performance.now(),
-        performance.now()-renderStart);
+      if(guardianDeviceQa){
+        guardianDeviceQa.recordFrame(performance.now(),performance.now()-renderStart);
+        // Count only post-render body-animation frames, not accepted button commands.
+        guardianDeviceQa.recordMotionMode(guardianLocomotion?.snapshot().mode,
+          guardianLocomotion?.ready===true);
+        guardianNeckPoseQa?.sample(performance.now());
+        if(guardianNeckPoseQa)guardianDeviceQa.recordNeckPose(guardianNeckPoseQa.snapshot());
+      }
       // A scene is ready only after WebGL has successfully drawn its first frame.
       if(!firstFrameReady){firstFrameReady=true;report('ready',{geometry:true,objects:scene.children.length});}
       if(!reduced || walkController?.pressedCount())requestDraw();
@@ -558,11 +588,31 @@ if (renderer) {
   const raycaster=new T.Raycaster();let down=null;
   canvas.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
   canvas.addEventListener('pointercancel',()=>{down=null;});
+  const portalFocusPosition=new T.Vector3();
+  canvas.addEventListener('pointermove',e=>{
+    if(world!=='hub'||!guardianHeadTracking?.ready||disposed)return;
+    const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;
+    raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,
+      -(e.clientY-r.top)/r.height*2+1),camera);
+    const hit=raycaster.intersectObjects(clickable,true)[0];
+    let node=hit?.object;
+    while(node&&!node.userData?.action)node=node.parent;
+    if(typeof node?.userData?.action==='string'&&node.userData.action.startsWith('world:')){
+      node.getWorldPosition(portalFocusPosition);
+      // The locked hub portals sit behind the camera-facing Guardian.
+      // Use their on-screen horizontal/vertical bearing, projected onto the
+      // camera-facing focus plane, instead of twisting the neck backwards.
+      portalFocusPosition.z=camera.position.z;
+      guardianHeadTracking.setTargetWorld(portalFocusPosition);
+    }else guardianHeadTracking.clearTarget();
+    requestDraw();
+  });
+  canvas.addEventListener('pointerleave',()=>{guardianHeadTracking?.clearTarget();requestDraw();});
   canvas.addEventListener('pointerup',e=>{const origin=down;down=null;if(!origin||Math.hypot(e.clientX-origin[0],e.clientY-origin[1])>7)return;const r=canvas.getBoundingClientRect();raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);const hit=raycaster.intersectObjects(clickable,true)[0];if(hit){if(importedControls.length){const control=hitControl(hit.object,importedControls);if(control)report('select',{action:control.action});}else{let n=hit.object;while(n&&!n.userData.action)n=n.parent;if(n)report('select',{action:n.userData.action});}}});
   document.querySelector('#reset').addEventListener('click',()=>{controls.reset();requestDraw();});
   document.querySelector('#title').textContent=world==='hub'?'STAARWARDD · PORTAL HUB':(singles?'STAAR Love · Singles':names[ids.indexOf(world)]);
   document.querySelector('#status').textContent='Drag to explore · pinch or scroll to move closer · tap a labelled control';
   for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
   canvas.addEventListener('webglcontextlost',e=>{worldPhysicsQa?.contextLost();e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
-  addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
+  addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();guardianNeckPoseQa?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
 }

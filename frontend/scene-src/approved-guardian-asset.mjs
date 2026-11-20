@@ -43,6 +43,11 @@ export const PRIVATE_BUILD234_WALK_RUN_QA_SHA256 = '2ae8eda577a5f60a0c82bb73d04b
 export const PRIVATE_BUILD236_TRANSITION_QA_SHA256 = '283a1d5175c59f07f68373feb81ba417f9ea689de21f41ef0abdeb182fa0cec8';
 // Build 210 independent review: neither recovered Build 198 nor revised Build 201
 // possesses founder-approved final facial/profile fidelity; separate mouth QA is not release acceptance.
+// Review-only 241–244 private binaries must never pass with forged positive receipts.
+export const PRIVATE_BUILD241_REVIEW_ONLY_SHA256 = '667f68dc172cd8dde66b25227604929582d2b86e39e50c1eb87a368e94bd59da';
+export const PRIVATE_BUILD242_REVIEW_ONLY_SHA256 = '8c2ed15001070453e232809492de8916d2e46313d835d21556e6a8fc80dcb768';
+export const PRIVATE_BUILD243_REVIEW_ONLY_SHA256 = '804f4e0f714bcbde63572d8ac83cb11a9a6c2e6ee888117b749a591df163ae78';
+export const PRIVATE_BUILD244_REVIEW_ONLY_SHA256 = 'afdf2b3deccc96786faf7cc8357f2d9abed9dd20796bec7b6bd848ff8cc5cfcc';
 export const REJECTED_LEGACY_GUARDIAN_MODEL_SHA256 = Object.freeze([
   'da1848abf56884827abe3315a7ed2108a4301eb62be9bfd5b6d0e058354e8395',
   'e6e81a37cbc142c4d82fe8aff53adce3fb39b18f364aac18b599dccb4a80b8a1',
@@ -65,6 +70,10 @@ export function assertGuardianModelNotRejected(modelSha256) {
   if (modelSha256 === PRIVATE_BUILD233_CHROME_FOOT_PLANT_QA_SHA256) fail('build233_private_foot_qa_not_device_approved');
   if (modelSha256 === PRIVATE_BUILD234_WALK_RUN_QA_SHA256) fail('build234_private_walk_run_not_device_approved');
   if (modelSha256 === PRIVATE_BUILD236_TRANSITION_QA_SHA256) fail('build236_motion_not_owner_device_approved');
+  if (modelSha256 === PRIVATE_BUILD241_REVIEW_ONLY_SHA256) fail('build241_private_qa_unapproved');
+  if (modelSha256 === PRIVATE_BUILD242_REVIEW_ONLY_SHA256) fail('build242_private_qa_unapproved');
+  if (modelSha256 === PRIVATE_BUILD243_REVIEW_ONLY_SHA256) fail('build243_private_qa_unapproved');
+  if (modelSha256 === PRIVATE_BUILD244_REVIEW_ONLY_SHA256) fail('build244_private_qa_unapproved');
   if (REJECTED_LEGACY_GUARDIAN_MODEL_SHA256.includes(modelSha256)) fail('legacy_face_not_approved');
 }
 
