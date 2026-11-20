@@ -32,6 +32,12 @@ on:
       - 'frontend/app/checkins.tsx'
       - 'frontend/scripts/build-ios-simulator.cjs'
       - '.github/workflows/native-checkins.yml'
+# Only the newest source revision requires the expensive unsigned macOS
+# simulator compile. Superseded pull-request runs never need to compete for
+# runners or queue behind their own older versions. Expo EAS is never invoked.
+concurrency:
+  group: native-checkin-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
