@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth';
 import { WorldScene } from '@/components/staarwardd/world-scene';
 import * as WebBrowser from 'expo-web-browser';
+import { DiggitstaarCinematicIntro } from '@/components/staarwardd/diggitstaar-cinematic-intro';
+import { DIGGITSTAAR_MEDIA_READY } from '@/lib/staarwardd/diggitstaar-cinematic-sources';
 
 const PREFIX = 'diggitstaar:studio-command:v1';
 type Lead = { id: string; company: string; contact: string; opportunity: string; stage: 'Research' | 'Qualified' | 'Draft ready' | 'Contacted' | 'Closed'; verified: boolean };
@@ -37,6 +39,8 @@ export default function Diggitstaar() {
   const [goal, setGoal] = useState('');
   const [script, setScript] = useState('');
   const [focusPanel, setFocusPanel] = useState('');
+  const [introVisible, setIntroVisible] = useState(DIGGITSTAAR_MEDIA_READY);
+  const closeIntro = () => setIntroVisible(false);
   useEffect(() => {
     let active = true; setLoaded(false); setTasks([]); setNotice('');
     if (!authorized) { setLoaded(true); return () => { active = false; }; }
@@ -124,7 +128,8 @@ export default function Diggitstaar() {
   };
   const button = (label: string, action: () => void, disabled = false) => <Pressable accessibilityRole="button" disabled={disabled} onPress={action} style={{ padding: 14, borderRadius: 13, borderWidth: 1, borderColor: '#B8A274', backgroundColor: disabled ? '#30343A' : '#1B2738', minHeight: 46 }}><Text style={{ color: '#F4E5C4', fontWeight: '800', textAlign: 'center' }}>{label}</Text></Pressable>;
   const field = (label: string, value: string, change: (v: string) => void) => <TextInput accessibilityLabel={label} placeholder={label} placeholderTextColor="#9EA9BA" value={value} onChangeText={change} editable={authorized && loaded} style={{ color: '#FFFFFF', borderWidth: 1, borderColor: '#68768B', borderRadius: 12, padding: 13, minHeight: 46 }} />;
-  return <ScrollView scrollEnabled={!fullDesk} style={{ flex: 1, backgroundColor: fullDesk ? '#EAF5FF' : '#060B14' }} contentContainerStyle={{ padding: 20, paddingTop: fullDesk ? 25 : 60, paddingBottom: 65, gap: 16 }}>
+  return <>
+    <ScrollView scrollEnabled={!fullDesk} style={{ flex: 1, backgroundColor: fullDesk ? '#EAF5FF' : '#060B14' }} contentContainerStyle={{ padding: 20, paddingTop: fullDesk ? 25 : 60, paddingBottom: 65, gap: 16 }}>
     {!fullDesk && button('Back to STAARWAARDD portals', () => router.replace('/hub'))}
     {!fullDesk && <Text style={{ color: '#F3D9A4', fontSize: 29, fontWeight: '900', letterSpacing: 1 }}>DIGGITSTAAR</Text>}
     {!fullDesk && <Text style={{ color: '#C6D9EF' }}>YOUR IMMERSIVE 3D WORKSTATION · TOUCH THE HOLOGRAPHIC SCREENS</Text>}
@@ -134,6 +139,7 @@ export default function Diggitstaar() {
     {button(fullDesk ? 'Open production controls' : 'Return to immersive 3D desk', () => { setFullDesk(!fullDesk); setSceneExpanded(fullDesk ? false : true); })}
     {fullDesk && button('Back to STAARWAARDD portals', () => router.replace('/hub'))}
     {fullDesk && button('Visit DIGGITSTAAR website', website)}
+    {DIGGITSTAAR_MEDIA_READY && button('Replay approved workstation cinematic', () => setIntroVisible(true))}
     {!fullDesk && <View style={{ gap: 14 }}>
     {!!focusPanel && <Text accessibilityRole="header" style={{ color: '#A8D9FF', fontWeight: '800', fontSize: 19 }}>Selected touchscreen: {focusPanel.toUpperCase()}</Text>}
     {button('Visit www.diggitstaar.com', website)}
@@ -191,5 +197,7 @@ export default function Diggitstaar() {
     <Text style={{ color: '#AEBBCD', lineHeight: 20 }}>Local, account-scoped preview only. Gmail, Drive, Calendar, and production integrations are not yet connected. No messages are read or sent from this screen.</Text>
     {!!notice && <Text accessibilityRole="alert" style={{ color: '#F1D9AA' }}>{notice}</Text>}
     </View>}
-  </ScrollView>;
+  </ScrollView>
+    {DIGGITSTAAR_MEDIA_READY && introVisible && <DiggitstaarCinematicIntro onFinish={closeIntro} />}
+  </>;
 }
