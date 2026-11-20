@@ -13,12 +13,12 @@ export function createGuardianDevicePerformanceProbe({maxSamples=3600}={}){
  if(!Number.isInteger(maxSamples)||maxSamples<30||maxSamples>36000)
    throw new Error('invalid_probe_sample_bound');
  let modelSha256=null,lastFrameAt=null,packetCount=0,acceptedPacketCount=0;
- let frameCount=0,renderFailures=0,firstAt=null,lastAt=null;
+ let frameCount=0,renderFailures=0,firstAt=null,lastAt=null,neckPose=null;
  const intervals=[],renderDurations=[],visemes=new Set();
  function modelReady(hash){
    if(!sha(hash))return false;
    modelSha256=hash;lastFrameAt=null;frameCount=0;renderFailures=0;
-   packetCount=0;acceptedPacketCount=0;firstAt=null;lastAt=null;
+   packetCount=0;acceptedPacketCount=0;firstAt=null;lastAt=null;neckPose=null;
    intervals.length=0;renderDurations.length=0;visemes.clear();
    return true;
  }
@@ -50,6 +50,22 @@ export function createGuardianDevicePerformanceProbe({maxSamples=3600}={}){
      }
    }
  }
+ function recordNeckPose(p){
+   // Metrics from WebView are diagnostic only; retain a strict known schema.
+   if(!modelSha256||!p||p.neckQaDecision!=='UNVERIFIED'||
+      p.physicalIphoneCertified!==false||p.collarVisualApproved!==false||
+      typeof p.neckPoseBound!=='boolean'||typeof p.neckCollarPresent!=='boolean')return false;
+   const counts=['neckPoseSamples','neckPoseFailures'];
+   const values=['neckMaxPositiveGapUnits','neckMaxVerticalOverlapUnits','neckMaxHeadTranslationDriftUnits'];
+   if(counts.some(k=>!Number.isSafeInteger(p[k])||p[k]<0||p[k]>100000)||
+      values.some(k=>typeof p[k]!=='number'||!Number.isFinite(p[k])||p[k]<0||p[k]>100))return false;
+   neckPose={neckPoseBound:p.neckPoseBound,neckCollarPresent:p.neckCollarPresent,
+     neckPoseSamples:p.neckPoseSamples,neckPoseFailures:p.neckPoseFailures,
+     neckMaxPositiveGapUnits:p.neckMaxPositiveGapUnits,
+     neckMaxVerticalOverlapUnits:p.neckMaxVerticalOverlapUnits,
+     neckMaxHeadTranslationDriftUnits:p.neckMaxHeadTranslationDriftUnits};
+   return true;
+ }
  function failedFrame(){if(modelSha256)renderFailures++;}
  function snapshot(){
    const p95=percentile(intervals,.95);
@@ -67,6 +83,13 @@ export function createGuardianDevicePerformanceProbe({maxSamples=3600}={}){
      renderFailures,
      audioPacketCount:packetCount,acceptedAudioPacketCount:acceptedPacketCount,
      observedVisemes:[...visemes].sort(),
+     neckPoseBound:neckPose?.neckPoseBound??false,
+     neckCollarPresent:neckPose?.neckCollarPresent??false,
+     neckPoseSamples:neckPose?.neckPoseSamples??0,
+     neckPoseFailures:neckPose?.neckPoseFailures??0,
+     neckMaxPositiveGapUnits:neckPose?.neckMaxPositiveGapUnits??0,
+     neckMaxVerticalOverlapUnits:neckPose?.neckMaxVerticalOverlapUnits??0,
+     neckMaxHeadTranslationDriftUnits:neckPose?.neckMaxHeadTranslationDriftUnits??0,
      // Still requires a real iPhone export, external high-speed recording and
      // independent model-specific visual acceptance.
      physicalIphoneSessionCertified:false,
@@ -75,5 +98,5 @@ export function createGuardianDevicePerformanceProbe({maxSamples=3600}={}){
      decision:'UNVERIFIED',
    };
  }
- return {modelReady,recordFrame,packet,failedFrame,snapshot};
+ return {modelReady,recordFrame,recordNeckPose,packet,failedFrame,snapshot};
 }
