@@ -6,7 +6,7 @@ const SHA='a'.repeat(64);
 const CONTEXT={scene:'hub',variant:'realm',session:'privateqa_245',platform:'ios',
  capturedAt:'2026-11-20T19:00:00Z'};
 const motion={
- neckPoseBound:true,neckCollarPresent:true,neckPoseSamples:12,neckPoseFailures:0,
+ neckPoseBound:true,neckCollarPresent:true,neckPoseSamples:20,neckPoseFailures:0,
  neckMaxPositiveGapUnits:.016,neckMaxVerticalOverlapUnits:.002,
  neckMaxHeadTranslationDriftUnits:0,
  neckQaDecision:'UNVERIFIED',physicalIphoneCertified:false,collarVisualApproved:false
@@ -18,6 +18,10 @@ test('Build245 local renderer motion telemetry is sanitized and never hardware-c
  assert.equal(qa.recordNeckPose({...motion,extraPrivatePixels:'secret'}),true);
  for(let i=0;i<301;i++)qa.recordFrame(i*16.667,9);
  qa.packet({modelSha256:SHA,playheadMs:0,cues:[]},true);
+ for(let i=0;i<80;i++){
+   assert.equal(qa.recordMotionMode('walk',true),true);
+   assert.equal(qa.recordMotionMode('run',true),true);
+ }
  const data=qa.snapshot();
  assert.equal(data.neckPoseBound,true);
  assert.equal(data.neckPoseSamples,12);
