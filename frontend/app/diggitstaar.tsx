@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth';
+import { WorldScene } from '@/components/staarwardd/world-scene';
 
 const PREFIX = 'diggitstaar:studio-command:v1';
 type Task = { id: string; title: string; client: string; status: 'Inbox' | 'In production' | 'Awaiting approval' | 'Delivered' };
@@ -17,6 +18,11 @@ export default function Diggitstaar() {
   const [title, setTitle] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState('');
+  const [sceneExpanded, setSceneExpanded] = useState(true);
+  const [offer, setOffer] = useState('');
+  const [audience, setAudience] = useState('');
+  const [goal, setGoal] = useState('');
+  const [script, setScript] = useState('');
   useEffect(() => {
     let active = true; setLoaded(false); setTasks([]); setNotice('');
     if (!authorized) { setLoaded(true); return () => { active = false; }; }
@@ -31,6 +37,16 @@ export default function Diggitstaar() {
     if (!authorized) return;
     void AsyncStorage.setItem(key, JSON.stringify(next)).then(() => setTasks(next)).catch(() => Alert.alert('Not saved', 'Could not save workload on this device.'));
   };
+  const generate = () => {
+    if (!authorized || !loaded || !client.trim() || !offer.trim() || !audience.trim() || !goal.trim()) { setNotice('Enter a client, offer, audience and campaign objective first.'); return; }
+    const brand = client.trim(), service = offer.trim(), target = audience.trim(), objective = goal.trim();
+    const draft = `DIGGITSTAAR | ${brand}\nAudience: ${target}\nOffer: ${service}\nObjective: ${objective}\n\n30-SECOND CONTENT DRAFT\n00–03s: Attention hook for ${target}.\n03–09s: Introduce the problem addressed by ${service}.\n09–17s: Show client-approved visuals and explain the offer.\n17–24s: Insert verified proof or a demonstration (client to supply).\n24–30s: Invite viewers to enquire about ${service}.\n\nCaption: Discover ${service} with ${brand}. Contact the team to learn more.\n\nProduction: 9:16 vertical; 5 shots; accessible captions; licensed footage; client-approved brand assets.\nStatus: Draft only; video not rendered or sent.`;
+    const steps = ['Verify client brief and brand assets', 'Approve creative concept and claims', 'Create script and storyboard', 'Produce video and image assets', 'Edit and add captions', 'Request client review', 'Export approved deliverables'];
+    const batch = Date.now().toString();
+    const next = [...tasks, ...steps.map((step, index) => ({ id: `${batch}-${index}`, client: brand, title: step, status: 'Inbox' as const }))];
+    void AsyncStorage.setItem(key, JSON.stringify(next)).then(() => { setTasks(next); setScript(draft); setNotice('Seven production tasks saved. Script is a draft, not rendered content.'); }).catch(() => setNotice('Could not save production workload.'));
+  };
+  const website = () => { void Linking.openURL('https://www.diggitstaar.com').catch(() => setNotice('Website could not be opened.')); };
   const add = () => {
     if (!title.trim() || !authorized) return;
     save([...tasks, { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, title: title.trim(), client: client.trim(), status: 'Inbox' }]);
@@ -41,6 +57,12 @@ export default function Diggitstaar() {
   return <ScrollView style={{ flex: 1, backgroundColor: '#060B14' }} contentContainerStyle={{ padding: 20, paddingTop: 60, paddingBottom: 65, gap: 16 }}>
     {button('Back to STAARWAARDD portals', () => router.replace('/hub'))}
     <Text style={{ color: '#F3D9A4', fontSize: 29, fontWeight: '900', letterSpacing: 1 }}>DIGGITSTAAR</Text>
+    <Text style={{ color: '#C6D9EF' }}>YOUR IMMERSIVE 3D WORKSTATION · TOUCH THE HOLOGRAPHIC SCREENS</Text>
+    <View style={{ height: sceneExpanded ? 330 : 0, overflow: 'hidden', borderRadius: 20, borderWidth: sceneExpanded ? 1 : 0, borderColor: '#9BCBFF', backgroundColor: '#DCEEFF' }}>
+      {sceneExpanded && <WorldScene world="diggitstaar" onAction={action => { if (action === 'diggitstaar:website') website(); else if (action === 'diggitstaar:studio') { setSceneExpanded(false); setNotice('Production workstation controls are below.'); } }} />}
+    </View>
+    {button(sceneExpanded ? 'Expand production controls' : 'Return to 3D desk', () => setSceneExpanded(!sceneExpanded))}
+    {button('Visit www.diggitstaar.com', website)}
     <Text style={{ color: '#D5DFEE', fontSize: 15 }}>AI Content Agency · Business Command Centre</Text>
     <View style={{ padding: 17, backgroundColor: '#121D2D', borderRadius: 18, borderWidth: 1, borderColor: '#6C7990', gap: 10 }}>
       <Text style={{ color: '#F5E3BE', fontSize: 19, fontWeight: '800' }}>Gmail workspace</Text>
@@ -49,6 +71,20 @@ export default function Diggitstaar() {
       <Text style={{ color: '#C3CDDB', lineHeight: 20 }}>Planned permissions: read-only Gmail access, revocable at any time. No automatic sending, deleting, or sharing. Inbox classification, deadlines, and client matching stay disabled until a secure connection is implemented and verified.</Text>
       {button('Gmail connection · Setup pending', () => setNotice('Secure Gmail authorization is not yet available in this build. No mailbox has been accessed.'), true)}
     </View>
+    <View style={{ padding: 16, borderRadius: 16, borderColor: '#A4D4FF', borderWidth: 1, backgroundColor: '#17283E', gap: 11 }}>
+      <Text style={{ color: '#F3D9A4', fontSize: 21, fontWeight: '800' }}>AI Creative Production</Text>
+      <Text style={{ color: '#C5D9F0' }}>Generate a client-specific script draft and seven production tasks. No video generation provider is connected yet.</Text>
+      {field('Client / brand', client, setClient)}
+      {field('Product or service', offer, setOffer)}
+      {field('Target audience', audience, setAudience)}
+      {field('Campaign objective', goal, setGoal)}
+      {button('Generate script + workload', generate, !authorized || !loaded)}
+      {!!script && <Text selectable style={{ color: '#FFFFFF', lineHeight: 23 }}>{script}</Text>}
+      {!!script && button('Share script draft', () => { void Share.share({ message: script }).catch(() => setNotice('Sharing unavailable.')); })}
+    </View>
+    <Text style={{ color: '#F3D9A4', fontSize: 21, fontWeight: '800' }}>Production tools</Text>
+    {button('Open AI creative assistant', () => router.push('/chat'))}
+    <Text style={{ color: '#C5D9F0' }}>Gmail, video generation, editing, lead sourcing and analytics require separately authorized, verified integrations. No connection is implied by these controls.</Text>
     <Text style={{ color: '#F3D9A4', fontSize: 21, fontWeight: '800' }}>Workload overview</Text>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{STATES.map(status => <View key={status} style={{ backgroundColor: '#152237', borderRadius: 12, padding: 12, minWidth: '45%', flexGrow: 1 }}><Text style={{ color: '#D7E3F1', fontSize: 12 }}>{status}</Text><Text style={{ color: '#FFFFFF', fontSize: 25, fontWeight: '800' }}>{tasks.filter(t => t.status === status).length}</Text></View>)}</View>
     <Text style={{ color: '#D8E2EE', fontWeight: '700' }}>Add a client task manually</Text>
