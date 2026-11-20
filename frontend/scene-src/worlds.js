@@ -340,7 +340,16 @@ if (renderer) {
   function approvedArmoredGuardian() {
     // The binary is bundled offline ONLY after build-time face/armour/signoff verification.
     // Without that file, the original Guardian remains the sole visible identity.
-    const asset=window.STAAR_APPROVED_GUARDIAN_MODEL;
+    // Separate private device-only route. This review model is explicitly
+    // quarantined from the regular approved-asset importer and production
+    // runtime; its real binary hash is checked by build.mjs at staging time.
+    const internal=world==='hub' && window.STAAR_GUARDIAN_QA===true &&
+      window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.schema==='staar-b250-private-internal-iphone-qa-v1' &&
+      window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.internalQaOnly===true &&
+      window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.productionApproved===false &&
+      window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.physicalIphoneCertified===false
+        ? window.STAAR_PRIVATE_GUARDIAN_QA_MODEL : null;
+    const asset=internal??window.STAAR_APPROVED_GUARDIAN_MODEL;
     if (!asset?.glbBase64 || asset.sourceImageSha256!=='d7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c') return;
     try {
       const decoded=atob(asset.glbBase64);
@@ -370,8 +379,9 @@ if (renderer) {
         guardian.position.set(-centre.x*scale,.6-bounds.min.y*scale,1.5-centre.z*scale);
         scene.add(guardian);
         modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
-        // Only importer-accepted Guardian assets ever reach this branch.
-        // No experimental Build236 GLB can pass the exact SHA gate.
+        // The internal branch is source-hash pinned but NEVER an Apple
+        // release approval. The ordinary production branch still accepts
+        // only the independent release-receipt-checked Guardian asset.
         guardianLocomotion=createGuardianLocomotion(guardian,model.animations,
           {approvedAsset:true,reducedMotion:reduced});
         modelMotions.push(guardianLocomotion);
@@ -385,6 +395,10 @@ if (renderer) {
         // Only the exact build-time receipt-checked Guardian GLB can signal
         // readiness. 2D stills and the known rejected 3D models never do.
         guardianFaceMotion.mute();
+        if(internal){
+          document.querySelector('#title').textContent='GUARDIAN · PRIVATE IPHONE QA';
+          document.querySelector('#status').textContent='REVIEW ONLY · NOT A RELEASED 3D GUARDIAN';
+        }
         if(guardianFaceMotion.readyForPlayback){
           guardianDeviceQa?.modelReady(asset.rigModelSha256);
           // Bind geometry diagnostics only inside the internal iPhone QA run.
