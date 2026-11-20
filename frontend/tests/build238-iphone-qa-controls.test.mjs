@@ -11,6 +11,10 @@ const guardian=()=>({
  modelBound:true,modelSha256:hash,frameCount:620,sampledFrameIntervals:619,
  frameP95Ms:16.6,observedFps:59.4,renderFailures:0,audioPacketCount:44,
  acceptedAudioPacketCount:42,observedVisemes:['PP','aa'],
+ guardianIdleFrames:50,guardianWalkFrames:120,guardianRunFrames:120,
+ neckPoseBound:true,neckCollarPresent:true,neckPoseSamples:30,neckPoseFailures:0,
+ neckMaxPositiveGapUnits:.016,neckMaxVerticalOverlapUnits:0,
+ neckMaxHeadTranslationDriftUnits:0,
  decision:'UNVERIFIED',physicalIphoneSessionCertified:false,
  externalLipSyncOffsetMeasured:false,finalLikenessApproved:false,
  });
