@@ -54,6 +54,7 @@ jobs:
       - run: node --test tests/production-package.test.mjs
       - run: node --test tests/build251-ios-109-live-ledger-preflight.test.mjs
       - run: node --test tests/build252-private-b250-iphone-qa-loader.test.mjs
+      - run: node --test tests/build252-private-preview-archive-policy.test.mjs
       - run: node --test tests/approved-soundtrack.test.mjs tests/build193-recovered-media.test.mjs
       - run: node --test tests/approved-audio-staging.test.mjs
       - run: node --test tests/private-eas-archive.test.mjs
