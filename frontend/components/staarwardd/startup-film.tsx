@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Animated, Pressable, StyleSheet, Text, View, Platform } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Animated, Pressable, StyleSheet, Text, View, Platform, useWindowDimensions } from "react-native";
 import StartupFilmPlayer from "./startup-film-player";
 
 const WEB_REQUIRES_MUTED_AUTOPLAY = Platform.OS === "web";
@@ -8,9 +8,9 @@ const ReplayContext = createContext<() => void>(() => undefined);
 export const useStartupReplay = () => useContext(ReplayContext);
 
 export function StartupFilmBoundary({ children }: { children: React.ReactNode }) {
+  const { width } = useWindowDimensions();
   const [reduced, setReduced] = useState<boolean | null>(null);
   const [visible, setVisible] = useState(true);
-  const [entered, setEntered] = useState(false);
   const [instance, setInstance] = useState(0);
   const [playing, setPlaying] = useState(true);
   // Native iOS/Android can start the original locked film with its own embedded audio.
@@ -18,15 +18,13 @@ export function StartupFilmBoundary({ children }: { children: React.ReactNode })
   const [muted, setMuted] = useState(WEB_REQUIRES_MUTED_AUTOPLAY);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
-  const opacity = useRef(new Animated.Value(1)).current;
+  const [opacity] = useState(() => new Animated.Value(1));
   const finishing = useRef(false);
   const finish = useCallback(() => {
     if (finishing.current) return;
     finishing.current = true;
     setPlaying(false);
-    setEntered(true);
-    // Keep the approved portal world mounted underneath the final cinematic frame.
-    // Its centred Guardian flies in as the video dissolves, without page scrolling.
+    // Keep the approved portal route mounted underneath the film: no second actor or black-screen handoff.
     Animated.timing(opacity, { toValue: 0, duration: reduced ? 0 : 1100, useNativeDriver: true }).start(() => setVisible(false));
   }, [opacity, reduced]);
   useEffect(() => {
@@ -55,10 +53,11 @@ export function StartupFilmBoundary({ children }: { children: React.ReactNode })
 
   return <ReplayContext.Provider value={replay}>
     <View style={styles.root}>
-      {entered ? children : null}
+      {/* Keep routes mounted behind the film, so a decoder failure never reveals an empty app. */}
+      <View style={styles.appLayer} importantForAccessibility={visible ? "no-hide-descendants" : "auto"}>{children}</View>
       {visible && <Animated.View style={[StyleSheet.absoluteFill, styles.film, { opacity }]} accessibilityViewIsModal testID="startup-film">
         {reduced === false && <StartupFilmPlayer key={instance} muted={muted} playing={playing} onEnd={finish} onError={onError} onReady={onReady} />}
-        <View style={styles.top}><Text style={styles.brand}>STAARWAARDD</Text><Pressable accessibilityRole="button" accessibilityLabel="Skip startup film" onPress={finish} style={styles.button}><Text style={styles.text}>Skip</Text></Pressable></View>
+        <View style={styles.top}><Text style={[styles.brand, width < 380 && styles.brandCompact]} adjustsFontSizeToFit minimumFontScale={0.6} numberOfLines={1}>STAARWAARDD</Text><Pressable accessibilityRole="button" accessibilityLabel="Skip startup film" onPress={finish} style={styles.button}><Text style={styles.text}>Skip</Text></Pressable></View>
         {!ready && !failed && <ActivityIndicator color="#CCD2D9" accessibilityLabel="Loading startup film" />}
         <View style={styles.bottom}>
           {failed && <Text style={styles.message}>The film couldn’t load. You can enter the app.</Text>}
@@ -75,9 +74,11 @@ export function StartupFilmBoundary({ children }: { children: React.ReactNode })
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#000" },
+  appLayer: { ...StyleSheet.absoluteFill, backgroundColor: "#030405" },
   film: { zIndex: 10000, backgroundColor: "#000", alignItems: "center", justifyContent: "center" },
-  top: { position: "absolute", top: 52, left: 20, right: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  brand: { color: "#D5DAE1", fontSize: 11, fontWeight: "700", letterSpacing: 3 },
+  top: { position: "absolute", top: 60, left: 16, right: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 14 },
+  brand: { flexShrink: 1, color: "#D5DAE1", fontSize: 11, fontWeight: "700", letterSpacing: 2 },
+  brandCompact: { fontSize: 10, letterSpacing: 1 },
   button: { borderWidth: 1, borderColor: "#7B838E", backgroundColor: "rgba(5,7,10,0.86)", borderRadius: 24, paddingHorizontal: 18, paddingVertical: 13, minHeight: 44 },
   text: { color: "#E8ECF1", fontSize: 12 },
   bottom: { position: "absolute", bottom: 42, left: 20, right: 20, alignItems: "center", gap: 14 },

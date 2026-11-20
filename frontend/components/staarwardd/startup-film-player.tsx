@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability, react-hooks/set-state-in-effect -- expo-video and expo-audio expose intentionally mutable native player handles; failover state is required. */
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet } from "react-native";
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
@@ -18,7 +19,7 @@ export default function StartupFilmPlayer({ muted, playing, onEnd, onError, onRe
   const [approvedMusicFailed, setApprovedMusicFailed] = useState(false);
   const ended = useRef(false);
   const finishOnce = () => { if (!ended.current) { ended.current = true; onEnd(); } };
-  const playbackProgress = useRef({ lastTime: 0, lastAdvanceAt: Date.now(), startedAt: Date.now() });
+  const playbackProgress = useRef({ lastTime: 0, lastAdvanceAt: 0, startedAt: 0 });
   const approvedMusicAvailable = approvedStartupSoundtrackSource !== null;
   const soundtrack = useAudioPlayer(approvedStartupSoundtrackSource);
   const soundtrackStatus = useAudioPlayerStatus(soundtrack);
@@ -128,6 +129,11 @@ export default function StartupFilmPlayer({ muted, playing, onEnd, onError, onRe
         progress.lastAdvanceAt = now;
       }
       if (player.duration > 0 && current >= player.duration - 0.35) {
+        finishOnce();
+      } else if (player.duration > 0 && current >= player.duration - 3
+        && now - progress.lastAdvanceAt > 1700) {
+        // Near the portal finale, do not display a stuck final frame for seconds.
+        // Preserve the original movie bytes and dissolve into the already-mounted Hub.
         finishOnce();
       } else if (now - progress.startedAt > 5000 && now - progress.lastAdvanceAt > 3000) {
         onError(); // Fail fast on a frozen frame; the boundary transitions to the Hub.
