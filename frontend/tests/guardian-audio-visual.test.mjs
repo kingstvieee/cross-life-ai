@@ -24,9 +24,10 @@ test('Guardian avatar speaking state follows actual voice, not speech requests',
   assert.match(provider, /onStart:\(\)=>\{if\(requestId===speechRequest\.current && !speechQuietRef\.current\)setVoicePlaybackActive\(true\)/);
   assert.match(provider, /setVoicePlaybackActive\(false\)/);
   assert.match(provider, /\[user\?\.user_id\]/);
-  assert.match(hub, /<GuardianCharacter state=\{audio\.voicePlaybackActive \? 'speaking' : guardianState\}/);
+  assert.match(hub, /<GuardianCharacter state=\{audio\.voicePlaybackActive \? 'speaking' : guardianArrived \? 'hover' : guardianState\}/);
   assert.match(hub, /GUARDIAN PREPARING VOICE/);
   assert.match(hub, /audio\.voicePlaybackActive \? 'GUARDIAN SPEAKING'/);
+  assert.doesNotMatch(hub, /guardianSpeaking \? 'speaking'/);
   assert.doesNotMatch(hub, /setGuardianState\('speaking'\); setGuardianSpeaking\(true\)/);
 });
 

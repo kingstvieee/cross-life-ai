@@ -230,7 +230,7 @@ export function WorldHub() {
       </View>
       <View style={s.portalField}>
         <View pointerEvents="none" style={s.guardianCenter} accessibilityLabel="Guardian arriving at the centre of the immersive Hub">
-          <GuardianCharacter state={guardianArrived ? (guardianSpeaking ? 'speaking' : 'hover') : 'flying'} size={Math.min(240, width * 0.52)} reducedMotion={motionReduced} onMotionEnd={() => setGuardianArrived(true)} />
+          <GuardianCharacter state={audio.voicePlaybackActive ? 'speaking' : guardianArrived ? 'hover' : guardianState} size={Math.min(240, width * 0.52)} reducedMotion={motionReduced} onMotionEnd={() => setGuardianArrived(true)} />
         </View>
         {hotspots.map(portal => <Pressable key={portal.id} accessibilityRole="button" accessibilityLabel={`Enter ${portal.label}`} disabled={selected !== null} onPress={() => openWorld(portal.id)} style={[s.portalHotspot, { left: `${(portal.x-.145)*100}%`, top: `${(portal.y-.135)*100}%`, width: '29%', height: '27%' }]}>
           <Animated.View pointerEvents="none" style={[s.portalGlow, { opacity: portalGlow.interpolate({ inputRange: [0, 1], outputRange: [.2, .72] }) }]} />
@@ -238,7 +238,7 @@ export function WorldHub() {
         </Pressable>)}
       </View>
       <View style={s.fixedDock}>
-        <View style={s.statusRow}><View style={s.statusCopy}><Text style={s.micro}>{companion.toUpperCase()} · YOUR COMPANION</Text><Text style={s.dockTitle} numberOfLines={1}>{guardianMessage}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian" disabled={guardianSpeaking} onPress={() => { void greet(); }} style={s.roundControl}><Ionicons name="volume-high-outline" size={22} color="#F4F7FC" /></Pressable></View>
+        <View style={s.statusRow}><View style={s.statusCopy}><Text style={s.micro}>{audio.voicePlaybackActive ? 'GUARDIAN SPEAKING' : guardianSpeaking ? 'GUARDIAN PREPARING VOICE' : companion.toUpperCase() + ' · YOUR COMPANION'}</Text><Text style={s.dockTitle} numberOfLines={1}>{guardianMessage}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian" disabled={guardianSpeaking} onPress={() => { void greet(); }} style={s.roundControl}><Ionicons name="volume-high-outline" size={22} color="#F4F7FC" /></Pressable></View>
         <View style={s.actionRow}>
           <Pressable accessibilityRole="button" accessibilityLabel="Open all immersive worlds" onPress={() => setWorldPickerOpen(true)} style={s.dockAction}><Ionicons name="planet-outline" size={20} color="#F4F7FC" /><Text style={s.actionLabel}>WORLDS</Text></Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={`Speak with ${companion}`} onPress={() => router.push('/chat')} style={s.dockAction}><Ionicons name="chatbubble-ellipses-outline" size={20} color="#F4F7FC" /><Text style={s.actionLabel}>{companion.toUpperCase()}</Text></Pressable>

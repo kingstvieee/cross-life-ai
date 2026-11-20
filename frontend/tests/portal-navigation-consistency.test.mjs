@@ -4,13 +4,20 @@ import { sceneAction, sceneFallbackActions } from '../src/scene-events.ts';
 import { worldIds, worldNames, fallbackActions } from '../scene-src/navigation.js';
 import { LOCKED_WORLD_REQUIREMENTS } from '../src/locked-world-acceptance.ts';
 const event=(world,action)=>({source:'staar-scene-v1',world,type:'select',action});
-test('nine 3D renderer, React host and approved design routes are identical',()=>{
+test('nine locked primary worlds and separately gated DIGGITSTAAR studio have identical 3D and native routes',()=>{
  const approved=Object.keys(LOCKED_WORLD_REQUIREMENTS);
- assert.deepEqual(worldIds,approved);
- assert.equal(worldIds.length,9);
- assert.equal(worldNames.length,9);
- assert.equal(new Set(worldIds).size,9);
+ assert.deepEqual(worldIds.filter(id => id !== 'diggitstaar'),approved);
+ assert.equal(approved.length,9);
+ assert.equal(worldIds.length,10);
+ assert.equal(worldNames.length,10);
+ assert.equal(worldIds.at(-1),'diggitstaar');
+ assert.equal(worldNames.at(-1),'DIGGITSTAAR');
+ assert.equal(new Set(worldIds).size,10);
  assert.deepEqual(sceneFallbackActions('hub'),fallbackActions('hub'));
+ assert.deepEqual(sceneFallbackActions('diggitstaar'), [
+   ['Open production workstation', 'diggitstaar:studio'],
+   ['Visit DIGGITSTAAR.com', 'diggitstaar:website']
+ ]);
  for(const id of worldIds) {
    assert.deepEqual(sceneFallbackActions(id),fallbackActions(id),id);
    assert.equal(sceneAction(event('hub','world:'+id),'hub'),'world:'+id);

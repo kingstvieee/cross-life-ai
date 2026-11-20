@@ -5,8 +5,14 @@ import { LOCKED_WORLD_REQUIREMENTS, allNineWorldsApproved, isLockedWorldApproved
 import { worldIds } from '../scene-src/navigation.js';
 const ids=Object.keys(LOCKED_WORLD_REQUIREMENTS);
 test('all nine approved visual identities match actual 3D navigable routes',()=>{
-  assert.deepEqual(ids,worldIds);
+  // Nine locked primary worlds retain independent review obligations.
+  // DIGGITSTAAR is a separately gated business studio, not an automatically
+  // approved tenth world asset.
+  const primaryWorldIds = worldIds.filter(id => id !== 'diggitstaar');
+  assert.deepEqual(ids,primaryWorldIds);
   assert.equal(ids.length,9);
+  assert.equal(worldIds.length,10);
+  assert.equal(worldIds.at(-1),'diggitstaar');
   assert.deepEqual(LOCKED_WORLD_REQUIREMENTS.relationships.variants,['realm','singles']);
   assert.ok(LOCKED_WORLD_REQUIREMENTS.style.anchors.includes('character-free interior'));
   assert.ok(LOCKED_WORLD_REQUIREMENTS.work.anchors.includes('no executive chair'));
