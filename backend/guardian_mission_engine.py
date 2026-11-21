@@ -7,6 +7,12 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 TERMINAL = {"completed", "cancelled", "blocked"}
+
+
+class MissionConflict(ValueError):
+    """A submission key was reused with a different mission proposal."""
+
+
 ALLOWED = {
     "proposed": {"approved", "cancelled"},
     "approved": {"queued", "cancelled"},
@@ -48,8 +54,14 @@ async def submit_mission(collection, *, owner_id, objective, idempotency_key,
     try:
         await collection.insert_one(doc)
     except DuplicateKeyError:
-        return await collection.find_one(
+        existing = await collection.find_one(
             {"owner_id": owner_id, "idempotency_key": idempotency_key}, {"_id": 0})
+        if existing is None:
+            raise
+        if any(existing.get(field) != doc[field]
+               for field in ("objective", "success_criteria", "budget_cad")):
+            raise MissionConflict("Submission key already belongs to a different proposal")
+        return existing
     doc.pop("_id", None)
     return doc
 

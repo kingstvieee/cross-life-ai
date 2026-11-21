@@ -6,13 +6,13 @@ or spend controls are exposed by this router.
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from pymongo.errors import DuplicateKeyError
-from guardian_mission_engine import submit_mission
+from guardian_mission_engine import MissionConflict, submit_mission, transition
 
 SAFE_FIELDS = {
     "_id": 0, "owner_id": 1, "mission_id": 1, "objective": 1,
     "status": 1, "created_at": 1, "updated_at": 1,
     "not_before": 1, "retry_after": 1, "attempts": 1,
-    "recovery_reason": 1,
+    "recovery_reason": 1, "success_criteria": 1, "budget_cad": 1,
 }
 
 
@@ -45,7 +45,7 @@ def build_guardian_mission_router(*, db, require_account_user):
                 success_criteria=proposal.success_criteria,
                 budget_cad=proposal.budget_cad,
             )
-        except DuplicateKeyError:
+        except (DuplicateKeyError, MissionConflict):
             raise HTTPException(status_code=409, detail="mission_conflict")
         # Proposal is never queued or executed by this endpoint.
         return {"mission_id": mission["mission_id"], "status": mission["status"]}
@@ -72,5 +72,23 @@ def build_guardian_mission_router(*, db, require_account_user):
         if mission is None:
             raise HTTPException(status_code=404, detail="mission_not_found")
         return mission
+
+    @router.post("/{mission_id}/withdraw")
+    async def withdraw_proposal(mission_id: str, user=Depends(require_account_user)):
+        mission = await get_mission(mission_id, user)
+        if mission["status"] == "cancelled":
+            return {"mission_id": mission_id, "status": "cancelled"}
+        try:
+            updated = await transition(
+                db.guardian_missions, owner_id=owner_id(user), mission_id=mission_id,
+                expected="proposed", target="cancelled",
+            )
+        except RuntimeError:
+            # A concurrent approval must win over a request to withdraw a proposal.
+            current = await get_mission(mission_id, user)
+            if current["status"] != "cancelled":
+                raise HTTPException(status_code=409, detail="mission_no_longer_proposed")
+            updated = current
+        return {"mission_id": mission_id, "status": updated["status"]}
 
     return router

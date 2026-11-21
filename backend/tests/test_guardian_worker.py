@@ -67,8 +67,11 @@ async def test_missing_approval_never_invokes_handler(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_success_requires_separate_verification(monkeypatch):
+@pytest.mark.parametrize("outcome", ["success", "handler_failure", "lease_loss"])
+async def test_execution_requires_lease_and_separate_verification(monkeypatch, outcome):
     transitions = []
+    executing = asyncio.Event()
+    cancelled = asyncio.Event()
     mission = {"owner_id": "owner", "mission_id": "m1",
                "lease_token": "token", "handler": "safe",
                "approved": True, "granted_scopes": ["safe"],
@@ -80,14 +83,31 @@ async def test_success_requires_separate_verification(monkeypatch):
     async def change(_, **kwargs):
         transitions.append(kwargs["target"])
     async def handler(_):
+        if outcome == "handler_failure":
+            raise RuntimeError("provider result unknown")
+        if outcome == "lease_loss":
+            executing.set()
+            try:
+                await asyncio.Future()
+            finally:
+                cancelled.set()
         return {"output": "test"}
     monkeypatch.setattr(module, "recover_expired_leases", recover)
     monkeypatch.setattr(module, "claim_mission", claim)
     monkeypatch.setattr(module, "transition", change)
     worker = module.GuardianWorker(object(), {"safe": handler}, "worker-test")
+    if outcome == "lease_loss":
+        async def lose_lease(*_):
+            await executing.wait()
+            raise RuntimeError("lease lost")
+        monkeypatch.setattr(worker, "_heartbeat", lose_lease)
+        with pytest.raises(RuntimeError, match="lease lost"):
+            await worker.run_once()
+        assert cancelled.is_set()
+        assert transitions == ["running"]
+        return
     assert await worker.run_once() is True
-    assert transitions == ["running", "verifying"]
-    assert "completed" not in transitions
+    assert transitions == ["running", "verifying" if outcome == "success" else "blocked"]
 
 
 @pytest.mark.asyncio

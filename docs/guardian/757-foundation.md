@@ -1,6 +1,6 @@
 # Guardian 757 — Implementation Foundation (2026-11-21)
 
-Status: foundation specification only. Not deployed. No background jobs, notifications, or device control are enabled by this document.
+Status: implementation in progress. The authenticated API stores proposals and reports their state. The scheduler is an opt-in service. Live execution and iPhone acceptance remain unverified.
 
 ## Architecture
 Client (nine world experiences) -> authenticated API -> policy gateway -> mission database -> durable queue -> leased worker -> tool adapter -> independent verifier -> audit log -> notification router.
@@ -38,6 +38,22 @@ P5: simulation, continual improvement, full evaluation and controlled rollout.
 
 ## Candidate inventory
 The 750 count is a design target, not 750 implemented modules. The first 250 have not been independently reconciled against the repository. The additional 500 are represented by a proposed expansion task; a complete numbered, deduplicated acceptance matrix must be written before claims of implementation coverage.
+
+## Guardian brain and presence crosswalk
+
+The later brain discussion adds the behaviors below. Its exact component count and item identifiers are unconfirmed. Record overlap before adding these behaviors to the 757 total.
+
+| Capability | Existing entry point | Remaining acceptance evidence |
+|---|---|---|
+| Persistent objectives and follow-through | Mission proposal API, mission engine, scheduler and worker | Advance a real authorized objective while the app is closed and recover from a worker restart. |
+| Perception and shared attention | Portal navigation, scene events and foreground microphone | Resolve a spoken reference against the selected item across portals and show its source. |
+| Orienting and habituation | Guardian rig, scene and notification delivery | React once to a new event, suppress its duplicate and react again to a materially changed revision. |
+| Reflexes, inhibition and turn-taking | Shared audio provider and microphone controls | Stop voice and mouth motion together, keep task cancellation separate and support an interrupted turn. |
+| Internal status | Playback state, scene readiness and provider states | Surface a stale connector or failed voice channel with the verified last state and a usable fallback. |
+| Perspective-taking and conversational repair | Companion chat and preferences | Honor an explicit request for space, resolve a corrected reference and explain what changed. |
+| Motor prediction and embodiment | B250 asset, locomotion, face motion and speech bridge | Verify gaze, banking, wing motion and speech synchronization on iPhone without obstructing any of the nine portals. |
+| Learning from correction | Life Map records and workflow checkpoints | Save a correction at the intended scope with provenance, then verify it after relaunch and after rollback. |
+| Tool authority and independent verification | Mission worker, verifier and workflow grants | Enforce authorization, stale intent checks, cancellation and provider readback on a real connector. |
 
 ## Safety and spending
 No unapproved purchase, publishing, messages, device unlocking, production deployment, or third-party account changes. Credentials stored in a secrets manager. CAD budget limits enforced server-side. All integrations default disabled.

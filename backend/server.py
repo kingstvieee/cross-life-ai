@@ -26,6 +26,7 @@ from identity_routes import SESSION_COOKIE, app_origin, build_identity_router, e
 from provider_connections import build_provider_router
 from guardian_alignment_routes import build_alignment_router
 from guardian_mission_routes import build_guardian_mission_router
+from guardian_mission_engine import ensure_indexes as ensure_guardian_mission_indexes
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -216,6 +217,7 @@ def user_public(u: Dict[str, Any]) -> Dict[str, Any]:
 @app.on_event("startup")
 async def startup():
     await ensure_guardian_indexes(db)
+    await ensure_guardian_mission_indexes(db.guardian_missions)
     await ensure_identity_indexes(db)
     await db.provider_flows.create_index('expires_at', expireAfterSeconds=0)
     await db.provider_connections.create_index([('user_id', 1), ('provider', 1)], unique=True)

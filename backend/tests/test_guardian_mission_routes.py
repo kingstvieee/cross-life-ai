@@ -2,6 +2,7 @@
 import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
+from pymongo.errors import DuplicateKeyError
 
 from guardian_mission_routes import build_guardian_mission_router
 
@@ -35,14 +36,28 @@ class Missions:
         self.queries.append((query, projection))
         return Cursor([self.project(x, projection) for x in self.docs
                        if x["owner_id"] == query["owner_id"]])
+    async def insert_one(self, doc):
+        if any(saved["owner_id"] == doc["owner_id"] and
+               saved.get("idempotency_key") == doc["idempotency_key"]
+               for saved in self.docs):
+            raise DuplicateKeyError("duplicate mission")
+        self.docs.append(dict(doc))
     async def find_one(self, query, projection):
         self.queries.append((query, projection))
         for doc in self.docs:
             if all(doc.get(k) == v for k, v in query.items()):
                 return self.project(doc, projection)
         return None
+    async def find_one_and_update(self, query, update, *, return_document):
+        for doc in self.docs:
+            if all(doc.get(k) == v for k, v in query.items()):
+                doc.update(update["$set"])
+                return dict(doc)
+        return None
     @staticmethod
     def project(doc, projection):
+        if not any(projection.values()):
+            return {k: v for k, v in doc.items() if k not in projection}
         return {k: v for k, v in doc.items() if projection.get(k) == 1}
 
 
@@ -101,3 +116,39 @@ def test_limit_is_bounded(api):
     with TestClient(app) as client:
         response = client.get("/api/guardian/missions?limit=1001")
     assert response.status_code == 422
+
+
+def test_proposal_retry_preserves_objective_and_does_not_queue(api):
+    app, missions, account = api
+    app.dependency_overrides[account] = lambda: {"user_id": "alice"}
+    payload = {
+        "objective": "Prepare a supplier comparison",
+        "success_criteria": "Show two quotes with source dates",
+        "idempotency_key": "supplier-comparison-1",
+    }
+    with TestClient(app) as client:
+        first = client.post("/api/guardian/missions", json=payload)
+        retry = client.post("/api/guardian/missions", json=payload)
+        conflict = client.post("/api/guardian/missions", json={
+            **payload, "success_criteria": "Show three verified quotes",
+        })
+    assert first.status_code == retry.status_code == 201
+    assert retry.json() == first.json()
+    assert retry.json()["status"] == "proposed"
+    assert conflict.status_code == 409
+    assert len(missions.docs) == 3
+
+
+def test_only_owner_can_withdraw_a_proposal_and_retry(api):
+    app, missions, account = api
+    missions.docs.append({"owner_id": "alice", "mission_id": "draft", "status": "proposed"})
+    with TestClient(app) as client:
+        url = "/api/guardian/missions/draft/withdraw"
+        app.dependency_overrides[account] = lambda: {"user_id": "bob"}
+        assert client.post(url).status_code == 404
+        app.dependency_overrides[account] = lambda: {"user_id": "alice"}
+        assert client.post("/api/guardian/missions/a1/withdraw").status_code == 409
+        for _ in range(2):
+            response = client.post(url)
+            assert response.status_code == 200
+            assert response.json()["status"] == "cancelled"

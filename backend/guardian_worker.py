@@ -62,22 +62,37 @@ class GuardianWorker:
                          expected="leased", target="running", lease_token=token)
         stop = asyncio.Event()
         heartbeat = asyncio.create_task(self._heartbeat(owner, mid, token, stop))
+        execution = asyncio.create_task(handler(mission))
         try:
-            # Handlers must be idempotent and perform their own policy checks.
-            result = await handler(mission)
+            done, _ = await asyncio.wait(
+                (execution, heartbeat), return_when=asyncio.FIRST_COMPLETED,
+            )
+            if heartbeat in done:
+                # Stop issuing work. Expired running leases are reconciled
+                # separately because cancellation cannot undo provider effects.
+                await heartbeat
+                raise RuntimeError("Guardian heartbeat stopped during execution")
+            stop.set()
+            await heartbeat
+            try:
+                result = execution.result()
+            except Exception:
+                # An exception alone does not establish that a tool did nothing.
+                await transition(
+                    self.collection, owner_id=owner, mission_id=mid,
+                    expected="running", target="blocked", lease_token=token,
+                    checkpoint={"reason": "handler_outcome_requires_reconciliation"},
+                )
+                return True
             await transition(self.collection, owner_id=owner, mission_id=mid,
                              expected="running", target="verifying",
                              lease_token=token, checkpoint={"result": result})
-            # Independent verifier integration is deliberately not bypassed.
             return True
-        except Exception:
-            await transition(self.collection, owner_id=owner, mission_id=mid,
-                             expected="running", target="retry_wait",
-                             lease_token=token, checkpoint={"reason": "handler_failure"})
-            raise
         finally:
             stop.set()
-            await heartbeat
+            if not execution.done():
+                execution.cancel()
+            await asyncio.gather(execution, heartbeat, return_exceptions=True)
 
     async def serve(self, stop_event, *, poll_seconds=5):
         if poll_seconds <= 0:
