@@ -43,3 +43,23 @@ def test_action_authorization(approved, scope, scopes, cost, budget, expected):
     assert authorize_action(approved=approved, action_scope=scope,
                             granted_scopes=scopes, cost_cad=cost,
                             budget_cad=budget) is expected
+
+@pytest.mark.asyncio
+async def test_renew_lease_rejects_missing_fencing_token():
+    from guardian_mission_engine import renew_lease
+    with pytest.raises(ValueError):
+        await renew_lease(None, owner_id="owner", mission_id="mission",
+                          lease_token="", lease_seconds=60)
+
+
+@pytest.mark.asyncio
+async def test_renew_lease_rejects_stale_worker():
+    from guardian_mission_engine import renew_lease
+    class StaleCollection:
+        async def find_one_and_update(self, query, update, **kwargs):
+            assert query["lease_token"] == "old-token"
+            assert "$gt" in query["lease_until"]
+            return None
+    with pytest.raises(RuntimeError):
+        await renew_lease(StaleCollection(), owner_id="owner", mission_id="mission",
+                          lease_token="old-token", lease_seconds=60)
