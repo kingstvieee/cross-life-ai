@@ -108,7 +108,11 @@ if (renderer) {
     }
     if(!packet||packet.source!=='staar-native-guardian-audio-v1')return;
     const accepted=applyGuardianSpeechFrame(guardianFaceMotion,packet,{
-      session,modelSha256:window.STAAR_APPROVED_GUARDIAN_MODEL?.rigModelSha256,
+      session,modelSha256:window.STAAR_GUARDIAN_QA===true &&
+        window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.internalQaOnly===true &&
+        window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.productionApproved===false
+          ? window.STAAR_PRIVATE_GUARDIAN_QA_MODEL.rigModelSha256
+          : window.STAAR_APPROVED_GUARDIAN_MODEL?.rigModelSha256,
     });
     guardianDeviceQa?.packet(packet,accepted);
     if(accepted)requestDraw();
