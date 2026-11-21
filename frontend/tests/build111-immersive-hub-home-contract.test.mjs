@@ -6,7 +6,7 @@ const scene=()=>readFile(new URL('../components/staarwardd/world-scene.tsx',impo
 const route=()=>readFile(new URL('../app/hub.tsx',import.meta.url),'utf8').catch(()=>readFile(new URL('../app/(tabs)/hub.tsx',import.meta.url),'utf8'));
 test('Home stage renders the real offline Three.js Guardian portal chamber, not the stale static Guardian pose image',async()=>{
  const src=await home();
- assert.match(src,/<WorldScene world="hub" embedded onSceneReady=\{onGuardianMotionEnd\} onAction=\{open3dPortal\}/);
+ assert.match(src,/<WorldScene world="hub" embedded onSceneReady=\{onGuardianMotionEnd\} onGuardianModelReady=\{onGuardian3dLoaded\} onAction=\{open3dPortal\}/);
  assert.doesNotMatch(src,/<GuardianCharacter\b/);
  assert.doesNotMatch(src,/toronto-skyline-pan\.png/);
  assert.doesNotMatch(src,/<AccessField\b/);
@@ -20,6 +20,7 @@ test('3D hub knows when its WebGL scene actually rendered and keeps the physical
  assert.match(src,/qaEnabled && !embedded/);
  assert.match(src,/worldQaEnabled && !embedded/);
  assert.match(src,/sceneReady\.current = true; onSceneReady\?\.\(\)/);
+ assert.match(src,/audio\.setGuardianRigHash\(message\.modelSha256\); onGuardianModelReady\?\.\(message\.modelSha256\)/);
  assert.match(src,/onError=\{\(\) => setLoadFailed\(true\)\}/);
  assert.match(src,/onContentProcessDidTerminate=\{\(\) => setLoadFailed\(true\)\}/);
 });
