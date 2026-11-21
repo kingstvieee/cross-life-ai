@@ -301,3 +301,37 @@ def test_mission_details_expose_actions_and_limited_verification_evidence(api):
     assert detail.json()["available_actions"] == ["cancel-pending"]
     assert detail.json()["evidence"] == {"passed": True, "result_digest": "digest",
                                          "verified_at": "verified"}
+
+
+def test_private_literal_search_is_owner_scoped_and_escaped(api):
+    app, missions, account = api
+    app.dependency_overrides[account] = lambda: {"user_id": "alice"}
+    with TestClient(app) as client:
+        response = client.get("/api/guardian/missions?search=%2E%2A&order=oldest")
+    assert response.status_code == 200
+    query = missions.queries[0][0]
+    assert query["owner_id"] == "alice"
+    assert query["$and"][0]["$or"][0]["objective"] == {
+        "$regex": r"\.\*", "$options": "i",
+    }
+
+
+def test_search_rejects_blank_and_invalid_order(api):
+    app, _, account = api
+    app.dependency_overrides[account] = lambda: {"user_id": "alice"}
+    with TestClient(app) as client:
+        assert client.get("/api/guardian/missions?search=%20%20").status_code == 422
+        assert client.get("/api/guardian/missions?order=random").status_code == 422
+
+
+def test_search_and_cursor_predicates_do_not_override_each_other(api):
+    app, missions, account = api
+    missions.docs[0]["created_at"] = datetime(2026, 11, 21, tzinfo=timezone.utc)
+    app.dependency_overrides[account] = lambda: {"user_id": "alice"}
+    with TestClient(app) as client:
+        response = client.get("/api/guardian/missions?search=quote&after=a1&order=oldest")
+    assert response.status_code == 200
+    query = missions.queries[-1][0]
+    assert query["owner_id"] == "alice"
+    assert len(query["$and"]) == 2
+    assert query["$and"][1]["$or"][0]["created_at"]["$gt"] == missions.docs[0]["created_at"]
