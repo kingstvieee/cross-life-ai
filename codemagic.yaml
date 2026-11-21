@@ -28,14 +28,15 @@ workflows:
       - name: Download and authenticate PRIVATE encrypted 3D assets
         script: |
           set -eu
+          : "${STAAR_PRIVATE_ASSET_URL:?Configure a private download URL in the staar-private-110 secret group}"
           asset_dir=$(mktemp -d)
           trap 'rm -rf "$asset_dir"' EXIT
           asset="$asset_dir/guardian-worlds.enc"
           expected_sha256=1a9a40835361ce71633c71eab7ac9ac392ec12e3a936397ed718299b4bd6a1d0
           for attempt in 1 2 3; do
             rm -f "$asset"
-            if curl --fail --silent --show-error --location --connect-timeout 20 --max-time 180 \
-                 'https://drive.google.com/uc?export=download&id=1E-bR8B2V_o33Mb519iA6ea_ouCM_gUWV' \
+            if curl --fail --silent --location --proto '=https' --proto-redir '=https' \
+                 --connect-timeout 20 --max-time 180 "$STAAR_PRIVATE_ASSET_URL" \
                  --output "$asset" &&
                printf '%s  %s\n' "$expected_sha256" "$asset" | shasum -a 256 --check --status; then
               break
