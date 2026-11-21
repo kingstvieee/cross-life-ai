@@ -406,6 +406,16 @@ if (renderer) {
             let startFlight;
             let arrived = false;
             let hoverStart;
+            const flightJoints = [
+              ['Chest', .10], ['UpperArm_L', -.18], ['UpperArm_R', -.13],
+              ['Forearm_L', -.24], ['Forearm_R', -.17],
+              ['Thigh_L', .20], ['Thigh_R', .29], ['Calf_L', -.23], ['Calf_R', -.31],
+            ].flatMap(([name, angle]) => {
+              const joint = guardian.getObjectByName('B230_QA_Joint_' + name);
+              return joint?.isBone ? [{ joint, angle, rest: joint.quaternion.clone() }] : [];
+            });
+            const pitchAxis = new T.Vector3(1, 0, 0);
+            const flightPose = new T.Quaternion();
             flight.position.copy(arrivalPath.v0);
             animated.push((time) => {
               startFlight ??= time;
@@ -414,6 +424,14 @@ if (renderer) {
               arrivalPath.getPoint(eased, flight.position);
               const bank = Math.sin(Math.PI * progress) * (1 - progress);
               flight.rotation.set(.16 * bank, -.32 * bank, .38 * bank);
+              if (!arrived) {
+                // Blend the live skeleton back into its standing pose as Guardian settles.
+                const poseWeight = Math.min(progress * 10, 1, (1 - progress) * 3);
+                for (const { joint, angle, rest } of flightJoints) {
+                  flightPose.setFromAxisAngle(pitchAxis, angle * poseWeight);
+                  joint.quaternion.copy(rest).multiply(flightPose);
+                }
+              }
               if (progress < 1) return;
               if (!arrived) {
                 arrived = true;
@@ -694,3 +712,4 @@ if (renderer) {
   canvas.addEventListener('webglcontextlost',e=>{worldPhysicsQa?.contextLost();e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
   addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();guardianNeckPoseQa?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
 }
+
