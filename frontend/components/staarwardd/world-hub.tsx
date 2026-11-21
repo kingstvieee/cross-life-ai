@@ -300,7 +300,7 @@ const s = StyleSheet.create({
   topPortals: { flexDirection: 'row', justifyContent: 'space-between' },
   chamber: { flex: 1, flexDirection: 'row', minHeight: 0, justifyContent: 'space-between', alignItems: 'stretch' },
   sidePortals: { justifyContent: 'space-evenly' },
-  platform: StyleSheet.absoluteFillObject,
+  platform: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   plinth: { position: 'absolute', bottom: '8%', left: '25%', right: '25%', height: '15%', borderRadius: 200, borderColor: '#E2C98F', borderWidth: 2 },
   portal: { marginVertical: 4 },
   portalButton: { alignItems: 'center', minHeight: 44 },
