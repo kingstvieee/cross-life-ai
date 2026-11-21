@@ -36,7 +36,7 @@ type AudioContextValue = AudioSettings & {
   playAmbient: (key: AmbientKey) => void;
   stopAmbient: () => void;
   playCue: (cue: CinematicCue) => void;
-  speak: (text: string, rate?: number) => Promise<boolean>;
+  speak: (text: string, rate?: number, speaker?: 'guardian') => Promise<boolean>;
   stopAll: () => void;
 };
 
@@ -319,7 +319,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     } catch { /* controlled cinematic audio remains optional and may fail gracefully */ }
   }, [settings.ambience, settings.master, settings.music, settings.volume]);
 
-  const speak = useCallback(async (text: string, _rate = 0.95) => {
+  const speak = useCallback(async (text: string, rate = 0.95, speaker?: 'guardian') => {
     const requestId = ++speechRequest.current;
     setVoicePlaybackActive(false);
     setGuardianAudioFrame(null);
@@ -334,7 +334,9 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     try {
       let completed = false;
       await playServerSpeech(async signal => {
-        const response = await api('/api/companion/speak', { method: 'POST', signal, body: JSON.stringify({ text: text.slice(0, 2000) }) });
+        const endpoint = speaker === 'guardian' ? '/api/guardian/speak-line' : '/api/companion/speak';
+        const limit = speaker === 'guardian' ? 480 : 2000;
+        const response = await api(endpoint, { method: 'POST', signal, body: JSON.stringify({ text: text.slice(0, limit) }) });
         return response;
       }, {
         volume: settingsRef.current.volume,
@@ -394,7 +396,7 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
           resolve(played && requestId === speechRequest.current);
         };
         const timer = setTimeout(() => { if (requestId === speechRequest.current) void Speech.stop(); finish(false); }, 120000);
-        Speech.speak(text.slice(0,2000), {language:'en-GB',voice:installed?.identifier,rate:0.95,volume:settingsRef.current.volume,onStart:()=>{if(requestId===speechRequest.current && !speechQuietRef.current)setVoicePlaybackActive(true);},onDone:()=>finish(true),onStopped:()=>finish(false),onError:()=>{if (requestId === speechRequest.current) setVoiceNotice('Speech could not play. The message remains in your inbox.');finish(false);}});
+        Speech.speak(text.slice(0,2000), {language:'en-GB',voice:installed?.identifier,rate,volume:settingsRef.current.volume,onStart:()=>{if(requestId===speechRequest.current && !speechQuietRef.current)setVoicePlaybackActive(true);},onDone:()=>finish(true),onStopped:()=>finish(false),onError:()=>{if (requestId === speechRequest.current) setVoiceNotice('Speech could not play. The message remains in your inbox.');finish(false);}});
       });
     }
   }, [api]);

@@ -1,6 +1,6 @@
 workflows:
-  staar-testflight-111:
-    name: STAAR Hub 111 — Private QA Scene — Archive Only
+  staar-home-review-112:
+    name: STAAR Hub 112 — Internal Home Review — TestFlight
     instance_type: mac_mini_m2
     max_build_duration: 120
     triggering:
@@ -20,6 +20,7 @@ workflows:
       vars:
         EAS_BUILD_PROFILE: preview
         STAAR_IPHONE_ONLY_QA: '1'
+        STAAR_INTERNAL_HOME_REVIEW: '1'
         EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '1'
         EXPO_PUBLIC_WORLD_COLLISION_QA: '1'
         EXPO_PUBLIC_BACKEND_URL: https://cross-life-ai.emergent.host
@@ -27,14 +28,15 @@ workflows:
       - name: Download and authenticate PRIVATE encrypted 3D assets
         script: |
           set -eu
+          : "${STAAR_PRIVATE_ASSET_URL:?Configure a private download URL in the staar-private-110 secret group}"
           asset_dir=$(mktemp -d)
           trap 'rm -rf "$asset_dir"' EXIT
           asset="$asset_dir/guardian-worlds.enc"
           expected_sha256=1a9a40835361ce71633c71eab7ac9ac392ec12e3a936397ed718299b4bd6a1d0
           for attempt in 1 2 3; do
             rm -f "$asset"
-            if curl --fail --silent --show-error --location --connect-timeout 20 --max-time 180 \
-                 'https://drive.google.com/uc?export=download&id=1E-bR8B2V_o33Mb519iA6ea_ouCM_gUWV' \
+            if curl --fail --silent --location --proto '=https' --proto-redir '=https' \
+                 --connect-timeout 20 --max-time 180 "$STAAR_PRIVATE_ASSET_URL" \
                  --output "$asset" &&
                printf '%s  %s\n' "$expected_sha256" "$asset" | shasum -a 256 --check --status; then
               break
@@ -49,7 +51,7 @@ workflows:
           node scripts/stage-private-guardian-b250-qa.mjs
           node --input-type=module -e "import('./scene-src/internal-ten-world-qa.mjs').then(m=>m.loadInternalTenWorldQaAssets(process.cwd()+'/scene-src').then(w=>{if(Object.keys(w).length!==10)throw Error('ten_worlds_missing');console.log('10 GLBs hash verified')}))"
           node scripts/prepare-private-b250-qa-archive.mjs prepare
-      - name: Set unique iPhone TestFlight version 111
+      - name: Set iPhone internal review build number 112
         script: |
           cd frontend
           node - <<'NODE'
@@ -57,7 +59,7 @@ workflows:
           const name='app.json',data=JSON.parse(fs.readFileSync(name,'utf8'));
           if(data.expo.version!=='1.0.4'||data.expo.ios.buildNumber!=='109')
             throw Error('Incorrect base version — refuse to build with duplicate number');
-          data.expo.ios.buildNumber='111';
+          data.expo.ios.buildNumber='112';
           fs.writeFileSync(name,JSON.stringify(data,null,2)+'\n');
           NODE
       - name: Install Expo dependencies and bundle the real Guardian and 10 GLBs
@@ -88,3 +90,7 @@ workflows:
     artifacts:
       - frontend/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false

@@ -13,7 +13,10 @@ export const WORLD_ACTIONS: Record<WorldId, { title: string; detail: string; cho
   staarsonic: { title: 'Find the sound of your world.', detail: 'Develop a playlist brief, explore a release idea or plan a listening session.', choices: ['Build a playlist brief', 'Plan a music release', 'Find music for my mood'] },
   staarverse: { title: 'Step into the next world.', detail: 'Explore the STARVERSE concept and shape your next adventure. Playable games are still in development.', choices: ['Explore the STARVERSE universe', 'Design a character and mission', 'Plan a cooperative game session'] },
 };
-export const WORLDS = PREVIEW_WORLDS.map(world => ({ ...world, ...WORLD_ACTIONS[world.id as WorldId] }));
+export const WORLDS = PREVIEW_WORLDS.map(world => {
+  const id = world.id as WorldId;
+  return { ...world, id, ...WORLD_ACTIONS[id] };
+});
 export const WORLD_BY_ID = Object.fromEntries(WORLDS.map(world => [world.id, world]));
 export function worldConversation(world: string, choice: string) {
   const entry = WORLD_BY_ID[world];

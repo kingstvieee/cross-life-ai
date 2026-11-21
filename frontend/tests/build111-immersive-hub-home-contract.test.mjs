@@ -4,16 +4,27 @@ import {readFile} from 'node:fs/promises';
 const home=()=>readFile(new URL('../components/staarwardd/world-hub.tsx',import.meta.url),'utf8');
 const scene=()=>readFile(new URL('../components/staarwardd/world-scene.tsx',import.meta.url),'utf8');
 const route=()=>readFile(new URL('../app/hub.tsx',import.meta.url),'utf8').catch(()=>readFile(new URL('../app/(tabs)/hub.tsx',import.meta.url),'utf8'));
-test('Home stage renders the real offline Three.js Guardian portal chamber, not the stale static Guardian pose image',async()=>{
- const src=await home();
- assert.match(src,/<WorldScene world="hub" embedded onSceneReady=\{onGuardianMotionEnd\} onGuardianModelReady=\{onGuardian3dLoaded\} onAction=\{open3dPortal\}/);
- assert.doesNotMatch(src,/<GuardianCharacter\b/);
- assert.doesNotMatch(src,/toronto-skyline-pan\.png/);
- assert.doesNotMatch(src,/<AccessField\b/);
- assert.match(src,/ENTER FULL 3D HUB/);
- assert.match(src,/router\.push\(\{ pathname: '\/environment', params: \{ world: 'hub' \}/);
- assert.match(src,/paddingBottom: 155/);
- assert.ok(src.indexOf('ENTER YOUR NINE WORLDS') < src.indexOf('Speak with {companion}'), 'worlds must appear above old voice panels');
+test('The signed-in homepage contains nine direct portals and a Guardian-only scene', async () => {
+ const [src, entry] = await Promise.all([home(), route()]);
+ assert.match(entry, /<WorldHub/);
+ assert.match(src, /<WorldScene world="hub" embedded guardianPresentation/);
+ assert.match(src, /WORLDS\.slice\(0, 5\)\.map\(renderPortal\)/);
+ assert.match(src, /WORLDS\.slice\(5, 7\)\.map\(renderPortal\)/);
+ assert.match(src, /WORLDS\.slice\(7\)\.map\(renderPortal\)/);
+ assert.match(src, /onPress=\{\(\) => openPortal\(world\.id\)\}/);
+ assert.match(src, /toronto-skyline-pan\.png/);
+ assert.doesNotMatch(src, /ENTER FULL 3D HUB|<GuardianCharacter\b/);
+});
+
+test('Private rig presentation is restricted to explicitly staged native review builds', async () => {
+ const renderer = await readFile(new URL('../scene-src/worlds.js', import.meta.url), 'utf8');
+ assert.match(await scene(), /const qaEnabled = !guardianPresentation && Platform\.OS/);
+ const builder = await readFile(new URL('../scene-src/build.mjs', import.meta.url), 'utf8');
+ assert.match(builder, /Boolean\(privateGuardianQa\) && process\.env\.STAAR_INTERNAL_HOME_REVIEW==='1'/);
+ assert.match(renderer, /guardianPresentation && window\.STAAR_INTERNAL_HOME_REVIEW === true && Boolean\(window\.ReactNativeWebView\)/);
+ assert.match(renderer, /internalQaRoute \|\| internalHomeReview/);
+ assert.match(renderer, /document\.querySelector\('header'\)\.hidden/);
+ assert.match(renderer, /report\('guardian-arrived'\)/);
 });
 test('3D hub knows when its WebGL scene actually rendered and keeps the physical iPhone QA HUD separate',async()=>{
  const src=await scene();

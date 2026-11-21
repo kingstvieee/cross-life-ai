@@ -22,7 +22,13 @@ const names = worldNames;
 const requested = window.STAAR_WORLD || new URLSearchParams(location.search).get('world') || 'hub';
 const world = ['hub', ...ids].includes(requested) ? requested : 'hub';
 const singles = world === 'relationships' && (window.STAAR_VARIANT || new URLSearchParams(location.search).get('variant')) === 'singles';
-const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const guardianPresentation = world === 'hub' && window.STAAR_GUARDIAN_PRESENTATION === true;
+if (guardianPresentation) {
+  document.body.style.background = document.documentElement.style.background = 'transparent';
+  document.querySelector('header').hidden = document.querySelector('footer').hidden = true;
+  document.querySelector('header').style.display = document.querySelector('footer').style.display = 'none';
+}
+const reduced = window.STAAR_REDUCE_GUARDIAN_MOTION === true || matchMedia('(prefers-reduced-motion: reduce)').matches;
 const canvas = document.querySelector('canvas');
 const session = window.STAAR_SCENE_SESSION || '';
 const report = (type, data = {}) => {
@@ -42,7 +48,7 @@ const addNavigationFallback = () => {
   }
 };
 let renderer;
-try { renderer = new T.WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power' }); }
+try { renderer = new T.WebGLRenderer({ canvas, alpha: guardianPresentation, antialias: true, powerPreference: 'low-power' }); }
 catch {
   document.querySelector('#status').textContent = '3D rendering is unavailable on this device. Navigation remains available below.';
   document.querySelector('#reset').hidden = true;
@@ -53,7 +59,8 @@ if (renderer) {
   const scene = new T.Scene();
   const bright = ['work','wellbeing','style'].includes(world);
   scene.background = new T.Color(bright ? '#c8dcec' : '#020611');
-  scene.fog = new T.Fog(scene.background, 38, 150);
+  if (guardianPresentation) scene.background = null;
+  else scene.fog = new T.Fog(scene.background, 38, 150);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.setSize(innerWidth, innerHeight);
   renderer.toneMapping = T.ACESFilmicToneMapping;
@@ -71,6 +78,7 @@ if (renderer) {
   controls.minDistance = 3; controls.maxDistance = 28; controls.maxPolarAngle = Math.PI*.48;
   const animated = [], clickable = [], modelMotions = [];
   let disposed = false;
+  let guardianArrivalPending = false;
   let importedControls = [];
   let walkController = null;
   let guardianFaceMotion = null;
@@ -341,47 +349,196 @@ if (renderer) {
   function shell(day=false) {floor(13,day?white:black);skyline(day);for(let i=-3;i<=3;i++){cylinder(i*3.6,3.6,-8,.13,7.2);box(i*3.6,3.6,-8,.04,7.2,.3,gold);}for(const r of[5.5,6,6.5]){ring(0,7.6,-1,r,.1,chrome,true);ring(0,7.49,-1,r-.15,.025,day?amber:blue,true);}for(const x of[-10,10]){tree(x,-5);tree(x,2);}}
   function sofa(x,z,a=0,mat=white) {const g=new T.Group();g.position.set(x,0,z);g.rotation.y=a;scene.add(g);box(0,.5,0,3.7,.55,1.25,mat,g);box(0,1.1,-.56,3.7,.9,.25,mat,g);for(const side of[-1,1])box(side*1.9,.85,0,.25,.8,1.4,mat,g);for(let i=-1;i<=1;i++)box(i*1.15,.82,.02,1.06,.12,1.05,mat,g);for(const x of[-1.5,1.5])for(const z of[-.4,.4])cylinder(x,.13,z,.06,.28,gold,g);return g;}
   function island(x,y,z,r=2,mat=green) {mesh(new T.ConeGeometry(r,r*1.6,7),black,x,y-r*.8,z);cylinder(x,y+.02,z,r,.15,mat);waterfall(x+r*.4,y-1.7,z+r*.6,3.5);}
+  function mountGuardianWings(guardian, bounds, height) {
+    const chest = guardian.getObjectByName('B230_QA_Joint_Chest');
+    if (!chest?.isBone) return null;
+    guardian.updateWorldMatrix(true, true);
+    const mount = new T.Group();
+    mount.name = 'Guardian_UpperBack_Mount';
+    const bodyCentre = bounds.getCenter(new T.Vector3());
+    mount.position.copy(guardian.localToWorld(
+      new T.Vector3(bodyCentre.x, bounds.min.y + height * .74, bodyCentre.z),
+    ));
+    const unit = height * guardian.scale.x / 7.73;
+    mount.position.z -= .62 * unit;
+    mount.scale.setScalar(unit);
+    // Attach before posing the torso, preserving the mount's world orientation.
+    chest.attach(mount);
+
+    const feather = new T.Shape();
+    feather.moveTo(-.16, 0);
+    feather.bezierCurveTo(-.37, .48, -.15, .83, 0, 1);
+    feather.bezierCurveTo(.22, .80, .38, .38, .15, 0);
+    feather.closePath();
+    const geometry = new T.ExtrudeGeometry(feather, {
+      depth: .035, bevelEnabled: true, bevelSize: .024, bevelThickness: .018,
+      bevelSegments: 1, curveSegments: 5,
+    });
+    const finishes = [
+      new T.MeshStandardMaterial({ color: 0xded3b8, roughness: .38, metalness: .14 }),
+      new T.MeshStandardMaterial({ color: 0xa6b2c1, roughness: .27, metalness: .83 }),
+      new T.MeshStandardMaterial({ color: 0x1c252e, roughness: .25, metalness: .87 }),
+    ];
+    const light = new T.MeshStandardMaterial({
+      color: 0xdbefff, emissive: 0xb7dcff, emissiveIntensity: 1.7,
+    });
+    const pose = new T.Object3D();
+    const sides = [-1, 1].map(sign => {
+      const shoulder = new T.Group();
+      const tip = new T.Group();
+      shoulder.position.x = sign * .32;
+      tip.position.set(sign * 1.5, .85, -.12);
+      mount.add(shoulder);
+      shoulder.add(tip);
+      for (const [panel, start, count] of [[shoulder, 0, 5], [tip, 5, 7]]) {
+        for (let row = 0; row < finishes.length; row++) {
+          const feathers = new T.InstancedMesh(geometry, finishes[row], count);
+          for (let i = 0; i < count; i++) {
+            const t = (start + i) / 11;
+            const x = .24 + 3.15 * t - (start ? 1.5 : 0);
+            const y = .2 + 1.3 * t + .24 * Math.sin(t * Math.PI) - (start ? .85 : 0);
+            pose.position.set(sign * x, y - row * .13, -.13 - row * .11);
+            pose.rotation.set(0, 0, -sign * (2.72 - .94 * t));
+            pose.scale.set(.78 - row * .09, (1.08 + t * .68) * (1 - row * .18), 1);
+            pose.updateMatrix();
+            feathers.setMatrixAt(i, pose.matrix);
+          }
+          panel.add(feathers);
+        }
+        const seam = new T.Mesh(new T.CapsuleGeometry(.028, start ? 1.8 : 1.25, 2, 6), light);
+        seam.position.set(sign * (start ? .9 : .73), start ? .35 : .53, -.095);
+        seam.rotation.z = -sign * 1.03;
+        panel.add(seam);
+      }
+      return { sign, shoulder, tip };
+    });
+    return (progress, bank = 0, hover = 0) => {
+      const open = T.MathUtils.smoothstep(progress, .08, .62);
+      for (const { sign, shoulder, tip } of sides) {
+        shoulder.rotation.y = sign * (1.22 - open * 1.08);
+        tip.rotation.y = sign * (.74 - open * .62);
+        shoulder.rotation.z = open * (.14 * bank + .035 * hover * sign);
+        tip.rotation.z = open * (.09 * bank + .025 * hover * sign);
+      }
+    };
+  }
+
   function approvedArmoredGuardian() {
     // The binary is bundled offline ONLY after build-time face/armour/signoff verification.
     // Without that file, the original Guardian remains the sole visible identity.
     // Separate private device-only route. This review model is explicitly
     // quarantined from the regular approved-asset importer and production
     // runtime; its real binary hash is checked by build.mjs at staging time.
-    const internal=world==='hub' && window.STAAR_GUARDIAN_QA===true &&
+    const internalHomeReview = guardianPresentation && window.STAAR_INTERNAL_HOME_REVIEW === true && Boolean(window.ReactNativeWebView);
+    const internalQaRoute = !guardianPresentation && window.STAAR_GUARDIAN_QA === true;
+    const internal=world==='hub' && (internalQaRoute || internalHomeReview) &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.schema==='staar-b250-private-internal-iphone-qa-v1' &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.internalQaOnly===true &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.productionApproved===false &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.physicalIphoneCertified===false
         ? window.STAAR_PRIVATE_GUARDIAN_QA_MODEL : null;
     const asset=internal??window.STAAR_APPROVED_GUARDIAN_MODEL;
-    if (!asset?.glbBase64 || asset.sourceImageSha256!=='d7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c') return;
+    const unavailable = () => { if (guardianPresentation && !disposed) report('guardian-unavailable'); };
+    if (!asset?.glbBase64 || asset.sourceImageSha256!=='d7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c') { unavailable(); return; }
     try {
       const decoded=atob(asset.glbBase64);
       const bytes=new Uint8Array(decoded.length);
       for(let i=0;i<decoded.length;i++)bytes[i]=decoded.charCodeAt(i);
       new GLTFLoader().parse(bytes.buffer,'',model=>{
-        if(!model?.scene)return;
+        if(!model?.scene){unavailable();return;}
         if(disposed){disposeModel(model.scene);return;}
         const guardian=model.scene;
         // Build242 repair acceptance: full-body neck must truly carry the protected
         // head skin. Do not show a frozen head, disable two-sided face rendering,
         // or retain zero-scale legacy silver/chrome armour in the live scene.
         const integrity=inspectGuardianRigIntegrity(guardian,{detachHiddenLegacy:true});
-        if(!integrity.valid){disposeModel(guardian);return;}
+        if(!integrity.valid){disposeModel(guardian);unavailable();return;}
         // Verified exact GLB may explicitly declare its real source coordinates.
         // Preserve existing Y-up models and never guess an unspecified axis.
         const upAxis=model.parser?.json?.extras?.STAAR_Guardian_Coordinates?.upAxis;
         if(upAxis==='Z')guardian.rotation.x=-Math.PI/2;
-        else if(upAxis && upAxis!=='Y'){disposeModel(guardian);return;}
+        else if(upAxis && upAxis!=='Y'){disposeModel(guardian);unavailable();return;}
         const bounds=new T.Box3().setFromObject(guardian);
         const dimensions=bounds.getSize(new T.Vector3());
-        if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000){disposeModel(guardian);return;}
+        if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000){disposeModel(guardian);unavailable();return;}
         const scale=Math.min(3.65/dimensions.y,4.5/Math.max(dimensions.x,dimensions.z,.1));
         guardian.scale.setScalar(scale);
         // Centre approved full armour above the existing Guardian plinth, never crop the emblem.
         const centre=bounds.getCenter(new T.Vector3());
         guardian.position.set(-centre.x*scale,.6-bounds.min.y*scale,1.5-centre.z*scale);
-        scene.add(guardian);
+        if (guardianPresentation) {
+          const flight = new T.Group();
+          scene.add(flight);
+          flight.add(guardian);
+          const poseWings = mountGuardianWings(guardian, bounds, dimensions.y);
+          poseWings?.(reduced ? 1 : 0);
+          if (reduced) guardianArrivalPending = true;
+          else {
+            const arrivalPath = new T.CubicBezierCurve3(
+              new T.Vector3(4.8, 4.9, -10),
+              new T.Vector3(-1.4, 3.3, -7),
+              new T.Vector3(-.85, -.35, -1.6),
+              new T.Vector3(0, 0, 0),
+            );
+            const flightDuration = 2100;
+            let startFlight;
+            let arrived = false;
+            let hoverStart;
+            // Build the pose in Guardian's facing frame, independent of bone roll.
+            flight.updateMatrixWorld(true);
+            const flightJoints = [
+              ['Chest', .12, 0, 0],
+              ['UpperArm_L', -1.28, -.28, -.22], ['UpperArm_R', -.72, .55, .30],
+              ['Forearm_L', -.20, 0, -.10], ['Forearm_R', -.42, 0, .16],
+              ['Hand_L', .12, -.03, -.06], ['Hand_R', .18, .06, .10],
+              ['Thigh_L', .20, 0, 0], ['Thigh_R', .29, 0, 0],
+              ['Calf_L', -.23, 0, 0], ['Calf_R', -.31, 0, 0],
+            ].flatMap(([name, pitch, spread, steer]) => {
+              const joint = guardian.getObjectByName('B230_QA_Joint_' + name);
+              if (!joint?.isBone) return [];
+              const inverseRest = joint.getWorldQuaternion(new T.Quaternion()).invert();
+              return [{ joint, pitch, spread, steer, rest: joint.quaternion.clone(),
+                pitchAxis: new T.Vector3(1, 0, 0).applyQuaternion(inverseRest),
+                spreadAxis: new T.Vector3(0, 0, 1).applyQuaternion(inverseRest) }];
+            });
+            const flightPose = new T.Quaternion();
+            flight.position.copy(arrivalPath.v0);
+            animated.push((time) => {
+              startFlight ??= time;
+              const progress = Math.min((time - startFlight) * 1000 / flightDuration, 1);
+              const eased = progress * progress * (3 - 2 * progress);
+              arrivalPath.getPoint(eased, flight.position);
+              const bank = Math.sin(Math.PI * progress) * (1 - progress);
+              flight.rotation.set(.16 * bank, -.32 * bank, .38 * bank);
+              if (!arrived) {
+                // Blend the live skeleton back into its standing pose as Guardian settles.
+                const poseWeight = 1 - T.MathUtils.smoothstep(progress, .66, 1);
+                const steering = Math.sin(progress * Math.PI * 2);
+                for (const { joint, pitch, spread, steer, rest, pitchAxis, spreadAxis } of flightJoints) {
+                  joint.quaternion.copy(rest);
+                  joint.quaternion.multiply(flightPose.setFromAxisAngle(pitchAxis, pitch * poseWeight));
+                  joint.quaternion.multiply(flightPose.setFromAxisAngle(
+                    spreadAxis, (spread + steer * steering) * poseWeight,
+                  ));
+                }
+              }
+              poseWings?.(progress, bank, arrived ? Math.sin((time - hoverStart) * 2.2) : 0);
+              if (progress < 1) return;
+              if (!arrived) {
+                arrived = true;
+                hoverStart = time;
+                guardianArrivalPending = true;
+              }
+              const hoverTime = time - hoverStart;
+              const hoverBlend = Math.min(hoverTime, 1);
+              flight.position.y = hoverBlend * .045 * Math.sin(hoverTime * 2.2);
+              flight.rotation.y = hoverBlend * .035 * Math.sin(hoverTime * 1.1);
+            });
+          }
+        } else {
+          scene.add(guardian);
+          if (internal) mountGuardianWings(guardian, bounds, dimensions.y)?.(1);
+        }
         modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
         // The internal branch is source-hash pinned but NEVER an Apple
         // release approval. The ordinary production branch still accepts
@@ -411,11 +568,19 @@ if (renderer) {
             {approvedAsset:true});
           report('guardian-face-ready',{modelSha256:asset.rigModelSha256});
         }
+        if (guardianPresentation && !guardianFaceMotion.readyForPlayback) report('guardian-unavailable');
         requestDraw();
-      },()=>{/* Never display guessed or partial face geometry on load failure. */});
-    } catch { /* The locked Guardian artwork remains the fallback. */ }
+      },unavailable);
+    } catch { unavailable(); }
   }
   function hub() {
+    if (guardianPresentation) {
+      camera.position.set(0, 3, 9);
+      controls.target.set(0, 2.65, 1.5);
+      controls.enabled = false;
+      approvedArmoredGuardian();
+      return;
+    }
     floor(15);stars();skyline();plinth(0,1.5,3);
     for(const r of[2,2.4,2.8])ring(0,3+(r-2)*2,1.5,r,.022,r<2.5?blue:amber,true);
     for(const x of[-11.5,11.5]){plinth(x,1,1,amber);diamond(x,1.7,1,.8);}
@@ -584,6 +749,10 @@ if (renderer) {
       animated.forEach(fn=>fn(t));controls.update();
       const renderStart=guardianDeviceQa ? performance.now() : 0;
       renderer.render(scene,camera);
+      if (guardianArrivalPending) {
+        guardianArrivalPending = false;
+        report('guardian-arrived');
+      }
       if(guardianDeviceQa){
         guardianDeviceQa.recordFrame(performance.now(),performance.now()-renderStart);
         // Count only post-render body-animation frames, not accepted button commands.
@@ -637,3 +806,4 @@ if (renderer) {
   canvas.addEventListener('webglcontextlost',e=>{worldPhysicsQa?.contextLost();e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
   addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();guardianNeckPoseQa?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
 }
+

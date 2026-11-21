@@ -42,7 +42,8 @@ export function evaluateIphoneQaPreview({app,eas,sceneHost,qaBoundary,qaArchive,
    'development_qa_disabled');
  require(typeof sceneHost==='string'&&sceneHost.includes("Platform.OS==='ios'")&&
    sceneHost.includes('normalizeIphoneQa')&&sceneHost.includes('exportWorldQaArchive')&&
-   sceneHost.includes('worldSceneHtml(world, variant, session, qaEnabled, worldQaEnabled)'),
+   sceneHost.includes('worldSceneHtml(world, variant, session, qaEnabled, worldQaEnabled, guardianPresentation, reduceGuardianMotion)') &&
+   sceneHost.includes('const qaEnabled = !guardianPresentation &&'),
    'device_qa_controls_missing');
  require(typeof qaBoundary==='string'&&qaBoundary.includes("certification:'UNVERIFIED'")&&
    qaBoundary.includes('physicalIphoneOwnerAttestation:false')&&
