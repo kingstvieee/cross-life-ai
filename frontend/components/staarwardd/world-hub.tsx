@@ -124,6 +124,7 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
     setArrivalComplete(false);
   }, []);
   const focused = useRef(Boolean(onSignIn));
+  const [hasFocus, setHasFocus] = useState(Boolean(onSignIn));
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
       setAppActive(state === 'active');
@@ -165,10 +166,10 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
   }, [audio.master, audio.voice, audio.speechQuiet, audio.speak]);
 
   useEffect(() => {
-    if (!focused.current || !appActive || !isProactiveWelcomeTime(new Date()) || !preferenceReady || !modelAvailable || !arrivalComplete || !serverConsentReady || !serverGreetingConsent || serverPrivate || serverSpeechQuiet || !greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || greeted.current) return;
+    if (!focused.current || !appActive || !isProactiveWelcomeTime(new Date()) || !preferenceReady || !modelAvailable || !arrivalComplete || !serverConsentReady || !serverGreetingConsent || serverPrivate || serverSpeechQuiet || !greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || audio.voicePlaybackActive || audio.speechPhase !== 'idle' || user?.cross_life_paused || greeted.current) return;
     greeted.current = true;
     void greet();
-  }, [arrivalComplete, modelAvailable, appActive, preferenceReady, serverConsentReady, serverGreetingConsent, serverPrivate, serverSpeechQuiet, greetingKey, greetingEnabled, foregroundEpoch, audio.master, audio.voice, audio.speechQuiet, greet]);
+  }, [hasFocus, arrivalComplete, modelAvailable, appActive, preferenceReady, serverConsentReady, serverGreetingConsent, serverPrivate, serverSpeechQuiet, greetingKey, greetingEnabled, foregroundEpoch, audio.master, audio.voice, audio.speechQuiet, audio.voicePlaybackActive, audio.speechPhase, user?.cross_life_paused, greet]);
   const setGreeting = (enabled: boolean) => {
     if (!greetingKey || !preferenceReady || !serverConsentReady || savingGreeting) return;
     const savedFor = greetingKey;
@@ -205,8 +206,9 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
   const navigationLocked = useRef(false);
   const onFocus = useCallback(() => {
     focused.current = true;
+    setHasFocus(true);
     navigationLocked.current = false;
-    return () => { focused.current = false; voiceEpoch.current += 1; setGuardianSpeaking(false); };
+    return () => { focused.current = false; setHasFocus(false); voiceEpoch.current += 1; setGuardianSpeaking(false); };
   }, []);
   const openPortal = (world: string) => {
     if (onSignIn) { onSignIn(); return; }
