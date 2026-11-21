@@ -1,9 +1,10 @@
 """Authenticated, tenant-scoped Guardian mission inspection API.
 
-Mission proposals are inert until separately approved. No approval, execution,
-or spend controls are exposed by this router.
+Mission proposals are inert until separately approved. Owners can cancel
+pending execution. This router exposes no approval, execution, or spend controls.
 """
 from datetime import timezone
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import AwareDatetime, BaseModel, Field
@@ -16,6 +17,11 @@ SAFE_FIELDS = {
     "not_before": 1, "retry_after": 1, "attempts": 1,
     "recovery_reason": 1, "success_criteria": 1, "budget_cad": 1, "expires_at": 1,
 }
+
+MissionStatus = Literal[
+    "proposed", "approved", "queued", "leased", "running", "verifying",
+    "retry_wait", "awaiting_approval", "completed", "blocked", "cancelled",
+]
 
 
 class MissionProposal(BaseModel):
@@ -64,12 +70,14 @@ def build_guardian_mission_router(*, db, require_account_user):
     @router.get("")
     async def list_missions(
         limit: int = Query(default=25, ge=1, le=100),
+        status: MissionStatus | None = None,
         user=Depends(require_account_user),
     ):
         owner = owner_id(user)
-        cursor = db.guardian_missions.find(
-            {"owner_id": owner}, SAFE_FIELDS,
-        ).sort("created_at", -1).limit(limit)
+        query = {"owner_id": owner}
+        if status is not None:
+            query["status"] = status
+        cursor = db.guardian_missions.find(query, SAFE_FIELDS).sort("created_at", -1).limit(limit)
         return {"missions": [normalize_deadline(item) async for item in cursor]}
 
     @router.get("/{mission_id}")
@@ -101,5 +109,24 @@ def build_guardian_mission_router(*, db, require_account_user):
                 raise HTTPException(status_code=409, detail="mission_no_longer_proposed")
             updated = current
         return {"mission_id": mission_id, "status": updated["status"]}
+
+    @router.post("/{mission_id}/cancel-pending")
+    async def cancel_pending(mission_id: str, user=Depends(require_account_user)):
+        mission = await get_mission(mission_id, user)
+        status = mission["status"]
+        if status == "cancelled":
+            return {"mission_id": mission_id, "status": "cancelled"}
+        if status not in {"approved", "queued", "retry_wait", "awaiting_approval"}:
+            raise HTTPException(status_code=409, detail="mission_not_pending_execution")
+        try:
+            await transition(
+                db.guardian_missions, owner_id=owner_id(user), mission_id=mission_id,
+                expected=status, target="cancelled",
+            )
+        except RuntimeError:
+            current = await get_mission(mission_id, user)
+            if current["status"] != "cancelled":
+                raise HTTPException(status_code=409, detail="mission_state_changed")
+        return {"mission_id": mission_id, "status": "cancelled"}
 
     return router

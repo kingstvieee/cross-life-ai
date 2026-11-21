@@ -35,7 +35,7 @@ class Missions:
     def find(self, query, projection):
         self.queries.append((query, projection))
         return Cursor([self.project(x, projection) for x in self.docs
-                       if x["owner_id"] == query["owner_id"]])
+                       if all(x.get(key) == value for key, value in query.items())])
     async def insert_one(self, doc):
         if any(saved["owner_id"] == doc["owner_id"] and
                saved.get("idempotency_key") == doc["idempotency_key"]
@@ -165,3 +165,28 @@ def test_only_owner_can_withdraw_a_proposal_and_retry(api):
             response = client.post(url)
             assert response.status_code == 200
             assert response.json()["status"] == "cancelled"
+
+
+def test_status_filter_retains_tenant_isolation(api):
+    app, missions, account = api
+    missions.docs.append({"owner_id": "bob", "mission_id": "b2", "status": "queued"})
+    app.dependency_overrides[account] = lambda: {"user_id": "alice"}
+    with TestClient(app) as client:
+        result = client.get("/api/guardian/missions?status=queued")
+        assert client.get("/api/guardian/missions?status=invalid").status_code == 422
+    assert [item["mission_id"] for item in result.json()["missions"]] == ["a1"]
+
+
+@pytest.mark.parametrize("status,expected", [("queued", 200), ("leased", 409),
+                                               ("running", 409), ("retry_wait", 200)])
+def test_cancel_pending_is_owner_scoped_and_state_gated(api, status, expected):
+    app, missions, account = api
+    missions.docs[0]["status"] = status
+    url = "/api/guardian/missions/a1/cancel-pending"
+    with TestClient(app) as client:
+        app.dependency_overrides[account] = lambda: {"user_id": "bob"}
+        assert client.post(url).status_code == 404
+        app.dependency_overrides[account] = lambda: {"user_id": "alice"}
+        assert client.post(url).status_code == expected
+        if expected == 200:
+            assert client.post(url).json()["status"] == "cancelled"
