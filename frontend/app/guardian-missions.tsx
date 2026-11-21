@@ -41,6 +41,7 @@ function AccountMissions() {
   const [search, setSearch] = useState('');
   const [order, setOrder] = useState<'newest' | 'oldest'>('newest');
   const [missions, setMissions] = useState<Mission[]>([]);
+  const [resultsLoaded, setResultsLoaded] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [total, setTotal] = useState<number | null>(null);
@@ -61,6 +62,7 @@ function AccountMissions() {
     if (page.status === 'fulfilled') {
       setMissions(page.value.missions);
       setCursor(page.value.next_cursor);
+      setResultsLoaded(true);
     }
     if (summary.status === 'fulfilled') {
       setCounts(summary.value.counts);
@@ -230,6 +232,7 @@ function AccountMissions() {
           label={counts[value] === undefined ? label : `${label} (${counts[value]})`}
           selected={status === value} disabled={busy} onPress={() => {
             if (status === value) return;
+            setResultsLoaded(false);
             setMissions([]);
             setCursor(null);
             setStatus(value);
@@ -247,7 +250,7 @@ function AccountMissions() {
             if (term === search) {
               void perform(reload);
             } else {
-              setMissions([]); setCursor(null); setSearch(term);
+              setResultsLoaded(false); setMissions([]); setCursor(null); setSearch(term);
             }
           }} />
           <Button label="Clear search" disabled={busy} onPress={() => {
@@ -255,11 +258,11 @@ function AccountMissions() {
             if (search === '') {
               void perform(reload);
             } else {
-              setMissions([]); setCursor(null); setSearch('');
+              setResultsLoaded(false); setMissions([]); setCursor(null); setSearch('');
             }
           }} />
           <Button label={order === 'newest' ? 'Newest first' : 'Oldest first'} disabled={busy}
-            onPress={() => { setMissions([]); setCursor(null);
+            onPress={() => { setResultsLoaded(false); setMissions([]); setCursor(null);
               setOrder(current => current === 'newest' ? 'oldest' : 'newest'); }} />
         </View>
       </View>
@@ -268,7 +271,7 @@ function AccountMissions() {
         <Text style={styles.text}>{mission.objective}</Text>
         <Text style={styles.muted}>{titleCase(mission.status)}</Text>
       </Pressable>)}
-      {!busy && !notice && missions.length === 0 && <Text style={styles.muted}>No missions match this view.</Text>}
+      {resultsLoaded && !busy && !notice && missions.length === 0 && <Text style={styles.muted}>No missions match this view.</Text>}
       {cursor && <Button label="Load more missions" disabled={busy} onPress={() => void perform(async signal => {
         const page = await client.list(status, cursor, signal, search, order);
         if (signal.aborted) return;
