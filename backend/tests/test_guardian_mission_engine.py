@@ -33,6 +33,12 @@ def test_completion_requires_evidence():
 
 
 @pytest.mark.parametrize("approved,scope,scopes,cost,budget,expected", [
+    ("true", "read", ["read"], 0, 0, False),
+    (True, "read", "already", 0, 0, False),
+    (True, "read", None, 0, 0, False),
+    (True, "read", ["read"], False, 0, False),
+    (True, "read", ["read"], 0, float("inf"), False),
+    (True, "read", ["read"], float("nan"), 0, False),
     (True, "read", {"read"}, 0, 0, True),
     (False, "read", {"read"}, 0, 0, False),
     (True, "publish", {"read"}, 0, 0, False),

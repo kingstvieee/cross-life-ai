@@ -4,6 +4,7 @@ Use a MongoDB collection with unique indexes on (owner_id, mission_id) and
 (owner_id, idempotency_key) for submissions. Worker claims are atomic.
 """
 from datetime import datetime, timedelta, timezone
+from math import isfinite
 from uuid import uuid4
 
 TERMINAL = {"completed", "cancelled", "blocked"}
@@ -128,8 +129,16 @@ async def recover_expired_leases(collection):
 
 def authorize_action(*, approved, action_scope, granted_scopes, cost_cad, budget_cad):
     """Fail closed; this policy must be checked server-side at the tool boundary."""
-    return bool(approved and action_scope in granted_scopes
-                and 0 <= cost_cad <= budget_cad)
+    if approved is not True or not isinstance(action_scope, str) or not action_scope:
+        return False
+    if not isinstance(granted_scopes, (list, tuple, set, frozenset)):
+        return False
+    for amount in (cost_cad, budget_cad):
+        if type(amount) not in (int, float) or amount < 0:
+            return False
+        if isinstance(amount, float) and not isfinite(amount):
+            return False
+    return action_scope in granted_scopes and cost_cad <= budget_cad
 
 async def renew_lease(collection, *, owner_id, mission_id, lease_token, lease_seconds=60):
     """Extend an active worker lease only when its fencing token still matches."""

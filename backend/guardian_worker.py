@@ -49,8 +49,8 @@ class GuardianWorker:
             approved=mission.get("approved", False),
             action_scope=handler_name,
             granted_scopes=mission.get("granted_scopes", []),
-            cost_cad=mission.get("estimated_cost_cad", 0),
-            budget_cad=mission.get("budget_cad", 0),
+            cost_cad=mission.get("estimated_cost_cad"),
+            budget_cad=mission.get("budget_cad"),
         ):
             await transition(self.collection, owner_id=owner, mission_id=mid,
                              expected="leased", target="running", lease_token=token)
