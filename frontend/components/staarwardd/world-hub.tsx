@@ -3,7 +3,7 @@ import { AccessibilityInfo, Animated, AppState, Easing, Image, Pressable, StyleS
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WorldScene } from './world-scene';
 import { WORLDS } from '@/lib/staarwardd/world-directory';
@@ -28,11 +28,16 @@ export function WorldHub() {
   const router = useRouter();
   const { user, api } = useAuth();
   const audio = useStaarAudio();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const safeHeight = height - insets.top - insets.bottom;
+  const compact = safeHeight < 540;
   const [message, setGuardianMessage] = useState('');
   const [modelAvailable, setModelAvailable] = useState(false);
   const [guardianSpeaking, setGuardianSpeaking] = useState(false);
-  const portalSize = Math.min(116, Math.floor((width - 40) / 5));
+  const widthLimit = Math.floor((Math.min(850, width - insets.left - insets.right) - 40) / 5);
+  const heightLimit = Math.floor((safeHeight - (compact ? 178 : 244)) / 3);
+  const portalSize = Math.min(widthLimit, Math.max(30, heightLimit), 116);
   const drift = useRef(new Animated.Value(0)).current;
   const [greetingEnabled, setGreetingEnabled] = useState(false);
   const greetingKey = user && !user.is_demo ? accountStorageKey('staarwardd.guardian.proactive-greeting.v2', user.user_id) : null;
@@ -238,8 +243,8 @@ export function WorldHub() {
         ))}
         <Image source={require('@/assets/images/staarwardd/toronto-skyline-pan.png')} style={s.skyline} resizeMode="cover" />
       </View>
-      <SafeAreaView style={s.safe}>
-        <View style={s.header}>
+      <SafeAreaView style={[s.safe, compact && s.safeCompact]}>
+        <View style={[s.header, compact && s.headerCompact]}>
           <Text accessibilityRole="header" style={s.brand}>STAARWAARDD</Text>
           <Pressable accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => router.push('/settings')} style={s.icon}>
             <Ionicons name="options-outline" size={23} color="#F4F0E6" />
@@ -247,17 +252,17 @@ export function WorldHub() {
         </View>
         <View style={s.topPortals}>{WORLDS.slice(0, 5).map(renderPortal)}</View>
         <View style={s.chamber}>
-          <View style={s.sidePortals}>{WORLDS.slice(5, 7).map(renderPortal)}</View>
           <View style={s.platform} pointerEvents="none" importantForAccessibility="no-hide-descendants">
             <LinearGradient colors={['#14151E', '#BBC2CD', '#1E202A', '#0C0C12']} style={s.plinth} />
             {reduceMotion !== null && <WorldScene world="hub" embedded guardianPresentation onAction={ignoreSceneAction}
               onGuardianModelReady={onGuardianModelReady} onGuardianArrival={onGuardianArrival}
               onGuardianUnavailable={onGuardianUnavailable} reduceGuardianMotion={motionReduced} />}
           </View>
+          <View style={s.sidePortals}>{WORLDS.slice(5, 7).map(renderPortal)}</View>
           <View style={s.sidePortals}>{WORLDS.slice(7).map(renderPortal)}</View>
         </View>
         <View style={s.controls}>
-          {!!message && <Text accessibilityLiveRegion="polite" style={s.message}>{message}</Text>}
+          {!!message && <Text accessibilityLiveRegion="polite" numberOfLines={2} style={s.message}>{message}</Text>}
           <View style={s.controlRow}>
             <Pressable accessibilityRole="button" accessibilityLabel={audio.voicePlaybackActive ? 'Guardian speaking' : guardianSpeaking ? 'Preparing Guardian voice' : 'Hear Guardian welcome'} disabled={guardianSpeaking || audio.voicePlaybackActive}
               onPress={() => { void greet(); }} style={s.icon}><Ionicons name="volume-high-outline" size={22} color="#F4F0E6" /></Pressable>
@@ -283,18 +288,20 @@ export function WorldHub() {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#030305' },
+  root: { flex: 1, overflow: 'hidden', backgroundColor: '#030305' },
   safe: { flex: 1, width: '100%', maxWidth: 850, alignSelf: 'center', paddingHorizontal: 12, paddingBottom: 100 },
+  safeCompact: { paddingBottom: 66 },
+  headerCompact: { minHeight: 46, marginBottom: 2 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 52, marginBottom: 12 },
   brand: { fontSize: 22, fontWeight: '800', letterSpacing: 3, color: '#FAF8F2' },
   icon: { width: 46, height: 46, borderWidth: 1, borderColor: '#A6997F', borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#15151DDB' },
   star: { position: 'absolute', backgroundColor: '#F3EEFF', width: 2, height: 2, borderRadius: 1 },
   skyline: { position: 'absolute', top: '31%', width: '100%', height: '34%', opacity: .68 },
   topPortals: { flexDirection: 'row', justifyContent: 'space-between' },
-  chamber: { flex: 1, flexDirection: 'row', minHeight: 160, alignItems: 'stretch' },
+  chamber: { flex: 1, flexDirection: 'row', minHeight: 0, justifyContent: 'space-between', alignItems: 'stretch' },
   sidePortals: { justifyContent: 'space-evenly' },
-  platform: { flex: 1, minWidth: 0, justifyContent: 'flex-end' },
-  plinth: { position: 'absolute', bottom: '8%', left: '5%', right: '5%', height: '15%', borderRadius: 200, borderColor: '#E2C98F', borderWidth: 2 },
+  platform: StyleSheet.absoluteFillObject,
+  plinth: { position: 'absolute', bottom: '8%', left: '25%', right: '25%', height: '15%', borderRadius: 200, borderColor: '#E2C98F', borderWidth: 2 },
   portal: { marginVertical: 4 },
   portalButton: { alignItems: 'center', minHeight: 44 },
   rim: { borderRadius: 999, padding: 3 },
