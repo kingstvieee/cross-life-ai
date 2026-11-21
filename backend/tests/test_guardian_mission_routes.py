@@ -333,6 +333,7 @@ def test_search_rejects_blank_and_invalid_order(api):
 def test_search_and_cursor_predicates_do_not_override_each_other(api):
     app, missions, account = api
     missions.docs[0]["created_at"] = datetime(2026, 11, 21, tzinfo=timezone.utc)
+    missions.docs[0]["objective"] = "Review quote"
     app.dependency_overrides[account] = lambda: {"user_id": "alice"}
     with TestClient(app) as client:
         response = client.get("/api/guardian/missions?search=quote&after=a1&order=oldest")
