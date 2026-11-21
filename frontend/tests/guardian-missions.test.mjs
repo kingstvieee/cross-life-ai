@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import { followsMissionStatus, guardianMissionClient, mergeMissionPages, missionProposal, optionalMissionTime, updateMissionInPage } from '../src/guardian-missions.ts';
 
 test('mission drafts validate text and timestamps before sending', () => {
@@ -88,4 +89,14 @@ test('private search is normalized and retained across pagination and sort', asy
   assert.equal(paths[0], '/api/guardian/missions?limit=15&status=completed&search=CAD+%5Bquote%5D&order=oldest');
   assert.equal(paths[1], '/api/guardian/missions?limit=15&status=completed&after=next%2F1&search=CAD+%5Bquote%5D&order=oldest');
   assert.throws(() => client.list('', undefined, undefined, 'x'.repeat(121)), /120 characters/);
+});
+
+
+test('mission screen keeps search, empty-state and cancellation safeguards', () => {
+  const screen = readFileSync(new URL('../app/guardian-missions.tsx', import.meta.url), 'utf8');
+  assert.match(screen, /maxLength=\{120\}/);
+  assert.match(screen, /if \(term === search\) \{\s*void perform\(reload\)/);
+  assert.match(screen, /if \(search === ''\) \{\s*void perform\(reload\)/);
+  assert.match(screen, /resultsLoaded && !busy && !notice && missions\.length === 0/);
+  assert.match(screen, /request\.current\?\.abort\(\);\s*request\.current = null;\s*setBusy\(false\)/);
 });
