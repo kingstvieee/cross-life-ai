@@ -341,3 +341,38 @@ def test_search_and_cursor_predicates_do_not_override_each_other(api):
     assert query["owner_id"] == "alice"
     assert len(query["$and"]) == 2
     assert query["$and"][1]["$or"][0]["created_at"]["$gt"] == missions.docs[0]["created_at"]
+
+
+def test_search_matches_objective_and_criteria_case_insensitively(api):
+    app, missions, account = api
+    stamp = datetime(2026, 11, 21, tzinfo=timezone.utc)
+    missions.docs[0].update(objective="Review invoices", success_criteria="Confirm receipt", created_at=stamp)
+    missions.docs.append({"owner_id": "alice", "mission_id": "a2", "status": "completed",
+                          "objective": "Ship preview", "success_criteria": "INVOICE accepted",
+                          "created_at": stamp})
+    missions.docs.append({"owner_id": "bob", "mission_id": "b2", "status": "completed",
+                          "objective": "Private invoice", "success_criteria": "Private",
+                          "created_at": stamp})
+    app.dependency_overrides[account] = lambda: {"user_id": "alice"}
+    with TestClient(app) as client:
+        result = client.get("/api/guardian/missions?search=invoice&order=oldest")
+    assert result.status_code == 200
+    assert [item["mission_id"] for item in result.json()["missions"]] == ["a1", "a2"]
+
+
+def test_search_pagination_rejects_anchor_outside_current_filter(api):
+    app, missions, account = api
+    stamp = datetime(2026, 11, 21, tzinfo=timezone.utc)
+    missions.docs[0].update(objective="Prepare invoice", created_at=stamp)
+    missions.docs.append({"owner_id": "alice", "mission_id": "a2",
+                          "status": "queued", "objective": "Ship invoice",
+                          "created_at": stamp})
+    app.dependency_overrides[account] = lambda: {"user_id": "alice"}
+    with TestClient(app) as client:
+        first = client.get("/api/guardian/missions?search=invoice&limit=1")
+        assert first.status_code == 200
+        assert first.json()["next_cursor"] == "a2"
+        second = client.get("/api/guardian/missions?search=invoice&limit=1&after=a2")
+        assert second.status_code == 200
+        assert [item["mission_id"] for item in second.json()["missions"]] == ["a1"]
+        assert client.get("/api/guardian/missions?search=unrelated&after=a2").status_code == 404
