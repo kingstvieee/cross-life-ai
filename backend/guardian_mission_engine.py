@@ -131,17 +131,26 @@ async def recover_expired_leases(collection):
     # verifying work may have performed an irreversible external effect;
     # quarantine those missions for reconciliation instead of replaying.
     unstarted = await collection.update_many(
-        {"status": "leased", "lease_until": {"$lt": now}},
+        {"status": "leased", "lease_until": {"$lte": now},
+         "$or": [{"expires_at": None}, {"expires_at": {"$gt": now}}]},
         {"$set": {"status": "queued", "lease_until": None,
                   "lease_token": None, "worker_id": None, "updated_at": now}})
     uncertain = await collection.update_many(
         {"status": {"$in": ["running", "verifying"]},
-         "lease_until": {"$lt": now}},
+         "lease_until": {"$lte": now}},
         {"$set": {"status": "blocked", "lease_until": None,
                   "lease_token": None, "worker_id": None, "updated_at": now,
                   "recovery_reason": "expired_lease_requires_reconciliation"}})
+    expired = await collection.update_many(
+        {"status": "leased", "lease_until": {"$lte": now},
+         "expires_at": {"$lte": now}},
+        {"$set": {"status": "cancelled", "lease_until": None,
+                  "lease_token": None, "worker_id": None, "updated_at": now,
+                  "recovery_reason": "mission_deadline_expired"}},
+    )
     return {"requeued": unstarted.modified_count,
-            "quarantined": uncertain.modified_count}
+            "quarantined": uncertain.modified_count,
+            "expired": expired.modified_count}
 
 def authorize_action(*, approved, action_scope, granted_scopes, cost_cad, budget_cad):
     """Fail closed; this policy must be checked server-side at the tool boundary."""

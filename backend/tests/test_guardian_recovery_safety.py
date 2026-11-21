@@ -25,10 +25,15 @@ class FakeCollection:
 async def test_recovery_requeues_only_unstarted_leases():
     collection = FakeCollection()
     summary = await recover_expired_leases(collection)
-    assert summary == {"requeued": 2, "quarantined": 3}
+    assert summary == {"requeued": 2, "quarantined": 3, "expired": 3}
     first_query, first_update = collection.calls[0]
     assert first_query["status"] == "leased"
     assert first_update["$set"]["status"] == "queued"
+    assert first_query["$or"][0] == {"expires_at": None}
+    expired_query, expired_update = collection.calls[2]
+    assert expired_query["status"] == "leased"
+    assert "$lte" in expired_query["expires_at"]
+    assert expired_update["$set"]["status"] == "cancelled"
 
 
 @pytest.mark.asyncio

@@ -12,7 +12,8 @@ from guardian_mission_engine import (
 
 
 @pytest.mark.asyncio
-async def test_restart_preserves_checkpoint_and_prevents_replay():
+@pytest.mark.parametrize("scenario", ["interrupted", "unstarted", "expired"])
+async def test_restart_recovers_mission_according_to_its_last_state(scenario):
     url = os.environ.get("GUARDIAN_TEST_MONGO_URL")
     if not url:
         pytest.skip("Guardian integration MongoDB is unavailable")
@@ -29,20 +30,43 @@ async def test_restart_preserves_checkpoint_and_prevents_replay():
         })
         first_claim = await claim_mission(missions, worker_id="first")
         checkpoint = {"test_marker": "effect may have occurred"}
-        await transition(
-            missions, owner_id="test-owner", mission_id="mission", expected="leased",
-            target="running", lease_token=first_claim["lease_token"], checkpoint=checkpoint,
-        )
+        if scenario == "interrupted":
+            await transition(
+                missions, owner_id="test-owner", mission_id="mission", expected="leased",
+                target="running", lease_token=first_claim["lease_token"], checkpoint=checkpoint,
+            )
+        elapsed = now_utc() - timedelta(seconds=1)
+        dates = {"lease_until": elapsed}
+        if scenario == "expired":
+            dates["expires_at"] = elapsed
         await missions.update_one(
-            {"mission_id": "mission"},
-            {"$set": {"lease_until": now_utc() - timedelta(seconds=1)}},
+            {"mission_id": "mission"}, {"$set": dates},
         )
         first.close()
 
         missions = restarted[name].missions
-        assert await recover_expired_leases(missions) == {"requeued": 0, "quarantined": 1}
+        assert await recover_expired_leases(missions) == {
+            "requeued": int(scenario == "unstarted"),
+            "quarantined": int(scenario == "interrupted"),
+            "expired": int(scenario == "expired"),
+        }
+        if scenario == "unstarted":
+            successor = await claim_mission(missions, worker_id="restarted")
+            assert successor["mission_id"] == "mission"
+            assert successor["attempts"] == 2
+            assert successor["lease_token"] != first_claim["lease_token"]
+            with pytest.raises(RuntimeError):
+                await transition(
+                    missions, owner_id="test-owner", mission_id="mission", expected="leased",
+                    target="running", lease_token=first_claim["lease_token"],
+                )
+            return
         assert await claim_mission(missions, worker_id="restarted") is None
         saved = await missions.find_one({"mission_id": "mission"})
+        if scenario == "expired":
+            assert saved["status"] == "cancelled"
+            assert saved["recovery_reason"] == "mission_deadline_expired"
+            return
         assert saved["status"] == "blocked"
         assert saved["checkpoint"] == checkpoint
         with pytest.raises(RuntimeError):
