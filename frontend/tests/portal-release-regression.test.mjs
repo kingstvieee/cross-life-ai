@@ -7,7 +7,8 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 test('portal taps enter the immersive route rather than generic world templates', () => {
   const hub = read('../components/staarwardd/world-hub.tsx');
   const legacy = read('../app/world/[id].tsx');
-  assert.match(hub, /pathname: '\/environment', params: \{ world: world\.id \}/);
+  assert.match(hub, /pathname: '\/environment', params: \{ world \}/);
+  assert.match(hub, /onPress=\{\(\) => openPortal\(world\.id\)\}/);
   assert.match(legacy, /<Redirect href=/);
   assert.doesNotMatch(legacy, /Set up devices & tools|Develop a creative brief|Make something worth sharing/);
 });
