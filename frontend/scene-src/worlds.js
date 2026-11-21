@@ -78,6 +78,7 @@ if (renderer) {
   controls.minDistance = 3; controls.maxDistance = 28; controls.maxPolarAngle = Math.PI*.48;
   const animated = [], clickable = [], modelMotions = [];
   let disposed = false;
+  let guardianArrivalPending = false;
   let importedControls = [];
   let walkController = null;
   let guardianFaceMotion = null;
@@ -393,18 +394,36 @@ if (renderer) {
           const flight = new T.Group();
           scene.add(flight);
           flight.add(guardian);
-          if (reduced) report('guardian-arrived');
+          if (reduced) guardianArrivalPending = true;
           else {
-            const startFlight = performance.now();
+            const arrivalPath = new T.CubicBezierCurve3(
+              new T.Vector3(4.8, 4.9, -10),
+              new T.Vector3(-1.4, 3.3, -7),
+              new T.Vector3(-.85, -.35, -1.6),
+              new T.Vector3(0, 0, 0),
+            );
+            const flightDuration = 2100;
+            let startFlight;
             let arrived = false;
-            animated.push(() => {
-              const progress = Math.min((performance.now() - startFlight) / 1400, 1);
-              const remaining = (1 - progress) ** 3;
-              flight.position.set(2.4 * remaining, 4.2 * remaining, -5 * remaining);
-              if (progress === 1 && !arrived) {
+            let hoverStart;
+            flight.position.copy(arrivalPath.v0);
+            animated.push((time) => {
+              startFlight ??= time;
+              const progress = Math.min((time - startFlight) * 1000 / flightDuration, 1);
+              const eased = progress * progress * (3 - 2 * progress);
+              arrivalPath.getPoint(eased, flight.position);
+              const bank = Math.sin(Math.PI * progress) * (1 - progress);
+              flight.rotation.set(.16 * bank, -.32 * bank, .38 * bank);
+              if (progress < 1) return;
+              if (!arrived) {
                 arrived = true;
-                report('guardian-arrived');
+                hoverStart = time;
+                guardianArrivalPending = true;
               }
+              const hoverTime = time - hoverStart;
+              const hoverBlend = Math.min(hoverTime, 1);
+              flight.position.y = hoverBlend * .045 * Math.sin(hoverTime * 2.2);
+              flight.rotation.y = hoverBlend * .035 * Math.sin(hoverTime * 1.1);
             });
           }
         } else scene.add(guardian);
@@ -618,6 +637,10 @@ if (renderer) {
       animated.forEach(fn=>fn(t));controls.update();
       const renderStart=guardianDeviceQa ? performance.now() : 0;
       renderer.render(scene,camera);
+      if (guardianArrivalPending) {
+        guardianArrivalPending = false;
+        report('guardian-arrived');
+      }
       if(guardianDeviceQa){
         guardianDeviceQa.recordFrame(performance.now(),performance.now()-renderStart);
         // Count only post-render body-animation frames, not accepted button commands.
