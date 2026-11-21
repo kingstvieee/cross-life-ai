@@ -99,11 +99,12 @@ export function WorldHub() {
     return () => { loop.stop(); arrival.stopAnimation(); };
   }, [arrival, drift, motionReduced]);
   useEffect(() => { if (motionReduced) setArrivalComplete(true); }, [motionReduced]);
+  const onGuardian3dLoaded = useCallback(() => setGuardianMessage('Guardian 3D loaded. Select a portal to enter.'), []);
   const onGuardianMotionEnd = useCallback(() => {
     if (!arrivalFinished.current) {
       arrivalFinished.current = true;
       setArrivalComplete(true);
-      setGuardianMessage('Your 3D portal chamber is ready. Select a world to enter.');
+      setGuardianMessage(current => current.startsWith('Guardian 3D loaded') ? current : 'Portal chamber online. Guardian model loading…');
     }
     setGuardianState(state => state === 'flying' ? 'hover' : state);
   }, []);
@@ -210,7 +211,7 @@ export function WorldHub() {
           if (Math.abs(stageHeight - target) > 1) setStageHeight(target);
         }}>
           <View style={s.immersiveScene}>
-            <WorldScene world="hub" embedded onSceneReady={onGuardianMotionEnd} onAction={open3dPortal} />
+            <WorldScene world="hub" embedded onSceneReady={onGuardianMotionEnd} onGuardianModelReady={onGuardian3dLoaded} onAction={open3dPortal} />
           </View>
           <Animated.View pointerEvents="none" style={[s.stageCopy, { opacity: arrival, transform: [{ translateY: arrival.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }] }]}><Text style={s.micro}>{companion.toUpperCase()} · YOUR COMPANION</Text><Text style={s.title}>STAARWAARDD</Text><Text style={s.description}>{guardianMessage}</Text></Animated.View>
         </View>
