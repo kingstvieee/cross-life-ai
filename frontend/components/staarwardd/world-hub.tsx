@@ -30,7 +30,7 @@ export function WorldHub() {
   const audio = useStaarAudio();
   const { width } = useWindowDimensions();
   const [message, setGuardianMessage] = useState('');
-  const [modelAvailable, setModelAvailable] = useState<boolean | null>(null);
+  const [modelAvailable, setModelAvailable] = useState(false);
   const [guardianSpeaking, setGuardianSpeaking] = useState(false);
   const portalSize = Math.min(116, Math.floor((width - 40) / 5));
   const drift = useRef(new Animated.Value(0)).current;
@@ -107,7 +107,10 @@ export function WorldHub() {
   }, [drift, motionReduced]);
   const onGuardianModelReady = useCallback(() => setModelAvailable(true), []);
   const onGuardianArrival = useCallback(() => setArrivalComplete(true), []);
-  const onGuardianUnavailable = useCallback(() => setModelAvailable(false), []);
+  const onGuardianUnavailable = useCallback(() => {
+    setModelAvailable(false);
+    setArrivalComplete(false);
+  }, []);
   const focused = useRef(false);
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
@@ -136,7 +139,7 @@ export function WorldHub() {
     try {
       const spoken = await audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.');
       if (!spoken && focused.current && epoch === voiceEpoch.current) {
-        setGuardianMessage('Guardian is present, but voice playback is unavailable. Continue in chat.');
+        setGuardianMessage('Guardian voice playback is unavailable. Continue in chat.');
       }
     } catch {
       if (focused.current && epoch === voiceEpoch.current) {
@@ -150,7 +153,7 @@ export function WorldHub() {
   }, [audio.master, audio.voice, audio.speechQuiet, audio.speak]);
   useFocusEffect(useCallback(() => { focused.current = true; return () => { focused.current = false; voiceEpoch.current += 1; }; }, []));
   useEffect(() => {
-    if (!focused.current || !appActive || !isProactiveWelcomeTime(new Date()) || !preferenceReady || (modelAvailable === null || (modelAvailable && !arrivalComplete)) || !serverConsentReady || !serverGreetingConsent || serverPrivate || serverSpeechQuiet || !greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || greeted.current) return;
+    if (!focused.current || !appActive || !isProactiveWelcomeTime(new Date()) || !preferenceReady || !modelAvailable || !arrivalComplete || !serverConsentReady || !serverGreetingConsent || serverPrivate || serverSpeechQuiet || !greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || greeted.current) return;
     greeted.current = true;
     void greet();
   }, [arrivalComplete, modelAvailable, appActive, preferenceReady, serverConsentReady, serverGreetingConsent, serverPrivate, serverSpeechQuiet, greetingKey, greetingEnabled, foregroundEpoch, audio.master, audio.voice, audio.speechQuiet, greet]);
@@ -194,6 +197,7 @@ export function WorldHub() {
     navigationLocked.current = true;
     router.push({ pathname: '/environment', params: { world } } as never);
   };
+  const ignoreSceneAction = useCallback(() => undefined, []);
   const renderPortal = (world: (typeof WORLDS)[number], index: number) => (
     <Animated.View key={world.id} style={[s.portal, {
       width: portalSize,
@@ -246,7 +250,7 @@ export function WorldHub() {
           <View style={s.sidePortals}>{WORLDS.slice(5, 7).map(renderPortal)}</View>
           <View style={s.platform} pointerEvents="none" importantForAccessibility="no-hide-descendants">
             <LinearGradient colors={['#14151E', '#BBC2CD', '#1E202A', '#0C0C12']} style={s.plinth} />
-            {reduceMotion !== null && <WorldScene world="hub" embedded guardianPresentation onAction={() => undefined}
+            {reduceMotion !== null && <WorldScene world="hub" embedded guardianPresentation onAction={ignoreSceneAction}
               onGuardianModelReady={onGuardianModelReady} onGuardianArrival={onGuardianArrival}
               onGuardianUnavailable={onGuardianUnavailable} reduceGuardianMotion={motionReduced} />}
           </View>
