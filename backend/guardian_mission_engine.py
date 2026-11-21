@@ -103,3 +103,20 @@ def authorize_action(*, approved, action_scope, granted_scopes, cost_cad, budget
     """Fail closed; this policy must be checked server-side at the tool boundary."""
     return bool(approved and action_scope in granted_scopes
                 and 0 <= cost_cad <= budget_cad)
+
+async def renew_lease(collection, *, owner_id, mission_id, lease_token, lease_seconds=60):
+    """Extend an active worker lease only when its fencing token still matches."""
+    if not owner_id or not mission_id or not lease_token or not 10 <= lease_seconds <= 3600:
+        raise ValueError("Invalid lease renewal request")
+    now = now_utc()
+    result = await collection.find_one_and_update(
+        {"owner_id": owner_id, "mission_id": mission_id,
+         "status": {"$in": ["leased", "running", "verifying"]},
+         "lease_token": lease_token, "lease_until": {"$gt": now}},
+        {"$set": {"lease_until": now + timedelta(seconds=lease_seconds),
+                  "updated_at": now}},
+        return_document=True)
+    if result is None:
+        raise RuntimeError("Lease expired, revoked, or owned by another worker")
+    result.pop("_id", None)
+    return result
