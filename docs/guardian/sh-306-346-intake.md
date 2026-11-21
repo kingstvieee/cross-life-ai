@@ -62,3 +62,25 @@ The available STAAR Hub 757-component master ledger lists SH-306 onward as **"Ad
 
 ## Next executable action
 Obtain the original SH-306–SH-346 numbered specifications or founder-approved replacement acceptance matrix, then implement them in dependency order. Do not invent original component definitions.
+
+## Latest build gate verification
+
+Commit `d92d7767675898886aae5e6cab99eacd10bc5e73` passed all three GitHub Actions workflows:
+- Guardian foundation tests: SUCCESS.
+- Style Swap CI: SUCCESS.
+- Guardian Release Gates: SUCCESS.
+
+This verifies the current PR development branch's automated workflows. It does **not** recover or certify SH-306–SH-346.
+
+### Unnumbered verified implementation evidence (not credited to SH IDs)
+
+| Change | Commit | Source | Verification |
+| --- | --- | --- | --- |
+| Search input limit aligned to backend 120-character contract | `df1a7b9` | `frontend/app/guardian-missions.tsx` | CI green at `d92d776`; no separate device acceptance |
+| Explicit refresh results control preserving current filters | `d92d776` | `frontend/app/guardian-missions.tsx` | CI green at `d92d776`; no separate device acceptance |
+
+**Traceability correction:** the implementation record can be green while the 41 original numbered requirements remain **SOURCE BLOCKED**. Do not represent either feature as SH-306 or SH-307 unless the original canonical mapping or an explicitly approved replacement specification supports that attribution.
+
+### Source-recovery decision
+
+No replacement specifications have been approved. The source custodian must provide the numbered SH-306–SH-346 acceptance matrix or the founder must explicitly authorize a new replacement matrix. Until then, preserve the slots and do not claim per-ID completion.
