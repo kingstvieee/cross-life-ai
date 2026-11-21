@@ -54,3 +54,16 @@ It is **not** proof that local Work artifacts were pushed to this repository.
 - The remote mission list supports status, creation-window and cursor filtering; the inspected client and screen contain no text-search functionality. This confirms that the Work-reported private search feature is **not** reconciled into PR #184.
 - A second remote search for local commit `34b39a7` returned no commit. Local Work filesystem/branch is not mounted in this session, so its diff cannot be recovered from GitHub alone.
 - **Reconciliation verdict:** Existing remote code and passing CI are verified; local Work changes 254–305 remain unrecovered. No per-ID 285–305 implementation credit is awarded.
+
+## 2026-11-21 implementation reconciliation update
+
+The previous second-pass finding that private mission search was absent is now **superseded** for the current PR branch.
+
+- `b061439`: owner-scoped literal search of mission objective/success criteria and newest/oldest sort.
+- `fefd4ee`: typed client search/sort query transport.
+- `d4750b1`: search and sort UI.
+- `0a58a00`, `976bacc`, `e887845`: backend and frontend regression tests.
+- `3d2e4a7`: stale pagination cursor is constrained to the active search/status filters.
+- CI at `e887845`: Guardian foundation tests passed (74 backend unit/API tests plus 4 MongoDB tests). The newer cursor fix requires its own green CI result; other workflows are not assumed passed.
+- **Traceability rule:** these are verified *features and commits*, not verified mappings to any individual SH-285–SH-305 ID. Original Work per-ID definitions and local patch remain unavailable; the 21 IDs remain `Needs reconciliation`.
+- The 757-slot workbook may record these commits as batch-level evidence without awarding 21 completed components.
