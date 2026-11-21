@@ -37,6 +37,9 @@ function AccountMissions() {
   const client = useMemo(() => guardianMissionClient(api), [api]);
   const router = useRouter();
   const [status, setStatus] = useState('');
+  const [searchDraft, setSearchDraft] = useState('');
+  const [search, setSearch] = useState('');
+  const [order, setOrder] = useState<'newest' | 'oldest'>('newest');
   const [missions, setMissions] = useState<Mission[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -53,7 +56,7 @@ function AccountMissions() {
   const draftKey = useRef<string | null>(null);
 
   const reload = useCallback(async (signal: AbortSignal) => {
-    const [page, summary] = await Promise.allSettled([client.list(status, undefined, signal), client.summary(signal)]);
+    const [page, summary] = await Promise.allSettled([client.list(status, undefined, signal, search, order), client.summary(signal)]);
     if (signal.aborted) return;
     if (page.status === 'fulfilled') {
       setMissions(page.value.missions);
@@ -65,7 +68,7 @@ function AccountMissions() {
     }
     if (page.status === 'rejected') throw page.reason;
     if (summary.status === 'rejected') setNotice('Mission totals are temporarily unavailable.');
-  }, [client, status]);
+  }, [client, status, search, order]);
 
   const perform = useCallback(async (task: (signal: AbortSignal) => Promise<void>) => {
     if (request.current) return;
@@ -232,14 +235,32 @@ function AccountMissions() {
             setStatus(value);
           }} />)}
       </View>
+      <View style={styles.card}>
+        <Input label="Search mission objectives or success criteria" value={searchDraft}
+          onChange={setSearchDraft} busy={busy} />
+        <View style={styles.row}>
+          <Button label="Apply search" disabled={busy} onPress={() => {
+            const term = searchDraft.trim();
+            if (term.length > 120) { setNotice('Search must be 120 characters or fewer.'); return; }
+            setNotice('');
+            setMissions([]); setCursor(null); setSearch(term);
+          }} />
+          <Button label="Clear search" disabled={busy} onPress={() => {
+            setSearchDraft(''); setSearch(''); setMissions([]); setCursor(null);
+          }} />
+          <Button label={order === 'newest' ? 'Newest first' : 'Oldest first'} disabled={busy}
+            onPress={() => { setMissions([]); setCursor(null);
+              setOrder(current => current === 'newest' ? 'oldest' : 'newest'); }} />
+        </View>
+      </View>
       {missions.map(mission => <Pressable key={mission.mission_id} accessibilityRole="button"
         disabled={busy} style={styles.card} onPress={() => openMission(mission.mission_id)}>
         <Text style={styles.text}>{mission.objective}</Text>
         <Text style={styles.muted}>{titleCase(mission.status)}</Text>
       </Pressable>)}
       {!busy && !notice && missions.length === 0 && <Text style={styles.muted}>No missions match this view.</Text>}
-      {cursor && <Button label="Load older missions" disabled={busy} onPress={() => void perform(async signal => {
-        const page = await client.list(status, cursor, signal);
+      {cursor && <Button label="Load more missions" disabled={busy} onPress={() => void perform(async signal => {
+        const page = await client.list(status, cursor, signal, search, order);
         if (signal.aborted) return;
         setMissions(previous => mergeMissionPages(previous, page.missions));
         setCursor(page.next_cursor);
