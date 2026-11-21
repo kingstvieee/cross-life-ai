@@ -1,16 +1,10 @@
 workflows:
   staar-testflight-111:
-    name: STAAR Hub 111 — 3D Home + Guardian + 10 Worlds — Internal TestFlight
+    name: STAAR Hub 111 — Private QA Scene — Archive Only
     instance_type: mac_mini_m2
     max_build_duration: 120
     triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: 'codex/fix-guardian-home-3d-b111'
-          include: true
-          source: true
-      cancel_previous_builds: true
+      events: []
     integrations:
       app_store_connect: STAAR Codemagic QA 109
     environment:
@@ -94,9 +88,3 @@ workflows:
     artifacts:
       - frontend/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-        submit_to_app_store: false
-        beta_groups: []
