@@ -25,6 +25,7 @@ from style_swap_routes import build_style_swap_router
 from identity_routes import SESSION_COOKIE, app_origin, build_identity_router, ensure_identity_indexes
 from provider_connections import build_provider_router
 from guardian_alignment_routes import build_alignment_router
+from guardian_mission_routes import build_guardian_mission_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1187,6 +1188,7 @@ async def root():
 
 
 install_guardian_core(app, db=db, get_current_user=get_current_user)
+app.include_router(build_guardian_mission_router(db=db, require_account_user=require_account_user), prefix="/api")
 app.include_router(build_style_swap_router(get_current_user=get_current_user, rate_limit=rate_limit), prefix="/api")
 app.include_router(build_identity_router(db=db, limiter=rate_limit), prefix="/api")
 app.include_router(build_provider_router(db=db, require_account_user=require_account_user, limiter=rate_limit), prefix="/api")
