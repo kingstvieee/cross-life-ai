@@ -91,10 +91,10 @@ export function guardianMissionClient(api: MissionApi) {
     list(status: string, after?: string, signal?: AbortSignal, search = '', order: MissionOrder = 'newest') {
       const params = new URLSearchParams({ limit: '15' });
       if (status) params.set('status', status);
+      if (after) params.set('after', after);
       const term = normalizeMissionSearch(search);
       if (term) params.set('search', term);
       params.set('order', order);
-      if (after) params.set('after', after);
       return request<MissionPage>(`${BASE}?${params}`, { signal });
     },
     summary(signal?: AbortSignal) {
