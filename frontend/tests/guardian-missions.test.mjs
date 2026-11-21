@@ -101,5 +101,7 @@ test('mission screen keeps search, empty-state and cancellation safeguards', () 
   assert.match(screen, /accessibilityLiveRegion="polite"/);
   assert.match(screen, /missions displayed\{cursor \? '; more available' : ''\}/);
   assert.match(screen, /Search: \$\{search\}/);
+  assert.match(screen, /page\.next_cursor === cursor/);
+  assert.match(screen, /Pagination stopped because the server repeated its cursor/);
   assert.match(screen, /request\.current\?\.abort\(\);\s*request\.current = null;\s*setBusy\(false\)/);
 });
