@@ -63,6 +63,13 @@ export function updateMissionInPage(previous: Mission[], detail: Mission, status
     .filter(item => !status || item.status === status);
 }
 
+export type MissionOrder = 'newest' | 'oldest';
+export function normalizeMissionSearch(value: string) {
+  const term = value.trim();
+  if (term.length > 120) throw new Error('Search must be 120 characters or fewer.');
+  return term;
+}
+
 export function guardianMissionClient(api: MissionApi) {
   async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await api(path, init);
@@ -81,9 +88,12 @@ export function guardianMissionClient(api: MissionApi) {
 
   const missionPath = (id: string) => `${BASE}/${encodeURIComponent(id)}`;
   return {
-    list(status: string, after?: string, signal?: AbortSignal) {
+    list(status: string, after?: string, signal?: AbortSignal, search = '', order: MissionOrder = 'newest') {
       const params = new URLSearchParams({ limit: '15' });
       if (status) params.set('status', status);
+      const term = normalizeMissionSearch(search);
+      if (term) params.set('search', term);
+      params.set('order', order);
       if (after) params.set('after', after);
       return request<MissionPage>(`${BASE}?${params}`, { signal });
     },
