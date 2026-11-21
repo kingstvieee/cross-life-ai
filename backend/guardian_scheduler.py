@@ -64,5 +64,14 @@ async def release_due_retries(collection, *, now=None, limit=100):
 
 async def scheduler_tick(collection, *, now=None, limit=100):
     """Single durable scheduler tick; orchestration must invoke repeatedly."""
-    return {"released_retries": await release_due_retries(
-        collection, now=now, limit=limit)}
+    now = now or utcnow()
+    released = await release_due_retries(collection, now=now, limit=limit)
+    expired = await collection.update_many(
+        {"status": {"$in": ["proposed", "approved", "queued", "retry_wait",
+                            "awaiting_approval"]},
+         "expires_at": {"$lte": now}},
+        {"$set": {"status": "cancelled", "updated_at": now,
+                  "recovery_reason": "mission_deadline_expired"},
+         "$unset": {"retry_after": ""}},
+    )
+    return {"released_retries": released, "expired_missions": expired.modified_count}

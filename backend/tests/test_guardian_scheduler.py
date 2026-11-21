@@ -52,6 +52,10 @@ class Collection:
         self.updates.append((query, update))
         return SimpleNamespace(modified_count=1)
 
+    async def update_many(self, query, update):
+        self.expiry = (query, update)
+        return SimpleNamespace(modified_count=2)
+
 
 @pytest.mark.asyncio
 async def test_scheduling_requires_approval_and_preserves_utc():
@@ -93,7 +97,14 @@ async def test_retry_release_uses_cas_and_due_filter():
 
 @pytest.mark.asyncio
 async def test_tick_reports_released_retries():
-    assert await scheduler_tick(Collection(), now=NOW) == {"released_retries": 1}
+    collection = Collection()
+    assert await scheduler_tick(collection, now=NOW) == {
+        "released_retries": 1, "expired_missions": 2,
+    }
+    query, update = collection.expiry
+    assert query["expires_at"] == {"$lte": NOW}
+    assert not {"leased", "running", "verifying"} & set(query["status"]["$in"])
+    assert update["$set"]["status"] == "cancelled"
 
 
 @pytest.mark.asyncio
