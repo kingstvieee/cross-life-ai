@@ -1,6 +1,6 @@
 workflows:
-  staar-testflight-110:
-    name: STAAR Hub 110 — 10 Worlds + Guardian — Internal TestFlight
+  staar-testflight-111:
+    name: STAAR Hub 111 — 3D Home + Guardian + 10 Worlds — Internal TestFlight
     instance_type: mac_mini_m2
     max_build_duration: 120
     triggering:
@@ -36,7 +36,7 @@ workflows:
           node scripts/stage-private-guardian-b250-qa.mjs
           node --input-type=module -e "import('./scene-src/internal-ten-world-qa.mjs').then(m=>m.loadInternalTenWorldQaAssets(process.cwd()+'/scene-src').then(w=>{if(Object.keys(w).length!==10)throw Error('ten_worlds_missing');console.log('10 GLBs hash verified')}))"
           node scripts/prepare-private-b250-qa-archive.mjs prepare
-      - name: Set unique iPhone TestFlight version 110
+      - name: Set unique iPhone TestFlight version 111
         script: |
           cd frontend
           node - <<'NODE'
@@ -44,7 +44,7 @@ workflows:
           const name='app.json',data=JSON.parse(fs.readFileSync(name,'utf8'));
           if(data.expo.version!=='1.0.4'||data.expo.ios.buildNumber!=='109')
             throw Error('Incorrect base version — refuse to build with duplicate number');
-          data.expo.ios.buildNumber='110';
+          data.expo.ios.buildNumber='111';
           fs.writeFileSync(name,JSON.stringify(data,null,2)+'\n');
           NODE
       - name: Install Expo dependencies and bundle the real Guardian and 10 GLBs
@@ -52,7 +52,7 @@ workflows:
           cd frontend
           corepack enable
           yarn install --frozen-lockfile
-          node --test tests/build252-private-b250-iphone-qa-loader.test.mjs tests/build252-private-preview-archive-policy.test.mjs
+          node --test tests/build252-private-b250-iphone-qa-loader.test.mjs tests/build252-private-preview-archive-policy.test.mjs tests/build111-immersive-hub-home-contract.test.mjs
       - name: Native iOS prebuild
         script: |
           cd frontend
