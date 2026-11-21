@@ -10,7 +10,7 @@ import { shouldDispatchSceneAction, type SceneDispatch } from '@/src/scene-actio
 import {normalizeIphoneQa, iphoneQaStatus} from '@/src/iphone-qa-controls';
 import {readWorldQaArchive,saveWorldQaCapture,exportWorldQaArchive,clearWorldQaArchive,worldQaProgress} from '@/src/iphone-qa-archive';
 
-export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFrame = null }: { world: string; variant?: 'realm' | 'singles'; onAction: (action: string) => void; guardianAudioFrame?: GuardianAudioFrame | null }) {
+export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFrame = null, embedded = false, onSceneReady }: { world: string; variant?: 'realm' | 'singles'; onAction: (action: string) => void; guardianAudioFrame?: GuardianAudioFrame | null; embedded?: boolean; onSceneReady?: () => void }) {
   const audio=useStaarAudio();
   const webviewRef=useRef<WebView>(null);
   const pushGuardianFrame=()=>{
@@ -122,7 +122,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
   }, [world, variant, retryCount]);
   useEffect(() => { setLoadFailed(false); setRetryCount(0); }, [world, variant]);
   const fallback = sceneFallbackActions(world);
-  if (loadFailed) return <ScrollView contentContainerStyle={{ padding: 22, gap: 12, backgroundColor: '#030713', minHeight: 420 }}>
+  if (loadFailed) return <ScrollView contentContainerStyle={{ padding: 22, gap: 12, backgroundColor: '#030713', minHeight: embedded ? 0 : 420 }}>
     <Text accessibilityRole="alert" style={{ color: '#F2DFB4', fontSize: 18, fontWeight: '700' }}>3D preview unavailable</Text>
     <Text style={{ color: '#D6DFEC', lineHeight: 22 }}>The local scene could not load. Use these safe navigation controls instead. No devices or external services have been activated.</Text>
     <Pressable accessibilityRole="button" accessibilityLabel="Retry local 3D scene" onPress={() => { setRetryCount(count => count + 1); setLoadFailed(false); }}
@@ -132,8 +132,8 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
       <Text style={{ color: '#F2F5FA', fontSize: 15 }}>{label}</Text>
     </Pressable>)}
   </ScrollView>;
-  return <View style={{ width: '100%', height: '100%', minHeight: 420 }}>
-    {qaEnabled ? <View style={{ padding: 8, backgroundColor:'#080E1B', gap:6 }}>
+  return <View style={{ width: '100%', height: '100%', minHeight: embedded ? 0 : 420 }}>
+    {qaEnabled && !embedded ? <View style={{ padding: 8, backgroundColor:'#080E1B', gap:6 }}>
       <Text style={{color:'#E8D9AF',fontSize:12,fontWeight:'600'}}>
         GUARDIAN DEVICE QA · {qaSummary}
       </Text>
@@ -159,7 +159,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
         </Pressable>)}
       </View>
     </View>:null}
-    {worldQaEnabled ? <View style={{padding:8,backgroundColor:'#080E1B',gap:6}}>
+    {worldQaEnabled && !embedded ? <View style={{padding:8,backgroundColor:'#080E1B',gap:6}}>
       <Text style={{color:'#E8D9AF',fontSize:12,fontWeight:'600'}}>WORLD COLLISION QA · {worldQaSummary}</Text>
       <Text style={{color:'#DDE6F2',fontSize:12}}>{archiveSummary}</Text>
       <View style={{flexDirection:'row',gap:12}}>
@@ -193,7 +193,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
       onError={() => setLoadFailed(true)}
       onRenderProcessGone={() => setLoadFailed(true)}
       onContentProcessDidTerminate={() => setLoadFailed(true)}
-      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (!message || typeof message !== 'object' || !('session' in message) || message.session !== session) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'ready' && message.world === world) { sceneReady.current = true; return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && 'modelSha256' in message && message.source === 'staar-scene-v1' && message.type === 'guardian-face-ready' && world === 'hub' && message.world === world && typeof message.modelSha256 === 'string') { audio.setGuardianRigHash(message.modelSha256); return; } if(qaEnabled && 'source' in message && 'type' in message && 'world' in message &&
+      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (!message || typeof message !== 'object' || !('session' in message) || message.session !== session) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'ready' && message.world === world) { sceneReady.current = true; onSceneReady?.(); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && 'modelSha256' in message && message.source === 'staar-scene-v1' && message.type === 'guardian-face-ready' && world === 'hub' && message.world === world && typeof message.modelSha256 === 'string') { audio.setGuardianRigHash(message.modelSha256); return; } if(qaEnabled && 'source' in message && 'type' in message && 'world' in message &&
         'metrics' in message && message.source==='staar-scene-v1' &&
         message.type==='guardian-device-qa' && message.world==='hub' &&
         message.metrics && typeof message.metrics==='object' &&
