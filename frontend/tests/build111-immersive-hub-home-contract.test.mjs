@@ -16,10 +16,13 @@ test('The signed-in homepage contains nine direct portals and a Guardian-only sc
  assert.doesNotMatch(src, /ENTER FULL 3D HUB|<GuardianCharacter\b/);
 });
 
-test('The presentation runtime cannot use the private QA rig and hides camera controls', async () => {
+test('Private rig presentation is restricted to explicitly staged native review builds', async () => {
  const renderer = await readFile(new URL('../scene-src/worlds.js', import.meta.url), 'utf8');
  assert.match(await scene(), /const qaEnabled = !guardianPresentation && Platform\.OS/);
- assert.match(renderer, /const internal=!guardianPresentation && world==='hub'/);
+ const builder = await readFile(new URL('../scene-src/build.mjs', import.meta.url), 'utf8');
+ assert.match(builder, /Boolean\(privateGuardianQa\) && process\.env\.STAAR_INTERNAL_HOME_REVIEW==='1'/);
+ assert.match(renderer, /guardianPresentation && window\.STAAR_INTERNAL_HOME_REVIEW === true && Boolean\(window\.ReactNativeWebView\)/);
+ assert.match(renderer, /internalQaRoute \|\| internalHomeReview/);
  assert.match(renderer, /document\.querySelector\('header'\)\.hidden/);
  assert.match(renderer, /report\('guardian-arrived'\)/);
 });
