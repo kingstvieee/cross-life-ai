@@ -244,10 +244,19 @@ function AccountMissions() {
             const term = searchDraft.trim();
             if (term.length > 120) { setNotice('Search must be 120 characters or fewer.'); return; }
             setNotice('');
-            setMissions([]); setCursor(null); setSearch(term);
+            if (term === search) {
+              void perform(reload);
+            } else {
+              setMissions([]); setCursor(null); setSearch(term);
+            }
           }} />
           <Button label="Clear search" disabled={busy} onPress={() => {
-            setSearchDraft(''); setSearch(''); setMissions([]); setCursor(null);
+            setSearchDraft('');
+            if (search === '') {
+              void perform(reload);
+            } else {
+              setMissions([]); setCursor(null); setSearch('');
+            }
           }} />
           <Button label={order === 'newest' ? 'Newest first' : 'Oldest first'} disabled={busy}
             onPress={() => { setMissions([]); setCursor(null);
