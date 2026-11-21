@@ -98,5 +98,8 @@ test('mission screen keeps search, empty-state and cancellation safeguards', () 
   assert.match(screen, /if \(term === search\) \{\s*void perform\(reload\)/);
   assert.match(screen, /if \(search === ''\) \{\s*void perform\(reload\)/);
   assert.match(screen, /resultsLoaded && !busy && !notice && missions\.length === 0/);
+  assert.match(screen, /accessibilityLiveRegion="polite"/);
+  assert.match(screen, /missions displayed\{cursor \? '; more available' : ''\}/);
+  assert.match(screen, /Search: \$\{search\}/);
   assert.match(screen, /request\.current\?\.abort\(\);\s*request\.current = null;\s*setBusy\(false\)/);
 });
