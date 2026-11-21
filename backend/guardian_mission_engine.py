@@ -61,6 +61,7 @@ async def transition(collection, *, owner_id, mission_id, expected, target,
         if not lease_token:
             raise ValueError("Lease token required")
         query["lease_token"] = lease_token
+        query["lease_until"] = {"$gt": now_utc()}
     update = {"status": target, "updated_at": now_utc()}
     if evidence is not None:
         update["evidence"] = evidence
