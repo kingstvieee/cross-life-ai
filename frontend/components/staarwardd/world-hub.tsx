@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, AppState, Easing, Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Animated, AppState, Easing, Image, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -37,6 +37,8 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
   const insets = useSafeAreaInsets();
   const safeHeight = height - insets.top - insets.bottom;
   const compact = safeHeight < 540;
+  const [inspectedPortal, setInspectedPortal] = useState<(typeof WORLDS)[number] | null>(null);
+  const closePortalPreview = () => setInspectedPortal(null);
   const [message, setGuardianMessage] = useState('');
   const [modelAvailable, setModelAvailable] = useState(false);
   const [guardianSpeaking, setGuardianSpeaking] = useState(false);
@@ -221,6 +223,12 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
       }) }],
     }]}>
       <Pressable accessibilityRole="button" accessibilityLabel={world.name}
+        accessibilityHint={onSignIn ? undefined : 'Tap to enter. Touch and hold to preview.'}
+        accessibilityActions={onSignIn ? undefined : [{ name: 'preview', label: 'Preview world' }]}
+        onAccessibilityAction={event => {
+          if (!onSignIn && event.nativeEvent.actionName === 'preview') setInspectedPortal(world);
+        }}
+        onLongPress={onSignIn ? undefined : () => setInspectedPortal(world)}
         onPress={() => openPortal(world.id)} style={({ pressed }) => [s.portalButton, pressed && s.pressed]}>
         <LinearGradient colors={['#F9FBFF', '#606777', '#E6C98A', '#222633', '#F9FBFF']} style={[
           s.rim, { width: portalSize, height: portalSize },
@@ -294,6 +302,32 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
           </View>
         </View>
       </SafeAreaView>
+      {inspectedPortal && (
+        <Modal transparent visible animationType={motionReduced ? 'none' : 'fade'} onRequestClose={closePortalPreview}>
+          <SafeAreaView style={s.previewOverlay} accessibilityViewIsModal>
+            <Pressable accessible={false} style={StyleSheet.absoluteFill} onPress={closePortalPreview} />
+            <View style={s.preview}>
+              <Image source={lockedPortalArtwork[inspectedPortal.id]} style={StyleSheet.absoluteFill} resizeMode="cover" accessible={false} />
+              <LinearGradient pointerEvents="none" colors={['#0B0C13DD', '#0B0C1330', '#0B0C13F7']} style={StyleSheet.absoluteFill} />
+              <Pressable accessibilityRole="button" accessibilityLabel="Close portal preview" onPress={closePortalPreview} style={[s.icon, s.previewClose]}>
+                <Ionicons name="close" size={22} color="#F4F0E6" />
+              </Pressable>
+              <View style={s.previewCopy}>
+                <Text accessibilityRole="header" style={s.previewTitle}>{inspectedPortal.name}</Text>
+                <Text style={s.previewDetail}>{inspectedPortal.detail}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Enter ${inspectedPortal.name}`}
+                  style={s.previewEnter} onPress={() => {
+                    closePortalPreview();
+                    openPortal(inspectedPortal.id);
+                  }}>
+                  <Text style={s.previewEnterText}>Enter world</Text>
+                  <Ionicons name="arrow-forward" size={19} color="#161316" />
+                </Pressable>
+              </View>
+            </View>
+          </SafeAreaView>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -321,5 +355,13 @@ const s = StyleSheet.create({
   portalName: { color: '#FFFFFF', fontSize: 10, fontWeight: '700', textAlign: 'center', marginTop: 4, textShadowColor: '#000', textShadowRadius: 5 },
   controls: { alignItems: 'center', gap: 6, paddingTop: 6 },
   controlRow: { flexDirection: 'row', gap: 12 },
+  previewOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#080810B8' },
+  preview: { width: '100%', maxWidth: 460, minHeight: 230, maxHeight: '100%', overflow: 'hidden', borderRadius: 28, borderWidth: 1, borderColor: '#E8D0A4', backgroundColor: '#14131A', padding: 18, paddingTop: 66, justifyContent: 'flex-end' },
+  previewClose: { position: 'absolute', top: 9, right: 9 },
+  previewCopy: { gap: 8 },
+  previewTitle: { color: '#FFFFFF', fontSize: 25, fontWeight: '800' },
+  previewDetail: { color: '#F4F0E6', fontSize: 14, lineHeight: 20 },
+  previewEnter: { flexDirection: 'row', gap: 8, alignItems: 'center', alignSelf: 'flex-start', minHeight: 44, paddingHorizontal: 15, borderRadius: 22, backgroundColor: '#F3DFC0' },
+  previewEnterText: { color: '#161316', fontWeight: '700' },
   message: { color: '#F4F0E6', textAlign: 'center', fontSize: 12, backgroundColor: '#0C0C12E8', padding: 5 },
 });
