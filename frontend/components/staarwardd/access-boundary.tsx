@@ -11,19 +11,27 @@ import { PORTALS, PREVIEW_WORLDS } from "@/lib/staarwardd/portal-data";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Onboarding from '@/app/onboarding';
 import { BlurView } from 'expo-blur';
+import { StaarAudioProvider } from '@/lib/staarwardd/audio-provider';
+import { WorldHub } from './world-hub';
 import { AccessField } from './access-field';
 import { COMPANIONS, speakCompanion, stopCompanion } from '@/src/companions';
 
 export function AccessBoundary({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const path = usePathname();
+  const [showReviewSignIn, setShowReviewSignIn] = useState(false);
   if (loading) return <View style={styles.page}><ActivityIndicator accessibilityLabel="Checking session" /></View>;
   if (user && !user.is_demo) return <Fragment key={user.user_id}>{user.onboarding_complete ? children : <Onboarding />}</Fragment>;
+  if (Platform.OS === 'ios' && process.env.EXPO_PUBLIC_GUARDIAN_DEVICE_QA === '1' && (path === '/' || path === '/index')) {
+    return showReviewSignIn
+      ? <SignInScreen onBackToHub={() => setShowReviewSignIn(false)} />
+      : <StaarAudioProvider><WorldHub onSignIn={() => setShowReviewSignIn(true)} /></StaarAudioProvider>;
+  }
   // Keep every account provider unmounted in guest mode, including memory and activity.
   return path === "/guest" ? <GuestPreview /> : <SignInScreen />;
 }
 
-export function SignInScreen() {
+export function SignInScreen({ onBackToHub }: { onBackToHub?: () => void } = {}) {
   const insets = useSafeAreaInsets();
   const { signIn } = useAuth();
   const replay = useStartupReplay();
@@ -46,7 +54,7 @@ export function SignInScreen() {
     if (busy) return;
     setBusy(name); setError('');
     try {
-      if (await signIn(name.toLowerCase())) router.replace('/');
+      if (await signIn(name.toLowerCase()) && !onBackToHub) router.replace('/');
     } catch (e) { setError(e instanceof Error ? e.message : 'Sign-in could not finish. Please try again.'); }
     finally { setBusy(null); }
   };
@@ -83,7 +91,7 @@ export function SignInScreen() {
         </View>
         {error ? <Text accessibilityRole="alert" style={styles.copy}>{error}</Text> : null}
         <View style={styles.dividerRow}><View style={styles.divider} /><Text style={styles.dividerText}>DISCOVER FIRST</Text><View style={styles.divider} /></View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Explore as guest" onPress={() => router.replace("/guest")} style={({ pressed }) => [pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Explore as guest" onPress={onBackToHub ?? (() => router.replace("/guest"))} style={({ pressed }) => [pressed && styles.pressed]}>
           <LinearGradient colors={["#F2F5F7", "#A3ADB8", "#E5E9EE"]} locations={[0, 0.53, 1]} style={styles.guestButton}>
             <Ionicons name="planet-outline" size={19} color="#12161B" /><Text style={styles.guestLabel}>Explore the portals</Text><Ionicons name="arrow-forward" size={18} color="#12161B" />
           </LinearGradient>
