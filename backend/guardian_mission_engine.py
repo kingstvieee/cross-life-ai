@@ -40,16 +40,23 @@ async def ensure_indexes(collection):
     await collection.create_index([("status", 1), ("lease_until", 1)])
 
 async def submit_mission(collection, *, owner_id, objective, idempotency_key,
-                         success_criteria, budget_cad=0):
+                         success_criteria, budget_cad=0, expires_at=None):
     if not owner_id or not objective or not idempotency_key or not success_criteria:
         raise ValueError("Mission requires owner, objective, idempotency key and criteria")
     if budget_cad < 0:
         raise ValueError("Negative mission budget")
+    # MongoDB stores UTC datetimes with millisecond precision. Normalize before
+    # comparing a retry with the stored proposal, including legacy proposals.
+    if expires_at is not None:
+        if expires_at.utcoffset() is None:
+            raise ValueError("Mission deadline must include a timezone")
+        expires_at = expires_at.astimezone(timezone.utc).replace(
+            microsecond=(expires_at.microsecond // 1000) * 1000)
     doc = dict(owner_id=owner_id, mission_id=str(uuid4()), objective=objective,
                idempotency_key=idempotency_key, success_criteria=success_criteria,
                budget_cad=budget_cad, status="proposed", created_at=now_utc(),
                updated_at=now_utc(), lease_until=None, lease_token=None,
-               checkpoint=None, evidence=None, attempts=0)
+               checkpoint=None, evidence=None, attempts=0, expires_at=expires_at)
     # Duplicate submissions return the existing mission rather than executing twice.
     from pymongo.errors import DuplicateKeyError
     try:
@@ -59,8 +66,13 @@ async def submit_mission(collection, *, owner_id, objective, idempotency_key,
             {"owner_id": owner_id, "idempotency_key": idempotency_key}, {"_id": 0})
         if existing is None:
             raise
-        if any(existing.get(field) != doc[field]
-               for field in ("objective", "success_criteria", "budget_cad")):
+        saved_deadline = existing.get("expires_at")
+        if saved_deadline is not None and saved_deadline.tzinfo is None:
+            saved_deadline = saved_deadline.replace(tzinfo=timezone.utc)
+        if saved_deadline != expires_at or any(
+            existing.get(field) != doc[field]
+            for field in ("objective", "success_criteria", "budget_cad")
+        ):
             raise MissionConflict("Submission key already belongs to a different proposal")
         return existing
     doc.pop("_id", None)

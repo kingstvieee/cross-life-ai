@@ -3,8 +3,10 @@
 Mission proposals are inert until separately approved. No approval, execution,
 or spend controls are exposed by this router.
 """
+from datetime import timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 from pymongo.errors import DuplicateKeyError
 from guardian_mission_engine import MissionConflict, submit_mission, transition
 
@@ -12,7 +14,7 @@ SAFE_FIELDS = {
     "_id": 0, "owner_id": 1, "mission_id": 1, "objective": 1,
     "status": 1, "created_at": 1, "updated_at": 1,
     "not_before": 1, "retry_after": 1, "attempts": 1,
-    "recovery_reason": 1, "success_criteria": 1, "budget_cad": 1,
+    "recovery_reason": 1, "success_criteria": 1, "budget_cad": 1, "expires_at": 1,
 }
 
 
@@ -21,6 +23,14 @@ class MissionProposal(BaseModel):
     idempotency_key: str = Field(min_length=8, max_length=128)
     success_criteria: str = Field(min_length=1, max_length=2000)
     budget_cad: float = Field(default=0, ge=0, le=1000000)
+    expires_at: AwareDatetime | None = None
+
+
+def normalize_deadline(mission):
+    deadline = mission.get("expires_at")
+    if deadline is not None and deadline.tzinfo is None:
+        mission["expires_at"] = deadline.replace(tzinfo=timezone.utc)
+    return mission
 
 
 def build_guardian_mission_router(*, db, require_account_user):
@@ -44,6 +54,7 @@ def build_guardian_mission_router(*, db, require_account_user):
                 idempotency_key=proposal.idempotency_key,
                 success_criteria=proposal.success_criteria,
                 budget_cad=proposal.budget_cad,
+                expires_at=proposal.expires_at,
             )
         except (DuplicateKeyError, MissionConflict):
             raise HTTPException(status_code=409, detail="mission_conflict")
@@ -59,7 +70,7 @@ def build_guardian_mission_router(*, db, require_account_user):
         cursor = db.guardian_missions.find(
             {"owner_id": owner}, SAFE_FIELDS,
         ).sort("created_at", -1).limit(limit)
-        return {"missions": [item async for item in cursor]}
+        return {"missions": [normalize_deadline(item) async for item in cursor]}
 
     @router.get("/{mission_id}")
     async def get_mission(mission_id: str, user=Depends(require_account_user)):
@@ -71,7 +82,7 @@ def build_guardian_mission_router(*, db, require_account_user):
         )
         if mission is None:
             raise HTTPException(status_code=404, detail="mission_not_found")
-        return mission
+        return normalize_deadline(mission)
 
     @router.post("/{mission_id}/withdraw")
     async def withdraw_proposal(mission_id: str, user=Depends(require_account_user)):

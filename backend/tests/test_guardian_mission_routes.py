@@ -125,17 +125,30 @@ def test_proposal_retry_preserves_objective_and_does_not_queue(api):
         "objective": "Prepare a supplier comparison",
         "success_criteria": "Show two quotes with source dates",
         "idempotency_key": "supplier-comparison-1",
+        "expires_at": "2099-11-21T15:00:00.123456-05:00",
     }
     with TestClient(app) as client:
         first = client.post("/api/guardian/missions", json=payload)
-        retry = client.post("/api/guardian/missions", json=payload)
+        retry = client.post("/api/guardian/missions", json={
+            **payload, "expires_at": "2099-11-21T20:00:00.123Z",
+        })
         conflict = client.post("/api/guardian/missions", json={
             **payload, "success_criteria": "Show three verified quotes",
         })
+        deadline_conflict = client.post("/api/guardian/missions", json={
+            **payload, "expires_at": "2099-11-22T20:00:00Z",
+        })
+        naive = client.post("/api/guardian/missions", json={
+            **payload, "expires_at": "2099-11-21T20:00:00",
+        })
+        detail = client.get(f"/api/guardian/missions/{first.json()['mission_id']}")
     assert first.status_code == retry.status_code == 201
     assert retry.json() == first.json()
     assert retry.json()["status"] == "proposed"
     assert conflict.status_code == 409
+    assert deadline_conflict.status_code == 409
+    assert naive.status_code == 422
+    assert detail.json()["expires_at"] == "2099-11-21T20:00:00.123000+00:00"
     assert len(missions.docs) == 3
 
 
