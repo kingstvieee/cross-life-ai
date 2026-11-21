@@ -280,6 +280,11 @@ function AccountMissions() {
       {cursor && <Button label="Load more missions" disabled={busy} onPress={() => void perform(async signal => {
         const page = await client.list(status, cursor, signal, search, order);
         if (signal.aborted) return;
+        if (page.next_cursor === cursor) {
+          setCursor(null);
+          setNotice('Pagination stopped because the server repeated its cursor. Refresh results to retry.');
+          return;
+        }
         setMissions(previous => mergeMissionPages(previous, page.missions));
         setCursor(page.next_cursor);
       })} />}
