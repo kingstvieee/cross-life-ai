@@ -237,7 +237,7 @@ function AccountMissions() {
       </View>
       <View style={styles.card}>
         <Input label="Search mission objectives or success criteria" value={searchDraft}
-          onChange={setSearchDraft} busy={busy} />
+          onChange={setSearchDraft} busy={busy} maxLength={120} />
         <View style={styles.row}>
           <Button label="Apply search" disabled={busy} onPress={() => {
             const term = searchDraft.trim();
@@ -278,14 +278,14 @@ function Button({ label, onPress, disabled, selected }: {
   </Pressable>;
 }
 
-function Input({ label, value, onChange, busy, multiline }: {
-  label: string; value: string; onChange: (value: string) => void; busy: boolean; multiline?: boolean;
+function Input({ label, value, onChange, busy, multiline, maxLength }: {
+  label: string; value: string; onChange: (value: string) => void; busy: boolean; multiline?: boolean; maxLength?: number;
 }) {
   return <View style={styles.field}>
     <Text style={styles.text}>{label}</Text>
     <TextInput accessibilityLabel={label} value={value} onChangeText={onChange} editable={!busy}
       multiline={multiline} autoCapitalize={multiline ? 'sentences' : 'none'}
-      maxLength={multiline ? 2000 : 50} style={styles.input} />
+      maxLength={maxLength ?? (multiline ? 2000 : 50)} style={styles.input} />
   </View>;
 }
 
