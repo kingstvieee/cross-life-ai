@@ -406,15 +406,23 @@ if (renderer) {
             let startFlight;
             let arrived = false;
             let hoverStart;
+            // Build the pose in Guardian's facing frame, independent of bone roll.
+            flight.updateMatrixWorld(true);
             const flightJoints = [
-              ['Chest', .10], ['UpperArm_L', -.18], ['UpperArm_R', -.13],
-              ['Forearm_L', -.24], ['Forearm_R', -.17],
-              ['Thigh_L', .20], ['Thigh_R', .29], ['Calf_L', -.23], ['Calf_R', -.31],
-            ].flatMap(([name, angle]) => {
+              ['Chest', .12, 0, 0],
+              ['UpperArm_L', -1.28, -.28, -.22], ['UpperArm_R', -.72, .55, .30],
+              ['Forearm_L', -.20, 0, -.10], ['Forearm_R', -.42, 0, .16],
+              ['Hand_L', .12, -.03, -.06], ['Hand_R', .18, .06, .10],
+              ['Thigh_L', .20, 0, 0], ['Thigh_R', .29, 0, 0],
+              ['Calf_L', -.23, 0, 0], ['Calf_R', -.31, 0, 0],
+            ].flatMap(([name, pitch, spread, steer]) => {
               const joint = guardian.getObjectByName('B230_QA_Joint_' + name);
-              return joint?.isBone ? [{ joint, angle, rest: joint.quaternion.clone() }] : [];
+              if (!joint?.isBone) return [];
+              const inverseRest = joint.getWorldQuaternion(new T.Quaternion()).invert();
+              return [{ joint, pitch, spread, steer, rest: joint.quaternion.clone(),
+                pitchAxis: new T.Vector3(1, 0, 0).applyQuaternion(inverseRest),
+                spreadAxis: new T.Vector3(0, 0, 1).applyQuaternion(inverseRest) }];
             });
-            const pitchAxis = new T.Vector3(1, 0, 0);
             const flightPose = new T.Quaternion();
             flight.position.copy(arrivalPath.v0);
             animated.push((time) => {
@@ -426,10 +434,14 @@ if (renderer) {
               flight.rotation.set(.16 * bank, -.32 * bank, .38 * bank);
               if (!arrived) {
                 // Blend the live skeleton back into its standing pose as Guardian settles.
-                const poseWeight = Math.min(progress * 10, 1, (1 - progress) * 3);
-                for (const { joint, angle, rest } of flightJoints) {
-                  flightPose.setFromAxisAngle(pitchAxis, angle * poseWeight);
-                  joint.quaternion.copy(rest).multiply(flightPose);
+                const poseWeight = 1 - T.MathUtils.smoothstep(progress, .66, 1);
+                const steering = Math.sin(progress * Math.PI * 2);
+                for (const { joint, pitch, spread, steer, rest, pitchAxis, spreadAxis } of flightJoints) {
+                  joint.quaternion.copy(rest);
+                  joint.quaternion.multiply(flightPose.setFromAxisAngle(pitchAxis, pitch * poseWeight));
+                  joint.quaternion.multiply(flightPose.setFromAxisAngle(
+                    spreadAxis, (spread + steer * steering) * poseWeight,
+                  ));
                 }
               }
               if (progress < 1) return;
