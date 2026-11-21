@@ -44,6 +44,10 @@ class Missions:
                 return actual == condition
             if "$in" in condition:
                 return actual in condition["$in"]
+            if "$regex" in condition:
+                import re
+                flags = re.IGNORECASE if "i" in condition.get("$options", "") else 0
+                return bool(re.search(condition["$regex"], actual or "", flags))
             if actual is None:
                 return False
             return ("$lt" not in condition or actual < condition["$lt"]) and (
@@ -51,7 +55,9 @@ class Missions:
             )
         def matches(doc, conditions):
             return all(
-                key == "$or" or compare(doc.get(key), value)
+                (any(matches(doc, clause) for clause in value) if key == "$or" else
+                 all(matches(doc, clause) for clause in value) if key == "$and" else
+                 compare(doc.get(key), value))
                 for key, value in conditions.items()
             )
         return Cursor([self.project(x, projection) for x in self.docs
