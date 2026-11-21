@@ -11,11 +11,12 @@ from guardian_mission_engine import (
 )
 
 class GuardianWorker:
-    def __init__(self, collection, handlers, worker_id, *, lease_seconds=60):
+    def __init__(self, collection, handlers, worker_id, *, lease_seconds=60, scoped=False):
         self.collection = collection
         self.handlers = dict(handlers)
         self.worker_id = worker_id
         self.lease_seconds = lease_seconds
+        self.scope = {"handler_names": tuple(self.handlers)} if scoped else {}
 
     async def _heartbeat(self, owner_id, mission_id, token, stop):
         while not stop.is_set():
@@ -28,9 +29,9 @@ class GuardianWorker:
                                   lease_seconds=self.lease_seconds)
 
     async def run_once(self):
-        await recover_expired_leases(self.collection)
+        await recover_expired_leases(self.collection, **self.scope)
         mission = await claim_mission(self.collection, worker_id=self.worker_id,
-                                      lease_seconds=self.lease_seconds)
+                                      lease_seconds=self.lease_seconds, **self.scope)
         if not mission:
             return False
         owner = mission["owner_id"]

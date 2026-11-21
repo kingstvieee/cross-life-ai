@@ -53,7 +53,7 @@ class GuardianVerifier:
                 self.collection, owner_id=mission["owner_id"],
                 mission_id=mission["mission_id"], expected="verifying",
                 target="blocked", lease_token=token,
-                checkpoint={"verification_failed": True, "evidence": evidence},
+                evidence=evidence,
             )
             return evidence
         await transition(

@@ -14,6 +14,10 @@ class MissionConflict(ValueError):
     """A submission key was reused with a different mission proposal."""
 
 
+class MissionStateChanged(RuntimeError):
+    """The mission no longer matches the expected state or lease."""
+
+
 ALLOWED = {
     "proposed": {"approved", "cancelled"},
     "approved": {"queued", "cancelled"},
@@ -40,6 +44,7 @@ async def ensure_indexes(collection):
     await collection.create_index([("owner_id", 1), ("created_at", -1), ("mission_id", -1)])
     await collection.create_index([("owner_id", 1), ("status", 1), ("created_at", -1), ("mission_id", -1)])
     await collection.create_index([("status", 1), ("lease_until", 1)])
+    await collection.create_index([("handler", 1), ("status", 1), ("lease_until", 1)])
 
 async def submit_mission(collection, *, owner_id, objective, idempotency_key,
                          success_criteria, budget_cad=0, expires_at=None):
@@ -108,19 +113,20 @@ async def transition(collection, *, owner_id, mission_id, expected, target,
     result = await collection.find_one_and_update(
         query, {"$set": update}, return_document=True)
     if result is None:
-        raise RuntimeError("Mission changed concurrently or permission denied")
+        raise MissionStateChanged("Mission changed concurrently or permission denied")
     result.pop("_id", None)
     return result
 
-async def claim_mission(collection, *, worker_id, lease_seconds=60):
+async def claim_mission(collection, *, worker_id, lease_seconds=60, handler_names=None):
     if not worker_id or not 10 <= lease_seconds <= 3600:
         raise ValueError("Invalid worker lease")
     token = str(uuid4())
     now = now_utc()
+    scope = {} if handler_names is None else {"handler": {"$in": list(handler_names)}}
     # A crashed worker's expired lease is requeued by a separate reconciler;
     # it must not be reclaimed while an active worker still holds it.
     return await collection.find_one_and_update(
-        {"status": "queued", "lease_until": None,
+        {"status": "queued", "lease_until": None, **scope,
          "$and": [
              {"$or": [{"not_before": {"$exists": False}}, {"not_before": {"$lte": now}}]},
              {"$or": [{"expires_at": None}, {"expires_at": {"$gt": now}}]},
@@ -132,24 +138,25 @@ async def claim_mission(collection, *, worker_id, lease_seconds=60):
          "$inc": {"attempts": 1}},
         sort=[("created_at", 1)], return_document=True)
 
-async def recover_expired_leases(collection):
+async def recover_expired_leases(collection, *, handler_names=None):
     now = now_utc()
+    scope = {} if handler_names is None else {"handler": {"$in": list(handler_names)}}
     # Only an unstarted lease can be retried automatically. Running or
     # verifying work may have performed an irreversible external effect;
     # quarantine those missions for reconciliation instead of replaying.
     unstarted = await collection.update_many(
-        {"status": "leased", "lease_until": {"$lte": now},
+        {"status": "leased", "lease_until": {"$lte": now}, **scope,
          "$or": [{"expires_at": None}, {"expires_at": {"$gt": now}}]},
         {"$set": {"status": "queued", "lease_until": None,
                   "lease_token": None, "worker_id": None, "updated_at": now}})
     uncertain = await collection.update_many(
-        {"status": {"$in": ["running", "verifying"]},
+        {"status": {"$in": ["running", "verifying"]}, **scope,
          "lease_until": {"$lte": now}},
         {"$set": {"status": "blocked", "lease_until": None,
                   "lease_token": None, "worker_id": None, "updated_at": now,
                   "recovery_reason": "expired_lease_requires_reconciliation"}})
     expired = await collection.update_many(
-        {"status": "leased", "lease_until": {"$lte": now},
+        {"status": "leased", "lease_until": {"$lte": now}, **scope,
          "expires_at": {"$lte": now}},
         {"$set": {"status": "cancelled", "lease_until": None,
                   "lease_token": None, "worker_id": None, "updated_at": now,

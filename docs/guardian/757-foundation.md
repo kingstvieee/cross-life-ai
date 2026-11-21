@@ -37,6 +37,32 @@ P4: portal adapters, home integration, creative and commerce connectors.
 P5: simulation, continual improvement, full evaluation and controlled rollout.
 
 ## Candidate inventory
+
+### Zero-cost Guardian preview
+
+For a staging exercise, set `GUARDIAN_PREVIEW_ENABLED=true` on the API
+and on the preview processes. Use the staging database through `MONGO_URL`
+and `DB_NAME`. Start the worker and verifier as separately supervised
+processes from `backend`.
+
+```sh
+python -m guardian_preview_service worker
+python -m guardian_preview_service verifier
+```
+
+The existing scheduler can continue to handle mission expiry and retries.
+Create a proposal, read its `preview_digest`, then post that digest with an
+optional timezone-aware `run_at` to `/{mission_id}/queue-preview`. The
+preview records a snapshot of the objective and success criteria and checks
+that the stored result matches that snapshot. It has an estimated cost of
+zero CAD and performs no external connector operations. The owner can record
+an acknowledgment at `/{mission_id}/acknowledge-preview` after verification.
+An acknowledgment is a mission receipt. Delivery of a live alert still
+requires a configured test channel.
+
+CI tests the API and separate MongoDB clients for each role. Service role IDs
+are process identifiers. Staging must supply the service credentials and
+process supervision. The CI test does not measure actual 48-hour elapsed time.
 The 750 count is a design target, not 750 implemented modules. The first 250 have not been independently reconciled against the repository. The additional 500 are represented by a proposed expansion task; a complete numbered, deduplicated acceptance matrix must be written before claims of implementation coverage.
 
 ## Guardian brain and presence crosswalk
