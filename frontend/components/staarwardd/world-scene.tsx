@@ -81,7 +81,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
       message:qaLatest.current}).catch(()=>{});
   };
   const [retryCount, setRetryCount] = useState(0);
-  const session = useMemo(() => `${Date.now()}_${Math.random().toString(36).slice(2)}`, [world, variant, retryCount]);
+  const session = useMemo(() => `${Date.now()}_${Math.random().toString(36).slice(2)}`, [world, variant, retryCount, guardianPresentation, reduceGuardianMotion]);
   useEffect(()=>{
     qaLatest.current=null;worldQaLatest.current=null;
     setQaReady(false);setWorldQaReady(false);
@@ -119,7 +119,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
     sceneReady.current = false;
     const watchdog = setTimeout(() => { if (!sceneReady.current) setLoadFailed(true); }, 15000);
     return () => clearTimeout(watchdog);
-  }, [world, variant, retryCount]);
+  }, [session]);
   useEffect(() => { setLoadFailed(false); setRetryCount(0); }, [world, variant]);
   useEffect(() => {
     if (guardianPresentation && loadFailed) onGuardianUnavailable?.();
