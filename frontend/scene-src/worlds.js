@@ -429,7 +429,9 @@ if (renderer) {
     // Separate private device-only route. This review model is explicitly
     // quarantined from the regular approved-asset importer and production
     // runtime; its real binary hash is checked by build.mjs at staging time.
-    const internal=!guardianPresentation && world==='hub' && window.STAAR_GUARDIAN_QA===true &&
+    const internalHomeReview = guardianPresentation && window.STAAR_INTERNAL_HOME_REVIEW === true && Boolean(window.ReactNativeWebView);
+    const internalQaRoute = !guardianPresentation && window.STAAR_GUARDIAN_QA === true;
+    const internal=world==='hub' && (internalQaRoute || internalHomeReview) &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.schema==='staar-b250-private-internal-iphone-qa-v1' &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.internalQaOnly===true &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.productionApproved===false &&
