@@ -13,6 +13,7 @@ test('Home stage renders the real offline Three.js Guardian portal chamber, not 
  assert.match(src,/ENTER FULL 3D HUB/);
  assert.match(src,/router\.push\(\{ pathname: '\/environment', params: \{ world: 'hub' \}/);
  assert.match(src,/paddingBottom: 155/);
+ assert.ok(src.indexOf('ENTER YOUR NINE WORLDS') < src.indexOf('Speak with {companion}'), 'worlds must appear above old voice panels');
 });
 test('3D hub knows when its WebGL scene actually rendered and keeps the physical iPhone QA HUD separate',async()=>{
  const src=await scene();
