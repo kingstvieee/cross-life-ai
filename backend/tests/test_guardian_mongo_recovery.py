@@ -23,6 +23,13 @@ async def test_restart_recovers_mission_according_to_its_last_state(scenario):
     try:
         missions = first[name].missions
         await ensure_indexes(missions)
+        indexes = await missions.index_information()
+        assert any(index["key"] == [
+            ("owner_id", 1), ("created_at", -1), ("mission_id", -1),
+        ] for index in indexes.values())
+        assert any(index["key"] == [
+            ("owner_id", 1), ("status", 1), ("created_at", -1), ("mission_id", -1),
+        ] for index in indexes.values())
         await missions.insert_one({
             "owner_id": "test-owner", "mission_id": "mission",
             "idempotency_key": "local-recovery-probe", "status": "queued",

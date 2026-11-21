@@ -1,4 +1,6 @@
 """Guardian mission API isolation and authorization regression tests."""
+from datetime import datetime, timezone
+
 import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
@@ -10,7 +12,9 @@ from guardian_mission_routes import build_guardian_mission_router
 class Cursor:
     def __init__(self, docs):
         self.docs = docs
-    def sort(self, *_):
+    def sort(self, fields):
+        for key, direction in reversed(fields):
+            self.docs.sort(key=lambda doc: doc.get(key), reverse=direction < 0)
         return self
     def limit(self, n):
         self.docs = self.docs[:n]
@@ -34,8 +38,16 @@ class Missions:
         ]
     def find(self, query, projection):
         self.queries.append((query, projection))
+        clauses = query.get("$or")
+        def matches(doc, conditions):
+            return all(
+                key == "$or" or
+                (doc[key] < value["$lt"] if isinstance(value, dict) else doc.get(key) == value)
+                for key, value in conditions.items()
+            )
         return Cursor([self.project(x, projection) for x in self.docs
-                       if all(x.get(key) == value for key, value in query.items())])
+                       if matches(x, query) and
+                       (not clauses or any(matches(x, clause) for clause in clauses))])
     async def insert_one(self, doc):
         if any(saved["owner_id"] == doc["owner_id"] and
                saved.get("idempotency_key") == doc["idempotency_key"]
@@ -175,6 +187,24 @@ def test_status_filter_retains_tenant_isolation(api):
         result = client.get("/api/guardian/missions?status=queued")
         assert client.get("/api/guardian/missions?status=invalid").status_code == 422
     assert [item["mission_id"] for item in result.json()["missions"]] == ["a1"]
+
+
+def test_mission_cursor_pages_equal_timestamps_and_rejects_foreign_anchor(api):
+    app, missions, account = api
+    stamp = datetime(2026, 11, 21, tzinfo=timezone.utc)
+    for mission in missions.docs:
+        mission["created_at"] = stamp
+    missions.docs.append({"owner_id": "alice", "mission_id": "a2",
+                          "status": "queued", "created_at": stamp})
+    app.dependency_overrides[account] = lambda: {"user_id": "alice"}
+    with TestClient(app) as client:
+        url = "/api/guardian/missions?status=queued&limit=1"
+        first = client.get(url).json()
+        assert first["next_cursor"] == "a2"
+        second = client.get(url + "&after=a2").json()
+        assert [item["mission_id"] for item in second["missions"]] == ["a1"]
+        assert second["next_cursor"] is None
+        assert client.get(url + "&after=b1").status_code == 404
 
 
 @pytest.mark.parametrize("status,expected", [("queued", 200), ("leased", 409),

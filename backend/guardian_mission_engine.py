@@ -37,6 +37,8 @@ def validate_transition(before, after, evidence=None):
 async def ensure_indexes(collection):
     await collection.create_index([("owner_id", 1), ("mission_id", 1)], unique=True)
     await collection.create_index([("owner_id", 1), ("idempotency_key", 1)], unique=True)
+    await collection.create_index([("owner_id", 1), ("created_at", -1), ("mission_id", -1)])
+    await collection.create_index([("owner_id", 1), ("status", 1), ("created_at", -1), ("mission_id", -1)])
     await collection.create_index([("status", 1), ("lease_until", 1)])
 
 async def submit_mission(collection, *, owner_id, objective, idempotency_key,

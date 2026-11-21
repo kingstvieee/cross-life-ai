@@ -71,14 +71,30 @@ def build_guardian_mission_router(*, db, require_account_user):
     async def list_missions(
         limit: int = Query(default=25, ge=1, le=100),
         status: MissionStatus | None = None,
+        after: str | None = Query(default=None, min_length=1, max_length=128),
         user=Depends(require_account_user),
     ):
         owner = owner_id(user)
         query = {"owner_id": owner}
         if status is not None:
             query["status"] = status
-        cursor = db.guardian_missions.find(query, SAFE_FIELDS).sort("created_at", -1).limit(limit)
-        return {"missions": [normalize_deadline(item) async for item in cursor]}
+        if after is not None:
+            anchor = await db.guardian_missions.find_one(
+                {"owner_id": owner, "mission_id": after}, {"_id": 0, "created_at": 1},
+            )
+            if not anchor or not anchor.get("created_at"):
+                raise HTTPException(status_code=404, detail="mission_cursor_not_found")
+            created_at = anchor["created_at"]
+            query["$or"] = [
+                {"created_at": {"$lt": created_at}},
+                {"created_at": created_at, "mission_id": {"$lt": after}},
+            ]
+        cursor = db.guardian_missions.find(query, SAFE_FIELDS).sort(
+            [("created_at", -1), ("mission_id", -1)],
+        ).limit(limit + 1)
+        items = [normalize_deadline(item) async for item in cursor]
+        page = items[:limit]
+        return {"missions": page, "next_cursor": page[-1]["mission_id"] if len(items) > limit else None}
 
     @router.get("/{mission_id}")
     async def get_mission(mission_id: str, user=Depends(require_account_user)):
