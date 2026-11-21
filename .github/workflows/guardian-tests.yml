@@ -1,0 +1,38 @@
+name: Guardian foundation tests
+
+on:
+  pull_request:
+    paths:
+      - "backend/guardian_*.py"
+      - "backend/tests/test_guardian_*.py"
+      - ".github/workflows/guardian-tests.yml"
+  push:
+    branches:
+      - guardian-757-foundation-20261121
+    paths:
+      - "backend/guardian_*.py"
+      - "backend/tests/test_guardian_*.py"
+      - ".github/workflows/guardian-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install isolated test dependencies
+        run: python -m pip install "pytest>=8,<10" "pytest-asyncio>=0.23,<2" "pymongo>=4,<5"
+      - name: Compile Guardian modules
+        run: python -m compileall -q guardian_mission_engine.py guardian_worker.py guardian_verifier.py
+      - name: Run Guardian foundation tests
+        run: python -m pytest -q tests/test_guardian_mission_engine.py tests/test_guardian_evidence_regression.py tests/test_guardian_worker.py tests/test_guardian_verifier.py
