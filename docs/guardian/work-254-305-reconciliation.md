@@ -45,3 +45,12 @@ It is **not** proof that local Work artifacts were pushed to this repository.
 6. Mark individual IDs Done only after implementation and acceptance evidence.
 
 **No component from 285–305 is marked Done by this reconciliation note.**
+
+## 2026-11-21 second-pass recovery inspection
+
+- GitHub PR #184 head `be16a5b6c7d8d811f9219bb1d61b7370a6452849` was inspected; it is open and unmerged.
+- GitHub foundation tests, release gates and Style Swap CI all reported success on that head.
+- PR #184 includes `backend/guardian_mission_routes.py`, `frontend/src/guardian-missions.ts`, `frontend/app/guardian-missions.tsx`, and their tests.
+- The remote mission list supports status, creation-window and cursor filtering; the inspected client and screen contain no text-search functionality. This confirms that the Work-reported private search feature is **not** reconciled into PR #184.
+- A second remote search for local commit `34b39a7` returned no commit. Local Work filesystem/branch is not mounted in this session, so its diff cannot be recovered from GitHub alone.
+- **Reconciliation verdict:** Existing remote code and passing CI are verified; local Work changes 254–305 remain unrecovered. No per-ID 285–305 implementation credit is awarded.
