@@ -239,6 +239,7 @@ function AccountMissions() {
         <Input label="Search mission objectives or success criteria" value={searchDraft}
           onChange={setSearchDraft} busy={busy} maxLength={120} />
         <View style={styles.row}>
+          <Button label="Refresh results" disabled={busy} onPress={() => { void perform(reload); }} />
           <Button label="Apply search" disabled={busy} onPress={() => {
             const term = searchDraft.trim();
             if (term.length > 120) { setNotice('Search must be 120 characters or fewer.'); return; }
