@@ -1,6 +1,6 @@
 workflows:
-  staar-testflight-110:
-    name: STAAR Hub 110 — 10 Worlds + Guardian — Internal TestFlight
+  staar-testflight-111:
+    name: STAAR Hub 111 — Private QA Scene — Archive Only
     instance_type: mac_mini_m2
     max_build_duration: 120
     triggering:
@@ -27,16 +27,29 @@ workflows:
       - name: Download and authenticate PRIVATE encrypted 3D assets
         script: |
           set -eu
-          curl --fail --silent --show-error -L --retry 3 \
-            'https://drive.google.com/uc?export=download&id=1E-bR8B2V_o33Mb519iA6ea_ouCM_gUWV' \
-            -o /tmp/STAAR_PRIVATE_110.enc
-          node scripts/decrypt-private-b110.mjs /tmp/STAAR_PRIVATE_110.enc
-          rm -f /tmp/STAAR_PRIVATE_110.enc
+          asset_dir=$(mktemp -d)
+          trap 'rm -rf "$asset_dir"' EXIT
+          asset="$asset_dir/guardian-worlds.enc"
+          expected_sha256=1a9a40835361ce71633c71eab7ac9ac392ec12e3a936397ed718299b4bd6a1d0
+          for attempt in 1 2 3; do
+            rm -f "$asset"
+            if curl --fail --silent --show-error --location --connect-timeout 20 --max-time 180 \
+                 'https://drive.google.com/uc?export=download&id=1E-bR8B2V_o33Mb519iA6ea_ouCM_gUWV' \
+                 --output "$asset" &&
+               printf '%s  %s\n' "$expected_sha256" "$asset" | shasum -a 256 --check --status; then
+              break
+            fi
+            echo "Private 3D asset download attempt $attempt failed checksum or transport validation" >&2
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep "$((attempt * 2))"
+          done
+          node scripts/decrypt-private-b110.mjs "$asset"
+          rm -f "$asset"
           cd frontend
           node scripts/stage-private-guardian-b250-qa.mjs
           node --input-type=module -e "import('./scene-src/internal-ten-world-qa.mjs').then(m=>m.loadInternalTenWorldQaAssets(process.cwd()+'/scene-src').then(w=>{if(Object.keys(w).length!==10)throw Error('ten_worlds_missing');console.log('10 GLBs hash verified')}))"
           node scripts/prepare-private-b250-qa-archive.mjs prepare
-      - name: Set unique iPhone TestFlight version 110
+      - name: Set unique iPhone TestFlight version 111
         script: |
           cd frontend
           node - <<'NODE'
@@ -44,7 +57,7 @@ workflows:
           const name='app.json',data=JSON.parse(fs.readFileSync(name,'utf8'));
           if(data.expo.version!=='1.0.4'||data.expo.ios.buildNumber!=='109')
             throw Error('Incorrect base version — refuse to build with duplicate number');
-          data.expo.ios.buildNumber='110';
+          data.expo.ios.buildNumber='111';
           fs.writeFileSync(name,JSON.stringify(data,null,2)+'\n');
           NODE
       - name: Install Expo dependencies and bundle the real Guardian and 10 GLBs
@@ -52,7 +65,7 @@ workflows:
           cd frontend
           corepack enable
           yarn install --frozen-lockfile
-          node --test tests/build252-private-b250-iphone-qa-loader.test.mjs tests/build252-private-preview-archive-policy.test.mjs
+          node --test tests/build252-private-b250-iphone-qa-loader.test.mjs tests/build252-private-preview-archive-policy.test.mjs tests/build111-immersive-hub-home-contract.test.mjs
       - name: Native iOS prebuild
         script: |
           cd frontend
@@ -75,9 +88,3 @@ workflows:
     artifacts:
       - frontend/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-        submit_to_app_store: false
-        beta_groups: []

@@ -6,8 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AccessField } from './access-field';
-import { GuardianCharacter, type GuardianState } from './guardian-character';
+import { WorldScene } from './world-scene';
+import type { GuardianState } from './guardian-character';
 import { WORLDS } from '@/lib/staarwardd/world-directory';
 import { useAuth } from '@/src/auth';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
@@ -22,7 +22,7 @@ export function WorldHub() {
   const [selected, setSelected] = useState<string | null>(null);
   const [guardianState, setGuardianState] = useState<GuardianState>('flying');
   const [stageHeight, setStageHeight] = useState(380);
-  const [guardianMessage, setGuardianMessage] = useState('Guardian standing by.');
+  const [guardianMessage, setGuardianMessage] = useState('Preparing your 3D portal chamber…');
   const [greetingError, setGreetingError] = useState(false);
   const [guardianSpeaking, setGuardianSpeaking] = useState(false);
   const portalSize = width >= 900 ? 225 : width >= 600 ? 185 : Math.max(96, Math.floor((width - 68) / 3));
@@ -99,10 +99,12 @@ export function WorldHub() {
     return () => { loop.stop(); arrival.stopAnimation(); };
   }, [arrival, drift, motionReduced]);
   useEffect(() => { if (motionReduced) setArrivalComplete(true); }, [motionReduced]);
+  const onGuardian3dLoaded = useCallback(() => setGuardianMessage('Guardian 3D loaded. Select a portal to enter.'), []);
   const onGuardianMotionEnd = useCallback(() => {
     if (!arrivalFinished.current) {
       arrivalFinished.current = true;
       setArrivalComplete(true);
+      setGuardianMessage(current => current.startsWith('Guardian 3D loaded') ? current : 'Portal chamber online. Guardian model loading…');
     }
     setGuardianState(state => state === 'flying' ? 'hover' : state);
   }, []);
@@ -189,6 +191,13 @@ export function WorldHub() {
     })();
   };
   const greetingActive = greetingEnabled && serverGreetingConsent && !serverPrivate && !serverSpeechQuiet;
+  const open3dPortal = useCallback((action: string) => {
+    if (!action.startsWith('world:')) return;
+    const next = action.slice(6);
+    if (!WORLDS.some(item => item.id === next)) return;
+    setSelected(next);
+    router.push({ pathname: '/environment', params: { world: next } } as never);
+  }, [router]);
   const companion = user?.companion === 'kaia' ? 'Kaia' : user?.companion === 'guardian' ? 'Guardian' : 'Atlas';
   useFocusEffect(useCallback(() => { setSelected(null); }, []));
   return <View style={s.root}>
@@ -198,22 +207,15 @@ export function WorldHub() {
         <View style={s.header}><View><Text style={s.brand}>STAARWAARDD</Text><Text style={s.micro}>YOUR CONNECTED UNIVERSE</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => router.push('/settings')} style={s.icon}><Ionicons name="options-outline" size={22} color="#E4E8EE" /></Pressable></View>
         <View style={[s.stage, { height: stageHeight }]} onLayout={event => {
           const available = event.nativeEvent.layout.width;
-          const target = Math.max(380, Math.min(560, available * 1.06));
+          const target = Math.max(460, Math.min(690, available * 1.5));
           if (Math.abs(stageHeight - target) > 1) setStageHeight(target);
         }}>
-          <Image source={require('@/assets/images/staarwardd/toronto-skyline-pan.png')} resizeMode="cover" style={s.skyline} />
-          <AccessField />
-          <View style={s.guardianFigure}><GuardianCharacter state={audio.voicePlaybackActive ? 'speaking' : guardianState} size={Math.min(width * 0.56, 285)} reducedMotion={motionReduced} onMotionEnd={onGuardianMotionEnd} /></View>
-          <Animated.View style={[s.stageCopy, { opacity: arrival, transform: [{ translateY: arrival.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }] }]}><Text style={s.micro}>{companion.toUpperCase()} · YOUR COMPANION</Text><Text style={s.title}>STAARWAARDD</Text><Text style={s.description}>{guardianMessage}</Text></Animated.View>
+          <View style={s.immersiveScene}>
+            <WorldScene world="hub" embedded onSceneReady={onGuardianMotionEnd} onGuardianModelReady={onGuardian3dLoaded} onAction={open3dPortal} />
+          </View>
+          <Animated.View pointerEvents="none" style={[s.stageCopy, { opacity: arrival, transform: [{ translateY: arrival.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }] }]}><Text style={s.micro}>{companion.toUpperCase()} · YOUR COMPANION</Text><Text style={s.title}>STAARWAARDD</Text><Text style={s.description}>{guardianMessage}</Text></Animated.View>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian welcome" accessibilityHint="Plays only when Guardian voice is enabled and consent permits" disabled={guardianSpeaking} onPress={() => { void greet(); }} style={s.greetButton}><Ionicons name="volume-high-outline" size={18} color="#F1F3F7" /><Text style={s.greetLabel}>{audio.voicePlaybackActive ? 'GUARDIAN SPEAKING' : guardianSpeaking ? 'GUARDIAN PREPARING VOICE' : greetingError ? 'RETRY GUARDIAN VOICE' : 'HEAR GUARDIAN'}</Text></Pressable>
-        <LinearGradient colors={['#BBC2CB', '#3A414A', '#8B949F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.frame}>
-          <BlurView intensity={35} tint="dark" style={s.companion}>
-            <View style={{ flex: 1, gap: 7 }}><Text style={s.panelTitle}>Speak with {companion}</Text><Text style={s.description}>Ask a question or continue a conversation. Recording requires a tap.</Text></View>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Open conversation with ${companion}`} onPress={() => router.push('/chat')} style={s.primary}><Ionicons name="chatbubble-ellipses-outline" size={23} color="#101317" /></Pressable>
-          </BlurView>
-        </LinearGradient>
-        <View style={s.voiceRow}><View style={{ flex: 1 }}><Text style={s.panelTitle}>Guardian welcome</Text><Text style={s.description}>{!audio.master ? 'Enable master audio in settings to hear greetings.' : greetingEnabled ? 'Greets after arrival only with verified consent and during permitted hours.' : 'Automatic welcome off. Tap the microphone or chat to speak.'}</Text></View><Pressable accessibilityRole="switch" accessibilityState={{ checked: greetingActive }} accessibilityLabel="Proactive Guardian greeting" disabled={!greetingKey || !preferenceReady || !serverConsentReady || savingGreeting || serverPrivate || serverSpeechQuiet} onPress={() => setGreeting(!greetingActive)} style={[s.toggle, greetingActive && s.toggleOn]}><Text style={[s.toggleText, greetingActive && s.toggleTextOn]}>{greetingActive ? 'ON' : 'OFF'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Silence Guardian" onPress={() => { voiceEpoch.current += 1; audio.setSpeechQuiet(true); audio.stopAll(); setGuardianSpeaking(false); setGuardianState('hover'); }} style={s.silence}><Ionicons name="volume-mute-outline" size={21} color="#F3F4F6" /></Pressable></View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Open full immersive 3D portal chamber" onPress={() => router.push({ pathname: '/environment', params: { world: 'hub' } } as never)} style={s.greetButton}><Ionicons name="planet-outline" size={19} color="#E9D3A5" /><Text style={s.greetLabel}>ENTER FULL 3D HUB</Text></Pressable>
         <View style={s.section}><Text style={s.micro}>ENTER YOUR NINE WORLDS</Text><Text style={s.count}>09</Text></View>
         <View style={s.grid}>{WORLDS.map((world, index) => <Pressable key={world.id} accessibilityRole="button" accessibilityLabel={`Open ${world.name}`} disabled={selected !== null} onPress={() => { setSelected(world.id); router.push({ pathname: '/environment', params: { world: world.id } } as never); }} style={({ pressed }) => [s.world, { width: portalSize, height: portalSize, borderRadius: portalSize / 2 }, pressed && s.pressed]}>
           <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [index % 2 ? 4 : -4, index % 2 ? -4 : 4] }) }, { scale: drift.interpolate({ inputRange: [0, 1], outputRange: [1.02, 1.08] }) }] }]}><Image source={world.image} style={s.art} accessibilityLabel={`${world.name} approved portal artwork`} /></Animated.View>
@@ -234,6 +236,14 @@ export function WorldHub() {
           <View style={s.worldTop}><Text style={s.number}>{String(index + 1).padStart(2, '0')}</Text><Ionicons name="arrow-forward-outline" size={18} color="#DDE3EB" /></View>
           <View style={s.worldCopy}><Text style={s.worldName}>{world.name}</Text><Text style={s.worldDetail}>{world.title}</Text></View>
         </Pressable>)}</View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian welcome" accessibilityHint="Plays only when Guardian voice is enabled and consent permits" disabled={guardianSpeaking} onPress={() => { void greet(); }} style={s.greetButton}><Ionicons name="volume-high-outline" size={18} color="#F1F3F7" /><Text style={s.greetLabel}>{audio.voicePlaybackActive ? 'GUARDIAN SPEAKING' : guardianSpeaking ? 'GUARDIAN PREPARING VOICE' : greetingError ? 'RETRY GUARDIAN VOICE' : 'HEAR GUARDIAN'}</Text></Pressable>
+        <LinearGradient colors={['#BBC2CB', '#3A414A', '#8B949F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.frame}>
+          <BlurView intensity={35} tint="dark" style={s.companion}>
+            <View style={{ flex: 1, gap: 7 }}><Text style={s.panelTitle}>Speak with {companion}</Text><Text style={s.description}>Ask a question or continue a conversation. Recording requires a tap.</Text></View>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Open conversation with ${companion}`} onPress={() => router.push('/chat')} style={s.primary}><Ionicons name="chatbubble-ellipses-outline" size={23} color="#101317" /></Pressable>
+          </BlurView>
+        </LinearGradient>
+        <View style={s.voiceRow}><View style={{ flex: 1 }}><Text style={s.panelTitle}>Guardian welcome</Text><Text style={s.description}>{!audio.master ? 'Enable master audio in settings to hear greetings.' : greetingEnabled ? 'Greets after arrival only with verified consent and during permitted hours.' : 'Automatic welcome off. Tap the microphone or chat to speak.'}</Text></View><Pressable accessibilityRole="switch" accessibilityState={{ checked: greetingActive }} accessibilityLabel="Proactive Guardian greeting" disabled={!greetingKey || !preferenceReady || !serverConsentReady || savingGreeting || serverPrivate || serverSpeechQuiet} onPress={() => setGreeting(!greetingActive)} style={[s.toggle, greetingActive && s.toggleOn]}><Text style={[s.toggleText, greetingActive && s.toggleTextOn]}>{greetingActive ? 'ON' : 'OFF'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Silence Guardian" onPress={() => { voiceEpoch.current += 1; audio.setSpeechQuiet(true); audio.stopAll(); setGuardianSpeaking(false); setGuardianState('hover'); }} style={s.silence}><Ionicons name="volume-mute-outline" size={21} color="#F3F4F6" /></Pressable></View>
         <Pressable accessibilityRole="button" onPress={() => router.push('/device-checks')} style={s.icon}><Text style={s.panelTitle}>Voice & device checks</Text></Pressable>
         <Pressable accessibilityRole="button" onPress={() => router.push('/guardian-tools')} style={s.icon}><Text style={s.panelTitle}>Life Map & Guardian controls</Text></Pressable>
         <Text style={s.footer}>GUARDIAN AT THE HEART. YOU IN CONTROL.</Text>
@@ -242,9 +252,9 @@ export function WorldHub() {
   </View>;
 }
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#030405' }, safe: { flex: 1 }, content: { padding: 22, paddingBottom: 38, width: '100%', maxWidth: 1200, alignSelf: 'center' },
+  root: { flex: 1, backgroundColor: '#030405' }, safe: { flex: 1 }, content: { padding: 22, paddingBottom: 155, width: '100%', maxWidth: 1200, alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, brand: { color: '#F3F5F8', fontSize: 18, letterSpacing: 4, fontWeight: '700' }, micro: { color: '#B2BAC5', fontSize: 10, letterSpacing: 2, lineHeight: 17 }, icon: { padding: 12, borderWidth: 1, borderColor: '#4D555F', borderRadius: 16 },
-  stage: { height: 380, overflow: 'hidden', marginVertical: 12, borderRadius: 26, borderWidth: 1, borderColor: '#747F8C' }, skyline: { position: 'absolute', width: '100%', height: '100%', opacity: 0.35 }, guardianFigure: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' }, stageCopy: { position: 'absolute', bottom: 12, left: 12, right: 12, padding: 12, borderRadius: 14, backgroundColor: 'rgba(3,4,6,.78)', gap: 4 }, greetButton: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#7F8995', padding: 12, borderRadius: 20, marginBottom: 12 }, greetLabel: { color: '#F1F3F7', fontSize: 11, letterSpacing: 1.2, fontWeight: '700' }, title: { color: '#F1F3F7', fontSize: 28, lineHeight: 34, letterSpacing: -1.5, fontWeight: '600' }, description: { color: '#B3BCC9', fontSize: 13, lineHeight: 21 },
+  stage: { height: 460, overflow: 'hidden', marginVertical: 12, borderRadius: 26, borderWidth: 1, borderColor: '#747F8C' }, immersiveScene: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: '#030713' }, skyline: { position: 'absolute', width: '100%', height: '100%', opacity: 0.35 }, guardianFigure: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' }, stageCopy: { position: 'absolute', bottom: 12, left: 12, right: 12, padding: 12, borderRadius: 14, backgroundColor: 'rgba(3,4,6,.78)', gap: 4 }, greetButton: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#7F8995', padding: 12, borderRadius: 20, marginBottom: 12 }, greetLabel: { color: '#F1F3F7', fontSize: 11, letterSpacing: 1.2, fontWeight: '700' }, title: { color: '#F1F3F7', fontSize: 28, lineHeight: 34, letterSpacing: -1.5, fontWeight: '600' }, description: { color: '#B3BCC9', fontSize: 13, lineHeight: 21 },
   frame: { borderRadius: 21, padding: 1 }, companion: { borderRadius: 20, overflow: 'hidden', padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: 'rgba(10,13,17,.8)' }, panelTitle: { color: '#F1F3F6', fontSize: 18, fontWeight: '600' }, primary: { padding: 15, borderRadius: 18, backgroundColor: '#D4DAE2' },
   voiceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, padding: 12, borderRadius: 18, borderColor: '#747B85', borderWidth: 1, backgroundColor: '#101318' }, toggle: { paddingHorizontal: 13, paddingVertical: 10, borderRadius: 18, borderWidth: 1, borderColor: '#AAB2BD' }, toggleOn: { backgroundColor: '#CFD5DF' }, toggleText: { color: '#F3F4F6', fontWeight: '800' }, toggleTextOn: { color: '#101317' }, silence: { padding: 10 }, glassRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 3, borderColor: 'rgba(235,240,248,.72)', borderTopColor: 'rgba(255,255,255,.95)', borderBottomColor: 'rgba(125,135,149,.55)' },
   glassSheen: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,.38)' },
