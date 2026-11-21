@@ -35,4 +35,4 @@ jobs:
       - name: Compile Guardian modules
         run: python -m compileall -q guardian_mission_engine.py guardian_worker.py guardian_verifier.py
       - name: Run Guardian foundation tests
-        run: python -m pytest -q tests/test_guardian_mission_engine.py tests/test_guardian_evidence_regression.py tests/test_guardian_worker.py tests/test_guardian_verifier.py
+        run: python -m pytest -q tests/test_guardian_mission_engine.py tests/test_guardian_evidence_regression.py tests/test_guardian_worker.py tests/test_guardian_verifier.py tests/test_guardian_recovery_safety.py
