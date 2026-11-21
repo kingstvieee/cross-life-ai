@@ -51,6 +51,7 @@ class Missions:
             if actual is None:
                 return False
             return ("$lt" not in condition or actual < condition["$lt"]) and (
+                "$gt" not in condition or actual > condition["$gt"]) and (
                 "$gte" not in condition or actual >= condition["$gte"]
             )
         def matches(doc, conditions):
@@ -77,11 +78,9 @@ class Missions:
             raise DuplicateKeyError("duplicate mission")
         self.docs.append(dict(doc))
     async def find_one(self, query, projection):
-        self.queries.append((query, projection))
-        for doc in self.docs:
-            if all(doc.get(k) == v for k, v in query.items()):
-                return self.project(doc, projection)
-        return None
+        # Reuse the same nested $and/$or/regex matcher as find().
+        results = self.find(query, projection).docs
+        return results[0] if results else None
     async def find_one_and_update(self, query, update, *, return_document):
         for doc in self.docs:
             if all(doc.get(k) == v for k, v in query.items()):
