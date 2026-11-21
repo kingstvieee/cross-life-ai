@@ -1,5 +1,5 @@
 """Guardian mission API isolation and authorization regression tests."""
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from fastapi import FastAPI, HTTPException
@@ -39,15 +39,31 @@ class Missions:
     def find(self, query, projection):
         self.queries.append((query, projection))
         clauses = query.get("$or")
+        def compare(actual, condition):
+            if not isinstance(condition, dict):
+                return actual == condition
+            if "$in" in condition:
+                return actual in condition["$in"]
+            if actual is None:
+                return False
+            return ("$lt" not in condition or actual < condition["$lt"]) and (
+                "$gte" not in condition or actual >= condition["$gte"]
+            )
         def matches(doc, conditions):
             return all(
-                key == "$or" or
-                (doc[key] < value["$lt"] if isinstance(value, dict) else doc.get(key) == value)
+                key == "$or" or compare(doc.get(key), value)
                 for key, value in conditions.items()
             )
         return Cursor([self.project(x, projection) for x in self.docs
                        if matches(x, query) and
                        (not clauses or any(matches(x, clause) for clause in clauses))])
+    def aggregate(self, pipeline):
+        query = pipeline[0]["$match"]
+        counts = {}
+        for doc in self.docs:
+            if doc["owner_id"] == query["owner_id"] and doc["status"] in query["status"]["$in"]:
+                counts[doc["status"]] = counts.get(doc["status"], 0) + 1
+        return Cursor([{"_id": state, "count": count} for state, count in counts.items()])
     async def insert_one(self, doc):
         if any(saved["owner_id"] == doc["owner_id"] and
                saved.get("idempotency_key") == doc["idempotency_key"]
@@ -70,7 +86,11 @@ class Missions:
     def project(doc, projection):
         if not any(projection.values()):
             return {k: v for k, v in doc.items() if k not in projection}
-        return {k: v for k, v in doc.items() if projection.get(k) == 1}
+        result = {k: v for k, v in doc.items() if projection.get(k) == 1}
+        for field, value in (doc.get("evidence") or {}).items():
+            if projection.get(f"evidence.{field}") == 1:
+                result.setdefault("evidence", {})[field] = value
+        return result
 
 
 @pytest.fixture
@@ -226,3 +246,58 @@ def test_cancel_pending_is_owner_scoped_and_state_gated(api, status, expected):
             assert client.get("/api/guardian/missions/a1").json()["recovery_reason"] == (
                 "owner_cancelled_pending_execution"
             )
+
+
+@pytest.mark.parametrize("patch", [
+    {"approved": True},
+    {"objective": "   "},
+    {"success_criteria": "\t"},
+    {"idempotency_key": "key with space"},
+    {"budget_cad": "5"},
+    {"budget_cad": True},
+])
+def test_proposal_rejects_invalid_or_control_fields(api, patch):
+    app, missions, account = api
+    app.dependency_overrides[account] = lambda: {"user_id": "alice"}
+    payload = {"objective": "Prepare summary", "success_criteria": "Show totals",
+               "idempotency_key": "safe-key-1", **patch}
+    with TestClient(app) as client:
+        assert client.post("/api/guardian/missions", json=payload).status_code == 422
+    assert len(missions.docs) == 2
+
+
+def test_owner_history_window_multi_status_and_summary(api):
+    app, missions, account = api
+    for mission in missions.docs:
+        mission["created_at"] = datetime(2026, 11, 21, tzinfo=timezone.utc)
+    missions.docs.append({"owner_id": "alice", "mission_id": "a2", "status": "blocked",
+                          "created_at": datetime(2026, 11, 22, tzinfo=timezone.utc)})
+    app.dependency_overrides[account] = lambda: {"user_id": "alice"}
+    with TestClient(app) as client:
+        filtered = client.get("/api/guardian/missions", params=[
+            ("status", "blocked"), ("status", "queued"),
+            ("created_from", "2026-11-21T00:00:00Z"),
+            ("created_before", "2026-11-22T00:00:00Z"),
+        ])
+        assert [doc["mission_id"] for doc in filtered.json()["missions"]] == ["a1"]
+        assert filtered.headers["Cache-Control"] == "private, no-store"
+        assert client.get("/api/guardian/missions", params={
+            "created_from": "2026-11-22T00:00:00Z", "created_before": "2026-11-21T00:00:00Z",
+        }).status_code == 422
+        summary = client.get("/api/guardian/missions/summary").json()
+        assert summary["total"] == 2
+        assert summary["counts"]["queued"] == summary["counts"]["blocked"] == 1
+        assert summary["counts"]["running"] == 0
+
+
+def test_mission_details_expose_actions_and_limited_verification_evidence(api):
+    app, missions, account = api
+    missions.docs[0]["evidence"] = {"passed": True, "result_digest": "digest",
+                                   "verified_at": "verified", "private_payload": "secret"}
+    app.dependency_overrides[account] = lambda: {"user_id": "alice"}
+    with TestClient(app) as client:
+        detail = client.get("/api/guardian/missions/a1")
+    assert detail.headers["Cache-Control"] == "private, no-store"
+    assert detail.json()["available_actions"] == ["cancel-pending"]
+    assert detail.json()["evidence"] == {"passed": True, "result_digest": "digest",
+                                         "verified_at": "verified"}
