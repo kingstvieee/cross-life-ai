@@ -145,8 +145,15 @@ def build_guardian_mission_router(*, db, require_account_user, preview_enabled=F
             if created_before:
                 query["created_at"]["$lt"] = created_before
         if after is not None:
+            # Cursor must belong to the same tenant and active filters.
+            # Otherwise a stale cursor can silently skip search results.
+            anchor_query = {"owner_id": owner, "mission_id": after}
+            if "status" in query:
+                anchor_query["status"] = query["status"]
+            if "$and" in query:
+                anchor_query["$and"] = query["$and"]
             anchor = await db.guardian_missions.find_one(
-                {"owner_id": owner, "mission_id": after}, {"_id": 0, "created_at": 1},
+                anchor_query, {"_id": 0, "created_at": 1},
             )
             if not anchor or not anchor.get("created_at"):
                 raise HTTPException(status_code=404, detail="mission_cursor_not_found")
