@@ -22,7 +22,13 @@ const names = worldNames;
 const requested = window.STAAR_WORLD || new URLSearchParams(location.search).get('world') || 'hub';
 const world = ['hub', ...ids].includes(requested) ? requested : 'hub';
 const singles = world === 'relationships' && (window.STAAR_VARIANT || new URLSearchParams(location.search).get('variant')) === 'singles';
-const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const guardianPresentation = world === 'hub' && window.STAAR_GUARDIAN_PRESENTATION === true;
+if (guardianPresentation) {
+  document.body.style.background = document.documentElement.style.background = 'transparent';
+  document.querySelector('header').hidden = document.querySelector('footer').hidden = true;
+  document.querySelector('header').style.display = document.querySelector('footer').style.display = 'none';
+}
+const reduced = window.STAAR_REDUCE_GUARDIAN_MOTION === true || matchMedia('(prefers-reduced-motion: reduce)').matches;
 const canvas = document.querySelector('canvas');
 const session = window.STAAR_SCENE_SESSION || '';
 const report = (type, data = {}) => {
@@ -42,7 +48,7 @@ const addNavigationFallback = () => {
   }
 };
 let renderer;
-try { renderer = new T.WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power' }); }
+try { renderer = new T.WebGLRenderer({ canvas, alpha: guardianPresentation, antialias: true, powerPreference: 'low-power' }); }
 catch {
   document.querySelector('#status').textContent = '3D rendering is unavailable on this device. Navigation remains available below.';
   document.querySelector('#reset').hidden = true;
@@ -53,7 +59,8 @@ if (renderer) {
   const scene = new T.Scene();
   const bright = ['work','wellbeing','style'].includes(world);
   scene.background = new T.Color(bright ? '#c8dcec' : '#020611');
-  scene.fog = new T.Fog(scene.background, 38, 150);
+  if (guardianPresentation) scene.background = null;
+  else scene.fog = new T.Fog(scene.background, 38, 150);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.setSize(innerWidth, innerHeight);
   renderer.toneMapping = T.ACESFilmicToneMapping;
@@ -347,41 +354,60 @@ if (renderer) {
     // Separate private device-only route. This review model is explicitly
     // quarantined from the regular approved-asset importer and production
     // runtime; its real binary hash is checked by build.mjs at staging time.
-    const internal=world==='hub' && window.STAAR_GUARDIAN_QA===true &&
+    const internal=!guardianPresentation && world==='hub' && window.STAAR_GUARDIAN_QA===true &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.schema==='staar-b250-private-internal-iphone-qa-v1' &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.internalQaOnly===true &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.productionApproved===false &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.physicalIphoneCertified===false
         ? window.STAAR_PRIVATE_GUARDIAN_QA_MODEL : null;
     const asset=internal??window.STAAR_APPROVED_GUARDIAN_MODEL;
-    if (!asset?.glbBase64 || asset.sourceImageSha256!=='d7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c') return;
+    const unavailable = () => { if (guardianPresentation && !disposed) report('guardian-unavailable'); };
+    if (!asset?.glbBase64 || asset.sourceImageSha256!=='d7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c') { unavailable(); return; }
     try {
       const decoded=atob(asset.glbBase64);
       const bytes=new Uint8Array(decoded.length);
       for(let i=0;i<decoded.length;i++)bytes[i]=decoded.charCodeAt(i);
       new GLTFLoader().parse(bytes.buffer,'',model=>{
-        if(!model?.scene)return;
+        if(!model?.scene){unavailable();return;}
         if(disposed){disposeModel(model.scene);return;}
         const guardian=model.scene;
         // Build242 repair acceptance: full-body neck must truly carry the protected
         // head skin. Do not show a frozen head, disable two-sided face rendering,
         // or retain zero-scale legacy silver/chrome armour in the live scene.
         const integrity=inspectGuardianRigIntegrity(guardian,{detachHiddenLegacy:true});
-        if(!integrity.valid){disposeModel(guardian);return;}
+        if(!integrity.valid){disposeModel(guardian);unavailable();return;}
         // Verified exact GLB may explicitly declare its real source coordinates.
         // Preserve existing Y-up models and never guess an unspecified axis.
         const upAxis=model.parser?.json?.extras?.STAAR_Guardian_Coordinates?.upAxis;
         if(upAxis==='Z')guardian.rotation.x=-Math.PI/2;
-        else if(upAxis && upAxis!=='Y'){disposeModel(guardian);return;}
+        else if(upAxis && upAxis!=='Y'){disposeModel(guardian);unavailable();return;}
         const bounds=new T.Box3().setFromObject(guardian);
         const dimensions=bounds.getSize(new T.Vector3());
-        if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000){disposeModel(guardian);return;}
+        if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000){disposeModel(guardian);unavailable();return;}
         const scale=Math.min(3.65/dimensions.y,4.5/Math.max(dimensions.x,dimensions.z,.1));
         guardian.scale.setScalar(scale);
         // Centre approved full armour above the existing Guardian plinth, never crop the emblem.
         const centre=bounds.getCenter(new T.Vector3());
         guardian.position.set(-centre.x*scale,.6-bounds.min.y*scale,1.5-centre.z*scale);
-        scene.add(guardian);
+        if (guardianPresentation) {
+          const flight = new T.Group();
+          scene.add(flight);
+          flight.add(guardian);
+          if (reduced) report('guardian-arrived');
+          else {
+            const startFlight = performance.now();
+            let arrived = false;
+            animated.push(() => {
+              const progress = Math.min((performance.now() - startFlight) / 1400, 1);
+              const remaining = (1 - progress) ** 3;
+              flight.position.set(2.4 * remaining, 4.2 * remaining, -5 * remaining);
+              if (progress === 1 && !arrived) {
+                arrived = true;
+                report('guardian-arrived');
+              }
+            });
+          }
+        } else scene.add(guardian);
         modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
         // The internal branch is source-hash pinned but NEVER an Apple
         // release approval. The ordinary production branch still accepts
@@ -411,11 +437,19 @@ if (renderer) {
             {approvedAsset:true});
           report('guardian-face-ready',{modelSha256:asset.rigModelSha256});
         }
+        if (guardianPresentation && !guardianFaceMotion.readyForPlayback) report('guardian-unavailable');
         requestDraw();
-      },()=>{/* Never display guessed or partial face geometry on load failure. */});
-    } catch { /* The locked Guardian artwork remains the fallback. */ }
+      },unavailable);
+    } catch { unavailable(); }
   }
   function hub() {
+    if (guardianPresentation) {
+      camera.position.set(0, 3, 9);
+      controls.target.set(0, 2.65, 1.5);
+      controls.enabled = false;
+      approvedArmoredGuardian();
+      return;
+    }
     floor(15);stars();skyline();plinth(0,1.5,3);
     for(const r of[2,2.4,2.8])ring(0,3+(r-2)*2,1.5,r,.022,r<2.5?blue:amber,true);
     for(const x of[-11.5,11.5]){plinth(x,1,1,amber);diamond(x,1.7,1,.8);}
