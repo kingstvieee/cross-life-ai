@@ -267,6 +267,10 @@ function AccountMissions() {
               setOrder(current => current === 'newest' ? 'oldest' : 'newest'); }} />
         </View>
       </View>
+      {resultsLoaded && !busy && <Text accessibilityLiveRegion="polite" style={styles.muted}>
+        {missions.length} missions displayed{cursor ? '; more available' : ''}
+        {search ? ` · Search: ${search}` : ''}
+      </Text>}
       {missions.map(mission => <Pressable key={mission.mission_id} accessibilityRole="button"
         disabled={busy} style={styles.card} onPress={() => openMission(mission.mission_id)}>
         <Text style={styles.text}>{mission.objective}</Text>
