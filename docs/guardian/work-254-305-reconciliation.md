@@ -95,3 +95,17 @@ All three GitHub Actions workflows completed successfully on the exact commit:
 - Original numbered component traceability gate: BLOCKED (source definitions missing).
 - Real iPhone acceptance and 48-hour mission resilience gate: NOT VERIFIED.
 - Production merge/deploy: NOT AUTHORIZED by this audit.
+
+## Traceability correction: 2026-11-21, exact head 5d5fecedc2609b9ad809bc109a82d9c683e0230f
+
+All three workflows on this exact documentation head are green: Guardian foundation tests, Guardian Release Gates, Style Swap CI. This establishes **CI verification of the current PR branch**, not individual component certification.
+
+Evidence IDs in the companion workbook:
+- `EV-GH-001`: PR #184 and head commit, development branch only.
+- `EV-CI-001`: Guardian foundation tests, PASS.
+- `EV-CI-002`: Guardian Release Gates, PASS.
+- `EV-CI-003`: Style Swap CI, PASS.
+- `EV-SRC-001`: Work screenshot: 254–284 local report; 285–305 initiated; no final per-ID specification.
+- `EV-FEAT-001..006`: mission-search capabilities, source paths and tests. **Batch-level evidence only**.
+
+For each of SH-285 through SH-305, the workbook now distinguishes (a) the verified batch-level feature evidence from (b) the **missing canonical requirement-to-ID link**. No feature is assigned to a specific SH ID by inference. Each row has an explicit missing-artifact and acceptance gate. Original Work patch/requirements, iPhone acceptance, and 48-hour live resilience remain outstanding. No merge or production release is implied.
