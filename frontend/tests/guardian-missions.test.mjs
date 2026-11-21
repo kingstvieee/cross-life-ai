@@ -49,7 +49,7 @@ test('authenticated transport receives status filters, paging and mutation input
   await client.propose(draft, 'stable-key', signal);
   const mission = { mission_id: 'a/b', preview_digest: 'reviewed', available_actions: ['queue-preview'] };
   await client.action(mission, 'queue-preview', '2026-12-01T14:00-05:00', signal);
-  assert.equal(calls[0].path, '/api/guardian/missions?limit=15&status=queued&after=page%26cursor');
+  assert.equal(calls[0].path, '/api/guardian/missions?limit=15&status=queued&after=page%26cursor&order=newest');
   assert.equal(calls[1].path, '/api/guardian/missions/summary');
   assert.equal(calls[2].path, '/api/guardian/missions/a%2Fb');
   assert.equal(calls[3].body, calls[4].body);
@@ -75,4 +75,17 @@ test('mission transport reports owner-action rejections and conflicts accurately
   const disabled = guardianMissionClient(async () =>
     Response.json({ detail: 'mission_preview_disabled' }, { status: 404 }));
   await assert.rejects(() => disabled.detail('m1'), /Preview execution is disabled/);
+});
+
+test('private search is normalized and retained across pagination and sort', async () => {
+  const paths = [];
+  const client = guardianMissionClient(async path => {
+    paths.push(path);
+    return Response.json({ missions: [], next_cursor: null });
+  });
+  await client.list('completed', undefined, undefined, '  CAD [quote]  ', 'oldest');
+  await client.list('completed', 'next/1', undefined, '  CAD [quote]  ', 'oldest');
+  assert.equal(paths[0], '/api/guardian/missions?limit=15&status=completed&search=CAD+%5Bquote%5D&order=oldest');
+  assert.equal(paths[1], '/api/guardian/missions?limit=15&status=completed&after=next%2F1&search=CAD+%5Bquote%5D&order=oldest');
+  assert.throws(() => client.list('', undefined, undefined, 'x'.repeat(121)), /120 characters/);
 });
