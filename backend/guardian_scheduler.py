@@ -20,7 +20,8 @@ async def schedule_approved(collection, *, owner_id, mission_id, run_at):
     now = utcnow()
     doc = await collection.find_one_and_update(
         {"owner_id": owner_id, "mission_id": mission_id,
-         "status": "approved"},
+         "status": "approved",
+         "$or": [{"expires_at": None}, {"expires_at": {"$gt": max(now, run_at)}}]},
         {"$set": {"status": "queued", "not_before": run_at.astimezone(timezone.utc),
                   "updated_at": now}},
         return_document=True,
@@ -43,14 +44,16 @@ async def release_due_retries(collection, *, now=None, limit=100):
     if now.tzinfo is None:
         raise ValueError("now must be timezone-aware")
     cursor = collection.find(
-        {"status": "retry_wait", "retry_after": {"$lte": now}},
+        {"status": "retry_wait", "retry_after": {"$lte": now},
+         "$or": [{"expires_at": None}, {"expires_at": {"$gt": now}}]},
         {"_id": 1, "retry_after": 1},
     ).sort("retry_after", 1).limit(limit)
     released = 0
     async for item in cursor:
         result = await collection.update_one(
             {"_id": item["_id"], "status": "retry_wait",
-             "retry_after": item["retry_after"]},
+             "retry_after": item["retry_after"],
+             "$or": [{"expires_at": None}, {"expires_at": {"$gt": now}}]},
             {"$set": {"status": "queued", "not_before": now,
                       "updated_at": now},
              "$unset": {"retry_after": ""}},

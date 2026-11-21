@@ -61,6 +61,8 @@ async def test_scheduling_requires_approval_and_preserves_utc():
         collection, owner_id="owner", mission_id="mission", run_at=run_at)
     assert collection.schedule_query["status"] == "approved"
     assert collection.schedule_query["owner_id"] == "owner"
+    assert collection.schedule_query["$or"][0] == {"expires_at": None}
+    assert collection.schedule_query["$or"][1]["expires_at"]["$gt"] >= run_at
     assert collection.schedule_update["$set"]["not_before"] == run_at
     assert "_id" not in mission
 
@@ -82,6 +84,9 @@ async def test_retry_release_uses_cas_and_due_filter():
     query, update = collection.updates[0]
     assert query["status"] == "retry_wait"
     assert query["retry_after"] == NOW - timedelta(seconds=1)
+    assert query["$or"] == collection.retry_query["$or"] == [
+        {"expires_at": None}, {"expires_at": {"$gt": NOW}},
+    ]
     assert update["$set"]["status"] == "queued"
     assert update["$unset"] == {"retry_after": ""}
 

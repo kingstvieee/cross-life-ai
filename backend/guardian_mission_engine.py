@@ -75,6 +75,8 @@ async def transition(collection, *, owner_id, mission_id, expected, target,
             raise ValueError("Lease token required")
         query["lease_token"] = lease_token
         query["lease_until"] = {"$gt": now_utc()}
+    if target == "running":
+        query["$or"] = [{"expires_at": None}, {"expires_at": {"$gt": now_utc()}}]
     update = {"status": target, "updated_at": now_utc()}
     if evidence is not None:
         update["evidence"] = evidence
@@ -100,8 +102,10 @@ async def claim_mission(collection, *, worker_id, lease_seconds=60):
     # it must not be reclaimed while an active worker still holds it.
     return await collection.find_one_and_update(
         {"status": "queued", "lease_until": None,
-         "$or": [{"not_before": {"$exists": False}},
-                 {"not_before": {"$lte": now}}]},
+         "$and": [
+             {"$or": [{"not_before": {"$exists": False}}, {"not_before": {"$lte": now}}]},
+             {"$or": [{"expires_at": None}, {"expires_at": {"$gt": now}}]},
+         ]},
         {"$set": {"status": "leased", "lease_token": token,
                   "worker_id": worker_id,
                   "lease_until": now + timedelta(seconds=lease_seconds),
