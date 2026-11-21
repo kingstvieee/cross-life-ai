@@ -1,9 +1,12 @@
 """Authenticated, tenant-scoped Guardian mission inspection API.
 
-Read-only first integration: no mission submission, approval, execution,
-or spend controls are exposed until their security model is reviewed.
+Mission proposals are inert until separately approved. No approval, execution,
+or spend controls are exposed by this router.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+from pymongo.errors import DuplicateKeyError
+from guardian_mission_engine import submit_mission
 
 SAFE_FIELDS = {
     "_id": 0, "owner_id": 1, "mission_id": 1, "objective": 1,
@@ -11,6 +14,13 @@ SAFE_FIELDS = {
     "not_before": 1, "retry_after": 1, "attempts": 1,
     "recovery_reason": 1,
 }
+
+
+class MissionProposal(BaseModel):
+    objective: str = Field(min_length=1, max_length=2000)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+    success_criteria: str = Field(min_length=1, max_length=2000)
+    budget_cad: float = Field(default=0, ge=0, le=1000000)
 
 
 def build_guardian_mission_router(*, db, require_account_user):
@@ -21,6 +31,24 @@ def build_guardian_mission_router(*, db, require_account_user):
         if not isinstance(value, str) or not value:
             raise HTTPException(status_code=403, detail="account_identity_required")
         return value
+
+    @router.post("", status_code=201)
+    async def propose_mission(
+        proposal: MissionProposal, user=Depends(require_account_user),
+    ):
+        owner = owner_id(user)
+        try:
+            mission = await submit_mission(
+                db.guardian_missions, owner_id=owner,
+                objective=proposal.objective,
+                idempotency_key=proposal.idempotency_key,
+                success_criteria=proposal.success_criteria,
+                budget_cad=proposal.budget_cad,
+            )
+        except DuplicateKeyError:
+            raise HTTPException(status_code=409, detail="mission_conflict")
+        # Proposal is never queued or executed by this endpoint.
+        return {"mission_id": mission["mission_id"], "status": mission["status"]}
 
     @router.get("")
     async def list_missions(
