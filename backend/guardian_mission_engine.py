@@ -24,7 +24,7 @@ def now_utc():
 def validate_transition(before, after, evidence=None):
     if after not in ALLOWED.get(before, set()):
         raise ValueError(f"Forbidden mission transition: {before} -> {after}")
-    if after == "completed" and not evidence:
+    if after == "completed" and not (isinstance(evidence, dict) and evidence.get("verifier") == "independent" and evidence.get("passed") is True):
         raise ValueError("Completion requires independent verification evidence")
 
 async def ensure_indexes(collection):
@@ -95,9 +95,9 @@ async def claim_mission(collection, *, worker_id, lease_seconds=60):
 async def recover_expired_leases(collection):
     now = now_utc()
     return await collection.update_many(
-        {"status": "leased", "lease_until": {"$lt": now}},
+        {"status": {"$in": ["leased", "running", "verifying"]}, "lease_until": {"$lt": now}},
         {"$set": {"status": "queued", "lease_until": None,
-                  "lease_token": None, "updated_at": now}})
+                  "lease_token": None, "worker_id": None, "updated_at": now}})
 
 def authorize_action(*, approved, action_scope, granted_scopes, cost_cad, budget_cad):
     """Fail closed; this policy must be checked server-side at the tool boundary."""
