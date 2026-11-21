@@ -66,9 +66,10 @@ async def transition(collection, *, owner_id, mission_id, expected, target,
         update["evidence"] = evidence
     if checkpoint is not None:
         update["checkpoint"] = checkpoint
-    if target in TERMINAL:
+    if target in TERMINAL or target in {"queued", "retry_wait", "awaiting_approval"}:
         update["lease_until"] = None
         update["lease_token"] = None
+        update["worker_id"] = None
     result = await collection.find_one_and_update(
         query, {"$set": update}, return_document=True)
     if result is None:
