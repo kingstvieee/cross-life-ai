@@ -24,7 +24,12 @@ const lockedPortalArtwork = {
   staarsonic: require('@/assets/images/staarwardd/locked/staarsonic.png'),
 };
 
-export function WorldHub() {
+function HubFocus({ onFocus }: { onFocus: () => () => void }) {
+  useFocusEffect(onFocus);
+  return null;
+}
+
+export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
   const router = useRouter();
   const { user, api } = useAuth();
   const audio = useStaarAudio();
@@ -116,7 +121,7 @@ export function WorldHub() {
     setModelAvailable(false);
     setArrivalComplete(false);
   }, []);
-  const focused = useRef(false);
+  const focused = useRef(Boolean(onSignIn));
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
       setAppActive(state === 'active');
@@ -156,7 +161,7 @@ export function WorldHub() {
       }
     }
   }, [audio.master, audio.voice, audio.speechQuiet, audio.speak]);
-  useFocusEffect(useCallback(() => { focused.current = true; return () => { focused.current = false; voiceEpoch.current += 1; setGuardianSpeaking(false); }; }, []));
+
   useEffect(() => {
     if (!focused.current || !appActive || !isProactiveWelcomeTime(new Date()) || !preferenceReady || !modelAvailable || !arrivalComplete || !serverConsentReady || !serverGreetingConsent || serverPrivate || serverSpeechQuiet || !greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || greeted.current) return;
     greeted.current = true;
@@ -196,8 +201,13 @@ export function WorldHub() {
   };
   const greetingActive = greetingEnabled && serverGreetingConsent && !serverPrivate && !serverSpeechQuiet;
   const navigationLocked = useRef(false);
-  useFocusEffect(useCallback(() => { navigationLocked.current = false; }, []));
+  const onFocus = useCallback(() => {
+    focused.current = true;
+    navigationLocked.current = false;
+    return () => { focused.current = false; voiceEpoch.current += 1; setGuardianSpeaking(false); };
+  }, []);
   const openPortal = (world: string) => {
+    if (onSignIn) { onSignIn(); return; }
     if (navigationLocked.current) return;
     navigationLocked.current = true;
     router.push({ pathname: '/environment', params: { world } } as never);
@@ -232,6 +242,7 @@ export function WorldHub() {
   );
   return (
     <View style={s.root}>
+      {!onSignIn && <HubFocus onFocus={onFocus} />}
       <LinearGradient colors={['#080A13', '#020204', '#10101A', '#020204']} style={StyleSheet.absoluteFill} />
       <View pointerEvents="none" style={StyleSheet.absoluteFill} importantForAccessibility="no-hide-descendants">
         {Array.from({ length: 40 }, (_, index) => (
@@ -246,7 +257,7 @@ export function WorldHub() {
       <SafeAreaView style={[s.safe, compact && s.safeCompact]}>
         <View style={[s.header, compact && s.headerCompact]}>
           <Text accessibilityRole="header" style={s.brand}>STAARWAARDD</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Open settings" onPress={() => router.push('/settings')} style={s.icon}>
+          <Pressable accessibilityRole="button" accessibilityLabel={onSignIn ? "Sign in" : "Open settings"} onPress={onSignIn ?? (() => router.push('/settings'))} style={s.icon}>
             <Ionicons name="options-outline" size={23} color="#F4F0E6" />
           </Pressable>
         </View>
@@ -279,7 +290,7 @@ export function WorldHub() {
               setGuardianSpeaking(false);
             }} style={s.icon}><Ionicons name="volume-mute-outline" size={22} color="#F4F0E6" /></Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="Life Map and Guardian controls"
-              onPress={() => router.push('/guardian-tools')} style={s.icon}><Ionicons name="compass-outline" size={22} color="#F4F0E6" /></Pressable>
+              onPress={onSignIn ?? (() => router.push('/guardian-tools'))} style={s.icon}><Ionicons name="compass-outline" size={22} color="#F4F0E6" /></Pressable>
           </View>
         </View>
       </SafeAreaView>
