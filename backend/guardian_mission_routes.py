@@ -4,6 +4,7 @@ Mission proposals are inert until separately approved. Owners can cancel
 pending execution. This router exposes no approval, execution, or spend controls.
 """
 from datetime import timezone
+import re
 from typing import Literal, get_args
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -119,10 +120,20 @@ def build_guardian_mission_router(*, db, require_account_user, preview_enabled=F
         created_from: AwareDatetime | None = None,
         created_before: AwareDatetime | None = None,
         after: str | None = Query(default=None, min_length=1, max_length=128),
+        search: str | None = Query(default=None, max_length=120),
+        order: Literal["newest", "oldest"] = "newest",
         user=Depends(require_account_user),
     ):
         owner = owner_id(user)
         query = {"owner_id": owner}
+        if search is not None:
+            term = search.strip()
+            if not term:
+                raise HTTPException(status_code=422, detail="empty_mission_search")
+            expression = {"$regex": re.escape(term), "$options": "i"}
+            query["$and"] = [{"$or": [
+                {"objective": expression}, {"success_criteria": expression},
+            ]}]
         if status:
             query["status"] = status[0] if len(status) == 1 else {"$in": status}
         if created_from and created_before and created_from >= created_before:
@@ -140,12 +151,14 @@ def build_guardian_mission_router(*, db, require_account_user, preview_enabled=F
             if not anchor or not anchor.get("created_at"):
                 raise HTTPException(status_code=404, detail="mission_cursor_not_found")
             created_at = anchor["created_at"]
-            query["$or"] = [
-                {"created_at": {"$lt": created_at}},
-                {"created_at": created_at, "mission_id": {"$lt": after}},
-            ]
+            direction = "$lt" if order == "newest" else "$gt"
+            query.setdefault("$and", []).append({"$or": [
+                {"created_at": {direction: created_at}},
+                {"created_at": created_at, "mission_id": {direction: after}},
+            ]})
+        direction = -1 if order == "newest" else 1
         cursor = db.guardian_missions.find(query, SAFE_FIELDS).sort(
-            [("created_at", -1), ("mission_id", -1)],
+            [("created_at", direction), ("mission_id", direction)],
         ).limit(limit + 1)
         items = [present_mission(item, preview_enabled=preview_enabled) async for item in cursor]
         page = items[:limit]
