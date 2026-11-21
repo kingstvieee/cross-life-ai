@@ -282,9 +282,11 @@ function AccountMissions() {
       {cursor && <Button label="Load more missions" disabled={busy} onPress={() => void perform(async signal => {
         const page = await client.list(status, cursor, signal, search, order);
         if (signal.aborted) return;
-        if (page.next_cursor === cursor) {
+        if (page.next_cursor === cursor || (page.missions.length === 0 && page.next_cursor)) {
           setCursor(null);
-          setNotice('Pagination stopped because the server repeated its cursor. Refresh results to retry.');
+          setNotice(page.next_cursor === cursor
+            ? 'Pagination stopped because the server repeated its cursor. Refresh results to retry.'
+            : 'Pagination stopped because the server returned an empty page with another cursor. Refresh results to retry.');
           return;
         }
         setMissions(previous => mergeMissionPages(previous, page.missions));
