@@ -67,3 +67,31 @@ The previous second-pass finding that private mission search was absent is now *
 - CI at `e887845`: Guardian foundation tests passed (74 backend unit/API tests plus 4 MongoDB tests). The newer cursor fix requires its own green CI result; other workflows are not assumed passed.
 - **Traceability rule:** these are verified *features and commits*, not verified mappings to any individual SH-285–SH-305 ID. Original Work per-ID definitions and local patch remain unavailable; the 21 IDs remain `Needs reconciliation`.
 - The 757-slot workbook may record these commits as batch-level evidence without awarding 21 completed components.
+
+## Final CI gate audit — commit 3b08b7bfcd9bffc4d7fd5d9b50e6770f5276ce76
+
+All three GitHub Actions workflows completed successfully on the exact commit:
+- Guardian foundation tests: PASS, including 76 Python backend tests and 4 MongoDB integration tests.
+- Guardian Release Gates: PASS (workflow).
+- Style Swap CI: PASS (workflow).
+- PR #184 remains open/unmerged. No production deployment is claimed.
+
+### Traceability matrix: implemented capabilities, not invented original IDs
+
+| Capability | Implementation evidence | Acceptance evidence | Verdict |
+| --- | --- | --- | --- |
+| Owner-scoped mission text search | `backend/guardian_mission_routes.py` | `test_search_matches_objective_and_criteria_case_insensitively`; `test_private_literal_search_is_owner_scoped_and_escaped` | PASS at tested commit |
+| Literal escaped input and bounded query | `backend/guardian_mission_routes.py` | `test_search_rejects_blank_and_invalid_order`; literal-search test | PASS |
+| Newest/oldest ordering | API `order`, client `MissionOrder`, UI toggle | backend search tests and frontend transport tests | PASS at CI level |
+| Search with status and cursor filters | API nested filter, `frontend/src/guardian-missions.ts` | `test_search_and_cursor_predicates_do_not_override_each_other`; `test_search_pagination_rejects_anchor_outside_current_filter` | PASS |
+| Owner isolation and cursor protection | owner-constrained list and anchor query | `test_owner_scoped_list_excludes_other_tenants_and_secrets`; filtered-pagination test | PASS |
+| Mobile search controls | `frontend/app/guardian-missions.tsx` | frontend transport tests and successful CI web export; no physical-device UI acceptance | CONDITIONAL |
+
+**Original SH-285–SH-305 IDs:** all 21 remain **UNMAPPED / NOT CERTIFIED** because their original numbered definitions are not available. A passed workflow does not prove which of these 21 original IDs are fulfilled.
+
+### Release disposition
+
+- Automated development CI gate: PASS.
+- Original numbered component traceability gate: BLOCKED (source definitions missing).
+- Real iPhone acceptance and 48-hour mission resilience gate: NOT VERIFIED.
+- Production merge/deploy: NOT AUTHORIZED by this audit.
