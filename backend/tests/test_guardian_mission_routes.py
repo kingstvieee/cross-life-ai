@@ -1,5 +1,5 @@
 """Guardian mission API isolation and authorization regression tests."""
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 from fastapi import FastAPI, HTTPException
@@ -191,7 +191,7 @@ def test_status_filter_retains_tenant_isolation(api):
 
 def test_mission_cursor_pages_equal_timestamps_and_rejects_foreign_anchor(api):
     app, missions, account = api
-    stamp = datetime(2026, 11, 21, tzinfo=timezone.utc)
+    stamp = datetime(2026, 11, 21)
     for mission in missions.docs:
         mission["created_at"] = stamp
     missions.docs.append({"owner_id": "alice", "mission_id": "a2",
@@ -201,6 +201,9 @@ def test_mission_cursor_pages_equal_timestamps_and_rejects_foreign_anchor(api):
         url = "/api/guardian/missions?status=queued&limit=1"
         first = client.get(url).json()
         assert first["next_cursor"] == "a2"
+        assert first["missions"][0]["created_at"] == "2026-11-21T00:00:00+00:00"
+        detail = client.get("/api/guardian/missions/a2").json()
+        assert detail["created_at"] == first["missions"][0]["created_at"]
         second = client.get(url + "&after=a2").json()
         assert [item["mission_id"] for item in second["missions"]] == ["a1"]
         assert second["next_cursor"] is None
@@ -220,3 +223,6 @@ def test_cancel_pending_is_owner_scoped_and_state_gated(api, status, expected):
         assert client.post(url).status_code == expected
         if expected == 200:
             assert client.post(url).json()["status"] == "cancelled"
+            assert client.get("/api/guardian/missions/a1").json()["recovery_reason"] == (
+                "owner_cancelled_pending_execution"
+            )

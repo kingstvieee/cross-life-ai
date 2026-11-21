@@ -32,10 +32,11 @@ class MissionProposal(BaseModel):
     expires_at: AwareDatetime | None = None
 
 
-def normalize_deadline(mission):
-    deadline = mission.get("expires_at")
-    if deadline is not None and deadline.tzinfo is None:
-        mission["expires_at"] = deadline.replace(tzinfo=timezone.utc)
+def normalize_mission_timestamps(mission):
+    for field in ("created_at", "updated_at", "not_before", "retry_after", "expires_at"):
+        timestamp = mission.get(field)
+        if timestamp is not None and timestamp.tzinfo is None:
+            mission[field] = timestamp.replace(tzinfo=timezone.utc)
     return mission
 
 
@@ -92,7 +93,7 @@ def build_guardian_mission_router(*, db, require_account_user):
         cursor = db.guardian_missions.find(query, SAFE_FIELDS).sort(
             [("created_at", -1), ("mission_id", -1)],
         ).limit(limit + 1)
-        items = [normalize_deadline(item) async for item in cursor]
+        items = [normalize_mission_timestamps(item) async for item in cursor]
         page = items[:limit]
         return {"missions": page, "next_cursor": page[-1]["mission_id"] if len(items) > limit else None}
 
@@ -106,7 +107,7 @@ def build_guardian_mission_router(*, db, require_account_user):
         )
         if mission is None:
             raise HTTPException(status_code=404, detail="mission_not_found")
-        return normalize_deadline(mission)
+        return normalize_mission_timestamps(mission)
 
     @router.post("/{mission_id}/withdraw")
     async def withdraw_proposal(mission_id: str, user=Depends(require_account_user)):
@@ -117,6 +118,7 @@ def build_guardian_mission_router(*, db, require_account_user):
             updated = await transition(
                 db.guardian_missions, owner_id=owner_id(user), mission_id=mission_id,
                 expected="proposed", target="cancelled",
+                cancellation_reason="owner_withdrew_proposal",
             )
         except RuntimeError:
             # A concurrent approval must win over a request to withdraw a proposal.
@@ -138,6 +140,7 @@ def build_guardian_mission_router(*, db, require_account_user):
             await transition(
                 db.guardian_missions, owner_id=owner_id(user), mission_id=mission_id,
                 expected=status, target="cancelled",
+                cancellation_reason="owner_cancelled_pending_execution",
             )
         except RuntimeError:
             current = await get_mission(mission_id, user)

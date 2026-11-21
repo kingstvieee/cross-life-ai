@@ -81,8 +81,11 @@ async def submit_mission(collection, *, owner_id, objective, idempotency_key,
     return doc
 
 async def transition(collection, *, owner_id, mission_id, expected, target,
-                     evidence=None, checkpoint=None, lease_token=None):
+                     evidence=None, checkpoint=None, lease_token=None,
+                     cancellation_reason=None):
     validate_transition(expected, target, evidence)
+    if cancellation_reason is not None and target != "cancelled":
+        raise ValueError("Cancellation reason requires a cancelled transition")
     query = {"owner_id": owner_id, "mission_id": mission_id, "status": expected}
     if expected in {"leased", "running", "verifying"}:
         if not lease_token:
@@ -92,6 +95,8 @@ async def transition(collection, *, owner_id, mission_id, expected, target,
     if target == "running":
         query["$or"] = [{"expires_at": None}, {"expires_at": {"$gt": now_utc()}}]
     update = {"status": target, "updated_at": now_utc()}
+    if cancellation_reason is not None:
+        update["recovery_reason"] = cancellation_reason
     if evidence is not None:
         update["evidence"] = evidence
     if checkpoint is not None:
