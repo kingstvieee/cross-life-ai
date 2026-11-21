@@ -33,11 +33,24 @@ workflows:
       - name: Download and authenticate PRIVATE encrypted 3D assets
         script: |
           set -eu
-          curl --fail --silent --show-error -L --retry 3 \
-            'https://drive.google.com/uc?export=download&id=1E-bR8B2V_o33Mb519iA6ea_ouCM_gUWV' \
-            -o /tmp/STAAR_PRIVATE_110.enc
-          node scripts/decrypt-private-b110.mjs /tmp/STAAR_PRIVATE_110.enc
-          rm -f /tmp/STAAR_PRIVATE_110.enc
+          asset_dir=$(mktemp -d)
+          trap 'rm -rf "$asset_dir"' EXIT
+          asset="$asset_dir/guardian-worlds.enc"
+          expected_sha256=1a9a40835361ce71633c71eab7ac9ac392ec12e3a936397ed718299b4bd6a1d0
+          for attempt in 1 2 3; do
+            rm -f "$asset"
+            if curl --fail --silent --show-error --location --connect-timeout 20 --max-time 180 \
+                 'https://drive.google.com/uc?export=download&id=1E-bR8B2V_o33Mb519iA6ea_ouCM_gUWV' \
+                 --output "$asset" &&
+               printf '%s  %s\n' "$expected_sha256" "$asset" | shasum -a 256 --check --status; then
+              break
+            fi
+            echo "Private 3D asset download attempt $attempt failed checksum or transport validation" >&2
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep "$((attempt * 2))"
+          done
+          node scripts/decrypt-private-b110.mjs "$asset"
+          rm -f "$asset"
           cd frontend
           node scripts/stage-private-guardian-b250-qa.mjs
           node --input-type=module -e "import('./scene-src/internal-ten-world-qa.mjs').then(m=>m.loadInternalTenWorldQaAssets(process.cwd()+'/scene-src').then(w=>{if(Object.keys(w).length!==10)throw Error('ten_worlds_missing');console.log('10 GLBs hash verified')}))"
