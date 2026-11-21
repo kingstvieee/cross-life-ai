@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { guardianMissionClient, mergeMissionPages, missionProposal, optionalMissionTime } from '../src/guardian-missions.ts';
+import { followsMissionStatus, guardianMissionClient, mergeMissionPages, missionProposal, optionalMissionTime, updateMissionInPage } from '../src/guardian-missions.ts';
 
 test('mission drafts validate text and timestamps before sending', () => {
   assert.equal(optionalMissionTime('  '), undefined);
@@ -21,6 +21,17 @@ test('older pages preserve order and replace overlapping missions', () => {
     [row('b', 'completed'), row('c', 'blocked')]), [
     row('a', 'queued'), row('b', 'completed'), row('c', 'blocked'),
   ]);
+});
+
+test('live mission details update the current page and respect its filter', () => {
+  const queued = { mission_id: 'a', status: 'queued' };
+  const completed = { mission_id: 'a', status: 'completed' };
+  assert.equal(followsMissionStatus(queued.status), true);
+  assert.equal(followsMissionStatus('retry_wait'), true);
+  assert.equal(followsMissionStatus(completed.status), false);
+  assert.equal(followsMissionStatus(undefined), false);
+  assert.deepEqual(updateMissionInPage([queued], completed, ''), [completed]);
+  assert.deepEqual(updateMissionInPage([queued], completed, 'queued'), []);
 });
 
 test('authenticated transport receives status filters, paging and mutation inputs', async () => {

@@ -52,6 +52,17 @@ export function mergeMissionPages(previous: Mission[], page: Mission[]) {
   return Array.from(missions.values());
 }
 
+const IN_FLIGHT = new Set(['queued', 'leased', 'running', 'verifying', 'retry_wait']);
+
+export function followsMissionStatus(status: string | undefined) {
+  return status !== undefined && IN_FLIGHT.has(status);
+}
+
+export function updateMissionInPage(previous: Mission[], detail: Mission, status: string) {
+  return previous.map(item => item.mission_id === detail.mission_id ? detail : item)
+    .filter(item => !status || item.status === status);
+}
+
 export function guardianMissionClient(api: MissionApi) {
   async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await api(path, init);

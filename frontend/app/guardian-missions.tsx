@@ -1,10 +1,13 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/auth';
-import { guardianMissionClient, mergeMissionPages, type Mission, type MissionAction } from '@/src/guardian-missions';
+import {
+  followsMissionStatus, guardianMissionClient, mergeMissionPages, updateMissionInPage,
+  type Mission, type MissionAction,
+} from '@/src/guardian-missions';
 
 const FILTERS = [
   ['', 'All'], ['proposed', 'Proposed'], ['queued', 'Queued'],
@@ -46,6 +49,7 @@ function AccountMissions() {
   const [notice, setNotice] = useState('');
   const [feedback, setFeedback] = useState('');
   const request = useRef<AbortController | null>(null);
+  const pollingRequest = useRef<AbortController | null>(null);
   const draftKey = useRef<string | null>(null);
 
   const reload = useCallback(async (signal: AbortSignal) => {
@@ -65,6 +69,7 @@ function AccountMissions() {
 
   const perform = useCallback(async (task: (signal: AbortSignal) => Promise<void>) => {
     if (request.current) return;
+    pollingRequest.current?.abort();
     const controller = new AbortController();
     request.current = controller;
     setBusy(true);
@@ -88,6 +93,39 @@ function AccountMissions() {
       request.current = null;
     };
   }, [perform, reload]));
+
+  const selectedId = selected?.mission_id;
+  const followsMission = followsMissionStatus(selected?.status);
+  useFocusEffect(useCallback(() => {
+    if (!selectedId || !followsMission) return;
+    const refresh = async () => {
+      if (AppState.currentState !== 'active' || request.current || pollingRequest.current) return;
+      const controller = new AbortController();
+      pollingRequest.current = controller;
+      const { signal } = controller;
+      try {
+        const detail = await client.detail(selectedId, signal);
+        if (signal.aborted) return;
+        setSelected(current => current?.mission_id === selectedId ? detail : current);
+        setMissions(current => updateMissionInPage(current, detail, status));
+      } catch {
+        // The next foreground poll or explicit refresh can recover the status.
+      } finally {
+        if (pollingRequest.current === controller) pollingRequest.current = null;
+      }
+    };
+    const interval = setInterval(() => void refresh(), 5000);
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') void refresh();
+      else pollingRequest.current?.abort();
+    });
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+      pollingRequest.current?.abort();
+      pollingRequest.current = null;
+    };
+  }, [client, followsMission, selectedId, status]));
 
   function updateDraft(field: keyof typeof EMPTY_DRAFT, value: string) {
     draftKey.current = null;
