@@ -267,6 +267,8 @@ function AccountMissions() {
               setOrder(current => current === 'newest' ? 'oldest' : 'newest'); }} />
         </View>
       </View>
+      {!resultsLoaded && busy && <Text accessibilityLiveRegion="polite" style={styles.muted}>Loading mission results…</Text>}
+      {!resultsLoaded && !busy && !!notice && <Button label="Retry loading missions" onPress={() => void perform(reload)} />}
       {resultsLoaded && !busy && <Text accessibilityLiveRegion="polite" style={styles.muted}>
         {missions.length} missions displayed{cursor ? '; more available' : ''}
         {search ? ` · Search: ${search}` : ''}
