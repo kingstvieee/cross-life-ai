@@ -137,7 +137,7 @@ export function WorldHub() {
     setGuardianSpeaking(true);
     setGuardianMessage('Welcome back. Your nine worlds are ready.');
     try {
-      const spoken = await audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.');
+      const spoken = await audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.', undefined, 'guardian');
       if (!spoken && focused.current && epoch === voiceEpoch.current) {
         setGuardianMessage('Guardian voice playback is unavailable. Continue in chat.');
       }
@@ -151,7 +151,7 @@ export function WorldHub() {
       }
     }
   }, [audio.master, audio.voice, audio.speechQuiet, audio.speak]);
-  useFocusEffect(useCallback(() => { focused.current = true; return () => { focused.current = false; voiceEpoch.current += 1; }; }, []));
+  useFocusEffect(useCallback(() => { focused.current = true; return () => { focused.current = false; voiceEpoch.current += 1; setGuardianSpeaking(false); }; }, []));
   useEffect(() => {
     if (!focused.current || !appActive || !isProactiveWelcomeTime(new Date()) || !preferenceReady || !modelAvailable || !arrivalComplete || !serverConsentReady || !serverGreetingConsent || serverPrivate || serverSpeechQuiet || !greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || greeted.current) return;
     greeted.current = true;
@@ -259,7 +259,7 @@ export function WorldHub() {
         <View style={s.controls}>
           {!!message && <Text accessibilityLiveRegion="polite" style={s.message}>{message}</Text>}
           <View style={s.controlRow}>
-            <Pressable accessibilityRole="button" accessibilityLabel={audio.voicePlaybackActive ? 'Guardian speaking' : guardianSpeaking ? 'Preparing Guardian voice' : 'Hear Guardian welcome'} disabled={guardianSpeaking}
+            <Pressable accessibilityRole="button" accessibilityLabel={audio.voicePlaybackActive ? 'Guardian speaking' : guardianSpeaking ? 'Preparing Guardian voice' : 'Hear Guardian welcome'} disabled={guardianSpeaking || audio.voicePlaybackActive}
               onPress={() => { void greet(); }} style={s.icon}><Ionicons name="volume-high-outline" size={22} color="#F4F0E6" /></Pressable>
             <Pressable accessibilityRole="switch" accessibilityState={{ checked: greetingActive }}
               accessibilityLabel="Automatic Guardian greeting"
