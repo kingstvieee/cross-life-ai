@@ -86,7 +86,9 @@ async def claim_mission(collection, *, worker_id, lease_seconds=60):
     # A crashed worker's expired lease is requeued by a separate reconciler;
     # it must not be reclaimed while an active worker still holds it.
     return await collection.find_one_and_update(
-        {"status": "queued", "lease_until": None},
+        {"status": "queued", "lease_until": None,
+         "$or": [{"not_before": {"$exists": False}},
+                 {"not_before": {"$lte": now}}]},
         {"$set": {"status": "leased", "lease_token": token,
                   "worker_id": worker_id,
                   "lease_until": now + timedelta(seconds=lease_seconds),
