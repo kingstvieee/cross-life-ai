@@ -251,56 +251,39 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
       </Pressable>
     </Animated.View>
   );
+  const onThreeDimensionalPortalAction = (action: string) => {
+    if (!action.startsWith('world:')) return;
+    const id = action.slice('world:'.length);
+    const target = WORLDS.find(item => item.id === id);
+    if (!target) return;
+    if (onSignIn) setInspectedPortal(target);
+    else openPortal(target.id);
+  };
   return (
     <View style={s.root}>
       {!onSignIn && <HubFocus onFocus={onFocus} />}
-      <LinearGradient colors={['#080A13', '#020204', '#10101A', '#020204']} style={StyleSheet.absoluteFill} />
-      <View pointerEvents="none" style={StyleSheet.absoluteFill} importantForAccessibility="no-hide-descendants">
-        {Array.from({ length: 40 }, (_, index) => (
-          <Animated.View key={index} style={[s.star, {
-            left: `${(index * 53 + 7) % 100}%`,
-            top: `${(index * 29 + 13) % 100}%`,
-            opacity: drift.interpolate({ inputRange: [0, 1], outputRange: index % 2 ? [.25, .85] : [.8, .25] }),
-          }]} />
-        ))}
-        <Image source={require('@/assets/images/staarwardd/toronto-skyline-pan.png')} style={s.skyline} resizeMode="cover" />
-      </View>
-      <SafeAreaView style={[s.safe, compact && s.safeCompact]}>
-        <View style={[s.header, compact && s.headerCompact]}>
+      <WorldScene world="hub" embedded onAction={onThreeDimensionalPortalAction}
+        onGuardianModelReady={onGuardianModelReady} onGuardianArrival={onGuardianArrival}
+        onGuardianUnavailable={onGuardianUnavailable} reduceGuardianMotion={motionReduced} />
+      <SafeAreaView pointerEvents="box-none" style={s.sceneOverlay}>
+        <View style={s.header}>
           <Text accessibilityRole="header" style={s.brand}>STAARWAARDD</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={onSignIn ? "Sign in" : "Open settings"} onPress={onSignIn ?? (() => router.push('/settings'))} style={s.icon}>
+          <Pressable accessibilityRole="button" accessibilityLabel={onSignIn ? 'Sign in' : 'Open settings'}
+            onPress={onSignIn ?? (() => router.push('/settings'))} style={s.icon}>
             <Ionicons name="options-outline" size={23} color="#F4F0E6" />
           </Pressable>
         </View>
-        <View style={s.topPortals}>{WORLDS.slice(0, 5).map(renderPortal)}</View>
-        <View style={s.chamber}>
-          <View style={s.platform} pointerEvents="none" importantForAccessibility="no-hide-descendants">
-            <LinearGradient colors={['#14151E', '#BBC2CD', '#1E202A', '#0C0C12']} style={s.plinth} /><Text pointerEvents="none" style={s.plinthLabel}>GUARDIAN PLATFORM</Text>
-            {reduceMotion !== null && <WorldScene world="hub" embedded guardianPresentation onAction={ignoreSceneAction}
-              onGuardianModelReady={onGuardianModelReady} onGuardianArrival={onGuardianArrival}
-              onGuardianUnavailable={onGuardianUnavailable} reduceGuardianMotion={motionReduced} />}
-          </View>
-        </View>
-        <View style={s.bottomPortals}>{WORLDS.slice(5, 10).map(renderPortal)}</View>
+        <View style={s.sceneSpacer} pointerEvents="none" />
+        <Text style={s.sceneHint}>3D PORTAL CHAMBER · DRAG TO ORBIT · TAP A PORTAL</Text>
         <View style={s.controls}>
           {!!message && <Text accessibilityLiveRegion="polite" numberOfLines={2} style={s.message}>{message}</Text>}
           <View style={s.controlRow}>
-            <Pressable accessibilityRole="button" accessibilityLabel={audio.voicePlaybackActive ? 'Guardian speaking' : guardianSpeaking ? 'Preparing Guardian voice' : 'Hear Guardian welcome'} disabled={guardianSpeaking || audio.voicePlaybackActive}
-              onPress={() => { void greet(); }} style={s.icon}><Ionicons name="volume-high-outline" size={22} color="#F4F0E6" /></Pressable>
-            <Pressable accessibilityRole="switch" accessibilityState={{ checked: greetingActive }}
-              accessibilityLabel="Automatic Guardian greeting"
+            <Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian welcome" onPress={() => { void greet(); }} style={s.icon}><Ionicons name="volume-high-outline" size={22} color="#F4F0E6" /></Pressable>
+            <Pressable accessibilityRole="switch" accessibilityState={{ checked: greetingActive }} accessibilityLabel="Automatic Guardian greeting"
               disabled={!greetingKey || !preferenceReady || !serverConsentReady || savingGreeting || serverPrivate || serverSpeechQuiet}
-              onPress={() => setGreeting(!greetingActive)} style={s.icon}>
-              <Ionicons name={greetingActive ? 'sparkles' : 'sparkles-outline'} size={22} color={greetingActive ? '#F4DA9F' : '#D5D9E2'} />
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Silence Guardian" onPress={() => {
-              voiceEpoch.current += 1;
-              audio.setSpeechQuiet(true);
-              audio.stopAll();
-              setGuardianSpeaking(false);
-            }} style={s.icon}><Ionicons name="volume-mute-outline" size={22} color="#F4F0E6" /></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Life Map and Guardian controls"
-              onPress={onSignIn ?? (() => router.push('/guardian-tools'))} style={s.icon}><Ionicons name="compass-outline" size={22} color="#F4F0E6" /></Pressable>
+              onPress={() => setGreeting(!greetingActive)} style={s.icon}><Ionicons name={greetingActive ? 'sparkles' : 'sparkles-outline'} size={22} color="#F4DA9F" /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Silence Guardian" onPress={() => { voiceEpoch.current += 1; audio.setSpeechQuiet(true); audio.stopAll(); setGuardianSpeaking(false); }} style={s.icon}><Ionicons name="volume-mute-outline" size={22} color="#F4F0E6" /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Life Map and Guardian controls" onPress={onSignIn ?? (() => router.push('/guardian-tools'))} style={s.icon}><Ionicons name="compass-outline" size={22} color="#F4F0E6" /></Pressable>
           </View>
         </View>
       </SafeAreaView>
@@ -336,6 +319,9 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
 
 const s = StyleSheet.create({
   root: { flex: 1, overflow: 'hidden', backgroundColor: '#030305' },
+  sceneOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 20 },
+  sceneSpacer: { flex: 1 },
+  sceneHint: { color: '#F7E8CB', textAlign: 'center', fontSize: 10, letterSpacing: 1.1, paddingVertical: 8 },
   safe: { flex: 1, width: '100%', maxWidth: 850, alignSelf: 'center', paddingHorizontal: 12, paddingBottom: 28 },
   safeCompact: { paddingBottom: 66 },
   headerCompact: { minHeight: 46, marginBottom: 2 },
