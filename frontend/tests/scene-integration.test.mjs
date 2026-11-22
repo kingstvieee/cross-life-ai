@@ -11,7 +11,7 @@ test('all ten portal routes expose the opt-in 3D environment without replacing a
   const page = read('../app/world/[id].tsx');
   const environment = read('../app/environment.tsx');
   assert.equal(worldIds.length, 10);
-  assert.equal(new Set(worldIds).size, 9);
+  assert.equal(new Set(worldIds).size, 10);
   assert.match(page, /pathname: '\/environment', params: \{ world \}/);
   assert.match(page, /WORLD_BY_ID\[id\] \? id : 'hub'/);
   assert.match(page, /<Redirect href=/);
