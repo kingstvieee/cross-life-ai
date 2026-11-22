@@ -212,7 +212,7 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
     return () => { focused.current = false; setHasFocus(false); voiceEpoch.current += 1; setGuardianSpeaking(false); };
   }, []);
   const openPortal = (world: string) => {
-    if (onSignIn) { onSignIn(); return; }
+    if (onSignIn) { setInspectedPortal(WORLDS.find(item => item.id === world) ?? null); return; }
     if (navigationLocked.current) return;
     navigationLocked.current = true;
     router.push({ pathname: '/environment', params: { world } } as never);
@@ -226,7 +226,7 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
       }) }],
     }]}>
       <Pressable accessibilityRole="button" accessibilityLabel={world.name}
-        accessibilityHint={onSignIn ? undefined : 'Tap to enter. Touch and hold to preview.'}
+        accessibilityHint={onSignIn ? 'Tap to preview this world. Sign in to enter.' : 'Tap to enter. Touch and hold to preview.'}
         accessibilityActions={onSignIn ? undefined : [{ name: 'preview', label: 'Preview world' }]}
         onAccessibilityAction={event => {
           if (!onSignIn && event.nativeEvent.actionName === 'preview') setInspectedPortal(world);
@@ -237,7 +237,7 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
           s.rim, { width: portalSize, height: Math.round(portalSize * 1.08) },
         ]}>
           <View style={s.glass}>
-            <Image source={lockedPortalArtwork[world.id]} style={StyleSheet.absoluteFill} resizeMode="cover" accessible={false} />
+            <Image source={lockedPortalArtwork[world.id]} style={StyleSheet.absoluteFill} resizeMode="contain" accessible={false} />
             <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, {
               opacity: drift.interpolate({ inputRange: [0, 1], outputRange: [.35, .78] }),
             }]}>
@@ -275,7 +275,7 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
         <View style={s.topPortals}>{WORLDS.slice(0, 5).map(renderPortal)}</View>
         <View style={s.chamber}>
           <View style={s.platform} pointerEvents="none" importantForAccessibility="no-hide-descendants">
-            <LinearGradient colors={['#14151E', '#BBC2CD', '#1E202A', '#0C0C12']} style={s.plinth} />
+            <LinearGradient colors={['#14151E', '#BBC2CD', '#1E202A', '#0C0C12']} style={s.plinth} /><Text pointerEvents="none" style={s.plinthLabel}>GUARDIAN PLATFORM</Text>
             {reduceMotion !== null && <WorldScene world="hub" embedded guardianPresentation onAction={ignoreSceneAction}
               onGuardianModelReady={onGuardianModelReady} onGuardianArrival={onGuardianArrival}
               onGuardianUnavailable={onGuardianUnavailable} reduceGuardianMotion={motionReduced} />}
@@ -320,9 +320,9 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
                 <Pressable accessibilityRole="button" accessibilityLabel={`Enter ${inspectedPortal.name}`}
                   style={s.previewEnter} onPress={() => {
                     closePortalPreview();
-                    openPortal(inspectedPortal.id);
+                    if (onSignIn) onSignIn(); else openPortal(inspectedPortal.id);
                   }}>
-                  <Text style={s.previewEnterText}>Enter world</Text>
+                  <Text style={s.previewEnterText}>{onSignIn ? 'Sign in to enter' : 'Enter world'}</Text>
                   <Ionicons name="arrow-forward" size={19} color="#161316" />
                 </Pressable>
               </View>
@@ -348,6 +348,7 @@ const s = StyleSheet.create({
   bottomPortals: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: 4 },
   chamber: { flex: 1, minHeight: 0, justifyContent: 'center', alignItems: 'center' },
   platform: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  plinthLabel: { position: 'absolute', bottom: '12%', alignSelf: 'center', color: '#F9E6BC', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
   plinth: { position: 'absolute', bottom: '8%', left: '25%', right: '25%', height: '15%', borderRadius: 200, borderColor: '#E2C98F', borderWidth: 2 },
   portal: { marginVertical: 4 },
   portalButton: { alignItems: 'center', minHeight: 44 },
