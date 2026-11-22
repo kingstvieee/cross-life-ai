@@ -439,7 +439,19 @@ if (renderer) {
         ? window.STAAR_PRIVATE_GUARDIAN_QA_MODEL : null;
     const asset=internal??window.STAAR_APPROVED_GUARDIAN_MODEL;
     const unavailable = () => { if (guardianPresentation && !disposed) report('guardian-unavailable'); };
-    if (!asset?.glbBase64 || asset.sourceImageSha256!=='d7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c') { unavailable(); return; }
+    if (!asset?.glbBase64 || asset.sourceImageSha256!=='d7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c') {
+      // Explicitly non-human, non-approved placeholder. Never substitute a different person's image.
+      if (world === 'hub' && !guardianPresentation) {
+        const stand = new T.Mesh(new T.BoxGeometry(1.5, 2.4, 1.5),
+          new T.MeshPhysicalMaterial({color:0x73dfff,metalness:.75,roughness:.14,emissive:0x167fa7,emissiveIntensity:.65}));
+        stand.position.set(0, 3.1, 2.6); scene.add(stand);
+        const edges = new T.LineSegments(new T.EdgesGeometry(stand.geometry),
+          new T.LineBasicMaterial({color:0xffe2a1}));stand.add(edges);
+        animated.push(t => { if (!reduced) stand.rotation.y = t * .3; });
+        text('GUARDIAN MODEL PENDING APPROVAL',0,1.1,4.2,3.4);
+      }
+      unavailable(); return;
+    }
     try {
       const decoded=atob(asset.glbBase64);
       const bytes=new Uint8Array(decoded.length);
@@ -584,7 +596,7 @@ if (renderer) {
     floor(15);stars();skyline();plinth(0,1.5,3);
     for(const r of[2,2.4,2.8])ring(0,3+(r-2)*2,1.5,r,.022,r<2.5?blue:amber,true);
     for(const x of[-11.5,11.5]){plinth(x,1,1,amber);diamond(x,1.7,1,.8);}
-    ids.forEach((id,i)=>{const a=(i-4)*.31,x=Math.sin(a)*11,z=-Math.cos(a)*8,g=arch(x,z,1.55,i%2?blue:amber);g.rotation.y=-a;sphere(0,2.6,-.1,.65,[blue,amber,violet][i%3],g).scale.z=.45;box(0,.55,.1,2.65,.85,.2,black,g);text(names[i],0,.6,.23,2.5,g);g.userData={action:'world:'+id,label:names[i]};clickable.push(g);cylinder(x,.12,z,1.8,.24);});
+    ids.forEach((id,i)=>{const a=(i/ids.length)*Math.PI*2,x=Math.sin(a)*10,z=-Math.cos(a)*8,g=arch(x,z,1.55,i%2?blue:amber);g.rotation.y=-a;sphere(0,2.6,-.1,.65,[blue,amber,violet][i%3],g).scale.z=.45;box(0,.55,.1,2.65,.85,.2,black,g);text(names[i],0,.6,.23,2.5,g);g.userData={action:'world:'+id,label:names[i]};clickable.push(g);cylinder(x,.12,z,1.8,.24);});
     approvedArmoredGuardian();
     text('STAARWARDD',0,7.1,-9,10);text('PORTAL HUB',0,6.3,-9,5);camera.position.set(0,6,19);controls.target.set(0,2.5,-2);
   }
