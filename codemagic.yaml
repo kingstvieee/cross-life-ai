@@ -18,7 +18,6 @@ workflows:
       vars:
         EAS_BUILD_PROFILE: preview
         STAAR_IPHONE_ONLY_QA: '1'
-        EXPO_PUBLIC_STAAR_HUB_INTERNAL_ENTRY: '1'
         EXPO_PUBLIC_BACKEND_URL: https://cross-life-ai.emergent.host
     scripts:
       - name: Set iPhone internal review build number 115
