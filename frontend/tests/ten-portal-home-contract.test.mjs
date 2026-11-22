@@ -16,7 +16,8 @@ test('ten distinct portals are ordered and navigable', async () => {
  }
  assert.match(navigation, /DIGGITSTAAR/);
  assert.match(hub, /WORLDS\.slice\(5, 10\)/);
- assert.match(hub, /guardian-poses\/guide\.png/);
+ assert.doesNotMatch(hub, /guardian-poses\/guide\.png|guardianFallback/);
+ assert.match(hub, /<WorldScene world="hub" embedded guardianPresentation/);
  assert.match(hub, /WORLDS\.slice\(0, 5\)/);
  assert.match(scenes, /function diggitstaar\(/);
  assert.match(scenes, /diggitstaar\}\)\[world\]/);
