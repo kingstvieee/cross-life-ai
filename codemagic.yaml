@@ -1,6 +1,6 @@
 workflows:
-  staar-home-review-112:
-    name: STAAR Hub 112 — Internal Home Review — TestFlight
+  staar-home-review-113:
+    name: STAAR Hub 113 — Locked Hub + Guardian — Internal TestFlight
     instance_type: mac_mini_m2
     max_build_duration: 120
     triggering:
@@ -51,7 +51,7 @@ workflows:
           node scripts/stage-private-guardian-b250-qa.mjs
           node --input-type=module -e "import('./scene-src/internal-ten-world-qa.mjs').then(m=>m.loadInternalTenWorldQaAssets(process.cwd()+'/scene-src').then(w=>{if(Object.keys(w).length!==10)throw Error('ten_worlds_missing');console.log('10 GLBs hash verified')}))"
           node scripts/prepare-private-b250-qa-archive.mjs prepare
-      - name: Set iPhone internal review build number 112
+      - name: Set iPhone internal review build number 113
         script: |
           cd frontend
           node - <<'NODE'
@@ -59,7 +59,7 @@ workflows:
           const name='app.json',data=JSON.parse(fs.readFileSync(name,'utf8'));
           if(data.expo.version!=='1.0.4'||data.expo.ios.buildNumber!=='109')
             throw Error('Incorrect base version — refuse to build with duplicate number');
-          data.expo.ios.buildNumber='112';
+          data.expo.ios.buildNumber='113';
           fs.writeFileSync(name,JSON.stringify(data,null,2)+'\n');
           NODE
       - name: Install Expo dependencies and bundle the real Guardian and 10 GLBs
@@ -93,4 +93,4 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: false
+        submit_to_testflight: true
