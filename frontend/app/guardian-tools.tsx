@@ -46,6 +46,9 @@ function GuardianToolsAccount() {
   const consent=overview?.consent || {};
   return <SafeAreaView style={s.root}><View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel="Back to Hub" onPress={()=>router.back()}><Text style={s.link}>‹ HUB</Text></Pressable><Text style={s.title}>Guardian continuity</Text></View><ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
     <Text style={s.copy}>Your Life Map, interruption preferences and action evidence.</Text>
+    {!user?.is_demo && <Pressable accessibilityRole="button" onPress={() => router.push('/guardian-missions')} style={s.button}>
+      <Text style={s.buttonText}>Open Guardian missions</Text>
+    </Pressable>}
     {busy && <ActivityIndicator accessibilityLabel="Updating Guardian" color="#DDE3EB"/>}
     {!!notice && <Text accessibilityRole="alert" style={s.notice}>{notice}</Text>}
     <View style={s.card}><Text style={s.heading}>Presence & privacy</Text>
