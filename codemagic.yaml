@@ -8,7 +8,6 @@ workflows:
     integrations:
       app_store_connect: STAAR Codemagic QA 109
     environment:
-      groups:
       node: 22
       xcode: 26.6
       ios_signing:
@@ -20,32 +19,6 @@ workflows:
         EAS_BUILD_PROFILE: preview
         EXPO_PUBLIC_BACKEND_URL: https://cross-life-ai.emergent.host
     scripts:
-      - name: Download and authenticate PRIVATE encrypted 3D assets
-        script: |
-          set -eu
-          : "${STAAR_PRIVATE_ASSET_URL:?Configure a private download URL in the staar-private-110 secret group}"
-          asset_dir=$(mktemp -d)
-          trap 'rm -rf "$asset_dir"' EXIT
-          asset="$asset_dir/guardian-worlds.enc"
-          expected_sha256=1a9a40835361ce71633c71eab7ac9ac392ec12e3a936397ed718299b4bd6a1d0
-          for attempt in 1 2 3; do
-            rm -f "$asset"
-            if curl --fail --silent --location --proto '=https' --proto-redir '=https' \
-                 --connect-timeout 20 --max-time 180 "$STAAR_PRIVATE_ASSET_URL" \
-                 --output "$asset" &&
-               printf '%s  %s\n' "$expected_sha256" "$asset" | shasum -a 256 --check --status; then
-              break
-            fi
-            echo "Private 3D asset download attempt $attempt failed checksum or transport validation" >&2
-            if [ "$attempt" -eq 3 ]; then exit 1; fi
-            sleep "$((attempt * 2))"
-          done
-          node scripts/decrypt-private-b110.mjs "$asset"
-          rm -f "$asset"
-          cd frontend
-          node scripts/stage-private-guardian-b250-qa.mjs
-          node --input-type=module -e "import('./scene-src/internal-ten-world-qa.mjs').then(m=>m.loadInternalTenWorldQaAssets(process.cwd()+'/scene-src').then(w=>{if(Object.keys(w).length!==10)throw Error('ten_worlds_missing');console.log('10 GLBs hash verified')}))"
-          node scripts/prepare-private-b250-qa-archive.mjs prepare
       - name: Set iPhone internal review build number 114
         script: |
           cd frontend
