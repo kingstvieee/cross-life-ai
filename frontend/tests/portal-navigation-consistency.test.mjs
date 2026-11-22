@@ -4,11 +4,13 @@ import { sceneAction, sceneFallbackActions } from '../src/scene-events.ts';
 import { worldIds, worldNames, fallbackActions } from '../scene-src/navigation.js';
 import { LOCKED_WORLD_REQUIREMENTS } from '../src/locked-world-acceptance.ts';
 const event=(world,action)=>({source:'staar-scene-v1',world,type:'select',action});
-test('nine 3D renderer, React host and approved design routes are identical',()=>{
+test('all ten 3D renderer and React portal routes include the nine approved design worlds',()=>{
  const approved=Object.keys(LOCKED_WORLD_REQUIREMENTS);
- assert.deepEqual(worldIds,approved);
- assert.equal(worldIds.length,9);
- assert.equal(worldNames.length,9);
+ assert.equal(approved.length,9);
+ assert.equal(worldIds.length,10);
+ assert.equal(worldNames.length,10);
+ assert.ok(approved.every(id=>worldIds.includes(id)));
+ assert.ok(worldIds.includes('diggitstaar'));
  assert.equal(new Set(worldIds).size,9);
  assert.deepEqual(sceneFallbackActions('hub'),fallbackActions('hub'));
  for(const id of worldIds) {
