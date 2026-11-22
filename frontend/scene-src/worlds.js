@@ -657,14 +657,24 @@ if (renderer) {
   }
   function village() {floor(15);skyline();stars();cylinder(0,.8,-4,4.4,1.6).scale.z=.65;ring(0,1.65,-4,4.3,.06,violet,true).scale.y=.65;text('SCOTIABANK ARENA DISTRICT',0,2.6,-3,8);for(let i=0;i<4;i++){const x=(i-1.5)*4;plinth(x,3,1.35);diamond(x,1.2,3,.28);}['Toronto','Brampton','Mississauga','Scarborough'].forEach((n,i)=>panel(n,'connections',(i-1.5)*3.7,2.3,2.5,violet,3.2));for(const x of[-5.5,0,5.5])line([[x,.05,4],[x+1,.05,0],[x,.05,-7]],blue,.035);panel('Events, transit & community','connections',0,.8,6,amber,6);}
   function closet() {shell(true);cylinder(0,.06,0,4.5,.13,white);for(const side of[-1,1]){const x=side*6.5;box(x,2,-2,.09,4,.09);box(x,2,3,.09,4,.09);box(x,4,.5,.09,.09,5.1);for(let i=0;i<7;i++){const z=-1.6+i*.65;line([[x,3.95,z],[x-.45,3.6,z],[x+.45,3.6,z],[x,3.95,z]],gold);box(x,2.6,z,1,1.8,.1,i%3===0?black:white);diamond(x,3.05,z+.07,.07);}}box(0,2.6,-6,4,5,.25);box(0,2.6,-5.84,3.75,4.75,.04,black);text('RISING STAARFORM',0,5.7,-6,7);for(let i=0;i<26;i++){const a=i*Math.PI*2/26,m=sphere(Math.sin(a)*4.5,.16,Math.cos(a)*4.5,.3,white);m.scale.set(1.5,.25,1);animated.push(t=>{if(!reduced)m.position.y=.16+Math.sin(t*.7+i)*.014;});}panel('My wardrobe','conversation:1',-2.5,1.4,4,amber);panel('RSF & shopping tools','connections',2.5,1.4,4,amber);}
+  function diggitstaar() {
+    shell(true); stars(); skyline();
+    plinth(0,-1,4.2,amber); ring(0,2.8,-3.8,3.1,.055,amber,true);
+    panel('Client pipeline','connections',-4.3,2.5,-2.2,amber,3.2);
+    panel('Campaign studio','conversation:0',0,2.7,-3.1,blue,3.4);
+    panel('Short-form production','conversation:1',4.3,2.5,-2.2,amber,3.2);
+    panel('Leads & delivery','connections',0,1.1,3.7,blue,4.2);
+    text('DIGGITSTAAR · AI CONTENT STUDIO',0,5.8,-7.5,6);
+    camera.position.set(0,5.5,18); controls.target.set(0,2.2,-2.5);
+  }
   function studio() {shell();stars();for(const x of[-8.5,8.5]){island(x,5.5,-6,2.2,black);tree(x,-6,material('#c56b15'),5.6,.8);waterfall(x-.3,2.6,-4.5,5.6);}plinth(0,-2.5,3);const g=new T.Group();g.position.set(0,3.5,-2.5);scene.add(g);mesh(new T.TorusGeometry(1.7,.16,12,64,Math.PI),chrome,0,0,0,g);for(const s of[-1,1]){cylinder(s*1.7,-.2,0,.65,.35,chrome,g).rotation.z=Math.PI/2;cylinder(s*1.48,-.2,0,.54,.25,material('#5d2e1b',.05,.65),g).rotation.z=Math.PI/2;ring(s*1.9,-.2,0,.45,.025,amber,false,g).rotation.y=Math.PI/2;}animated.push(t=>{if(!reduced)g.rotation.y=t*Math.PI*2/30;});box(0,.8,2.2,10,.3,2.2);for(let i=0;i<30;i++){const x=-4.7+i*.32;box(x,.98,2.6,.04,.03,.65,black);box(x,1.02,2.6+Math.sin(i)*.25,.12,.08,.15,white);for(let j=0;j<3;j++)cylinder(x,1,1.7+j*.18,.035,.06,j%2?blue:amber);}for(const x of[-3.6,0,3.6]){box(x,1.65,1.4,2.7,1.3,.15,black);for(let i=0;i<20;i++)box(x-1.2+i*.126,1.6,1.49,.035,.1+Math.abs(Math.sin(i*2.1+x))*.8,.02,x===0?amber:blue);}for(const x of[-5.6,5.6]){box(x,1.45,1.3,.9,2.9,.8,black);for(const y of[.7,1.5,2.3]){cylinder(x,y,1.73,.28,.05,gold).rotation.x=Math.PI/2;sphere(x,y,1.79,.12,black).scale.z=.4;}}panel('Music library','conversation:0',-4.5,2.4,-2,amber);panel('AI tools & studio','connections',4.5,2.4,-2);panel('Plan a release','conversation:1',0,.7,4.5,amber,4);}
   const previewBaseline=new Set(scene.children);
-  ({hub,home,work,creativity:()=>dreams(),wellbeing:health,relationships:()=>singles?singlesLounge():love(),events:village,style:closet,staarverse,staarsonic:studio})[world]();
+  ({hub,home,work,creativity:()=>dreams(),wellbeing:health,relationships:()=>singles?singlesLounge():love(),events:village,style:closet,staarverse,staarsonic:studio,diggitstaar})[world]();
   const previewWorldObjects=scene.children.filter(object=>!previewBaseline.has(object));
   function importApprovedWorld() {
     if(world==='hub')return;
     const variant=world==='relationships' ? (singles?'singles':'realm') :
-      ({home:'residence',work:'command',creativity:'dream',wellbeing:'health',events:'village',style:'closet',staarverse:'universe',staarsonic:'studio'})[world];
+      ({home:'residence',work:'command',creativity:'dream',wellbeing:'health',events:'village',style:'closet',staarverse:'universe',staarsonic:'studio',diggitstaar:'content-studio'})[world];
     const qaWorld=worldQaEnabled&&window.STAAR_PRIVATE_WORLDS_QA?.[world+'-'+variant];
     const asset=qaWorld?.internalQaOnly===true&&qaWorld?.productionApproved===false ? qaWorld : window.STAAR_APPROVED_WORLD_ASSETS?.[world+'-'+variant];
     if(!asset?.glbBase64)return;
