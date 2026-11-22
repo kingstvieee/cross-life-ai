@@ -7,10 +7,10 @@ import { worldIds } from '../scene-src/navigation.js';
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const event = (world, action) => ({ source: 'staar-scene-v1', type: 'select', world, action });
 
-test('all nine portal routes expose the opt-in 3D environment without replacing approved artwork', () => {
+test('all ten portal routes expose the opt-in 3D environment without replacing approved artwork', () => {
   const page = read('../app/world/[id].tsx');
   const environment = read('../app/environment.tsx');
-  assert.equal(worldIds.length, 9);
+  assert.equal(worldIds.length, 10);
   assert.equal(new Set(worldIds).size, 9);
   assert.match(page, /pathname: '\/environment', params: \{ world \}/);
   assert.match(page, /WORLD_BY_ID\[id\] \? id : 'hub'/);
@@ -19,8 +19,8 @@ test('all nine portal routes expose the opt-in 3D environment without replacing 
   assert.match(environment, /Locked artwork, facial animation/);
 });
 
-test('offline scene fallback provides nine navigable destinations and rejects execution commands', () => {
-  assert.equal(sceneFallbackActions('hub').length, 9);
+test('offline scene fallback provides ten navigable destinations and rejects execution commands', () => {
+  assert.equal(sceneFallbackActions('hub').length, 10);
   for (const id of worldIds) {
     const navigate = 'world:' + id;
     assert.equal(sceneAction(event('hub', navigate), 'hub'), navigate);
