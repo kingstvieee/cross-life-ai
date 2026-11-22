@@ -1,1 +1,1 @@
-export { GuestPreview as default } from "@/components/staarwardd/access-boundary";
+export { default } from "./landing";
