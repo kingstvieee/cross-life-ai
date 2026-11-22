@@ -1,38 +1,41 @@
 import { Fragment, useEffect, useState } from "react";
-import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { usePathname, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useAuth } from "@/src/auth";
 import { backendUrl } from "@/src/backend-config";
 import { enabledLoginProviders } from "@/src/login-provider-availability";
 import { useStartupReplay } from "./startup-film";
-import { PORTALS, PREVIEW_WORLDS } from "@/lib/staarwardd/portal-data";
+import { PORTALS } from "@/lib/staarwardd/portal-data";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Onboarding from '@/app/onboarding';
 import { BlurView } from 'expo-blur';
 import { StaarAudioProvider } from '@/lib/staarwardd/audio-provider';
 import { WorldHub } from './world-hub';
 import { AccessField } from './access-field';
-import { COMPANIONS, speakCompanion, stopCompanion } from '@/src/companions';
 
 export function AccessBoundary({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  const path = usePathname();
-  const [showReviewSignIn, setShowReviewSignIn] = useState(false);
+  const [showSignIn, setShowSignIn] = useState(false);
+  const accountId = user && !user.is_demo ? user.user_id : null;
+  useEffect(() => {
+    if (accountId) setShowSignIn(false);
+  }, [accountId]);
+
   if (loading) return <View style={styles.page}><ActivityIndicator accessibilityLabel="Checking session" /></View>;
   if (user && !user.is_demo) return <Fragment key={user.user_id}>{user.onboarding_complete ? children : <Onboarding />}</Fragment>;
-  const homePath = path === '/' || path === '/index';
-  const internalHomeEntry = process.env.EXPO_PUBLIC_STAAR_HUB_INTERNAL_ENTRY === '1' &&
-    (homePath || path === '/landing' || path === '/guest');
-  const guardianDeviceEntry = process.env.EXPO_PUBLIC_GUARDIAN_DEVICE_QA === '1' && homePath;
-  if (Platform.OS === 'ios' && (internalHomeEntry || guardianDeviceEntry)) {
-    return showReviewSignIn
-      ? <SignInScreen onBackToHub={() => setShowReviewSignIn(false)} />
-      : <StaarAudioProvider><WorldHub onSignIn={() => setShowReviewSignIn(true)} /></StaarAudioProvider>;
-  }
-  // Keep every account provider unmounted in guest mode, including memory and activity.
-  return path === "/guest" ? <GuestPreview /> : <SignInScreen />;
+
+  // Guests share the locked Home. Account providers and private routes stay unmounted.
+  return (
+    <StaarAudioProvider>
+      <WorldHub onSignIn={() => setShowSignIn(true)} />
+      <Modal visible={showSignIn} animationType="fade" presentationStyle="overFullScreen" transparent
+        onRequestClose={() => setShowSignIn(false)}>
+        <SignInScreen onBackToHub={() => setShowSignIn(false)} />
+      </Modal>
+    </StaarAudioProvider>
+  );
 }
 
 export function SignInScreen({ onBackToHub }: { onBackToHub?: () => void } = {}) {
@@ -95,51 +98,16 @@ export function SignInScreen({ onBackToHub }: { onBackToHub?: () => void } = {})
         </View>
         {error ? <Text accessibilityRole="alert" style={styles.copy}>{error}</Text> : null}
         <View style={styles.dividerRow}><View style={styles.divider} /><Text style={styles.dividerText}>DISCOVER FIRST</Text><View style={styles.divider} /></View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Explore as guest" onPress={onBackToHub ?? (() => router.replace("/guest"))} style={({ pressed }) => [pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back to Home" onPress={onBackToHub ?? (() => router.replace("/guest"))} style={({ pressed }) => [pressed && styles.pressed]}>
           <LinearGradient colors={["#F2F5F7", "#A3ADB8", "#E5E9EE"]} locations={[0, 0.53, 1]} style={styles.guestButton}>
-            <Ionicons name="planet-outline" size={19} color="#12161B" /><Text style={styles.guestLabel}>Explore the portals</Text><Ionicons name="arrow-forward" size={18} color="#12161B" />
+            <Ionicons name="planet-outline" size={19} color="#12161B" /><Text style={styles.guestLabel}>Back to Home</Text><Ionicons name="arrow-forward" size={18} color="#12161B" />
           </LinearGradient>
         </Pressable>
-        <View style={styles.privateNote}><Ionicons name="lock-closed-outline" size={12} color="#858F9C" /><Text style={styles.privateText}>Guest access · sample worlds only</Text></View>
+        <View style={styles.privateNote}><Ionicons name="lock-closed-outline" size={12} color="#858F9C" /><Text style={styles.privateText}>Sign in to enter a portal</Text></View>
       </BlurView>
     </LinearGradient>
     <View style={styles.portalStrip}>{PORTALS.slice(0, 3).map(item => <View key={item.id} style={styles.portalThumb}><Image source={item.image} style={styles.thumbImage} /><LinearGradient colors={["transparent", "rgba(0,0,0,0.88)"]} style={StyleSheet.absoluteFill} /><Text style={styles.thumbLabel}>{item.name.toUpperCase()}</Text></View>)}</View>
     <Pressable accessibilityRole="button" accessibilityLabel="Replay startup film" onPress={replay}><Text style={styles.entryFooter}>REPLAY THE ENTRANCE</Text></Pressable>
-  </ScrollView>;
-}
-
-export function GuestPreview() {
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
-  const [selected, setSelected] = useState<string | null>(null);
-  const portal = PREVIEW_WORLDS.find(item => item.id === selected);
-  const [speaking, setSpeaking] = useState(false);
-  const [voiceError, setVoiceError] = useState('');
-  const [guestCompanion, setGuestCompanion] = useState<'atlas' | 'kaia'>('atlas');
-  useEffect(() => () => { void stopCompanion(); }, []);
-  const previewAtlas = () => {
-    setVoiceError(''); setSpeaking(true);
-    void speakCompanion(`I’m Atlas. Welcome to STAARWAARDD. ${portal ? `This is ${portal.name}.` : 'Nine worlds to discover. Choose a portal and take a look around.'} This preview uses sample content; your personal system begins when you sign in.`, guestCompanion, () => setSpeaking(false)).catch(() => { setSpeaking(false); setVoiceError('Natural voice preview is unavailable. You can still explore every world.'); });
-  };
-  return <ScrollView style={styles.screen} contentContainerStyle={[styles.page, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 24 }]}>
-    <Text style={styles.brand}>STAARWAARDD · GUEST PREVIEW</Text>
-    <Text style={styles.heading}>{portal ? portal.name : "Explore the portals"}</Text>
-    <Image source={require("@/assets/images/staarwardd/atlas-kaia-locked.jpeg")} resizeMode="contain" style={{ width: '100%', aspectRatio: 1134 / 648, borderRadius: 18 }} accessibilityLabel="Approved Atlas on the left and Kaia on the right" />
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{COMPANIONS.map(companion => <Pressable key={companion.id} accessibilityRole="button" accessibilityState={{ selected: guestCompanion === companion.id }} onPress={() => { void stopCompanion(); setSpeaking(false); setGuestCompanion(companion.id); }} style={[styles.button, guestCompanion === companion.id && { borderColor: '#ECF0F5' }]}><Text style={styles.label}>{companion.name}</Text></Pressable>)}</View>
-    <View style={styles.panelTop}><Pressable accessibilityRole="button" accessibilityLabel={`Hear ${guestCompanion} guest welcome`} onPress={previewAtlas} style={styles.button}><Text style={styles.label}>Hear {guestCompanion === 'atlas' ? 'Atlas' : 'Kaia'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Silence Atlas" onPress={() => { setSpeaking(false); void stopCompanion(); }} style={styles.button}><Text style={styles.label}>Quiet</Text></Pressable></View>
-    <Text style={styles.caption}>{speaking ? 'AI voice preview · tap Quiet to stop' : 'Meet Atlas · optional AI voice preview'}</Text>
-    {voiceError ? <Text accessibilityRole="alert" style={styles.copy}>{voiceError}</Text> : null}
-    <Text style={styles.copy}>Sample content only. Private accounts, uploads, messages, purchases and connected devices are unavailable.</Text>
-    {portal ? <View style={styles.card}>
-      <Image source={portal.image} style={styles.image} accessibilityLabel={portal.name + " portal artwork"} />
-      <Text style={styles.copy}>This is a sample view of {portal.name}. No workflow is running and no action has been executed.</Text>
-      <Pressable style={styles.button} accessibilityRole="button" onPress={() => setSelected(null)}><Text style={styles.label}>Back to portals</Text></Pressable>
-    </View> : PREVIEW_WORLDS.map(item => <Pressable key={item.id} style={styles.card} accessibilityRole="button" accessibilityLabel={"Preview " + item.name} onPress={() => setSelected(item.id)}>
-      <Image source={item.image} style={styles.image} accessibilityLabel={item.name + " portal artwork"} />
-      <Text style={styles.label}>{item.name}</Text>
-      <Text style={styles.caption}>View sample</Text>
-    </Pressable>)}
-    <Pressable style={styles.button} accessibilityRole="button" onPress={() => router.replace("/landing")}><Text style={styles.label}>Back to sign in</Text></Pressable>
   </ScrollView>;
 }
 
@@ -185,9 +153,6 @@ const styles = StyleSheet.create({
   brand: { color: "#B9C2CD", fontWeight: "700", letterSpacing: 2.4, fontSize: 11 },
   heading: { color: "#EEF2F7", fontSize: 28, fontWeight: "700", maxWidth: 640 },
   copy: { color: "#A3AEBC", fontSize: 14, lineHeight: 22, maxWidth: 640 },
-  caption: { color: "#84909F", fontSize: 11, lineHeight: 18 },
   label: { color: "#E0E6ED", fontSize: 16, fontWeight: "600" },
   button: { padding: 16, borderWidth: 1, borderColor: "#687482", borderRadius: 14, backgroundColor: "#1C242E", maxWidth: 640 },
-  card: { padding: 12, backgroundColor: "#0D1117", borderWidth: 1, borderColor: "#414B58", borderRadius: 20, gap: 10, maxWidth: 640 },
-  image: { width: "100%", height: 200, borderRadius: 13, resizeMode: "cover" },
 });
