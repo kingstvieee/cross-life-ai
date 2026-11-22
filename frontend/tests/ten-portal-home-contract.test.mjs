@@ -26,17 +26,22 @@ test('signed TestFlight workflow does not stage the unapproved B250 QA Guardian'
  assert.doesNotMatch(yaml, /STAAR_INTERNAL_HOME_REVIEW/);
  assert.doesNotMatch(yaml, /stage-private-guardian-b250-qa/);
  assert.match(yaml, /buildNumber='115'/);
- assert.match(yaml, /EXPO_PUBLIC_STAAR_HUB_INTERNAL_ENTRY: '1'/);
  assert.match(yaml, /STAAR_IPHONE_ONLY_QA: '1'/);
  assert.doesNotMatch(yaml, /EXPO_PUBLIC_GUARDIAN_DEVICE_QA/);
  assert.doesNotMatch(yaml, /EXPO_PUBLIC_WORLD_COLLISION_QA/);
 });
 
-test('internal iPhone review replaces public entry routes with locked Home while keeping account access gated', async () => {
- const source = await read('../components/staarwardd/access-boundary.tsx');
- assert.ok(source.indexOf('if (user && !user.is_demo)') < source.indexOf('const internalHomeEntry'));
- assert.match(source, /const internalHomeEntry = process\.env\.EXPO_PUBLIC_STAAR_HUB_INTERNAL_ENTRY === '1' &&\s*\(homePath \|\| path === '\/landing' \|\| path === '\/guest'\)/);
- assert.match(source, /Platform\.OS === 'ios' && \(internalHomeEntry \|\| guardianDeviceEntry\)/);
- assert.match(source, /<WorldHub onSignIn=/);
- assert.match(source, /return path === "\/guest" \? <GuestPreview \/> : <SignInScreen \/>/);
+test('locked Home is the guest entry on every platform and private routes stay gated', async () => {
+ const [source, guest, landing, hub] = await Promise.all([
+  read('../components/staarwardd/access-boundary.tsx'), read('../app/guest.tsx'),
+  read('../app/landing.tsx'), read('../components/staarwardd/world-hub.tsx')
+ ]);
+ assert.ok(source.indexOf('if (user && !user.is_demo)') < source.indexOf('<WorldHub onSignIn='));
+ assert.match(source, /<WorldHub onSignIn=\{\(\) => setShowSignIn\(true\)\} \/>/);
+ assert.match(source, /<Modal visible=\{showSignIn\}/);
+ assert.match(source, /<SignInScreen onBackToHub=\{\(\) => setShowSignIn\(false\)\}/);
+ assert.doesNotMatch(source, /GuestPreview|EXPO_PUBLIC_STAAR_HUB_INTERNAL_ENTRY/);
+ assert.match(guest, /export \{ default \} from "\.\/landing"/);
+ assert.match(landing, /<Redirect href="\/" \/>/);
+ assert.match(hub, /if \(onSignIn\) \{ onSignIn\(\); return; \}/);
 });
