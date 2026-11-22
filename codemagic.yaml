@@ -1,6 +1,6 @@
 workflows:
-  staar-home-review-114:
-    name: STAAR Hub 114 — Ten Portal Home Correction — Internal TestFlight
+  staar-home-review-115:
+    name: STAAR Hub 115 — Ten Portal Home Correction — Internal TestFlight
     instance_type: mac_mini_m2
     max_build_duration: 120
     triggering:
@@ -18,9 +18,10 @@ workflows:
       vars:
         EAS_BUILD_PROFILE: preview
         STAAR_IPHONE_ONLY_QA: '1'
+        EXPO_PUBLIC_STAAR_HUB_INTERNAL_ENTRY: '1'
         EXPO_PUBLIC_BACKEND_URL: https://cross-life-ai.emergent.host
     scripts:
-      - name: Set iPhone internal review build number 114
+      - name: Set iPhone internal review build number 115
         script: |
           cd frontend
           node - <<'NODE'
@@ -28,7 +29,7 @@ workflows:
           const name='app.json',data=JSON.parse(fs.readFileSync(name,'utf8'));
           if(data.expo.version!=='1.0.4'||data.expo.ios.buildNumber!=='109')
             throw Error('Incorrect base version — refuse to build with duplicate number');
-          data.expo.ios.buildNumber='114';
+          data.expo.ios.buildNumber='115';
           fs.writeFileSync(name,JSON.stringify(data,null,2)+'\n');
           NODE
       - name: Install dependencies and verify ten-portal home
