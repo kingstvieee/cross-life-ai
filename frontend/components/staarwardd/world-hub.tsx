@@ -22,6 +22,7 @@ const lockedPortalArtwork = {
   style: require('@/assets/images/staarwardd/locked/style.png'),
   staarverse: require('@/assets/images/staarwardd/locked/staarverse.png'),
   staarsonic: require('@/assets/images/staarwardd/locked/staarsonic.png'),
+  diggitstaar: require('@/assets/images/staarwardd/portal-work-chrome.webp'),
 };
 
 function HubFocus({ onFocus }: { onFocus: () => () => void }) {
@@ -43,7 +44,7 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
   const [modelAvailable, setModelAvailable] = useState(false);
   const [guardianSpeaking, setGuardianSpeaking] = useState(false);
   const widthLimit = Math.floor((Math.min(850, width - insets.left - insets.right) - 40) / 5);
-  const heightLimit = Math.floor((safeHeight - (compact ? 178 : 244)) / 3);
+  const heightLimit = Math.floor((safeHeight - (compact ? 220 : 270)) / 3);
   const portalSize = Math.min(widthLimit, Math.max(30, heightLimit), 116);
   const drift = useRef(new Animated.Value(0)).current;
   const [greetingEnabled, setGreetingEnabled] = useState(false);
@@ -148,9 +149,9 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
     if (!audio.master || !audio.voice || audio.speechQuiet) { setGuardianMessage('Voice is muted or disabled. Use settings to enable audio.'); return; }
     // Transport emits playback-active only after the voice actually starts.
     setGuardianSpeaking(true);
-    setGuardianMessage('Welcome back. Your nine worlds are ready.');
+    setGuardianMessage('Welcome back. Your ten worlds are ready.');
     try {
-      const spoken = await audio.speak('Welcome back. Guardian is here. Your nine worlds are ready when you are.', undefined, 'guardian');
+      const spoken = await audio.speak('Welcome back. Guardian is here. Your ten worlds are ready when you are.', undefined, 'guardian');
       if (!spoken && focused.current && epoch === voiceEpoch.current) {
         setGuardianMessage('Guardian voice playback is unavailable. Continue in chat.');
       }
@@ -233,7 +234,7 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
         onLongPress={onSignIn ? undefined : () => setInspectedPortal(world)}
         onPress={() => openPortal(world.id)} style={({ pressed }) => [s.portalButton, pressed && s.pressed]}>
         <LinearGradient colors={['#F9FBFF', '#606777', '#E6C98A', '#222633', '#F9FBFF']} style={[
-          s.rim, { width: portalSize, height: portalSize },
+          s.rim, { width: portalSize, height: Math.round(portalSize * 1.08) },
         ]}>
           <View style={s.glass}>
             <Image source={lockedPortalArtwork[world.id]} style={StyleSheet.absoluteFill} resizeMode="cover" accessible={false} />
@@ -278,10 +279,10 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
             {reduceMotion !== null && <WorldScene world="hub" embedded guardianPresentation onAction={ignoreSceneAction}
               onGuardianModelReady={onGuardianModelReady} onGuardianArrival={onGuardianArrival}
               onGuardianUnavailable={onGuardianUnavailable} reduceGuardianMotion={motionReduced} />}
+            {!modelAvailable && <Image source={require('@/assets/images/staarwardd/guardian-poses/guide.png')} resizeMode="contain" style={s.guardianFallback} accessible={false} />}
           </View>
-          <View style={s.sidePortals}>{WORLDS.slice(5, 7).map(renderPortal)}</View>
-          <View style={s.sidePortals}>{WORLDS.slice(7).map(renderPortal)}</View>
         </View>
+        <View style={s.bottomPortals}>{WORLDS.slice(5, 10).map(renderPortal)}</View>
         <View style={s.controls}>
           {!!message && <Text accessibilityLiveRegion="polite" numberOfLines={2} style={s.message}>{message}</Text>}
           <View style={s.controlRow}>
@@ -336,25 +337,26 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
 
 const s = StyleSheet.create({
   root: { flex: 1, overflow: 'hidden', backgroundColor: '#030305' },
-  safe: { flex: 1, width: '100%', maxWidth: 850, alignSelf: 'center', paddingHorizontal: 12, paddingBottom: 100 },
+  safe: { flex: 1, width: '100%', maxWidth: 850, alignSelf: 'center', paddingHorizontal: 12, paddingBottom: 28 },
   safeCompact: { paddingBottom: 66 },
   headerCompact: { minHeight: 46, marginBottom: 2 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 52, marginBottom: 12 },
   brand: { fontSize: 22, fontWeight: '800', letterSpacing: 3, color: '#FAF8F2' },
   icon: { width: 46, height: 46, borderWidth: 1, borderColor: '#A6997F', borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#15151DDB' },
   star: { position: 'absolute', backgroundColor: '#F3EEFF', width: 2, height: 2, borderRadius: 1 },
-  skyline: { position: 'absolute', top: '31%', width: '100%', height: '34%', opacity: .68 },
-  topPortals: { flexDirection: 'row', justifyContent: 'space-between' },
-  chamber: { flex: 1, flexDirection: 'row', minHeight: 0, justifyContent: 'space-between', alignItems: 'stretch' },
-  sidePortals: { justifyContent: 'space-evenly' },
+  skyline: { position: 'absolute', top: '26%', width: '100%', height: '42%', opacity: .78 },
+  topPortals: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingTop: 4 },
+  bottomPortals: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: 4 },
+  chamber: { flex: 1, minHeight: 0, justifyContent: 'center', alignItems: 'center' },
+  guardianFallback: { position: 'absolute', width: '58%', height: '90%', bottom: '7%', alignSelf: 'center' },
   platform: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   plinth: { position: 'absolute', bottom: '8%', left: '25%', right: '25%', height: '15%', borderRadius: 200, borderColor: '#E2C98F', borderWidth: 2 },
   portal: { marginVertical: 4 },
   portalButton: { alignItems: 'center', minHeight: 44 },
-  rim: { borderRadius: 999, padding: 3 },
-  glass: { flex: 1, borderRadius: 999, overflow: 'hidden', borderWidth: 1, borderColor: '#FAF8F1' },
+  rim: { borderRadius: 15, padding: 3, shadowColor: '#D9C28E', shadowOpacity: .35, shadowRadius: 9, shadowOffset: { width: 0, height: 0 }, elevation: 5 },
+  glass: { flex: 1, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#FAF8F1' },
   pressed: { opacity: .7, transform: [{ scale: .96 }] },
-  portalName: { color: '#FFFFFF', fontSize: 10, fontWeight: '700', textAlign: 'center', marginTop: 4, textShadowColor: '#000', textShadowRadius: 5 },
+  portalName: { color: '#FFFFFF', fontSize: 9, letterSpacing: .35, fontWeight: '800', textAlign: 'center', marginTop: 5, textShadowColor: '#000', textShadowRadius: 5 },
   controls: { alignItems: 'center', gap: 6, paddingTop: 6 },
   controlRow: { flexDirection: 'row', gap: 12 },
   previewOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#080810B8' },
