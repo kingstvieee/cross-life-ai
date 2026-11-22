@@ -22,7 +22,11 @@ export function AccessBoundary({ children }: { children: React.ReactNode }) {
   const [showReviewSignIn, setShowReviewSignIn] = useState(false);
   if (loading) return <View style={styles.page}><ActivityIndicator accessibilityLabel="Checking session" /></View>;
   if (user && !user.is_demo) return <Fragment key={user.user_id}>{user.onboarding_complete ? children : <Onboarding />}</Fragment>;
-  if (Platform.OS === 'ios' && process.env.EXPO_PUBLIC_GUARDIAN_DEVICE_QA === '1' && (path === '/' || path === '/index')) {
+  const homePath = path === '/' || path === '/index';
+  const internalHomeEntry = process.env.EXPO_PUBLIC_STAAR_HUB_INTERNAL_ENTRY === '1' &&
+    (homePath || path === '/landing' || path === '/guest');
+  const guardianDeviceEntry = process.env.EXPO_PUBLIC_GUARDIAN_DEVICE_QA === '1' && homePath;
+  if (Platform.OS === 'ios' && (internalHomeEntry || guardianDeviceEntry)) {
     return showReviewSignIn
       ? <SignInScreen onBackToHub={() => setShowReviewSignIn(false)} />
       : <StaarAudioProvider><WorldHub onSignIn={() => setShowReviewSignIn(true)} /></StaarAudioProvider>;
