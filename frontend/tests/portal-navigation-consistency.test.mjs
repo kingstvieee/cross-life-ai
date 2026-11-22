@@ -11,7 +11,7 @@ test('all ten 3D renderer and React portal routes include the nine approved desi
  assert.equal(worldNames.length,10);
  assert.ok(approved.every(id=>worldIds.includes(id)));
  assert.ok(worldIds.includes('diggitstaar'));
- assert.equal(new Set(worldIds).size,9);
+ assert.equal(new Set(worldIds).size,10);
  assert.deepEqual(sceneFallbackActions('hub'),fallbackActions('hub'));
  for(const id of worldIds) {
    assert.deepEqual(sceneFallbackActions(id),fallbackActions(id),id);
