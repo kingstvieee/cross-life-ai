@@ -7,6 +7,8 @@ from datetime import datetime, timedelta, timezone
 from math import isfinite
 from uuid import uuid4
 
+from guardian_notice_store import ensure_outbox_index, notice_transition_pipeline
+
 TERMINAL = {"completed", "cancelled", "blocked"}
 
 
@@ -45,9 +47,10 @@ async def ensure_indexes(collection):
     await collection.create_index([("owner_id", 1), ("status", 1), ("created_at", -1), ("mission_id", -1)])
     await collection.create_index([("status", 1), ("lease_until", 1)])
     await collection.create_index([("handler", 1), ("status", 1), ("lease_until", 1)])
+    await ensure_outbox_index(collection)
 
 async def submit_mission(collection, *, owner_id, objective, idempotency_key,
-                         success_criteria, budget_cad=0, expires_at=None):
+                         success_criteria, budget_cad=0, expires_at=None, derived_from=None):
     if not owner_id or not objective or not idempotency_key or not success_criteria:
         raise ValueError("Mission requires owner, objective, idempotency key and criteria")
     if budget_cad < 0:
@@ -64,6 +67,8 @@ async def submit_mission(collection, *, owner_id, objective, idempotency_key,
                budget_cad=budget_cad, status="proposed", created_at=now_utc(),
                updated_at=now_utc(), lease_until=None, lease_token=None,
                checkpoint=None, evidence=None, attempts=0, expires_at=expires_at)
+    if derived_from is not None:
+        doc["derived_from"] = derived_from
     # Duplicate submissions return the existing mission rather than executing twice.
     from pymongo.errors import DuplicateKeyError
     try:
@@ -77,8 +82,8 @@ async def submit_mission(collection, *, owner_id, objective, idempotency_key,
         if saved_deadline is not None and saved_deadline.tzinfo is None:
             saved_deadline = saved_deadline.replace(tzinfo=timezone.utc)
         if saved_deadline != expires_at or any(
-            existing.get(field) != doc[field]
-            for field in ("objective", "success_criteria", "budget_cad")
+            existing.get(field) != doc.get(field)
+            for field in ("objective", "success_criteria", "budget_cad", "derived_from")
         ):
             raise MissionConflict("Submission key already belongs to a different proposal")
         return existing
@@ -110,8 +115,17 @@ async def transition(collection, *, owner_id, mission_id, expected, target,
         update["lease_until"] = None
         update["lease_token"] = None
         update["worker_id"] = None
-    result = await collection.find_one_and_update(
-        query, {"$set": update}, return_document=True)
+    reason = None
+    if target == "completed":
+        reason = "independent_verification_passed"
+    elif target == "blocked":
+        if isinstance(evidence, dict) and evidence.get("verifier") == "independent" and evidence.get("passed") is False:
+            reason = "independent_verification_failed"
+        elif isinstance(checkpoint, dict) and checkpoint.get("reason") == "handler_outcome_requires_reconciliation":
+            reason = "handler_outcome_requires_reconciliation"
+    write = (notice_transition_pipeline(update, reason=reason, now=update["updated_at"])
+             if reason else {"$set": update})
+    result = await collection.find_one_and_update(query, write, return_document=True)
     if result is None:
         raise MissionStateChanged("Mission changed concurrently or permission denied")
     result.pop("_id", None)
@@ -152,9 +166,10 @@ async def recover_expired_leases(collection, *, handler_names=None):
     uncertain = await collection.update_many(
         {"status": {"$in": ["running", "verifying"]}, **scope,
          "lease_until": {"$lte": now}},
-        {"$set": {"status": "blocked", "lease_until": None,
-                  "lease_token": None, "worker_id": None, "updated_at": now,
-                  "recovery_reason": "expired_lease_requires_reconciliation"}})
+        notice_transition_pipeline(
+            {"status": "blocked", "lease_until": None, "lease_token": None, "worker_id": None,
+             "updated_at": now, "recovery_reason": "expired_lease_requires_reconciliation"},
+            reason="expired_lease_requires_reconciliation", now=now))
     expired = await collection.update_many(
         {"status": "leased", "lease_until": {"$lte": now}, **scope,
          "expires_at": {"$lte": now}},

@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
 import { ActivityIndicator, AppState, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/auth';
 import {
-  followsMissionStatus, guardianMissionClient, mergeMissionPages, updateMissionInPage,
-  type Mission, type MissionAction,
+  followsMissionStatus, guardianMissionClient, mergeMissionPages, optionalMissionTime, updateMissionInPage,
+  type Mission, type MissionAction, type MissionDerivation,
 } from '@/src/guardian-missions';
 
 const FILTERS = [
@@ -16,12 +16,16 @@ const FILTERS = [
 ] as const;
 
 const ACTIONS: Record<MissionAction, string> = {
+  revise: 'Revise as a new proposal',
+  copy: 'Copy as a new proposal',
+  'reschedule-preview': 'Reschedule preview',
   withdraw: 'Withdraw proposal',
   'cancel-pending': 'Cancel pending mission',
   'queue-preview': 'Queue zero-cost preview',
   'acknowledge-preview': 'Acknowledge result',
 };
 
+const EMPTY_WINDOW = { from: '', before: '' };
 const EMPTY_DRAFT = { objective: '', criteria: '', deadline: '' };
 const titleCase = (value: string) => value.replaceAll('_', ' ').replace(/^./, char => char.toUpperCase());
 const localTime = (date: string) => new Date(date).toLocaleString();
@@ -36,6 +40,7 @@ function AccountMissions() {
   const { api } = useAuth();
   const client = useMemo(() => guardianMissionClient(api), [api]);
   const router = useRouter();
+  const { missionId } = useLocalSearchParams<{ missionId?: string }>();
   const [status, setStatus] = useState('');
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
@@ -46,6 +51,9 @@ function AccountMissions() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [total, setTotal] = useState<number | null>(null);
   const [selected, setSelected] = useState<Mission | null>(null);
+  const [origin, setOrigin] = useState<MissionDerivation>();
+  const [dateDraft, setDateDraft] = useState(EMPTY_WINDOW);
+  const [dateWindow, setDateWindow] = useState(EMPTY_WINDOW);
   const [draft, setDraft] = useState(EMPTY_DRAFT);
   const [formOpen, setFormOpen] = useState(false);
   const [schedule, setSchedule] = useState('');
@@ -55,9 +63,10 @@ function AccountMissions() {
   const request = useRef<AbortController | null>(null);
   const pollingRequest = useRef<AbortController | null>(null);
   const draftKey = useRef<string | null>(null);
+  const linkedMission = useRef<string | null>(null);
 
   const reload = useCallback(async (signal: AbortSignal) => {
-    const [page, summary] = await Promise.allSettled([client.list(status, undefined, signal, search, order), client.summary(signal)]);
+    const [page, summary] = await Promise.allSettled([client.list(status, undefined, signal, search, order, dateWindow), client.summary(signal)]);
     if (signal.aborted) return;
     if (page.status === 'fulfilled') {
       setMissions(page.value.missions);
@@ -70,7 +79,7 @@ function AccountMissions() {
     }
     if (page.status === 'rejected') throw page.reason;
     if (summary.status === 'rejected') setNotice('Mission totals are temporarily unavailable.');
-  }, [client, status, search, order]);
+  }, [client, status, search, order, dateWindow]);
 
   const perform = useCallback(async (task: (signal: AbortSignal) => Promise<void>) => {
     if (request.current) return;
@@ -92,13 +101,24 @@ function AccountMissions() {
   }, []);
 
   useFocusEffect(useCallback(() => {
-    void perform(reload);
+    void perform(async signal => {
+      if (typeof missionId === 'string' && missionId !== linkedMission.current) {
+        const [detail, list] = await Promise.allSettled([client.detail(missionId, signal), reload(signal)]);
+        if (signal.aborted) return;
+        if (detail.status === 'rejected') throw detail.reason;
+        linkedMission.current = missionId;
+        setSelected(detail.value);
+        if (list.status === 'rejected') throw list.reason;
+        return;
+      }
+      await reload(signal);
+    });
     return () => {
       request.current?.abort();
       request.current = null;
       setBusy(false);
     };
-  }, [perform, reload]));
+  }, [client, missionId, perform, reload]));
 
   const selectedId = selected?.mission_id;
   const followsMission = followsMissionStatus(selected?.status);
@@ -141,9 +161,10 @@ function AccountMissions() {
   function submit() {
     void perform(async signal => {
       draftKey.current ??= randomUUID();
-      const result = await client.propose(draft, draftKey.current, signal);
+      const result = await client.propose(draft, draftKey.current, signal, origin);
       if (signal.aborted) return;
       setDraft(EMPTY_DRAFT);
+      setOrigin(undefined);
       draftKey.current = null;
       setFormOpen(false);
       setFeedback('Proposal saved.');
@@ -167,11 +188,21 @@ function AccountMissions() {
 
   function runAction(action: MissionAction) {
     if (!selected) return;
+    if (action === 'copy' || action === 'revise') {
+      setOrigin({ id: selected.mission_id, operation: action });
+      setDraft({ objective: selected.objective, criteria: selected.success_criteria,
+        deadline: action === 'revise' ? selected.expires_at ?? '' : '' });
+      draftKey.current = null;
+      setFormOpen(true);
+      setSelected(null);
+      return;
+    }
     void perform(async signal => {
       await client.action(selected, action, schedule, signal);
       if (signal.aborted) return;
       setFeedback(action === 'queue-preview' ? 'Preview queued.' :
-        action === 'acknowledge-preview' ? 'Result acknowledged.' : 'Mission cancelled.');
+        action === 'acknowledge-preview' ? 'Result acknowledged.' :
+        action === 'reschedule-preview' ? 'Preview rescheduled.' : 'Mission cancelled.');
       setSelected(null);
       const detail = await client.detail(selected.mission_id, signal);
       if (signal.aborted) return;
@@ -184,10 +215,14 @@ function AccountMissions() {
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Button label="Back to Guardian controls" onPress={() => router.back()} />
       <Text accessibilityRole="header" style={styles.heading}>Guardian missions</Text>
+      <Button label="Open Guardian notices" onPress={() => router.push('/guardian-notices')} />
       {total !== null && <Text style={styles.muted}>{total} missions in this account</Text>}
       <View style={styles.row}>
         <Button label={formOpen ? 'Hide proposal form' : 'New proposal'} disabled={busy}
-          onPress={() => setFormOpen(!formOpen)} />
+          onPress={() => {
+            if (formOpen) { setOrigin(undefined); setDraft(EMPTY_DRAFT); draftKey.current = null; }
+            setFormOpen(!formOpen);
+          }} />
         <Button label="Refresh missions" disabled={busy} onPress={() => void perform(async signal => {
           await reload(signal);
           if (selected && !signal.aborted) {
@@ -200,7 +235,7 @@ function AccountMissions() {
       {!!notice && <Text accessibilityRole="alert" style={styles.notice}>{notice}</Text>}
       {!!feedback && <Text accessibilityLiveRegion="polite" style={styles.text}>{feedback}</Text>}
       {formOpen && <View style={styles.card}>
-        <Text accessibilityRole="header" style={styles.subheading}>New mission proposal</Text>
+        <Text accessibilityRole="header" style={styles.subheading}>{origin?.operation === 'revise' ? 'Revised proposal' : origin ? 'Copied proposal' : 'New mission proposal'}</Text>
         <Input label="Objective" value={draft.objective} onChange={value => updateDraft('objective', value)} busy={busy} multiline />
         <Input label="Success criteria" value={draft.criteria} onChange={value => updateDraft('criteria', value)} busy={busy} multiline />
         <Input label="Deadline with timezone (optional)" value={draft.deadline} onChange={value => updateDraft('deadline', value)} busy={busy} />
@@ -210,6 +245,9 @@ function AccountMissions() {
         <Text accessibilityRole="header" style={styles.subheading}>{selected.objective}</Text>
         <Text style={styles.text}>{selected.success_criteria}</Text>
         <Text style={styles.muted}>Status: {titleCase(selected.status)}</Text>
+        {selected.updated_at && <Text style={styles.muted}>Updated: {localTime(selected.updated_at)}</Text>}
+        {selected.derived_from && <Button label="Open original mission" disabled={busy}
+          onPress={() => openMission(selected.derived_from!.mission_id)} />}
         {selected.not_before && <Text style={styles.muted}>Scheduled: {localTime(selected.not_before)}</Text>}
         {selected.expires_at && <Text style={styles.muted}>Deadline: {localTime(selected.expires_at)}</Text>}
         {typeof selected.evidence?.passed === 'boolean' && <Text style={styles.text}>
@@ -220,8 +258,8 @@ function AccountMissions() {
         {selected.preview_acknowledged_at && <Text style={styles.muted}>
           Acknowledged: {localTime(selected.preview_acknowledged_at)}
         </Text>}
-        {selected.available_actions?.includes('queue-preview') && <Input
-          label="Start time with timezone (optional)" value={schedule} onChange={setSchedule} busy={busy} />}
+        {(selected.available_actions?.includes('queue-preview') || selected.available_actions?.includes('reschedule-preview')) && <Input
+          label="Start time with timezone" value={schedule} onChange={setSchedule} busy={busy} />}
         <View style={styles.row}>
           {selected.available_actions?.map(action => ACTIONS[action] && <Button key={action}
             label={ACTIONS[action]} onPress={() => runAction(action)} disabled={busy} />)}
@@ -240,6 +278,21 @@ function AccountMissions() {
           }} />)}
       </View>
       <View style={styles.card}>
+        <Input label="Created from (time with timezone)" value={dateDraft.from}
+          onChange={from => setDateDraft(previous => ({ ...previous, from }))} busy={busy} />
+        <Input label="Created before (time with timezone)" value={dateDraft.before}
+          onChange={before => setDateDraft(previous => ({ ...previous, before }))} busy={busy} />
+        <Button label="Apply date range" disabled={busy} onPress={() => {
+          try {
+            const from = optionalMissionTime(dateDraft.from) ?? '';
+            const before = optionalMissionTime(dateDraft.before) ?? '';
+            if (from && before && from >= before) throw new Error('Start must be before the end.');
+            if (from === dateWindow.from && before === dateWindow.before) return;
+            setResultsLoaded(false); setMissions([]); setCursor(null); setDateWindow({ from, before });
+          } catch (error) {
+            setNotice(error instanceof Error ? error.message : 'Invalid date range.');
+          }
+        }} />
         <Input label="Search mission objectives or success criteria" value={searchDraft}
           onChange={setSearchDraft} busy={busy} maxLength={120} />
         <View style={styles.row}>
@@ -280,7 +333,7 @@ function AccountMissions() {
       </Pressable>)}
       {resultsLoaded && !busy && !notice && missions.length === 0 && <Text style={styles.muted}>No missions match this view.</Text>}
       {cursor && <Button label="Load more missions" disabled={busy} onPress={() => void perform(async signal => {
-        const page = await client.list(status, cursor, signal, search, order);
+        const page = await client.list(status, cursor, signal, search, order, dateWindow);
         if (signal.aborted) return;
         if (page.next_cursor === cursor || (page.missions.length === 0 && page.next_cursor)) {
           setCursor(null);

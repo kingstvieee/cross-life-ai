@@ -10,8 +10,8 @@ from typing import Literal, get_args
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 from pymongo.errors import DuplicateKeyError
-from guardian_mission_engine import MissionConflict, now_utc, submit_mission, transition
-from guardian_mission_preview import PREVIEW_HANDLER, bson_datetime, preview_digest, queue_preview, utc_datetime
+from guardian_mission_engine import TERMINAL, MissionConflict, now_utc, submit_mission, transition
+from guardian_mission_preview import PREVIEW_HANDLER, bson_datetime, preview_digest, queue_preview, reschedule_preview, utc_datetime
 
 SAFE_FIELDS = {
     "_id": 0, "owner_id": 1, "mission_id": 1, "objective": 1,
@@ -20,7 +20,7 @@ SAFE_FIELDS = {
     "recovery_reason": 1, "success_criteria": 1, "budget_cad": 1, "expires_at": 1,
     "evidence.passed": 1, "evidence.verified_at": 1, "evidence.result_digest": 1,
     "preview_approval.approved_at": 1,
-    "preview_acknowledged_at": 1,
+    "preview_acknowledged_at": 1, "derived_from": 1,
 }
 
 MissionStatus = Literal[
@@ -52,6 +52,13 @@ class PreviewRequest(BaseModel):
     run_at: AwareDatetime | None = None
 
 
+class RescheduleRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_start: AwareDatetime
+    run_at: AwareDatetime
+
+
 def present_mission(mission, *, preview_enabled):
     for record, fields in (
         (mission, ("created_at", "updated_at", "not_before", "retry_after", "expires_at",
@@ -65,9 +72,15 @@ def present_mission(mission, *, preview_enabled):
     mission["available_actions"] = []
     if mission.get("status") == "proposed":
         mission["available_actions"].append("withdraw")
+        mission["available_actions"].append("revise")
         if preview_enabled and (mission.get("expires_at") is None or mission["expires_at"] > now_utc()):
             mission["available_actions"].append("queue-preview")
             mission["preview_digest"] = preview_digest(mission)
+    if mission.get("status") in TERMINAL:
+        mission["available_actions"].append("copy")
+    if (preview_enabled and mission.get("status") == "queued" and mission.get("preview_approval")
+            and mission.get("attempts") == 0 and mission.get("not_before")):
+        mission["available_actions"].append("reschedule-preview")
     if mission.get("status") in PENDING_CANCELLATION_STATES:
         mission["available_actions"].append("cancel-pending")
     if (preview_enabled and mission.get("status") == "completed" and
@@ -94,10 +107,7 @@ def build_guardian_mission_router(*, db, require_account_user, preview_enabled=F
             raise HTTPException(status_code=403, detail="account_identity_required")
         return value
 
-    @router.post("", status_code=201)
-    async def propose_mission(
-        proposal: MissionProposal, user=Depends(require_account_user),
-    ):
+    async def save_proposal(proposal, user, *, derived_from=None):
         owner = owner_id(user)
         try:
             mission = await submit_mission(
@@ -106,12 +116,16 @@ def build_guardian_mission_router(*, db, require_account_user, preview_enabled=F
                 idempotency_key=proposal.idempotency_key,
                 success_criteria=proposal.success_criteria,
                 budget_cad=proposal.budget_cad,
-                expires_at=proposal.expires_at,
+                expires_at=proposal.expires_at, derived_from=derived_from,
             )
         except (DuplicateKeyError, MissionConflict):
             raise HTTPException(status_code=409, detail="mission_conflict")
         # Proposal is never queued or executed by this endpoint.
         return {"mission_id": mission["mission_id"], "status": mission["status"]}
+
+    @router.post("", status_code=201)
+    async def propose_mission(proposal: MissionProposal, user=Depends(require_account_user)):
+        return await save_proposal(proposal, user)
 
     @router.get("")
     async def list_missions(
@@ -150,6 +164,8 @@ def build_guardian_mission_router(*, db, require_account_user, preview_enabled=F
             anchor_query = {"owner_id": owner, "mission_id": after}
             if "status" in query:
                 anchor_query["status"] = query["status"]
+            if "created_at" in query:
+                anchor_query["created_at"] = query["created_at"]
             if "$and" in query:
                 anchor_query["$and"] = query["$and"]
             anchor = await db.guardian_missions.find_one(
@@ -193,6 +209,33 @@ def build_guardian_mission_router(*, db, require_account_user, preview_enabled=F
         if mission is None:
             raise HTTPException(status_code=404, detail="mission_not_found")
         return present_mission(mission, preview_enabled=preview_enabled)
+
+    @router.post("/{mission_id}/derive/{operation}", status_code=201)
+    async def derive_proposal(
+        mission_id: str, operation: Literal["revise", "copy"],
+        proposal: MissionProposal, user=Depends(require_account_user),
+    ):
+        source = await get_mission(mission_id, user)
+        eligible = TERMINAL if operation == "copy" else {"proposed"}
+        if source["status"] not in eligible:
+            raise HTTPException(status_code=409, detail="mission_derivation_unavailable")
+        # Reuse submission validation. A derived proposal gets no source authority.
+        return await save_proposal(proposal, user, derived_from={"mission_id": mission_id, "operation": operation})
+
+    @router.post("/{mission_id}/reschedule-preview")
+    async def change_schedule(mission_id: str, request: RescheduleRequest, user=Depends(require_account_user)):
+        if not preview_enabled:
+            raise HTTPException(status_code=404, detail="mission_preview_disabled")
+        await get_mission(mission_id, user)
+        try:
+            mission = await reschedule_preview(
+                db.guardian_missions, owner_id=owner_id(user), mission_id=mission_id,
+                expected_start=request.expected_start, run_at=request.run_at,
+            )
+        except MissionConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {"mission_id": mission_id, "status": mission["status"],
+                "not_before": utc_datetime(mission["not_before"])}
 
     @router.post("/{mission_id}/withdraw")
     async def withdraw_proposal(mission_id: str, user=Depends(require_account_user)):

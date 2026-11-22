@@ -70,6 +70,17 @@ async def test_preview_is_scheduled_verified_and_acknowledged_once():
             assert [result.status_code for result in results] == [200, 200]
             assert results[0].json() == results[1].json()
             assert (await http.post(queue, json={"proposal_digest": digest})).status_code == 409
+            reschedule = path + "/reschedule-preview"
+            original_start = results[0].json()["not_before"]
+            revised_start = (now_utc() + timedelta(minutes=2)).isoformat()
+            move = {"expected_start": original_start, "run_at": revised_start}
+            assert (await http.post(reschedule, json=move, headers={"x-owner": "bob"})).status_code == 404
+            assert (await http.post(reschedule, json={
+                **move, "run_at": (now_utc() + timedelta(hours=2)).isoformat(),
+            })).status_code == 409
+            changes = await asyncio.gather(*(http.post(reschedule, json=move) for _ in range(2)))
+            assert sorted(change.status_code for change in changes) == [200, 409]
+            assert (await http.get(path)).json()["not_before"] != original_start
             worker = GuardianWorker(worker_client[name].guardian_missions,
                                     {PREVIEW_HANDLER: execute_preview}, "worker", scoped=True)
             assert await worker.run_once() is False
@@ -78,6 +89,7 @@ async def test_preview_is_scheduled_verified_and_acknowledged_once():
             assert await worker.run_once() is True
             awaiting = (await http.get(path)).json()
             assert awaiting["status"] == "verifying"
+            assert (await http.post(reschedule, json=move)).status_code == 409
             assert "checkpoint" not in awaiting
             verifier_missions = verifier_client[name].guardian_missions
             assert await verify_pending(verifier_missions, "verifier") == 1

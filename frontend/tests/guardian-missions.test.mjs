@@ -108,3 +108,25 @@ test('mission screen keeps search, empty-state and cancellation safeguards', () 
   assert.match(screen, /Pagination stopped because the server repeated its cursor/);
   assert.match(screen, /request\.current\?\.abort\(\);\s*request\.current = null;\s*setBusy\(false\)/);
 });
+
+test('date range and derived proposal requests preserve mission ownership routing', async () => {
+  const calls = [];
+  const client = guardianMissionClient(async (path, init) => {
+    calls.push({ path, ...init });
+    return Response.json({});
+  });
+  await client.list('completed', 'page', undefined, '', 'oldest', {
+    from: '2099-01-01T00:00:00Z', before: '2099-02-01T00:00:00Z',
+  });
+  const query = new URL(calls[0].path, 'https://example.test').searchParams;
+  assert.equal(query.get('created_from'), '2099-01-01T00:00:00Z');
+  assert.equal(query.get('created_before'), '2099-02-01T00:00:00Z');
+  await client.propose({ objective: 'Review', criteria: 'Ready', deadline: '' }, 'stable-key', undefined,
+    { id: 'source/1', operation: 'copy' });
+  assert.equal(calls[1].path, '/api/guardian/missions/source%2F1/derive/copy');
+  await client.action({ mission_id: 'source', not_before: '2099-01-01T00:00:00Z',
+    available_actions: ['reschedule-preview'] }, 'reschedule-preview', '2099-01-02T00:00:00Z');
+  assert.deepEqual(JSON.parse(calls[2].body), {
+    expected_start: '2099-01-01T00:00:00Z', run_at: '2099-01-02T00:00:00.000Z',
+  });
+});

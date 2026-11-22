@@ -1,12 +1,14 @@
 type MissionApi = (path: string, init?: RequestInit) => Promise<Response>;
 
-export type MissionAction = 'withdraw' | 'cancel-pending' | 'queue-preview' | 'acknowledge-preview';
+export type MissionAction = 'withdraw' | 'cancel-pending' | 'queue-preview' | 'acknowledge-preview' | 'revise' | 'copy' | 'reschedule-preview';
 export type Mission = {
   mission_id: string;
   objective: string;
   success_criteria: string;
   status: string;
   created_at?: string;
+  updated_at?: string;
+  derived_from?: { mission_id: string; operation: "copy" | "revise" };
   expires_at?: string | null;
   not_before?: string;
   preview_digest?: string;
@@ -15,6 +17,8 @@ export type Mission = {
   evidence?: { passed?: boolean; verified_at?: string; result_digest?: string };
 };
 
+export type MissionDateWindow = { from: string; before: string };
+export type MissionDerivation = { id: string; operation: 'revise' | 'copy' };
 type ProposalDraft = { objective: string; criteria: string; deadline: string };
 type MissionPage = { missions: Mission[]; next_cursor: string | null };
 type MissionSummary = { counts: Record<string, number>; total: number };
@@ -88,13 +92,15 @@ export function guardianMissionClient(api: MissionApi) {
 
   const missionPath = (id: string) => `${BASE}/${encodeURIComponent(id)}`;
   return {
-    list(status: string, after?: string, signal?: AbortSignal, search = '', order: MissionOrder = 'newest') {
+    list(status: string, after?: string, signal?: AbortSignal, search = '', order: MissionOrder = 'newest', window?: MissionDateWindow) {
       const params = new URLSearchParams({ limit: '15' });
       if (status) params.set('status', status);
       if (after) params.set('after', after);
       const term = normalizeMissionSearch(search);
       if (term) params.set('search', term);
       params.set('order', order);
+      if (window?.from) params.set('created_from', window.from);
+      if (window?.before) params.set('created_before', window.before);
       return request<MissionPage>(`${BASE}?${params}`, { signal });
     },
     summary(signal?: AbortSignal) {
@@ -103,12 +109,13 @@ export function guardianMissionClient(api: MissionApi) {
     detail(id: string, signal?: AbortSignal) {
       return request<Mission>(missionPath(id), { signal });
     },
-    propose(draft: ProposalDraft, key: string, signal?: AbortSignal) {
-      return request<{mission_id: string}>(BASE, {
+    propose(draft: ProposalDraft, key: string, signal?: AbortSignal, origin?: MissionDerivation) {
+      const path = origin ? `${missionPath(origin.id)}/derive/${origin.operation}` : BASE;
+      return request<{mission_id: string}>(path, {
         method: 'POST', body: JSON.stringify(missionProposal(draft, key)), signal,
       });
     },
-    action(mission: Mission, action: MissionAction, schedule = '', signal?: AbortSignal) {
+    action(mission: Mission, action: Exclude<MissionAction, 'copy' | 'revise'>, schedule = '', signal?: AbortSignal) {
       if (!mission.available_actions?.includes(action)) {
         throw new Error('This action is no longer available. Refresh the mission.');
       }
@@ -116,6 +123,11 @@ export function guardianMissionClient(api: MissionApi) {
       if (action === 'queue-preview') {
         if (!mission.preview_digest) throw new Error('Refresh the proposal before scheduling the preview.');
         body = JSON.stringify({ proposal_digest: mission.preview_digest, run_at: optionalMissionTime(schedule) });
+      }
+      if (action === 'reschedule-preview') {
+        const start = optionalMissionTime(schedule);
+        if (!start || !mission.not_before) throw new Error('Enter a new start time and refresh the current schedule.');
+        body = JSON.stringify({ expected_start: mission.not_before, run_at: start });
       }
       return request<unknown>(`${missionPath(mission.mission_id)}/${action}`, { method: 'POST', body, signal });
     },

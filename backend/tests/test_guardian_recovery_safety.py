@@ -42,6 +42,8 @@ async def test_recovery_quarantines_uncertain_side_effects():
     await recover_expired_leases(collection)
     second_query, second_update = collection.calls[1]
     assert set(second_query["status"]["$in"]) == {"running", "verifying"}
-    assert second_update["$set"]["status"] == "blocked"
-    assert second_update["$set"]["recovery_reason"] == "expired_lease_requires_reconciliation"
-    assert second_update["$set"]["lease_token"] is None
+    changes = second_update[0]["$set"]
+    assert changes["status"] == {"$literal": "blocked"}
+    assert changes["recovery_reason"] == {"$literal": "expired_lease_requires_reconciliation"}
+    assert changes["lease_token"] == {"$literal": None}
+    assert changes["notice_outbox"]["event"]["kind"] == "needs_review"

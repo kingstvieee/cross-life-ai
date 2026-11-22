@@ -77,6 +77,35 @@ async def queue_preview(collection, *, owner_id, mission_id, digest, run_at=None
     raise MissionConflict("Mission changed concurrently")
 
 
+async def reschedule_preview(collection, *, owner_id, mission_id, expected_start, run_at):
+    query = {"owner_id": owner_id, "mission_id": mission_id}
+    mission = await collection.find_one(query)
+    approval = (mission or {}).get("preview_approval") or {}
+    if (not mission or mission.get("status") != "queued" or mission.get("handler") != PREVIEW_HANDLER
+            or mission.get("attempts") != 0 or approval.get("digest") != preview_digest(mission)):
+        raise MissionConflict("Only unstarted previews can be rescheduled")
+    now = bson_datetime(now_utc())
+    start = bson_datetime(run_at)
+    deadline = mission.get("expires_at")
+    if start <= now or (deadline is not None and start >= utc_datetime(deadline)):
+        raise MissionConflict("New start must be in the future and before the mission deadline")
+    current = mission.get("not_before")
+    if current is None or utc_datetime(current) != bson_datetime(expected_start):
+        raise MissionConflict("Preview schedule changed")
+    updated = await collection.find_one_and_update(
+        {**query, "status": "queued", "handler": PREVIEW_HANDLER, "attempts": 0,
+         "not_before": mission["not_before"], "preview_approval": approval,
+         **{field: mission.get(field) for field in PREVIEW_APPROVAL_FIELDS}},
+        {"$set": {"not_before": start, "updated_at": now, "preview_approval": {
+            **approval, "requested_run_at": start, "rescheduled_at": now,
+        }}},
+        return_document=True,
+    )
+    if updated is None:
+        raise MissionConflict("Preview changed concurrently")
+    return updated
+
+
 async def execute_preview(mission):
     if (mission.get("estimated_cost_cad") != 0 or
             mission.get("preview_approval", {}).get("digest") != preview_digest(mission)):

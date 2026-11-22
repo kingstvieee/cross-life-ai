@@ -376,3 +376,35 @@ def test_search_pagination_rejects_anchor_outside_current_filter(api):
         assert second.status_code == 200
         assert [item["mission_id"] for item in second.json()["missions"]] == ["a1"]
         assert client.get("/api/guardian/missions?search=unrelated&after=a2").status_code == 404
+
+
+def test_date_window_rejects_stale_cursor(api):
+    app, missions, account = api
+    app.dependency_overrides[account] = lambda: {"user_id": "alice"}
+    missions.docs[0]["created_at"] = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    with TestClient(app) as client:
+        result = client.get("/api/guardian/missions", params={
+            "after": "a1", "created_from": "2026-02-01T00:00:00Z",
+        })
+    assert result.status_code == 404
+
+
+@pytest.mark.parametrize("operation, state", [("revise", "proposed"), ("copy", "completed")])
+def test_derivation_creates_inert_proposal_and_preserves_source(api, operation, state):
+    app, missions, account = api
+    app.dependency_overrides[account] = lambda: {"user_id": "alice"}
+    source = missions.docs[0]
+    source.update(status=state, objective="Original", approved=True, handler="example")
+    payload = {"objective": "Updated", "success_criteria": "Review results", "idempotency_key": "derive-key"}
+    base = "/api/guardian/missions"
+    with TestClient(app) as client:
+        assert client.post(f"{base}/b1/derive/{operation}", json=payload).status_code == 404
+        result = client.post(f"{base}/a1/derive/{operation}", json=payload)
+        assert result.status_code == 201
+        assert client.post(f"{base}/a1/derive/{operation}", json=payload).json() == result.json()
+        assert client.post(base, json=payload).status_code == 409
+    saved = missions.docs[-1]
+    assert saved["derived_from"] == {"mission_id": "a1", "operation": operation}
+    assert saved["status"] == "proposed"
+    assert "approved" not in saved and "handler" not in saved and saved["evidence"] is None
+    assert source["status"] == state and source["objective"] == "Original"

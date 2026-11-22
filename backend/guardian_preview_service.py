@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import signal
+from datetime import timedelta
 from uuid import uuid4
 
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -73,19 +74,33 @@ async def run(role):
             except NotImplementedError:
                 pass
         await client.admin.command("ping")
-        collection = client[db_name].guardian_missions
+        db = client[db_name]
+        collection = db.guardian_missions
         await ensure_indexes(collection)
         identity = f"preview-{role}-{uuid4().hex}"
+        health = db.guardian_service_health
+        await health.create_index("expires_at", expireAfterSeconds=0)
+
+        async def observed_tick(poll):
+            processed = await poll()
+            at = now_utc()
+            await health.update_one(
+                {"_id": identity},
+                {"$set": {"role": role, "last_poll_at": at, "expires_at": at + timedelta(minutes=5)}},
+                upsert=True,
+            )
+            return processed
+
         LOG.info("Guardian preview role ready: %s", role)
         if role == "worker":
             worker = GuardianWorker(collection, {PREVIEW_HANDLER: execute_preview},
                                     identity, scoped=True)
-            await serve(worker.run_once, stop, interval)
+            await serve(lambda: observed_tick(worker.run_once), stop, interval)
         else:
             async def tick():
                 return await verify_pending(collection, identity)
 
-            await serve(tick, stop, interval)
+            await serve(lambda: observed_tick(tick), stop, interval)
     finally:
         for sig in signals:
             loop.remove_signal_handler(sig)
