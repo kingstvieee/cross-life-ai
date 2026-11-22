@@ -1,6 +1,6 @@
 workflows:
-  staar-home-review-113:
-    name: STAAR Hub 113 — Locked Hub + Guardian — Internal TestFlight
+  staar-home-review-114:
+    name: STAAR Hub 114 — Ten Portal Home Correction — Internal TestFlight
     instance_type: mac_mini_m2
     max_build_duration: 120
     triggering:
@@ -9,7 +9,6 @@ workflows:
       app_store_connect: STAAR Codemagic QA 109
     environment:
       groups:
-        - staar-private-110
       node: 22
       xcode: 26.6
       ios_signing:
@@ -19,10 +18,6 @@ workflows:
           - STAAR QA 109 Distribution
       vars:
         EAS_BUILD_PROFILE: preview
-        STAAR_IPHONE_ONLY_QA: '1'
-        STAAR_INTERNAL_HOME_REVIEW: '1'
-        EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '1'
-        EXPO_PUBLIC_WORLD_COLLISION_QA: '1'
         EXPO_PUBLIC_BACKEND_URL: https://cross-life-ai.emergent.host
     scripts:
       - name: Download and authenticate PRIVATE encrypted 3D assets
@@ -51,7 +46,7 @@ workflows:
           node scripts/stage-private-guardian-b250-qa.mjs
           node --input-type=module -e "import('./scene-src/internal-ten-world-qa.mjs').then(m=>m.loadInternalTenWorldQaAssets(process.cwd()+'/scene-src').then(w=>{if(Object.keys(w).length!==10)throw Error('ten_worlds_missing');console.log('10 GLBs hash verified')}))"
           node scripts/prepare-private-b250-qa-archive.mjs prepare
-      - name: Set iPhone internal review build number 113
+      - name: Set iPhone internal review build number 114
         script: |
           cd frontend
           node - <<'NODE'
@@ -59,15 +54,15 @@ workflows:
           const name='app.json',data=JSON.parse(fs.readFileSync(name,'utf8'));
           if(data.expo.version!=='1.0.4'||data.expo.ios.buildNumber!=='109')
             throw Error('Incorrect base version — refuse to build with duplicate number');
-          data.expo.ios.buildNumber='113';
+          data.expo.ios.buildNumber='114';
           fs.writeFileSync(name,JSON.stringify(data,null,2)+'\n');
           NODE
-      - name: Install Expo dependencies and bundle the real Guardian and 10 GLBs
+      - name: Install dependencies and verify ten-portal home
         script: |
           cd frontend
           corepack enable
           yarn install --frozen-lockfile
-          node --test tests/build252-private-b250-iphone-qa-loader.test.mjs tests/build252-private-preview-archive-policy.test.mjs tests/build111-immersive-hub-home-contract.test.mjs
+          node --test tests/ten-portal-home-contract.test.mjs tests/guardian-audio-visual.test.mjs
       - name: Native iOS prebuild
         script: |
           cd frontend
