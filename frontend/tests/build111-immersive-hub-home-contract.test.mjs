@@ -4,13 +4,12 @@ import {readFile} from 'node:fs/promises';
 const home=()=>readFile(new URL('../components/staarwardd/world-hub.tsx',import.meta.url),'utf8');
 const scene=()=>readFile(new URL('../components/staarwardd/world-scene.tsx',import.meta.url),'utf8');
 const route=()=>readFile(new URL('../app/hub.tsx',import.meta.url),'utf8').catch(()=>readFile(new URL('../app/(tabs)/hub.tsx',import.meta.url),'utf8'));
-test('The signed-in homepage contains nine direct portals and a Guardian-only scene', async () => {
+test('The signed-in homepage contains ten direct portals and a Guardian-only scene', async () => {
  const [src, entry] = await Promise.all([home(), route()]);
  assert.match(entry, /<WorldHub/);
  assert.match(src, /<WorldScene world="hub" embedded guardianPresentation/);
  assert.match(src, /WORLDS\.slice\(0, 5\)\.map\(renderPortal\)/);
- assert.match(src, /WORLDS\.slice\(5, 7\)\.map\(renderPortal\)/);
- assert.match(src, /WORLDS\.slice\(7\)\.map\(renderPortal\)/);
+ assert.match(src, /WORLDS\.slice\(5, 10\)\.map\(renderPortal\)/);
  assert.match(src, /onPress=\{\(\) => openPortal\(world\.id\)\}/);
  assert.match(src, /toronto-skyline-pan\.png/);
  assert.doesNotMatch(src, /ENTER FULL 3D HUB|<GuardianCharacter\b/);
