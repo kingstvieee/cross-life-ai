@@ -279,7 +279,6 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
             {reduceMotion !== null && <WorldScene world="hub" embedded guardianPresentation onAction={ignoreSceneAction}
               onGuardianModelReady={onGuardianModelReady} onGuardianArrival={onGuardianArrival}
               onGuardianUnavailable={onGuardianUnavailable} reduceGuardianMotion={motionReduced} />}
-            {!modelAvailable && <Image source={require('@/assets/images/staarwardd/guardian-poses/guide.png')} resizeMode="contain" style={s.guardianFallback} accessible={false} />}
           </View>
         </View>
         <View style={s.bottomPortals}>{WORLDS.slice(5, 10).map(renderPortal)}</View>
@@ -348,7 +347,6 @@ const s = StyleSheet.create({
   topPortals: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingTop: 4 },
   bottomPortals: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: 4 },
   chamber: { flex: 1, minHeight: 0, justifyContent: 'center', alignItems: 'center' },
-  guardianFallback: { position: 'absolute', width: '58%', height: '90%', bottom: '7%', alignSelf: 'center' },
   platform: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   plinth: { position: 'absolute', bottom: '8%', left: '25%', right: '25%', height: '15%', borderRadius: 200, borderColor: '#E2C98F', borderWidth: 2 },
   portal: { marginVertical: 4 },
