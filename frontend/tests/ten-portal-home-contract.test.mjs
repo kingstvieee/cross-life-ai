@@ -25,7 +25,8 @@ test('signed TestFlight workflow does not stage the unapproved B250 QA Guardian'
  const yaml = await read('../../codemagic.yaml');
  assert.doesNotMatch(yaml, /STAAR_INTERNAL_HOME_REVIEW/);
  assert.doesNotMatch(yaml, /stage-private-guardian-b250-qa/);
- assert.match(yaml, /buildNumber='114'/);
+ assert.match(yaml, /buildNumber='115'/);
+ assert.match(yaml, /EXPO_PUBLIC_STAAR_HUB_INTERNAL_ENTRY: '1'/);
  assert.match(yaml, /STAAR_IPHONE_ONLY_QA: '1'/);
  assert.doesNotMatch(yaml, /EXPO_PUBLIC_GUARDIAN_DEVICE_QA/);
  assert.doesNotMatch(yaml, /EXPO_PUBLIC_WORLD_COLLISION_QA/);
