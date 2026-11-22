@@ -30,3 +30,12 @@ test('signed TestFlight workflow does not stage the unapproved B250 QA Guardian'
  assert.doesNotMatch(yaml, /EXPO_PUBLIC_GUARDIAN_DEVICE_QA/);
  assert.doesNotMatch(yaml, /EXPO_PUBLIC_WORLD_COLLISION_QA/);
 });
+
+test('internal iPhone review replaces public entry routes with locked Home while keeping account access gated', async () => {
+ const source = await read('../components/staarwardd/access-boundary.tsx');
+ assert.ok(source.indexOf('if (user && !user.is_demo)') < source.indexOf('const internalHomeEntry'));
+ assert.match(source, /const internalHomeEntry = process\.env\.EXPO_PUBLIC_STAAR_HUB_INTERNAL_ENTRY === '1' &&\s*\(homePath \|\| path === '\/landing' \|\| path === '\/guest'\)/);
+ assert.match(source, /Platform\.OS === 'ios' && \(internalHomeEntry \|\| guardianDeviceEntry\)/);
+ assert.match(source, /<WorldHub onSignIn=/);
+ assert.match(source, /return path === "\/guest" \? <GuestPreview \/> : <SignInScreen \/>/);
+});
