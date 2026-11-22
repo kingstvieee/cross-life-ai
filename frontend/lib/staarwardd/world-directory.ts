@@ -1,7 +1,7 @@
 import { PREVIEW_WORLDS } from './portal-data';
 import type { PortalId } from './types';
 
-export type WorldId = PortalId | 'staarsonic' | 'staarverse';
+export type WorldId = PortalId | 'staarsonic' | 'staarverse' | 'diggitstaar';
 export const WORLD_ACTIONS: Record<WorldId, { title: string; detail: string; choices: string[] }> = {
   creativity: { title: 'Make something worth sharing.', detail: 'Develop your ideas, projects and creative direction.', choices: ['Develop a creative brief', 'Plan a content series', 'Shape a new project'] },
   work: { title: 'Move the important work forward.', detail: 'Choose a priority, prepare a deliverable or organize your next move.', choices: ['Organize my priorities', 'Prepare a client proposal', 'Plan a focused work session'] },
@@ -12,6 +12,7 @@ export const WORLD_ACTIONS: Record<WorldId, { title: string; detail: string; cho
   style: { title: 'Your wardrobe. Your expression.', detail: 'Build looks around RISING STAARFORM and the labels you love. Add your pieces in the conversation to start styling.', choices: ['Style a RISING STAARFORM look', 'Build an outfit from my wardrobe', 'Compare brands for an occasion'] },
   staarsonic: { title: 'Find the sound of your world.', detail: 'Develop a playlist brief, explore a release idea or plan a listening session.', choices: ['Build a playlist brief', 'Plan a music release', 'Find music for my mood'] },
   staarverse: { title: 'Step into the next world.', detail: 'Explore the STARVERSE concept and shape your next adventure. Playable games are still in development.', choices: ['Explore the STARVERSE universe', 'Design a character and mission', 'Plan a cooperative game session'] },
+  diggitstaar: { title: 'Build the brand. Move the campaign.', detail: 'DIGGITSTAAR is the AI content studio for brand campaigns, short-form video, creative production and client delivery.', choices: ['Plan a short-form campaign', 'Build a client content pilot', 'Organize leads and production'] },
 };
 export const WORLDS = PREVIEW_WORLDS.map(world => {
   const id = world.id as WorldId;
@@ -21,6 +22,6 @@ export const WORLD_BY_ID = Object.fromEntries(WORLDS.map(world => [world.id, wor
 export function worldConversation(world: string, choice: string) {
   const entry = WORLD_BY_ID[world];
   if (!entry || !entry.choices.includes(choice)) return null;
-  return { portal: world === 'staarsonic' || world === 'staarverse' ? undefined : world,
+  return { portal: world === 'staarsonic' || world === 'staarverse' || world === 'diggitstaar' ? undefined : world,
     draft: `${entry.name}: ${choice}. Start by asking what I want to set up, then offer concrete options. Distinguish suggestions from completed actions. Do not claim a device, shop, streaming service or game is connected unless verified.` };
 }
