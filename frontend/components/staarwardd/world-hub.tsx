@@ -262,7 +262,7 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
   return (
     <View style={s.root}>
       {!onSignIn && <HubFocus onFocus={onFocus} />}
-      <WorldScene world="hub" embedded onAction={onThreeDimensionalPortalAction}
+      <WorldScene world="hub" embedded guardianPresentation onAction={onThreeDimensionalPortalAction}
         onGuardianModelReady={onGuardianModelReady} onGuardianArrival={onGuardianArrival}
         onGuardianUnavailable={onGuardianUnavailable} reduceGuardianMotion={motionReduced} />
       <SafeAreaView pointerEvents="box-none" style={s.sceneOverlay}>
