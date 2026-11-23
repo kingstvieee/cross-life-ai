@@ -47,7 +47,7 @@ workflows:
           if(!Number.isSafeInteger(n)||n<=115) throw Error('Set STAAR_NEXT_IOS_BUILD to an Apple-confirmed unused number above 115');
           const p='app.json',d=JSON.parse(fs.readFileSync(p,'utf8'));
           d.expo.ios.buildNumber=String(n);
-          fs.writeFileSync(p,JSON.stringify(d,null,2)+'\\n');
+          fs.writeFileSync(p,JSON.stringify(d,null,2)+'\n');
           NODE
       - name: Install dependencies and verify ten-portal home
         script: |
