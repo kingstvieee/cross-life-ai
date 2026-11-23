@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const frontend = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const workflow = readFileSync(path.join(frontend, '.eas/workflows/testflight-release.yml'), 'utf8');
 const app = JSON.parse(readFileSync(path.join(frontend, 'app.json'), 'utf8'));
+const eas = JSON.parse(readFileSync(path.join(frontend, 'eas.json'), 'utf8'));
 
 test('EAS build is blocked by verified production package preflight', () => {
   assert.match(workflow, /jobs:\s*\n\s*preflight:/);
@@ -35,4 +36,17 @@ test('Build 207 Guardian release gates rerun on mainline changes, without auto-s
   assert.match(guardianWorkflow, /tests\/approved-guardian-asset\.test\.mjs/);
   assert.doesNotMatch(guardianWorkflow, /eas build|eas submit|type:\s*testflight/);
   assert.match(workflow, /type: require-approval/);
+});
+
+test('internal native builds use verified Render preview while production stays isolated', () => {
+  const renderPreview = 'https://staarwardd-guardian-preview.onrender.com';
+  assert.equal(eas.build.preview.env.EXPO_PUBLIC_BACKEND_URL, renderPreview);
+  assert.equal(eas.build.development.env.EXPO_PUBLIC_BACKEND_URL, renderPreview);
+  assert.equal(eas.build.preview.env.STAAR_IPHONE_ONLY_QA, '1');
+  assert.equal(eas.build.production.env.EXPO_PUBLIC_GUARDIAN_DEVICE_QA, '0');
+  assert.notEqual(eas.build.production.env.EXPO_PUBLIC_BACKEND_URL, renderPreview);
+  assert.equal(app.expo.scheme, 'frontend');
+  const renderBlueprint = readFileSync(path.join(frontend, '../render.yaml'), 'utf8');
+  assert.match(renderBlueprint, /healthCheckPath: \/api\/health\/ready/);
+  assert.match(renderBlueprint, /AUTH_NATIVE_REDIRECT_URL\s*\n\s*value: frontend:\/\/auth-complete/);
 });
