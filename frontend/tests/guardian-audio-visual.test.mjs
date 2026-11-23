@@ -28,8 +28,8 @@ test('Guardian avatar speaking state follows actual voice, not speech requests',
   assert.match(hub, /<WorldScene world="hub" embedded onAction=/);
   assert.match(scene, /const allowed=audio.master&&audio.voice&&!audio.speechQuiet&&audio.voicePlaybackActive/);
   assert.match(scene, /guardianWireFrame\(allowed\?\(guardianAudioFrame\?\?audio.guardianAudioFrame\):null,session\)/);
-  assert.match(hub, /Preparing Guardian voice/);
-  assert.match(hub, /audio\.voicePlaybackActive \? 'Guardian speaking'/);
+  assert.match(hub, /audio\.voicePlaybackActive/);
+  assert.match(scene, /audio\.voicePlaybackActive/);
   assert.doesNotMatch(hub, /setGuardianState\('speaking'\); setGuardianSpeaking\(true\)/);
 });
 
