@@ -25,7 +25,8 @@
         "EXPO_PUBLIC_GUARDIAN_DEVICE_QA": "1",
         "EXPO_PUBLIC_WORLD_COLLISION_QA": "1",
         "STAAR_IPHONE_ONLY_QA": "1",
-        "EXPO_PUBLIC_BACKEND_URL": "https://staarwardd-guardian-preview.onrender.com"
+        "EXPO_PUBLIC_BACKEND_URL": "https://staarwardd-guardian-preview.onrender.com",
+        "STAAR_PRIVATE_DEVICE_QA_BUILD": "1"
       }
     },
     "production": {
