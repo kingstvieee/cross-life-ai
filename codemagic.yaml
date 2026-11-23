@@ -1,6 +1,6 @@
 workflows:
   staar-home-reconciliation-preflight:
-    name: STAAR Hub — Claude redesign reconciliation preflight (no publishing)
+    name: STAAR Hub — approved-asset-gated IPA (manual, no publishing)
     instance_type: mac_mini_m2
     max_build_duration: 120
     triggering:
@@ -9,7 +9,6 @@ workflows:
       app_store_connect: STAAR Codemagic QA 109
     environment:
       groups:
-        - staar-private-110
       node: 22
       xcode: 26.6
       ios_signing:
@@ -21,26 +20,20 @@ workflows:
         EAS_BUILD_PROFILE: preview
         EXPO_PUBLIC_BACKEND_URL: https://cross-life-ai.emergent.host
     scripts:
-      - name: Authenticate private assets and require approved production Guardian and worlds
+      - name: Verify approved production asset delivery without staging private QA files
         script: |
           set -eu
-          test -n "${STAAR_PRIVATE_B110_KEY:-}" || { echo 'Missing private decryption key' >&2; exit 1; }
-          case "$STAAR_PRIVATE_B110_KEY" in *[!0-9a-fA-F]*|'') exit 1;; esac
-          test "${#STAAR_PRIVATE_B110_KEY}" -eq 64
-          PRIVATE_ARCHIVE=$(mktemp /tmp/staar-private-qa.XXXXXXXX.enc)
-          trap 'rm -f "$PRIVATE_ARCHIVE"' EXIT
-          curl --fail --silent --show-error -L --retry 3 'https://drive.google.com/uc?export=download&id=1E-bR8B2V_o33Mb519iA6ea_ouCM_gUWV' -o "$PRIVATE_ARCHIVE"
-          node scripts/decrypt-private-b110.mjs "$PRIVATE_ARCHIVE"
           cd frontend
           node --input-type=module <<'NODE'
           import {loadApprovedArmoredGuardianAsset} from './scene-src/approved-guardian-asset.mjs';
-          import {loadApprovedWorldAssets} from './scene-src/approved-world-assets.mjs';
+          import {loadApprovedWorldAssets,REQUIRED_WORLD_ASSETS} from './scene-src/approved-world-assets.mjs';
           const root=process.cwd()+'/scene-src';
           const guardian=await loadApprovedArmoredGuardianAsset(root);
           const worlds=await loadApprovedWorldAssets(root);
           if(!guardian) throw Error('BLOCKED: approved Guardian GLB and signed receipt absent');
-          if(!worlds || Object.keys(worlds).length!==10) throw Error('BLOCKED: ten approved world GLBs and receipts absent');
-          console.log('Approved Guardian and all ten worlds passed cryptographic and geometry checks');
+          if(!worlds || Object.keys(worlds).length!==REQUIRED_WORLD_ASSETS.length)
+            throw Error('BLOCKED: approved world GLBs and receipts incomplete');
+          console.log('Approved Guardian and all world models passed validation');
           NODE
       - name: Require explicitly approved unused post-115 build number
         script: |
@@ -81,10 +74,3 @@ workflows:
     artifacts:
       - frontend/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-    publishing:
-      app_store_connect:
-        auth: integration
-        # Upload internal-only builds without requesting external beta review.
-        submit_to_testflight: false
-        submit_to_app_store: false
-        beta_groups: []
