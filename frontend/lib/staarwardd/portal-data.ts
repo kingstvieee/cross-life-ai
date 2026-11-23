@@ -19,7 +19,7 @@ export const INTERACTION_MODES = ["Listen", "Coach", "Plan", "Create", "Operate"
 const previewWorlds = [...PORTALS,
   { id: "staarsonic", name: "STAARSONIC", image: require("@/assets/images/staarwardd/portal-staarsonic-chrome.webp") },
   { id: "staarverse", name: "STARVERSE", image: require("@/assets/images/staarwardd/portal-staarverse-chrome.webp") },
-  { id: "diggitstaar", name: "DIGGITSTAAR", image: require("@/assets/images/staarwardd/portal-work-chrome.webp") },
+  { id: "diggitstaar", name: "DIGGITSTAAR", image: require("@/scene-src/portal-art/diggitstaar.png") },
 ];
 
 const approvedOrder = ["home", "work", "creativity", "wellbeing", "relationships", "events", "style", "staarverse", "staarsonic", "diggitstaar"];
