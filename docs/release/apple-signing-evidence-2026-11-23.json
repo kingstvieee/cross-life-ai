@@ -1,0 +1,57 @@
+{
+  "schema": "staarhub-apple-signing-evidence-2026-11-23-v1",
+  "verifiedAt": "2026-11-23",
+  "origin": "Direct authenticated Codemagic, Apple Developer Certificates/Profiles and App Store Connect accounts",
+  "apple": {
+    "teamId": "R9BPDSU4BW",
+    "bundleId": "com.emergent.crosslifeai.z79271",
+    "appStoreConnectAppId": "6834467523"
+  },
+  "codemagic": {
+    "repository": "kingstvieee/cross-life-ai",
+    "lastSucceededBuild": 115,
+    "branch": "fix/locked-hub-home",
+    "signedIpaName": "STAARHub.ipa",
+    "uploadedToAppStoreConnect": true,
+    "uploadDate": "2026-11-22",
+    "uploadDeliveryStatus": "UPLOAD SUCCEEDED with no errors, 1 warning",
+    "warning": "Apple SDK 26.5; requirement to use iOS 27 SDK begins April 2027",
+    "certificateReference": "STAAR QA 109 Distribution",
+    "certificateValidUntil": "2027-11-19",
+    "iphoneProfileReference": "STAARHub_AppStore_Codemagic_2026_11_20",
+    "iphoneProfileValidUntil": "2027-11-19"
+  },
+  "watch": {
+    "appleId": "com.emergent.crosslifeai.z79271.watchkitapp",
+    "newAppleAppStoreProfileName": "STAARWatch AppStore Codemagic 2026-11-23",
+    "codemagicProfileReference": "STAARWatch_AppStore_CertNov19_2026_11_23",
+    "validUntil": "2027-11-19",
+    "certificateMatchedInCodemagic": true,
+    "profileAvailableForNextBuild": true,
+    "watchSignedInBuild115": false,
+    "watchPhysicalDeviceTested": false
+  },
+  "appStoreConnect": {
+    "iosVersion": "1.0.4",
+    "build": 115,
+    "testingStatus": "Internal Testing",
+    "installs": 1,
+    "sessions": 2,
+    "source": "App Store Connect TestFlight iOS builds as observed 2026-11-23"
+  },
+  "nextCandidate": {
+    "iosBuild": 116,
+    "numberAvailableInCodemagicLedger": true,
+    "expoLedgerRevalidated": false,
+    "appStoreConnectRevalidatedBeforeNextBuildRequired": true,
+    "production3DAssetsCertified": false,
+    "productionBackendCertified": false,
+    "googleAccountReadbackCertified": false,
+    "watchAppleSignedIpaVerified": false
+  },
+  "noNewBuildExecuted": true,
+  "noNewUploadExecuted": true,
+  "noAdditionalHostingPurchased": true,
+  "status": "SIGNING CONFIGURATION RECONCILED — PRODUCTION RELEASE HELD",
+  "caveat": "The 115 signed IPA is from fix/locked-hub-home, not the currently audited integration branch. New 116 has NOT been built, signed or installed."
+}
