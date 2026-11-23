@@ -614,7 +614,7 @@ if (renderer) {
   function importApprovedWorld() {
     if(world==='hub')return;
     const variant=world==='relationships' ? (singles?'singles':'realm') :
-      ({home:'residence',work:'command',creativity:'dream',wellbeing:'health',events:'village',style:'closet',staarverse:'universe',staarsonic:'studio',diggitstaar:'content-studio'})[world];
+      ({home:'residence',work:'command',creativity:'dream',wellbeing:'health',events:'village',style:'closet',staarverse:'universe',staarsonic:'studio',diggitstaar:'workstation'})[world];
     const qaWorld=worldQaEnabled&&window.STAAR_PRIVATE_WORLDS_QA?.[world+'-'+variant];
     const asset=qaWorld?.internalQaOnly===true&&qaWorld?.productionApproved===false ? qaWorld : window.STAAR_APPROVED_WORLD_ASSETS?.[world+'-'+variant];
     if(!asset?.glbBase64)return;
