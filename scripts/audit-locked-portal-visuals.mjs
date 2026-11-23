@@ -26,7 +26,10 @@ check('DIGGITSTAAR distinct art wired',diggitDistinct,'Dedicated DIGGITSTAAR PNG
 check('guest preview boundary',guest.includes('<WorldHub onSignIn=')&&hub.includes('if (onSignIn) { setInspectedPortal'), 'Static route/preview guard only; device navigation not certified');
 check('homepage 3D scene wired',hub.includes('<WorldScene world="hub" embedded'), 'Source wiring only; device render not certified');
 check('Atlas/Kaia locked reference',await access(path.join(root,'assets/images/staarwardd/atlas-kaia-locked.jpeg')).then(()=>true,()=>false),'Reference photo only; does not prove a holographic rig');
-check('Atlas and Kaia holographic interaction',false,'No verified on-device hologram animation, voice or companion selection evidence');
+const companionUI=await read('components/staarwardd/cinematic-hub.tsx');
+const companionService=await read('src/companions.ts');
+check('Atlas/Kaia companion selector wired',companionUI.includes('COMPANIONS.map(')&&companionUI.includes('speakCompanion(')&&companionService.includes('voice-preview/'),'Native selector and server voice-preview code wired; does not certify playback on a physical device');
+check('Atlas and Kaia holographic interaction',false,'3D asset manifest on feature branch names Kaya (not Kaia), contains no skeletal animation, and is not integrated into production 3D scene; on-device verification outstanding');
 check('portal images in directory',required.every(id=>directory.includes(id)),'Nine locked reference portals; DIGGITSTAAR remains an additional entry');
 check('portal-data distinct DIGGITSTAAR image',!portal.includes('id: "diggitstaar", name: "DIGGITSTAAR", image: require("@/assets/images/staarwardd/portal-work-chrome.webp")'),'Reject shared Work artwork');
 const failed=checks.filter(x=>x.status==='BLOCKED');
