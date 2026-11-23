@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from guardian_durable_admission import DurableAdmission
+from backend.guardian_durable_admission import DurableAdmission
 
 
 class DurableAdmissionTests(unittest.TestCase):
