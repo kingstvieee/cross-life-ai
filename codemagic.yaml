@@ -8,7 +8,6 @@ workflows:
     integrations:
       app_store_connect: STAAR Codemagic QA 109
     environment:
-      groups:
       node: 22
       xcode: 26.6
       ios_signing:
@@ -20,6 +19,10 @@ workflows:
         EAS_BUILD_PROFILE: preview
         EXPO_PUBLIC_BACKEND_URL: https://cross-life-ai.emergent.host
     scripts:
+      - name: Stage separately approved production assets from protected delivery
+        script: |
+          set -eu
+          node scripts/stage-approved-release-assets.mjs
       - name: Verify approved production asset delivery without staging private QA files
         script: |
           set -eu
