@@ -4,7 +4,7 @@ import {mkdtemp,writeFile,rm,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {tmpdir} from 'node:os';
 import {
- inspectProductionPackage,VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK,EXPECTED_APP
+ inspectProductionPackage,VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK,RECOVERED_EXTERNAL_IOS_BUILD_FLOOR,EXPECTED_APP
 } from '../scripts/verify-production-package.mjs';
 
 const app=build=>({expo:{version:'1.0.4',
@@ -22,9 +22,10 @@ async function fixture(build){
 }
 test('Verified Expo ledger distinguishes App Store 105 from higher internal issued 108',()=>{
  assert.equal(VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK,108);
+ assert.equal(RECOVERED_EXTERNAL_IOS_BUILD_FLOOR,111);
 });
-test('Older 106, 107 and 108 source builds are rejected even if TestFlight is only 105',async()=>{
- for(const build of [105,106,107,108]){
+test('All known 105-111 source builds are rejected because recovered Codemagic issue supersedes Expo ledger',async()=>{
+ for(const build of [105,106,107,108,109,110,111]){
   const root=await fixture(build);
   try{
    const r=await inspectProductionPackage(root,105);
@@ -33,19 +34,20 @@ test('Older 106, 107 and 108 source builds are rejected even if TestFlight is on
   }finally{await rm(root,{recursive:true,force:true});}
  }
 });
-test('109 passes number uniqueness but never invents media or Guardian acceptance',async()=>{
+test('109 is blocked by recovered 110/111 issue even while models and audio are absent',async()=>{
  const root=await fixture(109);
  try{
   const r=await inspectProductionPackage(root,105);
   assert.equal(r.facts.iosBuildNumber,'109');
   assert.equal(r.facts.expoHighestKnownIssuedIosBuild,108);
-  assert.equal(r.blockers.some(x=>x.id==='ios-build-number'),false);
+  assert.equal(r.facts.unconfirmedExternalBuildFloor,111);
+  assert.equal(r.blockers.some(x=>x.id==='ios-build-number'),true);
   assert.equal(r.readyForSignedBuildAttempt,false);
   for(const k of ['guardian','worlds','approved-soundtrack','startup-film'])
    assert.ok(r.blockers.some(x=>x.id===k),k);
  }finally{await rm(root,{recursive:true,force:true});}
 });
-test('Production signing workflow is manual and uses one coherent 109 build identity',async()=>{
+test('Existing 109 signing workflow remains manual but release preflight now blocks it',async()=>{
  const root=new URL('../',import.meta.url);
  const appCfg=JSON.parse(await readFile(new URL('app.json',root),'utf8'));
  const production=await readFile(new URL('.eas/workflows/testflight-release.yml',root),'utf8');
