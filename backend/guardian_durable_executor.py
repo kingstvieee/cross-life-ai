@@ -3,8 +3,12 @@
 Only instantiate behind authenticated middleware. Actor and scopes must be derived
 from the validated session, never copied from the client request body.
 """
-from backend.guardian_durable_admission import DurableAdmission
-from backend.guardian_tool_router import GuardianToolRouter
+try:
+    from .guardian_durable_admission import DurableAdmission
+    from .guardian_tool_router import GuardianToolRouter
+except ImportError:
+    from guardian_durable_admission import DurableAdmission
+    from guardian_tool_router import GuardianToolRouter
 
 
 class DurableGuardianExecutor:
