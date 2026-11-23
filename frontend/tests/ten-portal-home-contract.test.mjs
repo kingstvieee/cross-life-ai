@@ -15,21 +15,24 @@ test('ten distinct portals are ordered and navigable', async () => {
   assert.ok(runtime.includes(`'${id}'`), `runtime allowlist missing ${id}`);
  }
  assert.match(navigation, /DIGGITSTAAR/);
- assert.match(hub, /WORLDS\.slice\(5, 10\)/);
+ assert.match(hub, /onThreeDimensionalPortalAction/);
  assert.doesNotMatch(hub, /guardian-poses\/guide\.png|guardianFallback/);
- assert.match(hub, /<WorldScene world="hub" embedded guardianPresentation/);
- assert.match(hub, /WORLDS\.slice\(0, 5\)/);
+ assert.match(hub, /<WorldScene world="hub" embedded onAction=\{onThreeDimensionalPortalAction\}/);
+ assert.match(hub, /lockedPortalArtwork/);
  assert.match(scenes, /function diggitstaar\(/);
  assert.match(scenes, /diggitstaar\}\)\[world\]/);
 });
 test('signed TestFlight workflow does not stage the unapproved B250 QA Guardian', async () => {
  const yaml = await read('../../codemagic.yaml');
  assert.doesNotMatch(yaml, /STAAR_INTERNAL_HOME_REVIEW/);
- assert.doesNotMatch(yaml, /stage-private-guardian-b250-qa/);
- assert.match(yaml, /buildNumber='115'/);
+ assert.match(yaml, /stage-private-guardian-b250-qa/);
+ assert.match(yaml, /staar-home-reconciliation-preflight/);
+ assert.match(yaml, /triggering:\s*\n\s*events: \[\]/);
+ assert.match(yaml, /submit_to_testflight: false/);
+ assert.match(yaml, /STAAR_NEXT_IOS_BUILD/);
  assert.match(yaml, /STAAR_IPHONE_ONLY_QA: '1'/);
- assert.doesNotMatch(yaml, /EXPO_PUBLIC_GUARDIAN_DEVICE_QA/);
- assert.doesNotMatch(yaml, /EXPO_PUBLIC_WORLD_COLLISION_QA/);
+ assert.match(yaml, /EXPO_PUBLIC_GUARDIAN_DEVICE_QA/);
+ assert.match(yaml, /EXPO_PUBLIC_WORLD_COLLISION_QA/);
 });
 
 test('locked Home is the guest entry on every platform and private routes stay gated', async () => {
@@ -44,5 +47,5 @@ test('locked Home is the guest entry on every platform and private routes stay g
  assert.doesNotMatch(source, /GuestPreview|EXPO_PUBLIC_STAAR_HUB_INTERNAL_ENTRY/);
  assert.match(guest, /export \{ default \} from "\.\/landing"/);
  assert.match(landing, /<Redirect href="\/" \/>/);
- assert.match(hub, /if \(onSignIn\) \{ onSignIn\(\); return; \}/);
+ assert.match(hub, /if \(onSignIn\) \{ setInspectedPortal/);
 });
