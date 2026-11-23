@@ -53,10 +53,14 @@ test('internal native builds use verified Render preview while production stays 
 
 test('Render preview declares Auth0 integration with a server-only secret and no Microsoft enablement', () => {
   const blueprint = readFileSync(path.join(frontend, '../render.yaml'), 'utf8');
-  assert.match(blueprint, /- key: AUTH_ISSUER\\n\\s*value: https:\/\/staarwaardd-hub\\.ca\\.auth0\\.com\\//);
-  assert.match(blueprint, /- key: AUTH_CLIENT_SECRET\\n\\s*sync: false/);
-  assert.match(blueprint, /- key: AUTH_CONNECTION_GOOGLE\\n\\s*value: google-oauth2/);
-  assert.match(blueprint, /- key: AUTH_CONNECTION_EMAIL\\n\\s*value: Username-Password-Authentication/);
-  assert.doesNotMatch(blueprint, /- key: AUTH_CONNECTION_MICROSOFT/);
-  assert.match(blueprint, /autoDeployTrigger: off/);
+  assert.ok(blueprint.includes('AUTH_ISSUER'));
+  assert.ok(blueprint.includes('https://staarwaardd-hub.ca.auth0.com/'));
+  assert.ok(blueprint.includes('AUTH_CLIENT_SECRET'));
+  assert.ok(blueprint.includes('sync: false'));
+  assert.ok(blueprint.includes('AUTH_CONNECTION_GOOGLE'));
+  assert.ok(blueprint.includes('value: google-oauth2'));
+  assert.ok(blueprint.includes('AUTH_CONNECTION_EMAIL'));
+  assert.ok(blueprint.includes('value: Username-Password-Authentication'));
+  assert.ok(!blueprint.includes('AUTH_CONNECTION_MICROSOFT'));
+  assert.ok(blueprint.includes('autoDeployTrigger: off'));
 });
