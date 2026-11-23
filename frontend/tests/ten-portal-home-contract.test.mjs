@@ -33,8 +33,12 @@ test('signed TestFlight workflow does not stage the unapproved B250 QA Guardian'
  assert.doesNotMatch(yaml, /publishing:/);
  assert.match(yaml, /STAAR_NEXT_IOS_BUILD/);
  assert.doesNotMatch(yaml, /STAAR_IPHONE_ONLY_QA: '1'/);
- assert.doesNotMatch(yaml, /EXPO_PUBLIC_GUARDIAN_DEVICE_QA/);
- assert.doesNotMatch(yaml, /EXPO_PUBLIC_WORLD_COLLISION_QA/);
+ assert.match(yaml, /EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '0'/);
+ assert.match(yaml, /EXPO_PUBLIC_WORLD_COLLISION_QA: '0'/);
+ assert.match(yaml, /STAAR_REQUIRE_WATCH_APP: '1'/);
+ assert.match(yaml, /verify-production-package\.mjs/);
+ assert.match(yaml, /verify-build220-ipa\.sh/);
+ assert.doesNotMatch(yaml, /EXPO_PUBLIC_BACKEND_URL: https:\/\/cross-life-ai\.emergent\.host/);
 });
 
 test('locked Home is the guest entry on every platform and private routes stay gated', async () => {
