@@ -17,7 +17,7 @@ services:
         value: staarwardd_guardian_preview
       - key: GUARDIAN_GITHUB_REPO
         value: kingstvieee/cross-life-ai
-      - key: GUARDIAN_GITHUB_TOKEN
+      - key: GUARDIAN_GITHUB_READ_TOKEN
         sync: false
       - key: GUARDIAN_PREVIEW_ENABLED
         value: "false"
