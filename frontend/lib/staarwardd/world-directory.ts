@@ -19,9 +19,22 @@ export const WORLDS = PREVIEW_WORLDS.map(world => {
   return { ...world, id, ...WORLD_ACTIONS[id] };
 });
 export const WORLD_BY_ID = Object.fromEntries(WORLDS.map(world => [world.id, world]));
+// Ten immersive destinations currently sit over seven isolated data/privacy
+// domains. STAAR Village's world id is "events", but the authenticated backend
+// still authorizes its legacy domain as "community". Do not use the world ID
+// directly as the backend portal authorization value.
+export const WORLD_TO_BACKEND_PORTAL = Object.freeze({
+  creativity: 'creativity', work: 'work', home: 'home',
+  wellbeing: 'wellbeing', relationships: 'relationships',
+  events: 'community', style: 'style',
+  // These three destinations remain read-only development previews. Their
+  // AI conversations use the global scope until a dedicated data/privacy
+  // migration is reviewed; do not silently mix private history across worlds.
+  staarsonic: undefined, staarverse: undefined, diggitstaar: undefined,
+} as const satisfies Record<WorldId, string | undefined>);
 export function worldConversation(world: string, choice: string) {
   const entry = WORLD_BY_ID[world];
   if (!entry || !entry.choices.includes(choice)) return null;
-  return { portal: world === 'staarsonic' || world === 'staarverse' || world === 'diggitstaar' ? undefined : world,
+  return { portal: WORLD_TO_BACKEND_PORTAL[world as WorldId],
     draft: `${entry.name}: ${choice}. Start by asking what I want to set up, then offer concrete options. Distinguish suggestions from completed actions. Do not claim a device, shop, streaming service or game is connected unless verified.` };
 }
