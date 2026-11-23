@@ -27,9 +27,11 @@ export const EXPECTED_APP = Object.freeze({
 });
 
 export const VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK = 108; // Authenticated Expo ledger, 2026-11-20: highest preview 108, App Store 105.
-// Later owner handoff reports iPhone build 110 installed and Codemagic 111 retry issued.
-// This is NOT a live authenticated receipt, but it prevents reuse of a possibly-issued number.
-export const RECOVERED_EXTERNAL_IOS_BUILD_FLOOR = 111;
+// Authenticated Codemagic build history 2026-11-23: build 115 completed,
+ // signed STAARHub.ipa and uploaded to App Store Connect on 2026-11-22.
+ // Do not assume the (separately authenticated) Expo ledger is current.
+export const VERIFIED_CODEMAGIC_IOS_BUILD_HIGH_WATERMARK = 115;
+export const RECOVERED_EXTERNAL_IOS_BUILD_FLOOR = VERIFIED_CODEMAGIC_IOS_BUILD_HIGH_WATERMARK;
 export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFlightBuild = VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK) {
   const blockers = [];
   const facts = {};
@@ -121,11 +123,12 @@ export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFli
     facts.iosBuildNumber = ios.buildNumber;
     facts.expoHighestKnownIssuedIosBuild = VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK;
     facts.unconfirmedExternalBuildFloor = RECOVERED_EXTERNAL_IOS_BUILD_FLOOR;
+    facts.verifiedCodemagicBuildHighWatermark = VERIFIED_CODEMAGIC_IOS_BUILD_HIGH_WATERMARK;
     // Older TestFlight receipts cannot override the higher verified Expo preview.
     const issuedFloor=Math.max(VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK, RECOVERED_EXTERNAL_IOS_BUILD_FLOOR,
       Number.isSafeInteger(lastTestFlightBuild) ? lastTestFlightBuild : Number.POSITIVE_INFINITY);
     if (!Number.isSafeInteger(build) || build <= issuedFloor)
-      fail('ios-build-number', 'Candidate iOS build number must exceed Expo verified 108 and owner-recovered Codemagic/iPhone 111; authenticate both provider ledgers before signing');
+      fail('ios-build-number', 'Candidate must exceed Codemagic verified 115 and Expo verified 108; refresh Apple/Expo ledgers before signing');
     if (ios.bundleIdentifier !== EXPECTED_APP.bundleId || ios.appleTeamId !== EXPECTED_APP.appleTeamId)
       fail('ios-identity', 'Apple app identity differs from the locked target');
     if (expo.owner !== EXPECTED_APP.easOwner ||
@@ -139,6 +142,16 @@ export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFli
         eas?.build?.production?.ios?.simulator !== false ||
         String(eas?.submit?.production?.ios?.ascAppId) !== EXPECTED_APP.ascAppId)
       fail('eas-production', 'Store distribution or App Store Connect linkage differs from approved configuration');
+    const prodUrl = eas?.build?.production?.env?.EXPO_PUBLIC_BACKEND_URL;
+    const origin = typeof prodUrl === 'string' ? prodUrl.trim() : '';
+    // A signed store binary must not ship with the old Emergent backend or
+    // the shared QA database. This gate deliberately stays closed until a
+    // separately verified production API is supplied.
+    if (!/^https:\/\/[^/?#]+$/.test(origin) ||
+        origin === 'https://cross-life-ai.emergent.host' ||
+        origin === 'https://staarwardd-guardian-preview.onrender.com')
+      fail('production-backend-not-certified',
+        'Production API must be a verified dedicated HTTPS deployment; legacy Emergent and preview MongoDB are not approved for the signed release');
   } catch (err) { fail('eas-config', err?.message ?? err); }
 
   return {
