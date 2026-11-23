@@ -266,7 +266,16 @@ function CompanionModal({ open, onClose }: { open: boolean; onClose: () => void 
   const [selected, setSelected] = useState<Exclude<CompanionId, "guardian">>("atlas");
   const [voiceStatus, setVoiceStatus] = useState("Select a companion to preview its voice.");
   const [playing, setPlaying] = useState(false);
-  useEffect(() => { if (!open) { void stopCompanion(); setPlaying(false); } }, [open]);
+  const hologramPulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!open) { hologramPulse.stopAnimation(); void stopCompanion(); setPlaying(false); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(hologramPulse, { toValue: 1, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(hologramPulse, { toValue: 0, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => { loop.stop(); hologramPulse.stopAnimation(); };
+  }, [open, hologramPulse]);
   const close = () => { void stopCompanion(); setPlaying(false); onClose(); };
   const preview = async () => {
     setPlaying(true); setVoiceStatus("Loading voice preview...");
@@ -281,7 +290,9 @@ function CompanionModal({ open, onClose }: { open: boolean; onClose: () => void 
     <View style={styles.back}><View style={styles.modal}>
       <Text style={styles.modalKicker}>COMPANION FIELD · VOICE PREVIEW</Text>
       <Text style={styles.modalTitle}>Choose your companion</Text>
-      <Image source={require("@/assets/images/staarwardd/atlas-kaia-locked.jpeg")} resizeMode="contain" accessible accessibilityLabel="Atlas and Kaia companion reference artwork" style={{ width: "100%", height: 148, marginTop: 12 }} />
+      <Animated.View style={{ marginTop: 12, transform: [{ translateY: hologramPulse.interpolate({ inputRange: [0, 1], outputRange: [0, -7] }) }], opacity: hologramPulse.interpolate({ inputRange: [0, 1], outputRange: [0.78, 1] }) }}>
+        <Image source={require("@/assets/images/staarwardd/atlas-kaia-locked.jpeg")} resizeMode="contain" accessible accessibilityLabel="Atlas and Kaia animated reference artwork, not certified 3D holograms" style={{ width: "100%", height: 148 }} />
+      </Animated.View>
       <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
         {COMPANIONS.map(person => <Pressable key={person.id} accessibilityRole="button" accessibilityState={{ selected: selected === person.id }} onPress={() => { void stopCompanion(); setPlaying(false); setSelected(person.id); setVoiceStatus(person.desc); }} style={{ flex: 1, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: selected === person.id ? "#E8C86F" : "#52617B", backgroundColor: selected === person.id ? "#293452" : "#18243A" }}>
           <Text style={{ color: "#F4F7FF", fontWeight: "800", textAlign: "center" }}>{person.name}</Text>
