@@ -1,0 +1,356 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, AppState, Easing, Image, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { WorldScene } from '../staarwardd/world-scene';
+import { WORLDS } from '@/lib/staarwardd/world-directory';
+import { useAuth } from '@/src/auth';
+import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
+import { accountStorageKey } from '@/src/account-storage';
+import { isProactiveWelcomeTime } from '@/src/guardian-greeting-policy';
+
+const lockedPortalArtwork = {
+  home: require('@/assets/images/staarwardd/locked/home.png'),
+  work: require('@/assets/images/staarwardd/locked/work.png'),
+  creativity: require('@/assets/images/staarwardd/locked/creativity.png'),
+  wellbeing: require('@/assets/images/staarwardd/locked/wellbeing.png'),
+  relationships: require('@/assets/images/staarwardd/locked/love.png'),
+  events: require('@/assets/images/staarwardd/locked/events.png'),
+  style: require('@/assets/images/staarwardd/locked/style.png'),
+  staarverse: require('@/assets/images/staarwardd/locked/staarverse.png'),
+  staarsonic: require('@/assets/images/staarwardd/locked/staarsonic.png'),
+  diggitstaar: require('@/assets/images/staarwardd/portal-work-chrome.webp'),
+};
+
+function HubFocus({ onFocus }: { onFocus: () => () => void }) {
+  useFocusEffect(onFocus);
+  return null;
+}
+
+export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
+  const router = useRouter();
+  const { user, api } = useAuth();
+  const audio = useStaarAudio();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const safeHeight = height - insets.top - insets.bottom;
+  const compact = safeHeight < 540;
+  const [inspectedPortal, setInspectedPortal] = useState<(typeof WORLDS)[number] | null>(null);
+  const closePortalPreview = () => setInspectedPortal(null);
+  const [message, setGuardianMessage] = useState('');
+  const [modelAvailable, setModelAvailable] = useState(false);
+  const [guardianSpeaking, setGuardianSpeaking] = useState(false);
+  const widthLimit = Math.floor((Math.min(850, width - insets.left - insets.right) - 40) / 5);
+  const heightLimit = Math.floor((safeHeight - (compact ? 220 : 270)) / 3);
+  const portalSize = Math.min(widthLimit, Math.max(30, heightLimit), 116);
+  const drift = useRef(new Animated.Value(0)).current;
+  const [greetingEnabled, setGreetingEnabled] = useState(false);
+  const greetingKey = user && !user.is_demo ? accountStorageKey('staarwardd.guardian.proactive-greeting.v2', user.user_id) : null;
+  const greeted = useRef(false);
+  const voiceEpoch = useRef(0);
+  const activeGreetingKey = useRef<string | null>(null);
+  activeGreetingKey.current = greetingKey;
+  const [preferenceReady, setPreferenceReady] = useState(false);
+  const [serverConsentReady, setServerConsentReady] = useState(false);
+  const [serverGreetingConsent, setServerGreetingConsent] = useState(false);
+  const [serverCheckIns, setServerCheckIns] = useState(false);
+  const [serverPrivate, setServerPrivate] = useState(false);
+  const [serverSpeechQuiet, setServerSpeechQuiet] = useState(false);
+  const [savingGreeting, setSavingGreeting] = useState(false);
+  const lastBackground = useRef<number | null>(null);
+  const [foregroundEpoch, setForegroundEpoch] = useState(0);
+  const [appActive, setAppActive] = useState(AppState.currentState === 'active');
+  const [reduceMotion, setMotionReduced] = useState<boolean | null>(null);
+  const motionReduced = reduceMotion ?? true;
+  const [arrivalComplete, setArrivalComplete] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    // Never inherit the previous account's opt-in while the new one is loading.
+    setPreferenceReady(false);
+    setGreetingEnabled(false);
+    greeted.current = false;
+    voiceEpoch.current += 1;
+    if (!greetingKey) return () => { alive = false; };
+    void AsyncStorage.getItem(greetingKey).then(value => {
+      if (alive) { setGreetingEnabled(value === 'enabled'); setPreferenceReady(true); }
+    }).catch(() => { if (alive) setPreferenceReady(true); });
+    return () => { alive = false; };
+  }, [greetingKey]);
+  useEffect(() => {
+    let alive = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    setSavingGreeting(false);
+    setServerConsentReady(false);
+    setServerGreetingConsent(false);
+    setServerCheckIns(false);
+    setServerPrivate(false);
+    setServerSpeechQuiet(false);
+    if (greetingKey) void api('/api/guardian/life-map/overview', { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('Guardian consent could not be verified');
+        const state = await response.json();
+        if (!alive) return;
+        setServerGreetingConsent(state.consent?.greetings === true);
+        setServerCheckIns(state.consent?.checkIns === true);
+        setServerPrivate(state.privateMode === true);
+        setServerSpeechQuiet(state.speechQuiet === true);
+        setServerConsentReady(true);
+      }).catch(() => { /* Fail closed: an unverified server cannot authorize unsolicited speech. */ });
+    return () => { alive = false; controller.abort(); clearTimeout(timeout); };
+  }, [api, greetingKey, foregroundEpoch]);
+  useEffect(() => {
+    let alive = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (alive) setMotionReduced(value); }).catch(() => { if (alive) setMotionReduced(true); });
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setMotionReduced);
+    return () => { alive = false; sub.remove(); };
+  }, []);
+  useEffect(() => {
+    drift.setValue(0);
+    if (motionReduced) return;
+    const cycle = (toValue: number) => Animated.timing(drift, {
+      toValue, duration: 3600, easing: Easing.inOut(Easing.sin), useNativeDriver: true, isInteraction: false,
+    });
+    const loop = Animated.loop(Animated.sequence([cycle(1), cycle(0)]));
+    loop.start();
+    return () => loop.stop();
+  }, [drift, motionReduced]);
+  const onGuardianModelReady = useCallback(() => setModelAvailable(true), []);
+  const onGuardianArrival = useCallback(() => setArrivalComplete(true), []);
+  const onGuardianUnavailable = useCallback(() => {
+    setModelAvailable(false);
+    setArrivalComplete(false);
+  }, []);
+  const focused = useRef(Boolean(onSignIn));
+  const [hasFocus, setHasFocus] = useState(Boolean(onSignIn));
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => {
+      setAppActive(state === 'active');
+      if (state !== 'active') { if (lastBackground.current === null) lastBackground.current = Date.now(); return; }
+      const awaySince = lastBackground.current;
+      lastBackground.current = null;
+      if (awaySince === null || Date.now() - awaySince < 20 * 60 * 1000) return;
+      // Never create a new automatic welcome during protected focus or rest hours.
+      if (!isProactiveWelcomeTime(new Date())) return;
+      greeted.current = false;
+      // Require fresh server permission before another unsolicited welcome.
+      setServerConsentReady(false);
+      setServerGreetingConsent(false);
+      setForegroundEpoch(epoch => epoch + 1);
+    });
+    return () => sub.remove();
+  }, []);
+  const greet = useCallback(async () => {
+    if (!focused.current || AppState.currentState !== 'active') return;
+    const epoch = ++voiceEpoch.current;
+    if (!audio.master || !audio.voice || audio.speechQuiet) { setGuardianMessage('Voice is muted or disabled. Use settings to enable audio.'); return; }
+    // Transport emits playback-active only after the voice actually starts.
+    setGuardianSpeaking(true);
+    setGuardianMessage('Welcome back. Your ten worlds are ready.');
+    try {
+      const spoken = await audio.speak('Welcome back. Guardian is here. Your ten worlds are ready when you are.', undefined, 'guardian');
+      if (!spoken && focused.current && epoch === voiceEpoch.current) {
+        setGuardianMessage('Guardian voice playback is unavailable. Continue in chat.');
+      }
+    } catch {
+      if (focused.current && epoch === voiceEpoch.current) {
+        setGuardianMessage('Voice playback failed. Text chat remains available.');
+      }
+    } finally {
+      if (focused.current && epoch === voiceEpoch.current) {
+        setGuardianSpeaking(false);
+      }
+    }
+  }, [audio.master, audio.voice, audio.speechQuiet, audio.speak]);
+
+  useEffect(() => {
+    if (!focused.current || !appActive || !isProactiveWelcomeTime(new Date()) || !preferenceReady || !modelAvailable || !arrivalComplete || !serverConsentReady || !serverGreetingConsent || serverPrivate || serverSpeechQuiet || !greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || audio.voicePlaybackActive || audio.speechPhase !== 'idle' || user?.cross_life_paused || greeted.current) return;
+    greeted.current = true;
+    void greet();
+  }, [hasFocus, arrivalComplete, modelAvailable, appActive, preferenceReady, serverConsentReady, serverGreetingConsent, serverPrivate, serverSpeechQuiet, greetingKey, greetingEnabled, foregroundEpoch, audio.master, audio.voice, audio.speechQuiet, audio.voicePlaybackActive, audio.speechPhase, user?.cross_life_paused, greet]);
+  const setGreeting = (enabled: boolean) => {
+    if (!greetingKey || !preferenceReady || !serverConsentReady || savingGreeting) return;
+    const savedFor = greetingKey;
+    setSavingGreeting(true);
+    // Revocation is immediate locally; enabling never triggers speech before server acknowledgement.
+    setGreetingEnabled(false);
+    greeted.current = true;
+    void (async () => {
+      try {
+        const response = await api('/api/guardian/core/workflows/rsf-fabric-sourcing/proactive-consent', {
+          method: 'POST',
+          body: JSON.stringify({ greetings: enabled, check_ins: serverCheckIns }),
+        });
+        if (!response.ok) throw new Error('Guardian consent could not be saved');
+        if (activeGreetingKey.current !== savedFor) return;
+        await AsyncStorage.setItem(savedFor, enabled ? 'enabled' : 'disabled');
+        if (activeGreetingKey.current !== savedFor) return;
+        setServerGreetingConsent(enabled);
+        setGreetingEnabled(enabled);
+        greeted.current = !enabled;
+      } catch {
+        if (activeGreetingKey.current !== savedFor) return;
+        setServerConsentReady(false);
+        setServerGreetingConsent(false);
+        setGreetingEnabled(false);
+        greeted.current = true;
+        setGuardianMessage('Guardian could not verify consent. Automatic greeting remains off.');
+      } finally {
+        if (activeGreetingKey.current === savedFor) setSavingGreeting(false);
+      }
+    })();
+  };
+  const greetingActive = greetingEnabled && serverGreetingConsent && !serverPrivate && !serverSpeechQuiet;
+  const navigationLocked = useRef(false);
+  const onFocus = useCallback(() => {
+    focused.current = true;
+    setHasFocus(true);
+    navigationLocked.current = false;
+    return () => { focused.current = false; setHasFocus(false); voiceEpoch.current += 1; setGuardianSpeaking(false); };
+  }, []);
+  const openPortal = (world: string) => {
+    if (onSignIn) { setInspectedPortal(WORLDS.find(item => item.id === world) ?? null); return; }
+    if (navigationLocked.current) return;
+    navigationLocked.current = true;
+    router.push({ pathname: '/environment', params: { world } } as never);
+  };
+  const ignoreSceneAction = useCallback(() => undefined, []);
+  const renderPortal = (world: (typeof WORLDS)[number], index: number) => (
+    <Animated.View key={world.id} style={[s.portal, {
+      width: portalSize,
+      transform: [{ translateY: drift.interpolate({
+        inputRange: [0, 1], outputRange: index % 2 ? [2, -4] : [-4, 2],
+      }) }],
+    }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={world.name}
+        accessibilityHint={onSignIn ? 'Tap to preview this world. Sign in to enter.' : 'Tap to enter. Touch and hold to preview.'}
+        accessibilityActions={onSignIn ? undefined : [{ name: 'preview', label: 'Preview world' }]}
+        onAccessibilityAction={event => {
+          if (!onSignIn && event.nativeEvent.actionName === 'preview') setInspectedPortal(world);
+        }}
+        onLongPress={onSignIn ? undefined : () => setInspectedPortal(world)}
+        onPress={() => openPortal(world.id)} style={({ pressed }) => [s.portalButton, pressed && s.pressed]}>
+        <LinearGradient colors={['#F9FBFF', '#606777', '#E6C98A', '#222633', '#F9FBFF']} style={[
+          s.rim, { width: portalSize, height: Math.round(portalSize * 1.08) },
+        ]}>
+          <View style={s.glass}>
+            <Image source={lockedPortalArtwork[world.id]} style={StyleSheet.absoluteFill} resizeMode="contain" accessible={false} />
+            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, {
+              opacity: drift.interpolate({ inputRange: [0, 1], outputRange: [.35, .78] }),
+            }]}>
+              <LinearGradient colors={['#FFFFFFB0', '#FFFFFF00', '#DCE8FF18', '#FDF0CAB0']}
+                locations={[0, .3, .67, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill} />
+            </Animated.View>
+          </View>
+        </LinearGradient>
+        <Text style={s.portalName}>{world.name}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+  const onThreeDimensionalPortalAction = (action: string) => {
+    if (!action.startsWith('world:')) return;
+    const id = action.slice('world:'.length);
+    const target = WORLDS.find(item => item.id === id);
+    if (!target) return;
+    if (onSignIn) setInspectedPortal(target);
+    else openPortal(target.id);
+  };
+  return (
+    <View style={s.root}>
+      {!onSignIn && <HubFocus onFocus={onFocus} />}
+      <WorldScene world="hub" embedded guardianPresentation onAction={onThreeDimensionalPortalAction}
+        onGuardianModelReady={onGuardianModelReady} onGuardianArrival={onGuardianArrival}
+        onGuardianUnavailable={onGuardianUnavailable} reduceGuardianMotion={motionReduced} />
+      <SafeAreaView pointerEvents="box-none" style={s.sceneOverlay}>
+        <View style={s.header}>
+          <Text accessibilityRole="header" style={s.brand}>STAARWAARDD</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={onSignIn ? 'Sign in' : 'Open settings'}
+            onPress={onSignIn ?? (() => router.push('/settings'))} style={s.icon}>
+            <Ionicons name="options-outline" size={23} color="#F4F0E6" />
+          </Pressable>
+        </View>
+        <View style={s.sceneSpacer} pointerEvents="none" />
+        <Text style={s.sceneHint}>3D PORTAL CHAMBER · DRAG TO ORBIT · TAP A PORTAL</Text>
+        <View style={s.controls}>
+          {!!message && <Text accessibilityLiveRegion="polite" numberOfLines={2} style={s.message}>{message}</Text>}
+          <View style={s.controlRow}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Hear Guardian welcome" onPress={() => { void greet(); }} style={s.icon}><Ionicons name="volume-high-outline" size={22} color="#F4F0E6" /></Pressable>
+            <Pressable accessibilityRole="switch" accessibilityState={{ checked: greetingActive }} accessibilityLabel="Automatic Guardian greeting"
+              disabled={!greetingKey || !preferenceReady || !serverConsentReady || savingGreeting || serverPrivate || serverSpeechQuiet}
+              onPress={() => setGreeting(!greetingActive)} style={s.icon}><Ionicons name={greetingActive ? 'sparkles' : 'sparkles-outline'} size={22} color="#F4DA9F" /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Silence Guardian" onPress={() => { voiceEpoch.current += 1; audio.setSpeechQuiet(true); audio.stopAll(); setGuardianSpeaking(false); }} style={s.icon}><Ionicons name="volume-mute-outline" size={22} color="#F4F0E6" /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Life Map and Guardian controls" onPress={onSignIn ?? (() => router.push('/guardian-tools'))} style={s.icon}><Ionicons name="compass-outline" size={22} color="#F4F0E6" /></Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+      {inspectedPortal && (
+        <Modal transparent visible animationType={motionReduced ? 'none' : 'fade'} onRequestClose={closePortalPreview}>
+          <SafeAreaView style={s.previewOverlay} accessibilityViewIsModal>
+            <Pressable accessible={false} style={StyleSheet.absoluteFill} onPress={closePortalPreview} />
+            <View style={s.preview}>
+              <Image source={lockedPortalArtwork[inspectedPortal.id]} style={StyleSheet.absoluteFill} resizeMode="cover" accessible={false} />
+              <LinearGradient pointerEvents="none" colors={['#0B0C13DD', '#0B0C1330', '#0B0C13F7']} style={StyleSheet.absoluteFill} />
+              <Pressable accessibilityRole="button" accessibilityLabel="Close portal preview" onPress={closePortalPreview} style={[s.icon, s.previewClose]}>
+                <Ionicons name="close" size={22} color="#F4F0E6" />
+              </Pressable>
+              <View style={s.previewCopy}>
+                <Text accessibilityRole="header" style={s.previewTitle}>{inspectedPortal.name}</Text>
+                <Text style={s.previewDetail}>{inspectedPortal.detail}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Enter ${inspectedPortal.name}`}
+                  style={s.previewEnter} onPress={() => {
+                    closePortalPreview();
+                    if (onSignIn) onSignIn(); else openPortal(inspectedPortal.id);
+                  }}>
+                  <Text style={s.previewEnterText}>{onSignIn ? 'Sign in to enter' : 'Enter world'}</Text>
+                  <Ionicons name="arrow-forward" size={19} color="#161316" />
+                </Pressable>
+              </View>
+            </View>
+          </SafeAreaView>
+        </Modal>
+      )}
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  root: { flex: 1, overflow: 'hidden', backgroundColor: '#030305' },
+  sceneOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 20 },
+  sceneSpacer: { flex: 1 },
+  sceneHint: { color: '#F7E8CB', textAlign: 'center', fontSize: 10, letterSpacing: 1.1, paddingVertical: 8 },
+  safe: { flex: 1, width: '100%', maxWidth: 850, alignSelf: 'center', paddingHorizontal: 12, paddingBottom: 28 },
+  safeCompact: { paddingBottom: 66 },
+  headerCompact: { minHeight: 46, marginBottom: 2 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 52, marginBottom: 12 },
+  brand: { fontSize: 22, fontWeight: '800', letterSpacing: 3, color: '#FAF8F2' },
+  icon: { width: 46, height: 46, borderWidth: 1, borderColor: '#A6997F', borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#15151DDB' },
+  star: { position: 'absolute', backgroundColor: '#F3EEFF', width: 2, height: 2, borderRadius: 1 },
+  skyline: { position: 'absolute', top: '26%', width: '100%', height: '42%', opacity: .78 },
+  topPortals: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingTop: 4 },
+  bottomPortals: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: 4 },
+  chamber: { flex: 1, minHeight: 0, justifyContent: 'center', alignItems: 'center' },
+  platform: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  plinthLabel: { position: 'absolute', bottom: '12%', alignSelf: 'center', color: '#F9E6BC', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
+  plinth: { position: 'absolute', bottom: '8%', left: '25%', right: '25%', height: '15%', borderRadius: 200, borderColor: '#E2C98F', borderWidth: 2 },
+  portal: { marginVertical: 4 },
+  portalButton: { alignItems: 'center', minHeight: 44 },
+  rim: { borderRadius: 15, padding: 3, shadowColor: '#D9C28E', shadowOpacity: .35, shadowRadius: 9, shadowOffset: { width: 0, height: 0 }, elevation: 5 },
+  glass: { flex: 1, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#FAF8F1' },
+  pressed: { opacity: .7, transform: [{ scale: .96 }] },
+  portalName: { color: '#FFFFFF', fontSize: 9, letterSpacing: .35, fontWeight: '800', textAlign: 'center', marginTop: 5, textShadowColor: '#000', textShadowRadius: 5 },
+  controls: { alignItems: 'center', gap: 6, paddingTop: 6 },
+  controlRow: { flexDirection: 'row', gap: 12 },
+  previewOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#080810B8' },
+  preview: { width: '100%', maxWidth: 460, minHeight: 230, maxHeight: '100%', overflow: 'hidden', borderRadius: 28, borderWidth: 1, borderColor: '#E8D0A4', backgroundColor: '#14131A', padding: 18, paddingTop: 66, justifyContent: 'flex-end' },
+  previewClose: { position: 'absolute', top: 9, right: 9 },
+  previewCopy: { gap: 8 },
+  previewTitle: { color: '#FFFFFF', fontSize: 25, fontWeight: '800' },
+  previewDetail: { color: '#F4F0E6', fontSize: 14, lineHeight: 20 },
+  previewEnter: { flexDirection: 'row', gap: 8, alignItems: 'center', alignSelf: 'flex-start', minHeight: 44, paddingHorizontal: 15, borderRadius: 22, backgroundColor: '#F3DFC0' },
+  previewEnterText: { color: '#161316', fontWeight: '700' },
+  message: { color: '#F4F0E6', textAlign: 'center', fontSize: 12, backgroundColor: '#0C0C12E8', padding: 5 },
+});
