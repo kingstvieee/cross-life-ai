@@ -24,4 +24,5 @@ const definitions: Array<[string,string,Priority,Portal,string[],string]> = [
  ['construction-library','RSF construction library','P1','creativity',['approved tech packs'],'Existing locked garments preserved'],
  ['materials-intelligence','RSF material intelligence','P1','creativity',['supplier specifications'],'CAD landed costs explicitly labelled estimates'],
  ['collection-story','Collection storytelling','P2','style',['approved RSF creative direction'],'No third-party artwork copied'],
-];\nexport const VIDEO_COMPONENTS: readonly Component[] = definitions.map(([id,name,priority,portal,requires,releaseGate])=>({id,name,priority,portal,requires,releaseGate}));
+];
+export const VIDEO_COMPONENTS: readonly Component[] = definitions.map(([id,name,priority,portal,requires,releaseGate])=>({id,name,priority,portal,requires,releaseGate}));
