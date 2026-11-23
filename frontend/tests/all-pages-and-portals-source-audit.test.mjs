@@ -62,10 +62,10 @@ test('eleven distinct scene variants are explicit: ten portal destinations plus 
  assert.match(scene,/world === 'relationships'/);
  assert.match(scene,/singlesLounge/);
  assert.match(build,/const privateWorlds/);
- assert.match(scene,/diggitstaar:'content-studio'/);
+ assert.match(scene,/diggitstaar:'workstation'/);
  const worldQa=read('scene-src/internal-ten-world-qa.mjs');
  assert.ok(worldQa.includes('relationships-singles'));
- assert.equal(worldQa.includes('diggitstaar-content-studio'),false);
- // This is a known scene/model mismatch: no independent production certification is implied.
+ assert.equal(worldQa.includes('diggitstaar-workstation'),false);
+ // Production must have an additional DIGGITSTAAR GLB; historical QA archive has none.
  assert.match(read('app/environment.tsx'),/3D DEVELOPMENT PREVIEW/);
 });
