@@ -23,7 +23,9 @@ services:
         value: "false"
       - key: ENABLE_LEGACY_EMERGENT_AUTH
         value: "false"
+      - key: AUTH_NATIVE_REDIRECT_URL
+        value: frontend://auth-complete
 # Deployment requires authorized Render account and securely entered values.
 # MongoDB must be reachable from Render. Do not reuse production database for preview.
-# The backend requirements include a private Emergent-hosted wheel: confirm access
-# and replace it with an authorized distributable dependency if build fails.
+# Native redirect matches the Expo scheme; login providers remain disabled until
+# verified identity-broker client credentials and callback allowlists are configured.
