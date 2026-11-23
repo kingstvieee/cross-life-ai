@@ -1,4 +1,4 @@
-const worlds = new Set(['hub', 'home', 'work', 'creativity', 'wellbeing', 'relationships', 'events', 'style', 'staarverse', 'staarsonic']);
+const worlds = new Set(['hub', 'home', 'work', 'creativity', 'wellbeing', 'relationships', 'events', 'style', 'staarverse', 'staarsonic', 'diggitstaar']);
 /** Renderer events request local navigation only, never device or provider actions. */
 export function sceneAction(value: unknown, world: string): string | null {
   if (!value || typeof value !== 'object') return null;
@@ -13,8 +13,8 @@ export function sceneAction(value: unknown, world: string): string | null {
 
 /** Host-side fallback when the sandboxed 3D WebView cannot load. No provider/device execution. */
 export function sceneFallbackActions(world: string): Array<[string, string]> {
-  const ids = ['home', 'work', 'creativity', 'wellbeing', 'relationships', 'events', 'style', 'staarverse', 'staarsonic'];
-  const names = ['STAAR Hub', 'STAAR Work', 'STAAR Dreams', 'STAAR Health', 'STAAR Love', 'STAAR Village', 'STAAR Closet', 'STARVERSE', 'STAARSONIC'];
+  const ids = ['home', 'work', 'creativity', 'wellbeing', 'relationships', 'events', 'style', 'staarverse', 'staarsonic', 'diggitstaar'];
+  const names = ['STAAR Hub', 'STAAR Work', 'STAAR Dreams', 'STAAR Health', 'STAAR Love', 'STAAR Village', 'STAAR Closet', 'STARVERSE', 'STAARSONIC', 'DIGGITSTAAR'];
   if (world === 'hub') return ids.map((id, index) => [names[index], 'world:' + id]);
   if (!ids.includes(world)) return [];
   return world === 'home'

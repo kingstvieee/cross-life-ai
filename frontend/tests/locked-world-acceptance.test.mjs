@@ -4,9 +4,11 @@ import { readFileSync } from 'node:fs';
 import { LOCKED_WORLD_REQUIREMENTS, allNineWorldsApproved, isLockedWorldApproved } from '../src/locked-world-acceptance.ts';
 import { worldIds } from '../scene-src/navigation.js';
 const ids=Object.keys(LOCKED_WORLD_REQUIREMENTS);
-test('all nine approved visual identities match actual 3D navigable routes',()=>{
-  assert.deepEqual(ids,worldIds);
+test('nine approved visual identities remain covered by all ten navigable portal routes',()=>{
   assert.equal(ids.length,9);
+  assert.equal(worldIds.length,10);
+  assert.ok(ids.every(id=>worldIds.includes(id)));
+  assert.ok(worldIds.includes('diggitstaar'));
   assert.deepEqual(LOCKED_WORLD_REQUIREMENTS.relationships.variants,['realm','singles']);
   assert.ok(LOCKED_WORLD_REQUIREMENTS.style.anchors.includes('character-free interior'));
   assert.ok(LOCKED_WORLD_REQUIREMENTS.work.anchors.includes('no executive chair'));

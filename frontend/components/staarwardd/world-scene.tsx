@@ -10,7 +10,7 @@ import { shouldDispatchSceneAction, type SceneDispatch } from '@/src/scene-actio
 import {normalizeIphoneQa, iphoneQaStatus} from '@/src/iphone-qa-controls';
 import {readWorldQaArchive,saveWorldQaCapture,exportWorldQaArchive,clearWorldQaArchive,worldQaProgress} from '@/src/iphone-qa-archive';
 
-export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFrame = null, embedded = false, onSceneReady, onGuardianModelReady }: { world: string; variant?: 'realm' | 'singles'; onAction: (action: string) => void; guardianAudioFrame?: GuardianAudioFrame | null; embedded?: boolean; onSceneReady?: () => void; onGuardianModelReady?: (modelSha256: string) => void }) {
+export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFrame = null, embedded = false, onSceneReady, onGuardianModelReady, guardianPresentation = false, reduceGuardianMotion = false, onGuardianArrival, onGuardianUnavailable }: { world: string; variant?: 'realm' | 'singles'; onAction: (action: string) => void; guardianAudioFrame?: GuardianAudioFrame | null; embedded?: boolean; onSceneReady?: () => void; onGuardianModelReady?: (modelSha256: string) => void; guardianPresentation?: boolean; reduceGuardianMotion?: boolean; onGuardianArrival?: () => void; onGuardianUnavailable?: () => void }) {
   const audio=useStaarAudio();
   const webviewRef=useRef<WebView>(null);
   const pushGuardianFrame=()=>{
@@ -20,7 +20,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
     webviewRef.current?.injectJavaScript(js);
   };
   // Explicitly opt-in at build time; disabled in normal production builds.
-  const qaEnabled = Platform.OS==='ios' && world==='hub' && process.env.EXPO_PUBLIC_GUARDIAN_DEVICE_QA === '1';
+  const qaEnabled = !guardianPresentation && Platform.OS==='ios' && world==='hub' && process.env.EXPO_PUBLIC_GUARDIAN_DEVICE_QA === '1';
   const worldQaEnabled = Platform.OS==='ios' && world!=='hub' && process.env.EXPO_PUBLIC_WORLD_COLLISION_QA === '1';
   const worldQaLatest = useRef<string | null>(null);
   const [worldQaSummary,setWorldQaSummary] = useState('No capture yet');
@@ -81,7 +81,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
       message:qaLatest.current}).catch(()=>{});
   };
   const [retryCount, setRetryCount] = useState(0);
-  const session = useMemo(() => `${Date.now()}_${Math.random().toString(36).slice(2)}`, [world, variant, retryCount]);
+  const session = useMemo(() => `${Date.now()}_${Math.random().toString(36).slice(2)}`, [world, variant, retryCount, guardianPresentation, reduceGuardianMotion]);
   useEffect(()=>{
     qaLatest.current=null;worldQaLatest.current=null;
     setQaReady(false);setWorldQaReady(false);
@@ -111,7 +111,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
     return ()=>audio.setGuardianRigHash(null);
   },[world,variant,session,audio.setGuardianRigHash]);
 
-  const html = useMemo(() => worldSceneHtml(world, variant, session, qaEnabled, worldQaEnabled), [world, variant, session, qaEnabled, worldQaEnabled]);
+  const html = useMemo(() => worldSceneHtml(world, variant, session, qaEnabled, worldQaEnabled, guardianPresentation, reduceGuardianMotion), [world, variant, session, qaEnabled, worldQaEnabled, guardianPresentation, reduceGuardianMotion]);
   const [loadFailed, setLoadFailed] = useState(false);
   const sceneReady = useRef(false);
   const lastDispatch = useRef<SceneDispatch | null>(null);
@@ -119,8 +119,12 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
     sceneReady.current = false;
     const watchdog = setTimeout(() => { if (!sceneReady.current) setLoadFailed(true); }, 15000);
     return () => clearTimeout(watchdog);
-  }, [world, variant, retryCount]);
+  }, [session]);
   useEffect(() => { setLoadFailed(false); setRetryCount(0); }, [world, variant]);
+  useEffect(() => {
+    if (guardianPresentation && loadFailed) onGuardianUnavailable?.();
+  }, [guardianPresentation, loadFailed, onGuardianUnavailable]);
+  if (guardianPresentation && loadFailed) return null;
   const fallback = sceneFallbackActions(world);
   if (loadFailed) return <ScrollView contentContainerStyle={{ padding: 22, gap: 12, backgroundColor: '#030713', minHeight: embedded ? 0 : 420 }}>
     <Text accessibilityRole="alert" style={{ color: '#F2DFB4', fontSize: 18, fontWeight: '700' }}>3D preview unavailable</Text>
@@ -193,7 +197,11 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
       onError={() => setLoadFailed(true)}
       onRenderProcessGone={() => setLoadFailed(true)}
       onContentProcessDidTerminate={() => setLoadFailed(true)}
-      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (!message || typeof message !== 'object' || !('session' in message) || message.session !== session) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'ready' && message.world === world) { sceneReady.current = true; onSceneReady?.(); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && 'modelSha256' in message && message.source === 'staar-scene-v1' && message.type === 'guardian-face-ready' && world === 'hub' && message.world === world && typeof message.modelSha256 === 'string') { audio.setGuardianRigHash(message.modelSha256); onGuardianModelReady?.(message.modelSha256); return; } if(qaEnabled && 'source' in message && 'type' in message && 'world' in message &&
+      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (!message || typeof message !== 'object' || !('session' in message) || message.session !== session) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'ready' && message.world === world) { sceneReady.current = true; onSceneReady?.(); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && 'modelSha256' in message && message.source === 'staar-scene-v1' && message.type === 'guardian-face-ready' && world === 'hub' && message.world === world && typeof message.modelSha256 === 'string') { audio.setGuardianRigHash(message.modelSha256); onGuardianModelReady?.(message.modelSha256); return; } if (guardianPresentation && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.world === 'hub') {
+          if (message.type === 'guardian-arrived') onGuardianArrival?.();
+          if (message.type === 'guardian-unavailable') onGuardianUnavailable?.();
+        }
+        if(qaEnabled && 'source' in message && 'type' in message && 'world' in message &&
         'metrics' in message && message.source==='staar-scene-v1' &&
         message.type==='guardian-device-qa' && message.world==='hub' &&
         message.metrics && typeof message.metrics==='object' &&
@@ -236,6 +244,6 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
           return;
         }
         const action = sceneAction(message, world); if (action) { const next = { world, action, atMs: Date.now() }; if (shouldDispatchSceneAction(lastDispatch.current, next)) { lastDispatch.current = next; onAction(action); } } } catch { /* Invalid renderer messages are ignored. */ } }}
-      style={{ backgroundColor: '#030713' }} />
+      style={{ backgroundColor: guardianPresentation ? 'transparent' : '#030713' }} />
   </View>;
 }

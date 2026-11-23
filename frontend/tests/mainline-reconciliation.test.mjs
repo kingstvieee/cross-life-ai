@@ -16,8 +16,8 @@ test('latest mainline polish preserves release guardian server consent and owner
   assert.match(hub, /isProactiveWelcomeTime/);
   assert.match(hub, /accountStorageKey\(/);
   assert.match(hub, /setArrivalComplete\(/);
-  assert.match(hub, /glassSheen/);
-  assert.match(hub, /glassHighlight/);
+  assert.match(hub, /drift\.interpolate\(/);
+  assert.match(hub, /lockedPortalArtwork\[world\.id\]/);
 });
 
 test('mainline input safety and consent render guard kept', () => {

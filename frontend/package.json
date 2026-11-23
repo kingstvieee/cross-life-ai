@@ -61,7 +61,9 @@
     "eslint": "9.25.0",
     "eslint-config-expo": "~57.0.2",
     "expo-doctor": "1.19.8",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "esbuild": "^0.28.2",
+    "three": "^0.187.0"
   },
   "resolutions": {
     "@eslint/plugin-kit": "0.3.4",

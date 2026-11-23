@@ -22,7 +22,13 @@ const names = worldNames;
 const requested = window.STAAR_WORLD || new URLSearchParams(location.search).get('world') || 'hub';
 const world = ['hub', ...ids].includes(requested) ? requested : 'hub';
 const singles = world === 'relationships' && (window.STAAR_VARIANT || new URLSearchParams(location.search).get('variant')) === 'singles';
-const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const guardianPresentation = world === 'hub' && window.STAAR_GUARDIAN_PRESENTATION === true;
+if (guardianPresentation) {
+  document.body.style.background = document.documentElement.style.background = 'transparent';
+  document.querySelector('header').hidden = document.querySelector('footer').hidden = true;
+  document.querySelector('header').style.display = document.querySelector('footer').style.display = 'none';
+}
+const reduced = window.STAAR_REDUCE_GUARDIAN_MOTION === true || matchMedia('(prefers-reduced-motion: reduce)').matches;
 const canvas = document.querySelector('canvas');
 const session = window.STAAR_SCENE_SESSION || '';
 const report = (type, data = {}) => {
@@ -42,7 +48,7 @@ const addNavigationFallback = () => {
   }
 };
 let renderer;
-try { renderer = new T.WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power' }); }
+try { renderer = new T.WebGLRenderer({ canvas, alpha: guardianPresentation, antialias: true, powerPreference: 'low-power' }); }
 catch {
   document.querySelector('#status').textContent = '3D rendering is unavailable on this device. Navigation remains available below.';
   document.querySelector('#reset').hidden = true;
@@ -53,7 +59,8 @@ if (renderer) {
   const scene = new T.Scene();
   const bright = ['work','wellbeing','style'].includes(world);
   scene.background = new T.Color(bright ? '#c8dcec' : '#020611');
-  scene.fog = new T.Fog(scene.background, 38, 150);
+  if (guardianPresentation) scene.background = null;
+  else scene.fog = new T.Fog(scene.background, 38, 150);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.setSize(innerWidth, innerHeight);
   renderer.toneMapping = T.ACESFilmicToneMapping;
@@ -71,6 +78,7 @@ if (renderer) {
   controls.minDistance = 3; controls.maxDistance = 28; controls.maxPolarAngle = Math.PI*.48;
   const animated = [], clickable = [], modelMotions = [];
   let disposed = false;
+  let guardianArrivalPending = false;
   let importedControls = [];
   let walkController = null;
   let guardianFaceMotion = null;
@@ -341,47 +349,136 @@ if (renderer) {
   function shell(day=false) {floor(13,day?white:black);skyline(day);for(let i=-3;i<=3;i++){cylinder(i*3.6,3.6,-8,.13,7.2);box(i*3.6,3.6,-8,.04,7.2,.3,gold);}for(const r of[5.5,6,6.5]){ring(0,7.6,-1,r,.1,chrome,true);ring(0,7.49,-1,r-.15,.025,day?amber:blue,true);}for(const x of[-10,10]){tree(x,-5);tree(x,2);}}
   function sofa(x,z,a=0,mat=white) {const g=new T.Group();g.position.set(x,0,z);g.rotation.y=a;scene.add(g);box(0,.5,0,3.7,.55,1.25,mat,g);box(0,1.1,-.56,3.7,.9,.25,mat,g);for(const side of[-1,1])box(side*1.9,.85,0,.25,.8,1.4,mat,g);for(let i=-1;i<=1;i++)box(i*1.15,.82,.02,1.06,.12,1.05,mat,g);for(const x of[-1.5,1.5])for(const z of[-.4,.4])cylinder(x,.13,z,.06,.28,gold,g);return g;}
   function island(x,y,z,r=2,mat=green) {mesh(new T.ConeGeometry(r,r*1.6,7),black,x,y-r*.8,z);cylinder(x,y+.02,z,r,.15,mat);waterfall(x+r*.4,y-1.7,z+r*.6,3.5);}
+
+
   function approvedArmoredGuardian() {
     // The binary is bundled offline ONLY after build-time face/armour/signoff verification.
     // Without that file, the original Guardian remains the sole visible identity.
     // Separate private device-only route. This review model is explicitly
     // quarantined from the regular approved-asset importer and production
     // runtime; its real binary hash is checked by build.mjs at staging time.
-    const internal=world==='hub' && window.STAAR_GUARDIAN_QA===true &&
+    const internalHomeReview = guardianPresentation && window.STAAR_INTERNAL_HOME_REVIEW === true && Boolean(window.ReactNativeWebView);
+    const internalQaRoute = !guardianPresentation && window.STAAR_GUARDIAN_QA === true;
+    const internal=world==='hub' && (internalQaRoute || internalHomeReview) &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.schema==='staar-b250-private-internal-iphone-qa-v1' &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.internalQaOnly===true &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.productionApproved===false &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.physicalIphoneCertified===false
         ? window.STAAR_PRIVATE_GUARDIAN_QA_MODEL : null;
     const asset=internal??window.STAAR_APPROVED_GUARDIAN_MODEL;
-    if (!asset?.glbBase64 || asset.sourceImageSha256!=='d7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c') return;
+    const unavailable = () => { if (guardianPresentation && !disposed) report('guardian-unavailable'); };
+    if (!asset?.glbBase64 || asset.sourceImageSha256!=='d7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c') {
+      // Explicitly non-human, non-approved placeholder. Never substitute a different person's image.
+      if (world === 'hub' && !guardianPresentation) {
+        const stand = new T.Mesh(new T.BoxGeometry(1.5, 2.4, 1.5),
+          new T.MeshPhysicalMaterial({color:0x73dfff,metalness:.75,roughness:.14,emissive:0x167fa7,emissiveIntensity:.65}));
+        stand.position.set(0, 3.1, 2.6); scene.add(stand);
+        const edges = new T.LineSegments(new T.EdgesGeometry(stand.geometry),
+          new T.LineBasicMaterial({color:0xffe2a1}));stand.add(edges);
+        animated.push(t => { if (!reduced) stand.rotation.y = t * .3; });
+        text('GUARDIAN MODEL PENDING APPROVAL',0,1.1,4.2,3.4);
+      }
+      unavailable(); return;
+    }
     try {
       const decoded=atob(asset.glbBase64);
       const bytes=new Uint8Array(decoded.length);
       for(let i=0;i<decoded.length;i++)bytes[i]=decoded.charCodeAt(i);
       new GLTFLoader().parse(bytes.buffer,'',model=>{
-        if(!model?.scene)return;
+        if(!model?.scene){unavailable();return;}
         if(disposed){disposeModel(model.scene);return;}
         const guardian=model.scene;
         // Build242 repair acceptance: full-body neck must truly carry the protected
         // head skin. Do not show a frozen head, disable two-sided face rendering,
         // or retain zero-scale legacy silver/chrome armour in the live scene.
         const integrity=inspectGuardianRigIntegrity(guardian,{detachHiddenLegacy:true});
-        if(!integrity.valid){disposeModel(guardian);return;}
+        if(!integrity.valid){disposeModel(guardian);unavailable();return;}
         // Verified exact GLB may explicitly declare its real source coordinates.
         // Preserve existing Y-up models and never guess an unspecified axis.
         const upAxis=model.parser?.json?.extras?.STAAR_Guardian_Coordinates?.upAxis;
         if(upAxis==='Z')guardian.rotation.x=-Math.PI/2;
-        else if(upAxis && upAxis!=='Y'){disposeModel(guardian);return;}
+        else if(upAxis && upAxis!=='Y'){disposeModel(guardian);unavailable();return;}
         const bounds=new T.Box3().setFromObject(guardian);
         const dimensions=bounds.getSize(new T.Vector3());
-        if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000){disposeModel(guardian);return;}
+        if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000){disposeModel(guardian);unavailable();return;}
         const scale=Math.min(3.65/dimensions.y,4.5/Math.max(dimensions.x,dimensions.z,.1));
         guardian.scale.setScalar(scale);
         // Centre approved full armour above the existing Guardian plinth, never crop the emblem.
         const centre=bounds.getCenter(new T.Vector3());
         guardian.position.set(-centre.x*scale,.6-bounds.min.y*scale,1.5-centre.z*scale);
-        scene.add(guardian);
+        if (guardianPresentation) {
+          const flight = new T.Group();
+          scene.add(flight);
+          flight.add(guardian);
+          
+          
+          if (reduced) guardianArrivalPending = true;
+          else {
+            const arrivalPath = new T.CubicBezierCurve3(
+              new T.Vector3(4.8, 4.9, -10),
+              new T.Vector3(-1.4, 3.3, -7),
+              new T.Vector3(-.85, -.35, -1.6),
+              new T.Vector3(0, 0, 0),
+            );
+            const flightDuration = 2100;
+            let startFlight;
+            let arrived = false;
+            let hoverStart;
+            // Build the pose in Guardian's facing frame, independent of bone roll.
+            flight.updateMatrixWorld(true);
+            const flightJoints = [
+              ['Chest', .12, 0, 0],
+              ['UpperArm_L', -1.28, -.28, -.22], ['UpperArm_R', -.72, .55, .30],
+              ['Forearm_L', -.20, 0, -.10], ['Forearm_R', -.42, 0, .16],
+              ['Hand_L', .12, -.03, -.06], ['Hand_R', .18, .06, .10],
+              ['Thigh_L', .20, 0, 0], ['Thigh_R', .29, 0, 0],
+              ['Calf_L', -.23, 0, 0], ['Calf_R', -.31, 0, 0],
+            ].flatMap(([name, pitch, spread, steer]) => {
+              const joint = guardian.getObjectByName('B230_QA_Joint_' + name);
+              if (!joint?.isBone) return [];
+              const inverseRest = joint.getWorldQuaternion(new T.Quaternion()).invert();
+              return [{ joint, pitch, spread, steer, rest: joint.quaternion.clone(),
+                pitchAxis: new T.Vector3(1, 0, 0).applyQuaternion(inverseRest),
+                spreadAxis: new T.Vector3(0, 0, 1).applyQuaternion(inverseRest) }];
+            });
+            const flightPose = new T.Quaternion();
+            flight.position.copy(arrivalPath.v0);
+            animated.push((time) => {
+              startFlight ??= time;
+              const progress = Math.min((time - startFlight) * 1000 / flightDuration, 1);
+              const eased = progress * progress * (3 - 2 * progress);
+              arrivalPath.getPoint(eased, flight.position);
+              const bank = Math.sin(Math.PI * progress) * (1 - progress);
+              flight.rotation.set(.16 * bank, -.32 * bank, .38 * bank);
+              if (!arrived) {
+                // Blend the live skeleton back into its standing pose as Guardian settles.
+                const poseWeight = 1 - T.MathUtils.smoothstep(progress, .66, 1);
+                const steering = Math.sin(progress * Math.PI * 2);
+                for (const { joint, pitch, spread, steer, rest, pitchAxis, spreadAxis } of flightJoints) {
+                  joint.quaternion.copy(rest);
+                  joint.quaternion.multiply(flightPose.setFromAxisAngle(pitchAxis, pitch * poseWeight));
+                  joint.quaternion.multiply(flightPose.setFromAxisAngle(
+                    spreadAxis, (spread + steer * steering) * poseWeight,
+                  ));
+                }
+              }
+              
+              if (progress < 1) return;
+              if (!arrived) {
+                arrived = true;
+                hoverStart = time;
+                guardianArrivalPending = true;
+              }
+              const hoverTime = time - hoverStart;
+              const hoverBlend = Math.min(hoverTime, 1);
+              flight.position.y = hoverBlend * .045 * Math.sin(hoverTime * 2.2);
+              flight.rotation.y = hoverBlend * .035 * Math.sin(hoverTime * 1.1);
+            });
+          }
+        } else {
+          scene.add(guardian);
+          
+        }
         modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
         // The internal branch is source-hash pinned but NEVER an Apple
         // release approval. The ordinary production branch still accepts
@@ -411,15 +508,23 @@ if (renderer) {
             {approvedAsset:true});
           report('guardian-face-ready',{modelSha256:asset.rigModelSha256});
         }
+        if (guardianPresentation && !guardianFaceMotion.readyForPlayback) report('guardian-unavailable');
         requestDraw();
-      },()=>{/* Never display guessed or partial face geometry on load failure. */});
-    } catch { /* The locked Guardian artwork remains the fallback. */ }
+      },unavailable);
+    } catch { unavailable(); }
   }
   function hub() {
+    if (guardianPresentation) {
+      camera.position.set(0, 3, 9);
+      controls.target.set(0, 2.65, 1.5);
+      controls.enabled = false;
+      approvedArmoredGuardian();
+      return;
+    }
     floor(15);stars();skyline();plinth(0,1.5,3);
     for(const r of[2,2.4,2.8])ring(0,3+(r-2)*2,1.5,r,.022,r<2.5?blue:amber,true);
     for(const x of[-11.5,11.5]){plinth(x,1,1,amber);diamond(x,1.7,1,.8);}
-    ids.forEach((id,i)=>{const a=(i-4)*.31,x=Math.sin(a)*11,z=-Math.cos(a)*8,g=arch(x,z,1.55,i%2?blue:amber);g.rotation.y=-a;sphere(0,2.6,-.1,.65,[blue,amber,violet][i%3],g).scale.z=.45;box(0,.55,.1,2.65,.85,.2,black,g);text(names[i],0,.6,.23,2.5,g);g.userData={action:'world:'+id,label:names[i]};clickable.push(g);cylinder(x,.12,z,1.8,.24);});
+    ids.forEach((id,i)=>{const a=(i/ids.length)*Math.PI*2,x=Math.sin(a)*10,z=-Math.cos(a)*8,g=arch(x,z,1.55,i%2?blue:amber);g.rotation.y=-a;sphere(0,2.6,-.1,.65,[blue,amber,violet][i%3],g).scale.z=.45;box(0,.55,.1,2.65,.85,.2,black,g);text(names[i],0,.6,.23,2.5,g);g.userData={action:'world:'+id,label:names[i]};clickable.push(g);cylinder(x,.12,z,1.8,.24);});
     approvedArmoredGuardian();
     text('STAARWARDD',0,7.1,-9,10);text('PORTAL HUB',0,6.3,-9,5);camera.position.set(0,6,19);controls.target.set(0,2.5,-2);
   }
@@ -492,14 +597,24 @@ if (renderer) {
   }
   function village() {floor(15);skyline();stars();cylinder(0,.8,-4,4.4,1.6).scale.z=.65;ring(0,1.65,-4,4.3,.06,violet,true).scale.y=.65;text('SCOTIABANK ARENA DISTRICT',0,2.6,-3,8);for(let i=0;i<4;i++){const x=(i-1.5)*4;plinth(x,3,1.35);diamond(x,1.2,3,.28);}['Toronto','Brampton','Mississauga','Scarborough'].forEach((n,i)=>panel(n,'connections',(i-1.5)*3.7,2.3,2.5,violet,3.2));for(const x of[-5.5,0,5.5])line([[x,.05,4],[x+1,.05,0],[x,.05,-7]],blue,.035);panel('Events, transit & community','connections',0,.8,6,amber,6);}
   function closet() {shell(true);cylinder(0,.06,0,4.5,.13,white);for(const side of[-1,1]){const x=side*6.5;box(x,2,-2,.09,4,.09);box(x,2,3,.09,4,.09);box(x,4,.5,.09,.09,5.1);for(let i=0;i<7;i++){const z=-1.6+i*.65;line([[x,3.95,z],[x-.45,3.6,z],[x+.45,3.6,z],[x,3.95,z]],gold);box(x,2.6,z,1,1.8,.1,i%3===0?black:white);diamond(x,3.05,z+.07,.07);}}box(0,2.6,-6,4,5,.25);box(0,2.6,-5.84,3.75,4.75,.04,black);text('RISING STAARFORM',0,5.7,-6,7);for(let i=0;i<26;i++){const a=i*Math.PI*2/26,m=sphere(Math.sin(a)*4.5,.16,Math.cos(a)*4.5,.3,white);m.scale.set(1.5,.25,1);animated.push(t=>{if(!reduced)m.position.y=.16+Math.sin(t*.7+i)*.014;});}panel('My wardrobe','conversation:1',-2.5,1.4,4,amber);panel('RSF & shopping tools','connections',2.5,1.4,4,amber);}
+  function diggitstaar() {
+    shell(true); stars(); skyline();
+    plinth(0,-1,4.2,amber); ring(0,2.8,-3.8,3.1,.055,amber,true);
+    panel('Client pipeline','connections',-4.3,2.5,-2.2,amber,3.2);
+    panel('Campaign studio','conversation:0',0,2.7,-3.1,blue,3.4);
+    panel('Short-form production','conversation:1',4.3,2.5,-2.2,amber,3.2);
+    panel('Leads & delivery','connections',0,1.1,3.7,blue,4.2);
+    text('DIGGITSTAAR · AI CONTENT STUDIO',0,5.8,-7.5,6);
+    camera.position.set(0,5.5,18); controls.target.set(0,2.2,-2.5);
+  }
   function studio() {shell();stars();for(const x of[-8.5,8.5]){island(x,5.5,-6,2.2,black);tree(x,-6,material('#c56b15'),5.6,.8);waterfall(x-.3,2.6,-4.5,5.6);}plinth(0,-2.5,3);const g=new T.Group();g.position.set(0,3.5,-2.5);scene.add(g);mesh(new T.TorusGeometry(1.7,.16,12,64,Math.PI),chrome,0,0,0,g);for(const s of[-1,1]){cylinder(s*1.7,-.2,0,.65,.35,chrome,g).rotation.z=Math.PI/2;cylinder(s*1.48,-.2,0,.54,.25,material('#5d2e1b',.05,.65),g).rotation.z=Math.PI/2;ring(s*1.9,-.2,0,.45,.025,amber,false,g).rotation.y=Math.PI/2;}animated.push(t=>{if(!reduced)g.rotation.y=t*Math.PI*2/30;});box(0,.8,2.2,10,.3,2.2);for(let i=0;i<30;i++){const x=-4.7+i*.32;box(x,.98,2.6,.04,.03,.65,black);box(x,1.02,2.6+Math.sin(i)*.25,.12,.08,.15,white);for(let j=0;j<3;j++)cylinder(x,1,1.7+j*.18,.035,.06,j%2?blue:amber);}for(const x of[-3.6,0,3.6]){box(x,1.65,1.4,2.7,1.3,.15,black);for(let i=0;i<20;i++)box(x-1.2+i*.126,1.6,1.49,.035,.1+Math.abs(Math.sin(i*2.1+x))*.8,.02,x===0?amber:blue);}for(const x of[-5.6,5.6]){box(x,1.45,1.3,.9,2.9,.8,black);for(const y of[.7,1.5,2.3]){cylinder(x,y,1.73,.28,.05,gold).rotation.x=Math.PI/2;sphere(x,y,1.79,.12,black).scale.z=.4;}}panel('Music library','conversation:0',-4.5,2.4,-2,amber);panel('AI tools & studio','connections',4.5,2.4,-2);panel('Plan a release','conversation:1',0,.7,4.5,amber,4);}
   const previewBaseline=new Set(scene.children);
-  ({hub,home,work,creativity:()=>dreams(),wellbeing:health,relationships:()=>singles?singlesLounge():love(),events:village,style:closet,staarverse,staarsonic:studio})[world]();
+  ({hub,home,work,creativity:()=>dreams(),wellbeing:health,relationships:()=>singles?singlesLounge():love(),events:village,style:closet,staarverse,staarsonic:studio,diggitstaar})[world]();
   const previewWorldObjects=scene.children.filter(object=>!previewBaseline.has(object));
   function importApprovedWorld() {
     if(world==='hub')return;
     const variant=world==='relationships' ? (singles?'singles':'realm') :
-      ({home:'residence',work:'command',creativity:'dream',wellbeing:'health',events:'village',style:'closet',staarverse:'universe',staarsonic:'studio'})[world];
+      ({home:'residence',work:'command',creativity:'dream',wellbeing:'health',events:'village',style:'closet',staarverse:'universe',staarsonic:'studio',diggitstaar:'content-studio'})[world];
     const qaWorld=worldQaEnabled&&window.STAAR_PRIVATE_WORLDS_QA?.[world+'-'+variant];
     const asset=qaWorld?.internalQaOnly===true&&qaWorld?.productionApproved===false ? qaWorld : window.STAAR_APPROVED_WORLD_ASSETS?.[world+'-'+variant];
     if(!asset?.glbBase64)return;
@@ -584,6 +699,10 @@ if (renderer) {
       animated.forEach(fn=>fn(t));controls.update();
       const renderStart=guardianDeviceQa ? performance.now() : 0;
       renderer.render(scene,camera);
+      if (guardianArrivalPending) {
+        guardianArrivalPending = false;
+        report('guardian-arrived');
+      }
       if(guardianDeviceQa){
         guardianDeviceQa.recordFrame(performance.now(),performance.now()-renderStart);
         // Count only post-render body-animation frames, not accepted button commands.
@@ -637,3 +756,4 @@ if (renderer) {
   canvas.addEventListener('webglcontextlost',e=>{worldPhysicsQa?.contextLost();e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
   addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();guardianNeckPoseQa?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
 }
+
