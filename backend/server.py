@@ -27,6 +27,7 @@ from provider_connections import build_provider_router
 from guardian_alignment_routes import build_alignment_router
 from guardian_mission_routes import build_guardian_mission_router
 from guardian_notice_routes import build_guardian_notice_router
+from guardian_tool_registry_routes import build_guardian_tool_registry_router
 from guardian_mission_engine import ensure_indexes as ensure_guardian_mission_indexes
 
 ROOT_DIR = Path(__file__).parent
@@ -1191,6 +1192,7 @@ async def root():
 
 
 install_guardian_core(app, db=db, get_current_user=get_current_user)
+app.include_router(build_guardian_tool_registry_router(require_account_user=require_account_user), prefix="/api")
 app.include_router(build_guardian_mission_router(
     db=db, require_account_user=require_account_user,
     preview_enabled=os.getenv("GUARDIAN_PREVIEW_ENABLED") == "true",
