@@ -63,7 +63,7 @@
     "expo-doctor": "1.19.8",
     "typescript": "~6.0.3",
     "esbuild": "^0.28.2",
-    "three": "^0.184.0"
+    "three": "^0.187.0"
   },
   "resolutions": {
     "@eslint/plugin-kit": "0.3.4",
