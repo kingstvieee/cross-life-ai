@@ -1,0 +1,29 @@
+# STAARWAARDD Guardian backend — Render Blueprint, preview only.
+# Source: integration/final-3d-hub. No production secrets in Git.
+services:
+  - type: web
+    name: staarwardd-guardian-preview
+    runtime: docker
+    plan: free
+    branch: integration/final-3d-hub
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health/ready
+    autoDeployTrigger: off
+    envVars:
+      - key: MONGO_URL
+        sync: false
+      - key: DB_NAME
+        value: staarwardd_guardian_preview
+      - key: GUARDIAN_GITHUB_REPO
+        value: kingstvieee/cross-life-ai
+      - key: GUARDIAN_GITHUB_TOKEN
+        sync: false
+      - key: GUARDIAN_PREVIEW_ENABLED
+        value: "false"
+      - key: ENABLE_LEGACY_EMERGENT_AUTH
+        value: "false"
+# Deployment requires authorized Render account and securely entered values.
+# MongoDB must be reachable from Render. Do not reuse production database for preview.
+# The backend requirements include a private Emergent-hosted wheel: confirm access
+# and replace it with an authorized distributable dependency if build fails.
