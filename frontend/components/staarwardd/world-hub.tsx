@@ -319,7 +319,7 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
 
 const s = StyleSheet.create({
   root: { flex: 1, overflow: 'hidden', backgroundColor: '#030305' },
-  sceneOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 20 },
+  sceneOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 20 },
   sceneSpacer: { flex: 1 },
   sceneHint: { color: '#F7E8CB', textAlign: 'center', fontSize: 10, letterSpacing: 1.1, paddingVertical: 8 },
   safe: { flex: 1, width: '100%', maxWidth: 850, alignSelf: 'center', paddingHorizontal: 12, paddingBottom: 28 },
