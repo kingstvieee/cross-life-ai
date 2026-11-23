@@ -1,4 +1,67 @@
 workflows:
+  staar-native-compile-116:
+    name: STAAR Hub 116 — iPhone + Watch Native Compile Audit (unsigned)
+    instance_type: mac_mini_m2
+    max_build_duration: 75
+    triggering:
+      events: []
+    environment:
+      node: 22
+      xcode: 26.6
+      vars:
+        EAS_BUILD_PROFILE: preview
+        STAAR_PRIVATE_DEVICE_QA_BUILD: '0'
+        STAAR_IPHONE_ONLY_QA: '0'
+        EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '0'
+        EXPO_PUBLIC_WORLD_COLLISION_QA: '0'
+        EXPO_PUBLIC_BACKEND_URL: https://staarwardd-guardian-preview.onrender.com
+    scripts:
+      - name: Verify candidate 116, portal pages and QA boundaries
+        script: |
+          set -euo pipefail
+          cd frontend
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const a = JSON.parse(fs.readFileSync('app.json','utf8')).expo;
+          if (a.version !== '1.0.4' || a.ios.buildNumber !== '116')
+            throw Error('Native compile audit requires exact candidate 1.0.4 (116)');
+          NODE
+          corepack enable
+          yarn install --frozen-lockfile
+          node --test --test-concurrency=4 tests/*.test.mjs
+          yarn exec tsc --noEmit
+      - name: Generate offline 3D runtime and audit Expo manifest
+        script: |
+          set -euo pipefail
+          cd frontend
+          node scene-src/build.mjs
+          npx expo config --json > /tmp/staar116-native-expo-config.json
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const c=JSON.parse(fs.readFileSync('/tmp/staar116-native-expo-config.json','utf8'));
+          if(c.ios?.bundleIdentifier!=='com.emergent.crosslifeai.z79271')
+            throw Error('Apple bundle identity mismatch');
+          if(c.ios?.buildNumber!=='116')
+            throw Error('Apple build identity mismatch');
+          NODE
+      - name: Generate iPhone and Watch Xcode projects without signing
+        script: |
+          set -euo pipefail
+          cd frontend
+          npx expo prebuild --platform ios --non-interactive --clean
+          node scripts/verify-native-targets.cjs
+          cd ios && pod install
+      - name: Compile iPhone and Watch targets without issuing an IPA
+        script: |
+          set -euo pipefail
+          cd frontend
+          WORKSPACE=$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)
+          [ -n "$WORKSPACE" ] || { echo 'Missing native iOS workspace' >&2; exit 1; }
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -sdk iphonesimulator -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO SWIFT_VERSION=5.0 build | tee /tmp/staar116-native-compile.log | tail -35
+    artifacts:
+      - /tmp/staar116-native-compile.log
+      - /tmp/xcodebuild_logs/*.log
   staar-home-reconciliation-preflight:
     name: STAAR Hub — approved-asset-gated IPA (manual, no publishing)
     instance_type: mac_mini_m2
