@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { WorldScene } from './world-scene';
+import { WorldScene } from '../staarwardd/world-scene';
 import { WORLDS } from '@/lib/staarwardd/world-directory';
 import { useAuth } from '@/src/auth';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
