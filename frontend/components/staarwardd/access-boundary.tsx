@@ -71,7 +71,7 @@ export function SignInScreen({ onBackToHub }: { onBackToHub?: () => void } = {})
       <LinearGradient colors={["rgba(2,3,5,0.18)", "rgba(2,3,5,0.08)", "#030405"]} locations={[0, 0.48, 1]} style={StyleSheet.absoluteFill} />
       <AccessField />
       <View style={styles.heroHeader}><Ionicons name="shield-outline" size={19} color="#DCE2E8" /><Text style={styles.wordmark}>STAARWAARDD</Text><Text style={styles.edition}>HUB</Text></View>
-      <View style={styles.heroCaption}><View style={styles.rule} /><Text style={styles.overline}>NINE WORLDS. ONE PRESENCE.</Text></View>
+      <View style={styles.heroCaption}><View style={styles.rule} /><Text style={styles.overline}>TEN WORLDS. ONE PRESENCE.</Text></View>
     </View>
     <LinearGradient colors={["#8D959E", "#30363D", "#A9B1BA", "#24292F"]} locations={[0, 0.28, 0.64, 1]} style={styles.chromeFrame}>
       <BlurView intensity={40} tint="dark" style={styles.accessPanel}>
