@@ -1246,7 +1246,8 @@ app.add_middleware(
     CORSMiddleware,
     # Credentialed web requests are allowed only from the configured application.
     allow_credentials=bool(app_origin()),
-    allow_origins=[app_origin()] if app_origin() else ["*"],
+    # Missing AUTH_APP_URL fails closed instead of inviting arbitrary origins.
+    allow_origins=[app_origin()] if app_origin() else [],
     allow_methods=["*"],
     allow_headers=["*"],
 )
