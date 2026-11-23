@@ -25,7 +25,7 @@ test('Guardian avatar speaking state follows actual voice, not speech requests',
   assert.match(provider, /setVoicePlaybackActive\(false\)/);
   assert.match(provider, /\[user\?\.user_id\]/);
   const scene = read('../components/staarwardd/world-scene.tsx');
-  assert.match(hub, /<WorldScene world="hub" embedded onAction=/);
+  assert.match(hub, /<WorldScene world="hub" embedded guardianPresentation/);
   assert.match(scene, /const allowed=audio.master&&audio.voice&&!audio.speechQuiet&&audio.voicePlaybackActive/);
   assert.match(scene, /guardianWireFrame\(allowed\?\(guardianAudioFrame\?\?audio.guardianAudioFrame\):null,session\)/);
   assert.match(hub, /audio\.voicePlaybackActive/);
