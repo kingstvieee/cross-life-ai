@@ -13,6 +13,7 @@ workflows:
       ios_signing:
         provisioning_profiles:
           - STAARHub_AppStore_Codemagic_2026_11_20
+          - STAARWatch_AppStore_CertNov19_2026_11_23
         certificates:
           - STAAR QA 109 Distribution
       vars:
