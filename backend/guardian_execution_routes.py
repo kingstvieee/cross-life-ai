@@ -22,12 +22,7 @@ class ExecuteRequest(BaseModel):
 def build_guardian_execution_router(*, require_account_user, portals):
     router = APIRouter(prefix="/guardian/tools", tags=["guardian-tools"])
     registry = GuardianToolRouter()
-    portal_snapshot = tuple(dict(p) for p in portals)
-    registry.register(
-        ToolSpec("portal.list", "portal.read", read_only=True),
-        lambda args: {"portals": [dict(p) for p in portal_snapshot]} if not args
-        else (_ for _ in ()).throw(ValueError("unsupported_arguments")),
-    )
+
 
     @router.post("/execute")
     async def execute(payload: ExecuteRequest, user=Depends(require_account_user)):
@@ -43,9 +38,20 @@ def build_guardian_execution_router(*, require_account_user, portals):
         actor = user.get("user_id")
         if not actor or user.get("is_demo"):
             raise HTTPException(403, "authenticated_account_required")
+        # Build the result from the authenticated account, not a global snapshot.
+        # Portal access is private and may be paused or disabled per account.
+        enabled = set(user.get("portals_enabled") or [])
+        privacy = user.get("portal_privacy") or {}
+        paused = bool(user.get("cross_life_paused"))
+        visible = [dict(p) for p in portals if not paused
+                   and p["id"] in enabled
+                   and (privacy.get(p["id"]) or {}).get("access") is True]
+        expected = {"portals": visible}
+        registry = GuardianToolRouter()
+        registry.register(ToolSpec("portal.list", "portal.read", read_only=True),
+                          lambda args: {"portals": [dict(p) for p in visible]})
         store = DurableAdmission(path)
         executor = DurableGuardianExecutor(registry, store)
-        expected = {"portals": [dict(p) for p in portal_snapshot]}
         try:
             return executor.execute(
                 session_actor=actor, session_scopes={"portal.read"},
