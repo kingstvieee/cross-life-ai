@@ -1,7 +1,7 @@
 /** Guardian video-derived capability implementations. No payment features.
  * Pure, offline-safe functions; external devices require authenticated adapters.
  */
-import { VIDEO_COMPONENTS } from './video-intelligence';
+import { VIDEO_COMPONENTS } from './video-intelligence.ts';
 export type Device = {id:string;name:string;kind:'light'|'lock'|'tv'|'sensor'|'switch';provider:'home-assistant'|'tuya'|'ttlock'|'google-home'|'other';state:string;lastSeen?:string};
 export function inventory(devices:readonly Device[]) {
  const ids=new Set<string>(); return devices.filter(d=>{if(!/^[a-z0-9_.:-]{2,128}$/i.test(d.id)||ids.has(d.id))return false;ids.add(d.id);return true;});
