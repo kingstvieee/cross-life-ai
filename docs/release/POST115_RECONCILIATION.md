@@ -39,3 +39,11 @@ Do not merge into main or trigger Codemagic until the above gates pass.
 - Integrate the 3 newer Claude commits without overwriting this report; reconcile mainline deltas through reviewed selective commits, not a wholesale merge.
 - Confirm the replacement build number is unused and ensure Codemagic includes private asset decryption and real bundle checks.
 - Verify the replacement on the iPhone after the redesigned Hub is visible; no new build until the above preflight is green.
+
+## Expanded clean-checkout test gate — BLOCKED
+- Current `fix/locked-hub-home` commit `e8f63a5` **is already an ancestor** of reconciliation branch `b17050a`; the previously reported three missing Claude commits are already incorporated. Do not duplicate them.
+- On a clean `git archive` of reconciliation branch, running the 5 relevant suites (`ten-portal-home-contract`, `guardian-audio-visual`, `build252-private-b250-iphone-qa-loader`, `build252-private-preview-archive-policy`, `build111-immersive-hub-home-contract`) produced **22 tests, 16 pass, 6 fail**.
+- Failed tests: `The signed-in homepage contains ten direct portals and a Guardian-only scene`; `Private rig presentation is restricted to explicitly staged native review builds`; `Guardian avatar speaking state follows actual voice, not speech requests`; `ten distinct portals are ordered and navigable`; `signed TestFlight workflow does not stage the unapproved B250 QA Guardian`; `locked Home is the guest entry on every platform and private routes stay gated`.
+- Current reconciliation `codemagic.yaml` preflight uses private **B250 QA** staging. This must not be confused with user-approved final production Guardian. Do not run workflow until a genuinely approved model is proven and failing contracts are resolved.
+- The earlier 11/11 passing result covered only three narrower suites on the Claude source branch, and does not supersede these expanded failures.
+- **Release gate FAIL; no signed replacement build authorized by test evidence.**
