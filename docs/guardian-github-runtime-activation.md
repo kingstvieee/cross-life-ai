@@ -2,7 +2,7 @@
 
 Target branch: `integration/final-3d-hub`
 Backend: FastAPI in `backend/server.py`; endpoint `POST /api/guardian/tools/execute`.
-This configuration belongs on the **backend runtime**, not automatically on the Vercel frontend project.
+This configuration belongs exclusively on the approved **FastAPI backend runtime**. Do not configure or deploy the backend through Vercel.
 
 Required backend environment:
 - `GUARDIAN_GITHUB_REPO=kingstvieee/cross-life-ai` (non-secret)
@@ -11,7 +11,7 @@ Required backend environment:
 
 The GitHub connector's own authorization does not supply a transferable runtime token. Never copy a token from the client, commit it, or infer the Guardian user ID. Restrict token access to the single repository. Rotate and revoke through GitHub as needed.
 
-Before enabling, confirm the active backend deployment and MongoDB environment. Ensure `MONGO_URL` and `DB_NAME` are set there. Deploy the integration branch to an isolated backend preview, not production. The current Vercel project is Git-linked to `kingstvieee/cross-life-ai`, but that alone does not establish it hosts FastAPI.
+Before enabling, confirm the active backend deployment and MongoDB environment. Ensure `MONGO_URL` and `DB_NAME` are set there. Deploy the integration branch to an isolated backend preview, not production. No Vercel deployment is authorized for the STAARWAARDD backend. Confirm an independently approved backend host before activating credentials.
 
 Acceptance check:
 1. Authenticate to Guardian with an allowed non-demo account.
