@@ -25,14 +25,14 @@ test('ten distinct portals are ordered and navigable', async () => {
 test('signed TestFlight workflow does not stage the unapproved B250 QA Guardian', async () => {
  const yaml = await read('../../codemagic.yaml');
  assert.doesNotMatch(yaml, /STAAR_INTERNAL_HOME_REVIEW/);
- assert.match(yaml, /stage-private-guardian-b250-qa/);
- assert.match(yaml, /staar-home-reconciliation-preflight/);
+ assert.doesNotMatch(yaml, /stage-private-guardian-b250-qa/);
+ assert.match(yaml, /staar-home-reconciliation-preflight/);\n assert.match(yaml, /loadApprovedArmoredGuardianAsset/);\n assert.match(yaml, /loadApprovedWorldAssets/);
  assert.match(yaml, /triggering:\s*\n\s*events: \[\]/);
  assert.match(yaml, /submit_to_testflight: false/);
  assert.match(yaml, /STAAR_NEXT_IOS_BUILD/);
  assert.match(yaml, /STAAR_IPHONE_ONLY_QA: '1'/);
- assert.match(yaml, /EXPO_PUBLIC_GUARDIAN_DEVICE_QA/);
- assert.match(yaml, /EXPO_PUBLIC_WORLD_COLLISION_QA/);
+ assert.doesNotMatch(yaml, /EXPO_PUBLIC_GUARDIAN_DEVICE_QA/);
+ assert.doesNotMatch(yaml, /EXPO_PUBLIC_WORLD_COLLISION_QA/);
 });
 
 test('locked Home is the guest entry on every platform and private routes stay gated', async () => {
