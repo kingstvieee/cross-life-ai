@@ -14,8 +14,9 @@ test('EAS build is blocked by verified production package preflight', () => {
   assert.match(workflow, /uses: eas\/checkout/);
   assert.match(workflow, /node scripts\/verify-production-package\.mjs/);
   assert.match(workflow, /build_ios:\s*\n\s*needs: \[preflight\]/);
-  assert.match(workflow, /founder_acceptance:[\s\S]*?needs: \[build_ios\][\s\S]*?type: require-approval/);
-  assert.match(workflow, /submit_ios:[\s\S]*?needs: \[build_ios, founder_acceptance\]/);
+  assert.match(workflow, /verify_ipa_metadata:[\s\S]*?needs: \[build_ios\][\s\S]*?eas\/download_build/);
+  assert.match(workflow, /founder_acceptance:[\s\S]*?needs: \[verify_ipa_metadata\][\s\S]*?type: require-approval/);
+  assert.match(workflow, /submit_ios:[\s\S]*?needs: \[build_ios, verify_ipa_metadata, founder_acceptance\]/);
 });
 
 test('TestFlight candidate 116 follows verified Expo Codemagic issued 115 and requires explicit dispatch', () => {
