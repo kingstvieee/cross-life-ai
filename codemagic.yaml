@@ -16,9 +16,33 @@ workflows:
         certificates:
           - STAAR QA 109 Distribution
       vars:
-        EAS_BUILD_PROFILE: preview
-        EXPO_PUBLIC_BACKEND_URL: https://cross-life-ai.emergent.host
+        EAS_BUILD_PROFILE: production
+        STAAR_IPHONE_ONLY_QA: '0'
+        EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '0'
+        EXPO_PUBLIC_WORLD_COLLISION_QA: '0'
+        STAAR_REQUIRE_WATCH_APP: '1'
     scripts:
+      - name: Validate dedicated production API and persist build environment
+        script: |
+          set -eu
+          url="${STAAR_PRODUCTION_BACKEND_URL:-}"
+          case "$url" in
+            https://* ) ;;
+            * ) echo 'BLOCKED: secure production API not configured' >&2; exit 1 ;;
+          esac
+          case "$url" in
+            *cross-life-ai.emergent.host*|*staarwardd-guardian-preview.onrender.com* )
+              echo 'BLOCKED: production cannot use legacy or preview backend' >&2; exit 1 ;;
+          esac
+          [[ "$url" != */*/*/* ]] || { echo 'BLOCKED: production API must be an HTTPS origin' >&2; exit 1; }
+          echo "EXPO_PUBLIC_BACKEND_URL=$url" >> "$CM_ENV"
+          export EXPO_PUBLIC_BACKEND_URL="$url"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const p='frontend/eas.json',d=JSON.parse(fs.readFileSync(p,'utf8'));
+          d.build.production.env.EXPO_PUBLIC_BACKEND_URL=process.env.EXPO_PUBLIC_BACKEND_URL;
+          fs.writeFileSync(p,JSON.stringify(d,null,2)+'\n');
+          NODE
       - name: Certify locked portal artwork, guest access and companion evidence
         script: |
           set -eu
@@ -53,6 +77,11 @@ workflows:
           d.expo.ios.buildNumber=String(n);
           fs.writeFileSync(p,JSON.stringify(d,null,2)+'\n');
           NODE
+      - name: Fail closed before expensive signing unless independent release evidence passes
+        script: |
+          set -eu
+          cd frontend
+          node scripts/verify-production-package.mjs
       - name: Install dependencies and verify ten-portal home
         script: |
           cd frontend
@@ -67,6 +96,21 @@ workflows:
         script: |
           cd frontend/ios
           pod install
+      - name: Verify registered Watch app signing entitlement and provisioning profile
+        script: |
+          set -eu
+          watch_id='R9BPDSU4BW.com.emergent.crosslifeai.z79271.watchkitapp'
+          profile_dir="$HOME/Library/MobileDevice/Provisioning Profiles"
+          found=0
+          for file in "$profile_dir"/*.mobileprovision; do
+            [ -f "$file" ] || continue
+            tmpfile=$(mktemp)
+            security cms -D -i "$file" > "$tmpfile" 2>/dev/null || { rm -f "$tmpfile"; continue; }
+            actual=$(plutil -extract 'Entitlements.application-identifier' raw -o - "$tmpfile" 2>/dev/null || true)
+            rm -f "$tmpfile"
+            if [ "$actual" = "$watch_id" ]; then found=1; break; fi
+          done
+          [ "$found" = 1 ] || { echo 'BLOCKED: no matching Apple Watch App Store provisioning profile installed in Codemagic' >&2; exit 1; }
       - name: Set App Store Connect signing
         script: |
           cd frontend
@@ -78,6 +122,13 @@ workflows:
           test -n "$WORKSPACE"
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
           xcode-project build-ipa --workspace "$WORKSPACE" --scheme "$SCHEME"
+      - name: Verify actual signed IPA and embedded Watch app locally
+        script: |
+          set -eu
+          cd frontend
+          ipa=$(find build/ios/ipa -name '*.ipa' -type f -print -quit)
+          [ -n "$ipa" ] || { echo 'BLOCKED: missing actual signed IPA' >&2; exit 1; }
+          bash scripts/verify-build220-ipa.sh "$ipa"
     artifacts:
       - frontend/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
