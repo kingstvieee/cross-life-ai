@@ -22,7 +22,7 @@ const lockedPortalArtwork = {
   style: require('@/assets/images/staarwardd/locked/style.png'),
   staarverse: require('@/assets/images/staarwardd/locked/staarverse.png'),
   staarsonic: require('@/assets/images/staarwardd/locked/staarsonic.png'),
-  diggitstaar: require('@/assets/images/staarwardd/portal-work-chrome.webp'),
+  diggitstaar: require('@/scene-src/portal-art/diggitstaar.png'),
 };
 
 function HubFocus({ onFocus }: { onFocus: () => () => void }) {
