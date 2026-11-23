@@ -7,7 +7,7 @@ export type Priority = 'P0' | 'P1' | 'P2';
 export type Portal = 'home' | 'work' | 'community' | 'health' | 'style' | 'creativity';
 export type Verification = 'unverified' | 'conditional' | 'verified' | 'avoid';
 export type Component = Readonly<{id:string;name:string;priority:Priority;portal:Portal;requires:string[];releaseGate:string}>;
-export const VIDEO_COMPONENTS: readonly Component[] = [
+const definitions: Array<[string,string,Priority,Portal,string[],string]> = [
  ['network-inventory','Network inventory','P0','home',['authorized LAN discovery'],'Inventory reviewed and user-approved'],
  ['secure-remote','Secure remote access','P0','home',['identity provider','Tailscale or equivalent'],'Unauthorized remote connections rejected'],
  ['tuya-adapter','Tuya control adapter','P0','home',['Tuya credentials','compatible device'],'Command response and physical device state agree'],
@@ -24,4 +24,4 @@ export const VIDEO_COMPONENTS: readonly Component[] = [
  ['construction-library','RSF construction library','P1','creativity',['approved tech packs'],'Existing locked garments preserved'],
  ['materials-intelligence','RSF material intelligence','P1','creativity',['supplier specifications'],'CAD landed costs explicitly labelled estimates'],
  ['collection-story','Collection storytelling','P2','style',['approved RSF creative direction'],'No third-party artwork copied'],
-].map(([id,name,priority,portal,requires,releaseGate])=>({id:id as string,name:name as string,priority:priority as Priority,portal:portal as Portal,requires:requires as string[],releaseGate:releaseGate as string}));
+];\nexport const VIDEO_COMPONENTS: readonly Component[] = definitions.map(([id,name,priority,portal,requires,releaseGate])=>({id,name,priority,portal,requires,releaseGate}));
