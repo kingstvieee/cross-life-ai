@@ -44,6 +44,6 @@ test('study registry cannot masquerade as an approved production delivery', () =
  assert.ok(studies.downloadablePackages.length===2);
  const productionPreflight = readFileSync(path.join(root,'scripts/verify-production-package.mjs'),'utf8');
  assert.match(productionPreflight,/loadApprovedArmoredGuardianAsset/);
- assert.match(productionPreflight,/loadApprovedWorldAssets/);
+ assert.match(productionPreflight,/loadApprovedProductionWorldAssets/);
  assert.doesNotMatch(productionPreflight,/asset-studies-build186/);
 });
