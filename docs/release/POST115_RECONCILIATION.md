@@ -27,3 +27,15 @@ Status: WORK IN PROGRESS — no release approval.
 - Apple-side next build number and device-level functionality not yet confirmed.
 
 Do not merge into main or trigger Codemagic until the above gates pass.
+
+## Verified follow-up (2026-11-22)
+- Clean exported checkout of `fix/locked-hub-home` at `c9d7dc0d20ce6e426eedf42211fcdb5898057fdf`: `node --test tests/build111-immersive-hub-home-contract.test.mjs tests/guardian-audio-visual.test.mjs tests/mainline-reconciliation.test.mjs` completed **11/11 passing**. These are static/targeted tests, **not** device certification.
+- `fix/locked-hub-home` is **3 commits ahead** of this reconciliation branch (GitHub comparison); bring forward the newest Guardian voice/focus work before integration.
+- `frontend/components/staarwardd/world-hub.tsx` on Claude branch uses `WorldScene`, `lockedPortalArtwork`, safe-area insets, and portal preview. Main uses an older `GuardianCharacter`/ScrollView layout. Preserve Claude's component, then selectively port required mainline changes.
+- The Codemagic workflow on Claude branch is named `staar-home-review-115` and pins build 115, while `main` uses `staar-testflight-110` and protected `staar-private-110` group. Neither is a valid next-build workflow as-is.
+- Apple TestFlight listed build 115 in the internal Team (Expo) group, but the owner reports that its layout is not functional. Do not treat upload/install metrics as acceptance.
+
+### Next merge gates
+- Integrate the 3 newer Claude commits without overwriting this report; reconcile mainline deltas through reviewed selective commits, not a wholesale merge.
+- Confirm the replacement build number is unused and ensure Codemagic includes private asset decryption and real bundle checks.
+- Verify the replacement on the iPhone after the redesigned Hub is visible; no new build until the above preflight is green.
