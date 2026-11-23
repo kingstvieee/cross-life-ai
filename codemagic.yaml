@@ -19,12 +19,9 @@ workflows:
           - STAAR QA 109 Distribution
       vars:
         EAS_BUILD_PROFILE: preview
-        STAAR_IPHONE_ONLY_QA: '1'
-        EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '1'
-        EXPO_PUBLIC_WORLD_COLLISION_QA: '1'
         EXPO_PUBLIC_BACKEND_URL: https://cross-life-ai.emergent.host
     scripts:
-      - name: Authenticate and validate private QA assets before native build
+      - name: Authenticate private assets and require approved production Guardian and worlds
         script: |
           set -eu
           test -n "${STAAR_PRIVATE_B110_KEY:-}" || { echo 'Missing private decryption key' >&2; exit 1; }
@@ -35,9 +32,16 @@ workflows:
           curl --fail --silent --show-error -L --retry 3 'https://drive.google.com/uc?export=download&id=1E-bR8B2V_o33Mb519iA6ea_ouCM_gUWV' -o "$PRIVATE_ARCHIVE"
           node scripts/decrypt-private-b110.mjs "$PRIVATE_ARCHIVE"
           cd frontend
-          node scripts/stage-private-guardian-b250-qa.mjs
-          node --input-type=module -e "import('./scene-src/internal-ten-world-qa.mjs').then(m=>m.loadInternalTenWorldQaAssets(process.cwd()+'/scene-src').then(w=>{if(Object.keys(w).length!==10)throw Error('ten_worlds_missing');console.log('10 private world GLBs verified')}))"
-          node scripts/prepare-private-b250-qa-archive.mjs prepare
+          node --input-type=module <<'NODE'
+          import {loadApprovedArmoredGuardianAsset} from './scene-src/approved-guardian-asset.mjs';
+          import {loadApprovedWorldAssets} from './scene-src/approved-world-assets.mjs';
+          const root=process.cwd()+'/scene-src';
+          const guardian=await loadApprovedArmoredGuardianAsset(root);
+          const worlds=await loadApprovedWorldAssets(root);
+          if(!guardian) throw Error('BLOCKED: approved Guardian GLB and signed receipt absent');
+          if(!worlds || Object.keys(worlds).length!==10) throw Error('BLOCKED: ten approved world GLBs and receipts absent');
+          console.log('Approved Guardian and all ten worlds passed cryptographic and geometry checks');
+          NODE
       - name: Require explicitly approved unused post-115 build number
         script: |
           cd frontend
@@ -54,7 +58,7 @@ workflows:
           cd frontend
           corepack enable
           yarn install --frozen-lockfile
-          node --test tests/ten-portal-home-contract.test.mjs tests/guardian-audio-visual.test.mjs tests/build252-private-b250-iphone-qa-loader.test.mjs tests/build252-private-preview-archive-policy.test.mjs
+          node --test tests/ten-portal-home-contract.test.mjs tests/guardian-audio-visual.test.mjs tests/build111-immersive-hub-home-contract.test.mjs tests/claude-3d-chamber-release-gate.test.mjs
       - name: Native iOS prebuild
         script: |
           cd frontend
