@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
-import { loadApprovedWorldAssets, REQUIRED_WORLD_ASSETS } from '../scene-src/approved-world-assets.mjs';
+import { loadApprovedProductionWorldAssets, REQUIRED_PRODUCTION_WORLD_ASSETS } from '../scene-src/approved-world-assets.mjs';
 import { verifyReleaseEvidence } from './verify-release-evidence.mjs';
 import { verifyApprovedSoundtrack } from './verify-approved-soundtrack.mjs';
 import { verifyStagedNativeSource } from './stage-approved-startup-audio.mjs';
@@ -47,12 +47,12 @@ export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFli
   } catch (err) { fail('guardian', err?.message ?? err); }
 
   try {
-    const worlds = await loadApprovedWorldAssets(path.join(root, 'scene-src'));
-    if (!worlds) fail('worlds', 'The ten individually approved, evidence-paired world GLBs are absent');
+    const worlds = await loadApprovedProductionWorldAssets(path.join(root, 'scene-src'));
+    if (!worlds) fail('worlds', 'Ten production destinations need eleven evidence-paired GLBs, including DIGGITSTAAR workstation and Singles Lounge');
     else {
       const keys = Object.keys(worlds).sort();
-      if (keys.length !== REQUIRED_WORLD_ASSETS.length ||
-          REQUIRED_WORLD_ASSETS.some(key => !keys.includes(key))) {
+      if (keys.length !== REQUIRED_PRODUCTION_WORLD_ASSETS.length ||
+          REQUIRED_PRODUCTION_WORLD_ASSETS.some(key => !keys.includes(key))) {
         fail('worlds', 'Missing required world variants');
       } else {
         approvedWorlds = worlds;
