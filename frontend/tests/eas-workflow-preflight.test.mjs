@@ -50,3 +50,13 @@ test('internal native builds use verified Render preview while production stays 
   assert.match(renderBlueprint, /healthCheckPath: \/api\/health\/ready/);
   assert.match(renderBlueprint, /AUTH_NATIVE_REDIRECT_URL\s*\n\s*value: frontend:\/\/auth-complete/);
 });
+
+test('Render preview declares Auth0 integration with a server-only secret and no Microsoft enablement', () => {
+  const blueprint = readFileSync(path.join(frontend, '../render.yaml'), 'utf8');
+  assert.match(blueprint, /- key: AUTH_ISSUER\\n\\s*value: https:\/\/staarwaardd-hub\\.ca\\.auth0\\.com\\//);
+  assert.match(blueprint, /- key: AUTH_CLIENT_SECRET\\n\\s*sync: false/);
+  assert.match(blueprint, /- key: AUTH_CONNECTION_GOOGLE\\n\\s*value: google-oauth2/);
+  assert.match(blueprint, /- key: AUTH_CONNECTION_EMAIL\\n\\s*value: Username-Password-Authentication/);
+  assert.doesNotMatch(blueprint, /- key: AUTH_CONNECTION_MICROSOFT/);
+  assert.match(blueprint, /autoDeployTrigger: off/);
+});
