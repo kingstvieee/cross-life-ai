@@ -3,7 +3,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { loadApprovedArmoredGuardianAsset } from './approved-guardian-asset.mjs';
-import { loadApprovedWorldAssets } from './approved-world-assets.mjs';
+import { loadApprovedProductionWorldAssets } from './approved-world-assets.mjs';
 import { loadInternalGuardianQaAsset, isInternalGuardianQaBuild } from './internal-guardian-qa.mjs';
 import {loadInternalTenWorldQaAssets, isWorldQaBuild} from './internal-ten-world-qa.mjs';
 
@@ -33,7 +33,7 @@ const privateWorldsData = privateWorlds ? JSON.stringify(privateWorlds) : 'null'
 if (!privateQaBuild && (privateGuardianQa || privateWorlds || internalHomeReview)) {
   throw new Error('Private QA data must not enter production runtime');
 }
-const approvedWorlds=await loadApprovedWorldAssets(root);
+const approvedWorlds=await loadApprovedProductionWorldAssets(root);
 const worldData=approvedWorlds ? JSON.stringify(approvedWorlds) : 'null';
 const result=await build({entryPoints:[path.join(root,'worlds.js')],bundle:true,minify:true,format:'iife',target:'es2020',write:false,legalComments:'inline'});
 const code=result.outputFiles[0].text.replace(/<\/script/gi,'<\\/script');
