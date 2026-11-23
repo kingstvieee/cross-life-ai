@@ -20,7 +20,7 @@ test('Internal iPhone preview source-only readiness passes while explicitly deny
  assert.deepEqual(preflight.blockers,[]);
  assert.equal(preflight.sourceReadyForOwnerBuildApproval,true);
  assert.equal(preflight.releaseMode,'INTERNAL_IOS_QA_ONLY');
- assert.equal(preflight.iosBuild,'109');
+ assert.equal(preflight.iosBuild,'116');
  assert.equal(preflight.noSigningOrSubmissionPerformed,true);
  assert.equal(preflight.noOwnerDeviceOrAppleCredentialsInspected,true);
  assert.equal(preflight.noPhysicalIphoneTestPerformed,true);
