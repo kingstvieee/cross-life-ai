@@ -115,7 +115,7 @@ def build_identity_router(*, db, limiter=None, now=None, http_client=None):
         params = {"response_type": "code", "client_id": cfg["AUTH_CLIENT_ID"],
                   "redirect_uri": cfg["AUTH_CALLBACK_URL"], "scope": "openid profile email",
                   "state": state, "code_challenge": challenge, "code_challenge_method": "S256",
-                  "connection": cfg["connection"], "prompt": "login"}
+                  "connection": cfg["connection"]}
         response = RedirectResponse(cfg["AUTH_AUTHORIZE_URL"] + ("&" if "?" in cfg["AUTH_AUTHORIZE_URL"] else "?") + urlencode(params), status_code=302)
         response.set_cookie(FLOW_COOKIE, browser_binding, max_age=300, secure=True, httponly=True, samesite="none", path="/")
         response.headers["Cache-Control"] = "no-store"
