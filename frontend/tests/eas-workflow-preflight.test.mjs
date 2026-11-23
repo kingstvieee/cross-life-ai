@@ -20,7 +20,7 @@ test('EAS build is blocked by verified production package preflight', () => {
 
 test('TestFlight candidate 116 follows verified Expo Codemagic issued 115 and requires explicit dispatch', () => {
   assert.equal(app.expo.ios.buildNumber, '116');
-  assert.match(workflow, /1\.0\.4 \(109\)/);
+  assert.match(workflow, /1\.0\.4 \(116\)/);
   assert.match(workflow, /Submit build 116 to TestFlight/);
   assert.doesNotMatch(workflow, /\(105\)|Submit build 105|\(106\)|\(107\)|\(108\)/);
   assert.match(workflow, /workflow_dispatch:/);
