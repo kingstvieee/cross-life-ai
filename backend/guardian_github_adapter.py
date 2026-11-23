@@ -12,7 +12,7 @@ class GitHubAdapterError(Exception):
 
 
 def configured_repo():
-    return os.environ.get("GUARDIAN_GITHUB_REPO", "").strip()
+    return os.environ.get("GUARDIAN_GITHUB_REPO", "kingstvieee/cross-life-ai").strip()
 
 
 def permitted_actor(actor_id):
