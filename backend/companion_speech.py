@@ -30,6 +30,17 @@ async def synthesize(text, companion, client_factory=None):
             response = await client.post('https://api.openai.com/v1/audio/speech',
                 headers={'Authorization': 'Bearer ' + key},
                 json={'model': MODEL, 'input': text, 'response_format': 'mp3', **PROFILES[companion]})
+        # Preserve actionable provider failures without exposing credentials or upstream bodies.
+        if response.status_code == 429:
+            try:
+                error_code = response.json().get('error', {}).get('code')
+            except (ValueError, AttributeError, TypeError):
+                error_code = None
+            if error_code == 'insufficient_quota':
+                raise HTTPException(503, 'companion_voice_quota_exhausted')
+            raise HTTPException(503, 'companion_voice_rate_limited')
+        if response.status_code in (401, 403):
+            raise HTTPException(503, 'companion_voice_provider_auth_failed')
         if response.status_code != 200 or not response.headers.get('content-type', '').startswith('audio/') or not response.content:
             raise HTTPException(502, 'companion_voice_unavailable')
         return response.content
