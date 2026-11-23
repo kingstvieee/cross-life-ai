@@ -273,7 +273,12 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
             <Ionicons name="options-outline" size={23} color="#F4F0E6" />
           </Pressable>
         </View>
-        <View style={s.sceneSpacer} pointerEvents="none" />
+        <View pointerEvents="box-none" style={s.portalStage}>
+          <Image source={require('@/assets/images/staarwardd/toronto-skyline-pan.png')} style={s.skyline} resizeMode="cover" accessible={false} />
+          <View style={s.portalRow}>{WORLDS.slice(0, 5).map((world, index) => renderPortal(world, index))}</View>
+          <View pointerEvents="none" style={s.sceneSpacer} />
+          <View style={s.portalRow}>{WORLDS.slice(5, 10).map((world, index) => renderPortal(world, index + 5))}</View>
+        </View>
         <Text style={s.sceneHint}>3D PORTAL CHAMBER · DRAG TO ORBIT · TAP A PORTAL</Text>
         <View style={s.controls}>
           {!!message && <Text accessibilityLiveRegion="polite" numberOfLines={2} style={s.message}>{message}</Text>}
@@ -320,6 +325,8 @@ export function WorldHub({ onSignIn }: { onSignIn?: () => void } = {}) {
 const s = StyleSheet.create({
   root: { flex: 1, overflow: 'hidden', backgroundColor: '#030305' },
   sceneOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 20 },
+  portalStage: { flex: 1, justifyContent: 'space-between', paddingTop: 14, paddingBottom: 14 },
+  portalRow: { flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'center', width: '100%' },
   sceneSpacer: { flex: 1 },
   sceneHint: { color: '#F7E8CB', textAlign: 'center', fontSize: 10, letterSpacing: 1.1, paddingVertical: 8 },
   safe: { flex: 1, width: '100%', maxWidth: 850, alignSelf: 'center', paddingHorizontal: 12, paddingBottom: 28 },
