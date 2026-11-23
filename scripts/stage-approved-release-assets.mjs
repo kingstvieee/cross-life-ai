@@ -26,8 +26,8 @@ try {
   for(const name of names) {
     const out=path.resolve(root,name);
     if(!out.startsWith(root+path.sep))throw Error('approved_asset_path_escape');
-    const raw=execFileSync('unzip',['-p',file,name],{maxBuffer:20*1024*1024});
-    if(raw.length===0 || raw.length>18*1024*1024)throw Error('approved_asset_invalid_member_size');
+    const raw=execFileSync('unzip',['-p',file,name],{maxBuffer:34*1024*1024});
+    if(raw.length===0 || raw.length>(name.endsWith('.glb')?32:2)*1024*1024)throw Error('approved_asset_invalid_member_size');
     await mkdir(path.dirname(out),{recursive:true});
     await writeFile(out,raw,{mode:0o600,flag:'wx'});
   }
