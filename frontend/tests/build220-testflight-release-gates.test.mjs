@@ -34,5 +34,8 @@ test('Build 220 founder approval and actual signed build remain required in EAS 
  assert.ok(wf.includes('type: require-approval'));
  assert.ok(wf.includes('node scripts/verify-production-package.mjs'));
  assert.ok(wf.includes('type: testflight'));
- assert.ok(wf.includes('needs: [build_ios, founder_acceptance]'));
+ assert.ok(wf.includes('needs: [build_ios, verify_ipa_metadata, founder_acceptance]'));
+ assert.ok(wf.includes('eas/download_build'));
+ assert.ok(wf.includes('verify-ipa-archive-metadata.py'));
+ assert.ok(wf.includes('needs: [verify_ipa_metadata]'));
 });
