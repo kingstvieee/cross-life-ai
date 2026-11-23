@@ -1,0 +1,86 @@
+{
+  "schema": "staarhub-2026-11-23-production-candidate-backend-auth-ledger-v1",
+  "recorded": "2026-11-23",
+  "sourceCommitAtPreviewDeploy": "7dfc98f180856ceae0567d7a5be296dea0c8c5eb",
+  "assets": {
+    "delivery": "STAARHUB_Production_3D_and_Approved_Audio_Private_Candidates_2026-11-23.zip (private ChatGPT artifact, NOT committed to GitHub)",
+    "archiveSha256": "8c765debabd7ade9b6d2c1a0afe2e3de3bb2ea87113db6866c2ad3af23ec0621",
+    "guardian": {
+      "sha256": "8b080e8a36602f3aab04f1b16d8b485cb1dc487ee42ac910c5631d08f8b03e10",
+      "sourceB228FounderApprovedSha256": "4d739795c55711a19cd6c4ccb670053697b3ed8e23c2e3648940dac43433540b",
+      "sourceB250Sha256": "057099cac71e04d6e1282b23fb52c9d593b8c1a4e055309254ca1f5609a42134",
+      "headVertexAndMorphDeltasMatchB228": true,
+      "originalB228FaceImageAndNormalsRestored": true,
+      "animationClips": 11,
+      "skins": 2,
+      "newCompositeBinaryFounderVisualApproved": false,
+      "physicalDeviceCertified": false
+    },
+    "worlds": {
+      "sceneGLBs": 11,
+      "portalDestinations": 10,
+      "reviewOnlyFromExistingArchive": 10,
+      "newDiggitstaarWorkstationSha256": "52600cd1622e02ebdc671d5b228bf48acdbdcbfe82edd1ae202b3b68b05c94e5",
+      "newDiggitstaarMeshCount": 121,
+      "eachOpenedInTrimesh": true,
+      "allProductionApproved": false
+    },
+    "audio": {
+      "approvedAacSha256": "ddd63b3622dd7524af8d976d53d7c0afce7cd35a4af1f7c3ce88ba61afadb937",
+      "bytes": 6743732,
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "durationSeconds": 206.013,
+      "verifiedExact": true,
+      "privatelyStagedInArchive": true,
+      "authenticatedNativeArchiveReceiptVerified": false
+    }
+  },
+  "backend": {
+    "previewRenderServiceId": "srv-dc1v1cbl550s73fl70u0",
+    "previewCommitDeployed": "7dfc98f180856ceae0567d7a5be296dea0c8c5eb",
+    "deployStatus": "Deploy succeeded | Live",
+    "liveReadOnlySecurityChecks": {
+      "passed": 9,
+      "total": 9
+    },
+    "additionalBackendUnitTests": {
+      "passed": 21,
+      "failed": 0
+    },
+    "securityPatch": "Disallow CORS on missing AUTH_APP_URL instead of fallback wildcard",
+    "productionAtlasUser": "staarwardd_guardian_prod_app",
+    "productionAtlasRole": "readWrite@staarwardd_guardian_production",
+    "productionDbPasswordLocation": "Private owner-controlled cloud computer protected file, never in GitHub",
+    "productionBlueprint": "render.production.example.yaml",
+    "productionServiceLive": false,
+    "productionDatabaseConnectionReadbackVerified": false,
+    "backupProvisioned": false,
+    "atlasFreeTierBackupStatus": "OFF",
+    "productionCertified": false
+  },
+  "authentication": {
+    "dedicatedGoogleOAuthClientConfigured": true,
+    "liveRedirectPkcePass": true,
+    "actualGoogleAuthenticationStatus": "Requires account holder passkey; cloud computer has no registered passkeys for staarwardd@gmail.com",
+    "completeCallbackObserved": false,
+    "realApiAuthMeReadbackObserved": false,
+    "endToEndGoogleCertified": false
+  },
+  "release": {
+    "unsignedNativeCompile116PreviouslyPassed": true,
+    "sourceFrontendTestsPreviouslyPassed": 372,
+    "signedIpaCreated": false,
+    "testFlightSubmitted": false,
+    "physicalIphoneWatchCertified": false,
+    "productionReleaseAuthorized": false,
+    "openSecurityRisks": [
+      "No production backup/recovery plan",
+      "Production service not yet connected",
+      "Real account passkey/session verification outstanding",
+      "Model-specific founder/device/rights evidence incomplete",
+      "AAC not observed in signed uploaded archive"
+    ]
+  },
+  "instruction": "Do not silently convert the recovered QA models or the new composite Guardian into approved production models. Preserve all prior creative approvals, but verify each new binary and real iPhone/Watch session independently."
+}
