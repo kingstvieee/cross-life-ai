@@ -52,7 +52,7 @@ export function validateLightColour(input: LightColour): Record<string, unknown>
   return body;
 }
 export async function setHomeLightColour(credentials: HomeCredentials, entity: string, colour: LightColour, signal?: AbortSignal, transport: typeof fetch = fetch) {
-  if (!/^light\\.[a-z0-9_]+$/.test(entity)) throw new Error('Only a verified light can be controlled here.');
+  if (!/^light\.[a-z0-9_]+$/.test(entity)) throw new Error('Only a verified light can be controlled here.');
   const origin = homeOrigin(credentials.origin);
   const response = await transport(origin + '/api/services/light/turn_on', {
     method: 'POST', signal, redirect: 'error',
