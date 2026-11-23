@@ -43,6 +43,21 @@ EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
+# Operational readiness checks use real MongoDB connectivity, not static success.
+# Never expose credentials, account IDs, or database hostnames.
+@app.get("/api/health/live", tags=["operations"])
+async def guardian_liveness():
+    return {"status": "alive", "service": "staarwardd-guardian"}
+
+@app.get("/api/health/ready", tags=["operations"])
+async def guardian_readiness():
+    try:
+        await asyncio.wait_for(db.command("ping"), timeout=3.0)
+    except Exception:
+        raise HTTPException(status_code=503, detail="database_unavailable")
+    return {"status": "ready", "database": "connected", "service": "staarwardd-guardian"}
+
+
 # ============================================================
 # STATIC CONFIG
 # ============================================================
