@@ -17,7 +17,7 @@ import { GuardianNotifications } from "@/components/staarwardd/guardian-notifica
 import { GuardianVoiceDock } from "@/components/staarwardd/guardian-voice-dock";
 import { DemoTimerBadge, DemoTimerProvider } from "@/lib/staarwardd/demo-timer";
 
-LogBox.ignoreAllLogs(true);
+// Preserve native runtime warnings so QA can detect scene, navigation and auth failures.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
