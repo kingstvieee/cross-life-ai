@@ -31,7 +31,7 @@ test('Internal iPhone preview source-only readiness passes while explicitly deny
 test('Internal iPhone build workflow is manual, owner-approved and never silently pushes TestFlight',async()=>{
  const wf=await read('.eas/workflows/iphone-qa-preview.yml');
  assert.match(wf,/on:\s*\n\s*workflow_dispatch:/);
- assert.match(wf,/1\.0\.4 \(109\) - INTERNAL IPHONE QA ONLY/);
+ assert.match(wf,/1\.0\.4 \(116\) - INTERNAL IPHONE QA ONLY/);
  assert.match(wf,/uses: eas\/checkout/);
  assert.match(wf,/node scripts\/verify-internal-iphone-qa-preview\.mjs/);
  assert.match(wf,/owner_build_approval:[\s\S]*?needs: \[preflight\][\s\S]*?type: require-approval/);
