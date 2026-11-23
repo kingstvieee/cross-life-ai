@@ -27,11 +27,26 @@ workflows:
       - name: Download and authenticate PRIVATE encrypted 3D assets
         script: |
           set -eu
+          # Fail before network activity or build work if the protected key is absent.
+          if [ -z "${STAAR_PRIVATE_B110_KEY:-}" ]; then
+            echo "BLOCKED: STAAR_PRIVATE_B110_KEY is not provisioned in the Codemagic environment group." >&2
+            exit 1
+          fi
+          case "$STAAR_PRIVATE_B110_KEY" in
+            *[!0-9a-fA-F]*|'') echo "BLOCKED: invalid private-key format." >&2; exit 1 ;;
+          esac
+          if [ "${#STAAR_PRIVATE_B110_KEY}" -ne 64 ]; then
+            echo "BLOCKED: private key must be 64 hexadecimal characters." >&2
+            exit 1
+          fi
+          PRIVATE_ARCHIVE=$(mktemp /tmp/staar-private-110.XXXXXXXX.enc)
+          trap 'rm -f "$PRIVATE_ARCHIVE"' EXIT
           curl --fail --silent --show-error -L --retry 3 \
             'https://drive.google.com/uc?export=download&id=1E-bR8B2V_o33Mb519iA6ea_ouCM_gUWV' \
-            -o /tmp/STAAR_PRIVATE_110.enc
-          node scripts/decrypt-private-b110.mjs /tmp/STAAR_PRIVATE_110.enc
-          rm -f /tmp/STAAR_PRIVATE_110.enc
+            -o "$PRIVATE_ARCHIVE"
+          node scripts/decrypt-private-b110.mjs "$PRIVATE_ARCHIVE"
+          rm -f "$PRIVATE_ARCHIVE"
+          trap - EXIT
           cd frontend
           node scripts/stage-private-guardian-b250-qa.mjs
           node --input-type=module -e "import('./scene-src/internal-ten-world-qa.mjs').then(m=>m.loadInternalTenWorldQaAssets(process.cwd()+'/scene-src').then(w=>{if(Object.keys(w).length!==10)throw Error('ten_worlds_missing');console.log('10 GLBs hash verified')}))"
