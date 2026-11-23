@@ -152,6 +152,7 @@ workflows:
           set -eu
           cd frontend
           node scripts/verify-production-package.mjs
+          node scripts/verify-live-production-backend.mjs
       - name: Install dependencies and verify ten-portal home
         script: |
           cd frontend
