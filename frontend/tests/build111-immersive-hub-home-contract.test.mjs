@@ -8,8 +8,8 @@ test('The signed-in homepage contains ten direct portals and a Guardian-only sce
  const [src, entry] = await Promise.all([home(), route()]);
  assert.match(entry, /<WorldHub/);
  assert.match(src, /<WorldScene world="hub" embedded guardianPresentation/);
- assert.match(src, /WORLDS\.slice\(0, 5\)\.map\(renderPortal\)/);
- assert.match(src, /WORLDS\.slice\(5, 10\)\.map\(renderPortal\)/);
+ assert.match(src, /WORLDS\.slice\(0, 5\)\.map\(\(world, index\) => renderPortal\(world, index\)\)/);
+ assert.match(src, /WORLDS\.slice\(5, 10\)\.map\(\(world, index\) => renderPortal\(world, index \+ 5\)\)/);
  assert.match(src, /onPress=\{\(\) => openPortal\(world\.id\)\}/);
  assert.match(src, /toronto-skyline-pan\.png/);
  assert.doesNotMatch(src, /ENTER FULL 3D HUB|<GuardianCharacter\b/);
