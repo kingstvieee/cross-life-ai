@@ -27,6 +27,7 @@ import { JudgeDemo } from "@/components/staarwardd/judge-demo";
 import { fetchGuardianLine, playGuardianLine } from "@/lib/staarwardd/guardian-tts";
 import { useDemoTimer } from "@/lib/staarwardd/demo-timer";
 import type { PortalId } from "@/lib/staarwardd/types";
+import { COMPANIONS, speakCompanion, stopCompanion, type CompanionId } from "@/src/companions";
 
 export function CinematicHub({ greet = false }: { greet?: boolean }) {
   const { width } = useWindowDimensions();
@@ -181,7 +182,7 @@ export function CinematicHub({ greet = false }: { greet?: boolean }) {
             <Text style={styles.routineNote}>Voice is optional and off until Master + Voice are enabled. This routine uses only consented local preferences.</Text>
           </View>
           <View style={styles.legend}><Text style={styles.legendTitle}>{fieldAwake ? "A world is ready when you are." : "Begin by awakening the field."}</Text></View>
-          <Pressable accessibilityRole="button" onPress={() => setCompanionOpen(true)} style={styles.companion}><View style={styles.pedestal}><Text style={styles.pedestalMark}>◇</Text></View><View style={styles.companionCopy}><Text style={styles.companionKicker}>COMPANION FIELD</Text><Text style={styles.companionTitle}>Awaiting approved companion assets.</Text><Text style={styles.companionDetail}>No Kaia, Atlas, watch, or hardware connection is claimed in this build.</Text></View><Text style={styles.chevron}>›</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => setCompanionOpen(true)} style={styles.companion}><View style={styles.pedestal}><Text style={styles.pedestalMark}>◇</Text></View><View style={styles.companionCopy}><Text style={styles.companionKicker}>COMPANION FIELD</Text><Text style={styles.companionTitle}>Atlas / Kaia voice preview</Text><Text style={styles.companionDetail}>Select a companion and hear its voice. Device connection and animated 3D are not yet certified.</Text></View><Text style={styles.chevron}>›</Text></Pressable>
           <Text style={styles.note}>JUDGE PATH · Entrance → Live Crisis → Work → Style → Relationships → Scorecard</Text>
         </ScrollView>
       </SafeAreaView>
@@ -261,7 +262,39 @@ function InfoModal({ open, onClose, onStart }: { open: boolean; onClose: () => v
 4 · Open Activity and Memory to inspect the consent-first audit trail.
 
 The preview is local and honest: no hardware or external action is claimed.</Text><Pressable accessibilityRole="button" accessibilityLabel="Start judge demo with Work" onPress={onStart} style={styles.modalButton}><Text style={styles.modalButtonText}>START WITH WORK →</Text></Pressable><Pressable accessibilityRole="button" onPress={onClose} style={styles.modalSecondary}><Text style={styles.modalSecondaryText}>CLOSE</Text></Pressable></View></View></Modal>; }
-function CompanionModal({ open, onClose }: { open: boolean; onClose: () => void }) { return <Modal transparent visible={open} animationType="slide" onRequestClose={onClose}><View style={styles.back}><View style={styles.modal}><Text style={styles.modalKicker}>COMPANION FIELD</Text><Text style={styles.modalTitle}>Approved companion visuals required.</Text><Text style={styles.modalCopy}>Kaia, Atlas, and STAARWAARDD watch visual files are not available in this project. This field remains intentionally unavailable until approved assets and the entitlement-backed device protocol are supplied.</Text><Pressable accessibilityRole="button" onPress={onClose} style={styles.modalButton}><Text style={styles.modalButtonText}>CLOSE</Text></Pressable></View></View></Modal>; }
+function CompanionModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [selected, setSelected] = useState<Exclude<CompanionId, "guardian">>("atlas");
+  const [voiceStatus, setVoiceStatus] = useState("Select a companion to preview its voice.");
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => { if (!open) { void stopCompanion(); setPlaying(false); } }, [open]);
+  const close = () => { void stopCompanion(); setPlaying(false); onClose(); };
+  const preview = async () => {
+    setPlaying(true); setVoiceStatus("Loading voice preview...");
+    try {
+      await speakCompanion("", selected, () => { setPlaying(false); setVoiceStatus("Voice preview complete."); });
+    } catch {
+      setVoiceStatus("Voice preview unavailable. Please try again.");
+      setPlaying(false);
+    }
+  };
+  return <Modal transparent visible={open} animationType="slide" onRequestClose={close}>
+    <View style={styles.back}><View style={styles.modal}>
+      <Text style={styles.modalKicker}>COMPANION FIELD · VOICE PREVIEW</Text>
+      <Text style={styles.modalTitle}>Choose your companion</Text>
+      <Image source={require("@/assets/images/staarwardd/atlas-kaia-locked.jpeg")} resizeMode="contain" accessible accessibilityLabel="Atlas and Kaia companion reference artwork" style={{ width: "100%", height: 148, marginTop: 12 }} />
+      <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+        {COMPANIONS.map(person => <Pressable key={person.id} accessibilityRole="button" accessibilityState={{ selected: selected === person.id }} onPress={() => { void stopCompanion(); setPlaying(false); setSelected(person.id); setVoiceStatus(person.desc); }} style={{ flex: 1, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: selected === person.id ? "#E8C86F" : "#52617B", backgroundColor: selected === person.id ? "#293452" : "#18243A" }}>
+          <Text style={{ color: "#F4F7FF", fontWeight: "800", textAlign: "center" }}>{person.name}</Text>
+        </Pressable>)}
+      </View>
+      <Text style={styles.modalCopy}>{COMPANIONS.find(person => person.id === selected)?.preview}</Text>
+      <Text accessibilityLiveRegion="polite" style={styles.modalCopy}>{voiceStatus}</Text>
+      <Pressable accessibilityRole="button" disabled={playing} onPress={() => { void preview(); }} style={[styles.modalButton, playing && { opacity: 0.6 }]}><Text style={styles.modalButtonText}>{playing ? "PLAYING..." : "HEAR VOICE PREVIEW"}</Text></Pressable>
+      <Text style={styles.modalCopy}>Reference artwork and voice preview only. The 3D holograms, animations, Watch connection and device acceptance remain uncertified.</Text>
+      <Pressable accessibilityRole="button" onPress={close} style={styles.modalSecondary}><Text style={styles.modalSecondaryText}>CLOSE</Text></Pressable>
+    </View></View>
+  </Modal>;
+}
 
 const HUB_PORTAL_ART: Record<string, any> = {
   creativity: require("@/assets/images/staarwardd/portal-creativity-v7.webp"),
