@@ -1,0 +1,51 @@
+# STAARHUB isolated production service — configuration template, NOT DEPLOYED.
+# Provision only after actual MongoDB prod access, Auth0 callback, backup policy
+# and real account readback are independently verified. No secrets in source.
+services:
+  - type: web
+    name: staarwardd-guardian-production
+    runtime: docker
+    plan: free
+    branch: integration/final-3d-hub
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health/ready
+    autoDeployTrigger: off
+    envVars:
+      - key: MONGO_URL
+        sync: false
+      - key: DB_NAME
+        value: staarwardd_guardian_production
+      - key: AUTH_APP_URL
+        value: https://staarwardd-guardian-production.onrender.com
+      - key: AUTH_CALLBACK_URL
+        value: https://staarwardd-guardian-production.onrender.com/api/auth/callback
+      - key: AUTH_NATIVE_REDIRECT_URL
+        value: frontend://auth-complete
+      - key: AUTH_AUTHORIZE_URL
+        value: https://staarwaardd-hub.ca.auth0.com/authorize
+      - key: AUTH_TOKEN_URL
+        value: https://staarwaardd-hub.ca.auth0.com/oauth/token
+      - key: AUTH_USERINFO_URL
+        value: https://staarwaardd-hub.ca.auth0.com/userinfo
+      - key: AUTH_ISSUER
+        value: https://staarwaardd-hub.ca.auth0.com/
+      - key: AUTH_CLIENT_ID
+        sync: false
+      - key: AUTH_CLIENT_SECRET
+        sync: false
+      - key: AUTH_CONNECTION_GOOGLE
+        value: google-oauth2
+      - key: AUTH_CONNECTION_EMAIL
+        value: Username-Password-Authentication
+      - key: GUARDIAN_GITHUB_REPO
+        value: kingstvieee/cross-life-ai
+      - key: GUARDIAN_GITHUB_READ_TOKEN
+        sync: false
+      - key: GUARDIAN_PREVIEW_ENABLED
+        value: "false"
+      - key: ENABLE_LEGACY_EMERGENT_AUTH
+        value: "false"
+# Free Render and Atlas tiers do not provide production-grade backup/uptime.
+# Launch remains held until backup/recovery is funded and actually tested.
+# A draft blueprint and least-privilege Atlas account are NOT a live endpoint.
