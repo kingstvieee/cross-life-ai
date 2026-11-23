@@ -349,79 +349,7 @@ if (renderer) {
   function shell(day=false) {floor(13,day?white:black);skyline(day);for(let i=-3;i<=3;i++){cylinder(i*3.6,3.6,-8,.13,7.2);box(i*3.6,3.6,-8,.04,7.2,.3,gold);}for(const r of[5.5,6,6.5]){ring(0,7.6,-1,r,.1,chrome,true);ring(0,7.49,-1,r-.15,.025,day?amber:blue,true);}for(const x of[-10,10]){tree(x,-5);tree(x,2);}}
   function sofa(x,z,a=0,mat=white) {const g=new T.Group();g.position.set(x,0,z);g.rotation.y=a;scene.add(g);box(0,.5,0,3.7,.55,1.25,mat,g);box(0,1.1,-.56,3.7,.9,.25,mat,g);for(const side of[-1,1])box(side*1.9,.85,0,.25,.8,1.4,mat,g);for(let i=-1;i<=1;i++)box(i*1.15,.82,.02,1.06,.12,1.05,mat,g);for(const x of[-1.5,1.5])for(const z of[-.4,.4])cylinder(x,.13,z,.06,.28,gold,g);return g;}
   function island(x,y,z,r=2,mat=green) {mesh(new T.ConeGeometry(r,r*1.6,7),black,x,y-r*.8,z);cylinder(x,y+.02,z,r,.15,mat);waterfall(x+r*.4,y-1.7,z+r*.6,3.5);}
-  function mountGuardianWings(guardian, bounds, height) {
-    const chest = guardian.getObjectByName('B230_QA_Joint_Chest');
-    if (!chest?.isBone) return null;
-    guardian.updateWorldMatrix(true, true);
-    const mount = new T.Group();
-    mount.name = 'Guardian_UpperBack_Mount';
-    const bodyCentre = bounds.getCenter(new T.Vector3());
-    mount.position.copy(guardian.localToWorld(
-      new T.Vector3(bodyCentre.x, bounds.min.y + height * .74, bodyCentre.z),
-    ));
-    const unit = height * guardian.scale.x / 7.73;
-    mount.position.z -= .62 * unit;
-    mount.scale.setScalar(unit);
-    // Attach before posing the torso, preserving the mount's world orientation.
-    chest.attach(mount);
 
-    const feather = new T.Shape();
-    feather.moveTo(-.16, 0);
-    feather.bezierCurveTo(-.37, .48, -.15, .83, 0, 1);
-    feather.bezierCurveTo(.22, .80, .38, .38, .15, 0);
-    feather.closePath();
-    const geometry = new T.ExtrudeGeometry(feather, {
-      depth: .035, bevelEnabled: true, bevelSize: .024, bevelThickness: .018,
-      bevelSegments: 1, curveSegments: 5,
-    });
-    const finishes = [
-      new T.MeshStandardMaterial({ color: 0xded3b8, roughness: .38, metalness: .14 }),
-      new T.MeshStandardMaterial({ color: 0xa6b2c1, roughness: .27, metalness: .83 }),
-      new T.MeshStandardMaterial({ color: 0x1c252e, roughness: .25, metalness: .87 }),
-    ];
-    const light = new T.MeshStandardMaterial({
-      color: 0xdbefff, emissive: 0xb7dcff, emissiveIntensity: 1.7,
-    });
-    const pose = new T.Object3D();
-    const sides = [-1, 1].map(sign => {
-      const shoulder = new T.Group();
-      const tip = new T.Group();
-      shoulder.position.x = sign * .32;
-      tip.position.set(sign * 1.5, .85, -.12);
-      mount.add(shoulder);
-      shoulder.add(tip);
-      for (const [panel, start, count] of [[shoulder, 0, 5], [tip, 5, 7]]) {
-        for (let row = 0; row < finishes.length; row++) {
-          const feathers = new T.InstancedMesh(geometry, finishes[row], count);
-          for (let i = 0; i < count; i++) {
-            const t = (start + i) / 11;
-            const x = .24 + 3.15 * t - (start ? 1.5 : 0);
-            const y = .2 + 1.3 * t + .24 * Math.sin(t * Math.PI) - (start ? .85 : 0);
-            pose.position.set(sign * x, y - row * .13, -.13 - row * .11);
-            pose.rotation.set(0, 0, -sign * (2.72 - .94 * t));
-            pose.scale.set(.78 - row * .09, (1.08 + t * .68) * (1 - row * .18), 1);
-            pose.updateMatrix();
-            feathers.setMatrixAt(i, pose.matrix);
-          }
-          panel.add(feathers);
-        }
-        const seam = new T.Mesh(new T.CapsuleGeometry(.028, start ? 1.8 : 1.25, 2, 6), light);
-        seam.position.set(sign * (start ? .9 : .73), start ? .35 : .53, -.095);
-        seam.rotation.z = -sign * 1.03;
-        panel.add(seam);
-      }
-      return { sign, shoulder, tip };
-    });
-    return (progress, bank = 0, hover = 0) => {
-      const open = T.MathUtils.smoothstep(progress, .08, .62);
-      for (const { sign, shoulder, tip } of sides) {
-        shoulder.rotation.y = sign * (1.22 - open * 1.08);
-        tip.rotation.y = sign * (.74 - open * .62);
-        shoulder.rotation.z = open * (.14 * bank + .035 * hover * sign);
-        tip.rotation.z = open * (.09 * bank + .025 * hover * sign);
-      }
-    };
-  }
 
   function approvedArmoredGuardian() {
     // The binary is bundled offline ONLY after build-time face/armour/signoff verification.
@@ -482,8 +410,8 @@ if (renderer) {
           const flight = new T.Group();
           scene.add(flight);
           flight.add(guardian);
-          const poseWings = mountGuardianWings(guardian, bounds, dimensions.y);
-          poseWings?.(reduced ? 1 : 0);
+          
+          
           if (reduced) guardianArrivalPending = true;
           else {
             const arrivalPath = new T.CubicBezierCurve3(
@@ -534,7 +462,7 @@ if (renderer) {
                   ));
                 }
               }
-              poseWings?.(progress, bank, arrived ? Math.sin((time - hoverStart) * 2.2) : 0);
+              
               if (progress < 1) return;
               if (!arrived) {
                 arrived = true;
@@ -549,7 +477,7 @@ if (renderer) {
           }
         } else {
           scene.add(guardian);
-          if (internal) mountGuardianWings(guardian, bounds, dimensions.y)?.(1);
+          
         }
         modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
         // The internal branch is source-hash pinned but NEVER an Apple
