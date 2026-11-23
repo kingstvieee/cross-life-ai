@@ -1,0 +1,52 @@
+name: Convert portal artwork to JPEG
+on:
+  push:
+    branches: [integration/final-3d-hub]
+    paths:
+      - 'frontend/scene-src/portal-art/*.png'
+      - '.github/workflows/portal-art-jpeg-conversion.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install Pillow==11.3.0
+      - name: Convert ten portal source images
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          folder = Path('frontend/scene-src/portal-art')
+          names = ['home','work','creativity','wellbeing','relationships','events','style','staarverse','staarsonic','diggitstaar']
+          for name in names:
+              source = folder / f'{name}.png'
+              if not source.is_file():
+                  raise SystemExit(f'Missing required source: {source}')
+              with Image.open(source) as im:
+                  if im.mode in ('RGBA','LA') or 'transparency' in im.info:
+                      rgba = im.convert('RGBA')
+                      background = Image.new('RGB', rgba.size, (8,10,18))
+                      background.paste(rgba, mask=rgba.getchannel('A'))
+                      image = background
+                  else:
+                      image = im.convert('RGB')
+                  image.save(folder / f'{name}.jpg', 'JPEG', quality=94, optimize=True, subsampling=0)
+          assert len(list(folder.glob('*.jpg'))) >= 10
+          PY
+      - name: Commit generated JPEG binaries
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/scene-src/portal-art/*.jpg
+          if ! git diff --cached --quiet; then
+            git commit -m "Add ten real JPEG portal assets"
+            git push
+          fi
