@@ -30,11 +30,14 @@ export function evaluateIphoneQaPreview({app,eas,sceneHost,qaBoundary,qaArchive,
  require(exact(eas?.build?.preview?.ios?.simulator,false),'preview_not_physical_device');
  require(exact(eas?.build?.preview?.env?.EXPO_PUBLIC_GUARDIAN_DEVICE_QA,'1'),'guardian_qa_disabled');
  require(exact(eas?.build?.preview?.env?.EXPO_PUBLIC_WORLD_COLLISION_QA,'1'),'world_qa_disabled');
+ require(exact(eas?.build?.preview?.env?.STAAR_PRIVATE_DEVICE_QA_BUILD,'1'),'private_qa_bundle_disabled');
  require(exact(eas?.build?.production?.distribution,'store'),'production_profile_changed');
  require(exact(eas?.build?.production?.env?.EXPO_PUBLIC_GUARDIAN_DEVICE_QA,'0'),
    'guardian_qa_enabled_in_production');
  require(exact(eas?.build?.production?.env?.EXPO_PUBLIC_WORLD_COLLISION_QA,'0'),
    'world_qa_enabled_in_production');
+ require(eas?.build?.production?.env?.STAAR_PRIVATE_DEVICE_QA_BUILD !== '1',
+   'private_qa_enabled_in_production');
  require(exact(String(eas?.submit?.production?.ios?.ascAppId),EXPECTED_APP.ascAppId),
    'app_store_submission_target_changed');
  require(isRecord(eas?.build?.development)&&
