@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { loadApprovedArmoredGuardianAsset } from './approved-guardian-asset.mjs';
 import { loadApprovedWorldAssets } from './approved-world-assets.mjs';
-import { loadInternalGuardianQaAsset } from './internal-guardian-qa.mjs';
-import {loadInternalTenWorldQaAssets} from './internal-ten-world-qa.mjs';
+import { loadInternalGuardianQaAsset, isInternalGuardianQaBuild } from './internal-guardian-qa.mjs';
+import {loadInternalTenWorldQaAssets, isWorldQaBuild} from './internal-ten-world-qa.mjs';
 
 const root=path.dirname(fileURLToPath(import.meta.url));
 const approvedGuardian=await loadApprovedArmoredGuardianAsset(root);
@@ -14,6 +14,17 @@ const guardianData=approvedGuardian ? JSON.stringify(approvedGuardian) : 'null';
 // physical-iPhone preview; production never receives its private base64 bytes.
 // Only explicit private-device QA builds may embed private model bytes.
 const privateQaBuild = process.env.STAAR_PRIVATE_DEVICE_QA_BUILD === '1';
+// Both public profile flags and EAS's internal build profile must match.
+// A stale shell environment must never turn private files into a release bundle.
+if (privateQaBuild && (!isInternalGuardianQaBuild() || !isWorldQaBuild())) {
+  throw new Error('Private 3D QA mode requires the exact registered-iPhone preview profile');
+}
+// Even with the private QA switch off, refuse accidentally staged private files
+// from any production source checkout rather than trusting the bundler to omit them.
+if (process.env.EAS_BUILD_PROFILE === 'production') {
+  await loadInternalGuardianQaAsset(root);
+  await loadInternalTenWorldQaAssets(root);
+}
 const privateGuardianQa = privateQaBuild ? await loadInternalGuardianQaAsset(root) : null;
 const internalHomeReview = privateQaBuild && Boolean(privateGuardianQa) && process.env.STAAR_INTERNAL_HOME_REVIEW === '1';
 const privateGuardianData = privateGuardianQa ? JSON.stringify(privateGuardianQa) : 'null';
