@@ -1,6 +1,6 @@
 workflows:
-  staar-home-review-115:
-    name: STAAR Hub 115 — Ten Portal Home Correction — Internal TestFlight
+  staar-home-reconciliation-preflight:
+    name: STAAR Hub — Claude redesign reconciliation preflight (no publishing)
     instance_type: mac_mini_m2
     max_build_duration: 120
     triggering:
@@ -8,6 +8,8 @@ workflows:
     integrations:
       app_store_connect: STAAR Codemagic QA 109
     environment:
+      groups:
+        - staar-private-110
       node: 22
       xcode: 26.6
       ios_signing:
@@ -18,25 +20,41 @@ workflows:
       vars:
         EAS_BUILD_PROFILE: preview
         STAAR_IPHONE_ONLY_QA: '1'
+        EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '1'
+        EXPO_PUBLIC_WORLD_COLLISION_QA: '1'
         EXPO_PUBLIC_BACKEND_URL: https://cross-life-ai.emergent.host
     scripts:
-      - name: Set iPhone internal review build number 115
+      - name: Authenticate and validate private QA assets before native build
+        script: |
+          set -eu
+          test -n "${STAAR_PRIVATE_B110_KEY:-}" || { echo 'Missing private decryption key' >&2; exit 1; }
+          case "$STAAR_PRIVATE_B110_KEY" in *[!0-9a-fA-F]*|'') exit 1;; esac
+          test "${#STAAR_PRIVATE_B110_KEY}" -eq 64
+          PRIVATE_ARCHIVE=$(mktemp /tmp/staar-private-qa.XXXXXXXX.enc)
+          trap 'rm -f "$PRIVATE_ARCHIVE"' EXIT
+          curl --fail --silent --show-error -L --retry 3 'https://drive.google.com/uc?export=download&id=1E-bR8B2V_o33Mb519iA6ea_ouCM_gUWV' -o "$PRIVATE_ARCHIVE"
+          node scripts/decrypt-private-b110.mjs "$PRIVATE_ARCHIVE"
+          cd frontend
+          node scripts/stage-private-guardian-b250-qa.mjs
+          node --input-type=module -e "import('./scene-src/internal-ten-world-qa.mjs').then(m=>m.loadInternalTenWorldQaAssets(process.cwd()+'/scene-src').then(w=>{if(Object.keys(w).length!==10)throw Error('ten_worlds_missing');console.log('10 private world GLBs verified')}))"
+          node scripts/prepare-private-b250-qa-archive.mjs prepare
+      - name: Require explicitly approved unused post-115 build number
         script: |
           cd frontend
           node - <<'NODE'
           const fs=require('node:fs');
-          const name='app.json',data=JSON.parse(fs.readFileSync(name,'utf8'));
-          if(data.expo.version!=='1.0.4'||data.expo.ios.buildNumber!=='109')
-            throw Error('Incorrect base version — refuse to build with duplicate number');
-          data.expo.ios.buildNumber='115';
-          fs.writeFileSync(name,JSON.stringify(data,null,2)+'\n');
+          const n=Number(process.env.STAAR_NEXT_IOS_BUILD);
+          if(!Number.isSafeInteger(n)||n<=115) throw Error('Set STAAR_NEXT_IOS_BUILD to an Apple-confirmed unused number above 115');
+          const p='app.json',d=JSON.parse(fs.readFileSync(p,'utf8'));
+          d.expo.ios.buildNumber=String(n);
+          fs.writeFileSync(p,JSON.stringify(d,null,2)+'\\n');
           NODE
       - name: Install dependencies and verify ten-portal home
         script: |
           cd frontend
           corepack enable
           yarn install --frozen-lockfile
-          node --test tests/ten-portal-home-contract.test.mjs tests/guardian-audio-visual.test.mjs
+          node --test tests/ten-portal-home-contract.test.mjs tests/guardian-audio-visual.test.mjs tests/build252-private-b250-iphone-qa-loader.test.mjs tests/build252-private-preview-archive-policy.test.mjs
       - name: Native iOS prebuild
         script: |
           cd frontend
@@ -64,3 +82,5 @@ workflows:
         auth: integration
         # Upload internal-only builds without requesting external beta review.
         submit_to_testflight: false
+        submit_to_app_store: false
+        beta_groups: []
