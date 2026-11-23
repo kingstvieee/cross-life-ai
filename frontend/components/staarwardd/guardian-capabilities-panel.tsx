@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
+import type { PortalId } from '@/lib/staarwardd/types';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { VIDEO_COMPONENTS } from '@/lib/staarwardd/video-intelligence';
-import { CAPABILITY_HANDLERS, emergencyState, emergencyLights, registryCoverage } from '@/lib/staarwardd/video-capabilities';
-type Portal = 'home'|'work'|'community'|'health'|'style'|'creativity';
+import { emergencyState, emergencyLights, registryCoverage } from '@/lib/staarwardd/video-capabilities';
+type Portal = PortalId | 'health' | 'community';
 const offlineGuidance = [
  {id:'power',title:'Power outage',body:'Use battery-powered lighting. Keep generators outdoors, away from windows and doors. Check local emergency guidance.',source:'https://www.getprepared.gc.ca/',reviewedAt:'2026-11-23',licensed:true,category:'preparedness' as const},
  {id:'medical',title:'First-aid reference',body:'For immediate danger call local emergency services. Consult official first-aid guidance; this summary is not clinical instruction.',source:'https://www.redcross.ca/training-and-certification/first-aid-tips-and-resources',reviewedAt:'2026-11-23',licensed:true,category:'first-aid' as const}
