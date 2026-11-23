@@ -55,10 +55,16 @@ workflows:
         script: |
           set -euo pipefail
           cd frontend
-          WORKSPACE=$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)
-          [ -n "$WORKSPACE" ] || { echo 'Missing native iOS workspace' >&2; exit 1; }
-          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
-          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -sdk iphonesimulator -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO SWIFT_VERSION=5.0 build | tee /tmp/staar116-native-compile.log | tail -35
+          # Do not force -sdk iphonesimulator: it incorrectly builds the
+          # companion Watch target against the iOS SDK and requires iOS-only
+          # WCSessionDelegate methods during Watch Swift compilation.
+          # This helper lets Xcode choose iOS/watchOS SDKs per native target.
+          if node scripts/build-ios-simulator.cjs > /tmp/staar116-native-compile.log 2>&1; then
+            tail -35 /tmp/staar116-native-compile.log
+          else
+            tail -115 /tmp/staar116-native-compile.log >&2
+            exit 1
+          fi
     artifacts:
       - /tmp/staar116-native-compile.log
       - /tmp/xcodebuild_logs/*.log
