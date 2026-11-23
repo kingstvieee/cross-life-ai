@@ -19,6 +19,10 @@ workflows:
         EAS_BUILD_PROFILE: preview
         EXPO_PUBLIC_BACKEND_URL: https://cross-life-ai.emergent.host
     scripts:
+      - name: Certify locked portal artwork, guest access and companion evidence
+        script: |
+          set -eu
+          node scripts/audit-locked-portal-visuals.mjs
       - name: Stage separately approved production assets from protected delivery
         script: |
           set -eu
