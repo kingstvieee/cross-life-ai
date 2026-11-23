@@ -30,7 +30,7 @@ test('signed TestFlight workflow does not stage the unapproved B250 QA Guardian'
  assert.match(yaml, /loadApprovedArmoredGuardianAsset/);
  assert.match(yaml, /loadApprovedWorldAssets/);
  assert.match(yaml, /triggering:\s*\n\s*events: \[\]/);
- assert.match(yaml, /submit_to_testflight: false/);
+ assert.doesNotMatch(yaml, /publishing:/);
  assert.match(yaml, /STAAR_NEXT_IOS_BUILD/);
  assert.doesNotMatch(yaml, /STAAR_IPHONE_ONLY_QA: '1'/);
  assert.doesNotMatch(yaml, /EXPO_PUBLIC_GUARDIAN_DEVICE_QA/);
