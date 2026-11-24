@@ -1,5 +1,6 @@
 import {readFile,access} from 'node:fs/promises';
 import path from 'node:path';
+import {createHash} from 'node:crypto';
 const root=path.resolve('frontend');
 const read=async p=>readFile(path.join(root,p),'utf8');
 const required=['home','work','creativity','wellbeing','relationships','events','style','staarverse','staarsonic'];
@@ -15,7 +16,11 @@ for(const id of required){
  let exists=false;try{await access(path.join(root,file));exists=true;}catch{}
  check('locked artwork: '+id,exists&&hub.includes('locked/'+locked[id]+'.png')&&directory.includes(id),file);
 }
-check('DIGGITSTAAR distinct approved art',false,'Current hub references portal-work-chrome.webp; no separate locked DIGGITSTAAR master');
+const diggitArt='scene-src/portal-art/diggitstaar.png';
+const digest=async p=>createHash('sha256').update(await readFile(path.join(root,p))).digest('hex');
+let diggitDistinct=false;
+try {diggitDistinct=(await digest(diggitArt))!==(await digest('assets/images/staarwardd/locked/work.png')) && hub.includes('portal-art/diggitstaar.png') && portal.includes('portal-art/diggitstaar.png');} catch {}
+check('DIGGITSTAAR distinct art wired',diggitDistinct,'Dedicated PNG differs from Work art and is wired to both routes; owner approval remains separate');
 check('guest preview boundary',guest.includes('<WorldHub onSignIn=')&&hub.includes('if (onSignIn) { setInspectedPortal'), 'Static route/preview guard only; device navigation not certified');
 check('homepage 3D scene wired',hub.includes('<WorldScene world="hub" embedded'), 'Source wiring only; device render not certified');
 check('Atlas/Kaia locked reference',await access(path.join(root,'assets/images/staarwardd/atlas-kaia-locked.jpeg')).then(()=>true,()=>false),'Reference photo only; does not prove a holographic rig');
