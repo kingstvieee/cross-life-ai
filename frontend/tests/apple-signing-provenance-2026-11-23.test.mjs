@@ -33,11 +33,12 @@ test('new Watch App Store profile matches main App Store certificate and both ar
  assert.match(macVerifier,/WATCH_APP_SIGNED/);
 });
 
-test('new Codemagic release workflow remains manual, does not publish, and blocks unsafe backend',()=>{
+test('new Codemagic release workflow remains manual, publishes internal-only, and blocks unsafe backend',()=>{
  assert.match(codemagic,/events: \[\]/);
- assert.doesNotMatch(codemagic,/\n\s*publishing:/);
+ assert.match(codemagic,/submit_to_testflight: true/);
+ assert.match(codemagic,/testFlightInternalTestingOnly": true/);
  assert.match(codemagic,/STAAR_PRODUCTION_BACKEND_URL/);
- assert.match(codemagic,/verify-production-package\.mjs/);
+ assert.match(codemagic,/verify-live-production-backend\.mjs/);
  assert.match(codemagic,/verify-build220-ipa\.sh/);
  assert.doesNotMatch(codemagic,/EXPO_PUBLIC_BACKEND_URL: https:\/\/cross-life-ai\.emergent\.host/);
 });

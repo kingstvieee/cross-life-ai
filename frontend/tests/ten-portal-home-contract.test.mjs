@@ -15,10 +15,11 @@ test('ten distinct portals are ordered and navigable', async () => {
   assert.ok(runtime.includes(`'${id}'`), `runtime allowlist missing ${id}`);
  }
  assert.match(navigation, /DIGGITSTAAR/);
- assert.match(hub, /onThreeDimensionalPortalAction/);
+ // The ten portals live on the 3D ring (ids.forEach in worlds.js) and in the native list.
+ assert.match(hub, /WORLDS\.map\(world =>/);
  assert.doesNotMatch(hub, /guardian-poses\/guide\.png|guardianFallback/);
- assert.match(hub, /<WorldScene world="hub" embedded onAction=\{onThreeDimensionalPortalAction\}/);
- assert.match(hub, /lockedPortalArtwork/);
+ assert.match(hub, /<WorldScene world="hub" embedded/);
+ assert.match(scenes, /ids\.forEach\(\(id, i\) => \{\n      const alpha = Math\.PI - i \* HUB_STEP/);
  assert.match(scenes, /function diggitstaar\(/);
  assert.match(scenes, /diggitstaar\}\)\[world\]/);
 });

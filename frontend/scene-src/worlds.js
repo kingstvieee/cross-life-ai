@@ -15,6 +15,11 @@ import {applyGuardianSpeechFrame} from './guardian-speech-bridge.js';
 import {createGuardianDevicePerformanceProbe} from './guardian-device-performance.js';
 import {createGuardianNeckPoseProbe} from './guardian-neck-pose-probe.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { worldIds, worldNames, fallbackActions } from './navigation.js';
 
 const ids = worldIds;
@@ -28,7 +33,11 @@ if (guardianPresentation) {
   document.querySelector('header').hidden = document.querySelector('footer').hidden = true;
   document.querySelector('header').style.display = document.querySelector('footer').style.display = 'none';
 }
-const reduced = window.STAAR_REDUCE_GUARDIAN_MOTION === true || matchMedia('(prefers-reduced-motion: reduce)').matches;
+// The signed-in Home: a full-screen portal ring the React Native hub overlays
+// with its own header and controls. The HTML chrome stays reachable for
+// VoiceOver but is visually hidden while WebGL is healthy.
+const immersiveHub = world === 'hub' && !guardianPresentation;
+const reduced =window.STAAR_REDUCE_GUARDIAN_MOTION === true || matchMedia('(prefers-reduced-motion: reduce)').matches;
 const canvas = document.querySelector('canvas');
 const session = window.STAAR_SCENE_SESSION || '';
 const report = (type, data = {}) => {
@@ -37,6 +46,9 @@ const report = (type, data = {}) => {
   else parent.postMessage(event, '*');
 };
 const addNavigationFallback = () => {
+  // A failed hub must show its accessible fallback controls again.
+  document.body.classList.remove('hub-immersive');
+  document.querySelector('#hub-caption')?.remove();
   const actions = document.querySelector('#actions');
   if (!actions) return;
   actions.replaceChildren();
@@ -61,24 +73,42 @@ if (renderer) {
   const bright = ['work','wellbeing','style'].includes(world);
   scene.background = new T.Color(bright ? '#c8dcec' : '#020611');
   if (guardianPresentation) scene.background = null;
+  else if (immersiveHub) scene.fog = new T.Fog('#0b0a14', 34, 120);
   else scene.fog = new T.Fog(scene.background, 38, 150);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-  renderer.setSize(innerWidth, innerHeight);
-  renderer.toneMapping = T.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
-  const room = new RoomEnvironment(), pmrem = new T.PMREMGenerator(renderer);
-  const env = pmrem.fromScene(room, .04); scene.environment = env.texture; room.dispose(); pmrem.dispose();
-  scene.add(new T.HemisphereLight('#d6edff', '#392818', bright ? 3 : 1.6));
-  for (const [color, intensity, position] of [['#fff3dc',4,[6,15,9]],['#5daeff',2,[-10,5,-5]]]) {
+  // WKWebView can run this script before React Native has laid the web view out
+  // (0x0 or a stale size). Measure the canvas box, keep CSS at 100% and resize
+  // again from a ResizeObserver instead of trusting innerWidth once.
+  const viewportSize = () => [
+    Math.max(1, Math.round(canvas.clientWidth || innerWidth || document.documentElement.clientWidth || 1)),
+    Math.max(1, Math.round(canvas.clientHeight || innerHeight || document.documentElement.clientHeight || 1)),
+  ];
+  let [viewWidth, viewHeight] = viewportSize();
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, immersiveHub ? 2 : 1.5));
+  renderer.setSize(viewWidth, viewHeight, false);
+  // Hub: Khronos PBR Neutral keeps the skyline photo, portal artwork and brand colours
+  // faithful (no hue shift) while still rolling off bright highlights for bloom.
+  renderer.toneMapping = immersiveHub ? T.NeutralToneMapping : T.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = immersiveHub ? 1 : 1.1;
+  const env = immersiveHub ? hubEnvironment() : (() => {
+    const room = new RoomEnvironment(), pmrem = new T.PMREMGenerator(renderer);
+    const target = pmrem.fromScene(room, .04); room.dispose(); pmrem.dispose(); return target;
+  })();
+  scene.environment = env.texture;
+  scene.add(new T.HemisphereLight('#d6edff', '#392818', immersiveHub ? .35 : bright ? 3 : 1.6));
+  if (immersiveHub) scene.add(new T.AmbientLight('#cbd5ff', .45));
+  for (const [color, intensity, position] of immersiveHub
+    ? [['#ffe6c0',1.5,[6,15,9]],['#7cbcff',1.1,[-10,5,-5]]]
+    : [['#fff3dc',4,[6,15,9]],['#5daeff',2,[-10,5,-5]]]) {
     const light = new T.DirectionalLight(color, intensity); light.position.set(...position); scene.add(light);
   }
-  const camera = new T.PerspectiveCamera(48, innerWidth / innerHeight, .1, 180);
+  const camera = new T.PerspectiveCamera(48, viewWidth / viewHeight, .1, immersiveHub ? 700 : 180);
   camera.position.set(0,5.6,17);
   const controls = new OrbitControls(camera, canvas);
   controls.target.set(0,2.2,-1); controls.enableDamping = !reduced;
   controls.minDistance = 3; controls.maxDistance = 28; controls.maxPolarAngle = Math.PI*.48;
   const animated = [], clickable = [], modelMotions = [];
   let disposed = false;
+  let hubRig = null, hubStage = null, hubLoopReady = false, hubBloom = null;
   let guardianArrivalPending = false;
   let importedControls = [];
   let walkController = null;
@@ -367,8 +397,15 @@ if (renderer) {
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.physicalIphoneCertified===false
         ? window.STAAR_PRIVATE_GUARDIAN_QA_MODEL : null;
     const asset=internal??window.STAAR_APPROVED_GUARDIAN_MODEL;
-    const unavailable = () => { if (guardianPresentation && !disposed) report('guardian-unavailable'); };
+    const unavailable = () => {
+      if (disposed) return;
+      if (guardianPresentation) report('guardian-unavailable');
+      // The hub never shows an empty stage: an unapproved, missing or broken
+      // model falls back to the clearly labelled non-human Guardian core.
+      if (immersiveHub) { showGuardianPlaceholder(); if (hubLoopReady) requestDraw(); }
+    };
     if (!asset?.glbBase64 || asset.sourceImageSha256!=='d7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c') {
+      // Explicitly non-human, non-approved placeholder. Never substitute a different person's image.
       unavailable(); return;
     }
     try {
@@ -397,6 +434,8 @@ if (renderer) {
         // Centre approved full armour above the existing Guardian plinth, never crop the emblem.
         const centre=bounds.getCenter(new T.Vector3());
         guardian.position.set(-centre.x*scale,.6-bounds.min.y*scale,1.5-centre.z*scale);
+        // Immersive hub: stand on the centre of the portal ring, feet on the stage top.
+        if (immersiveHub) guardian.position.set(-centre.x*scale,HUB_STAGE_TOP-bounds.min.y*scale,-centre.z*scale);
         if (guardianPresentation) {
           const flight = new T.Group();
           scene.add(flight);
@@ -467,8 +506,8 @@ if (renderer) {
             });
           }
         } else {
-          scene.add(guardian);
-          
+          // In the hub the stage mount turns with the camera, so the Guardian keeps facing the viewer.
+          (immersiveHub && hubStage ? hubStage.mount : scene).add(guardian);
         }
         modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
         // The internal branch is source-hash pinned but NEVER an Apple
@@ -509,45 +548,1030 @@ if (renderer) {
       camera.position.set(0,3,9); controls.target.set(0,2.65,1.5);
       controls.enabled=false; approvedArmoredGuardian(); return;
     }
-    const artwork=window.STAAR_HUB_ARTWORK||{}, loader=new T.TextureLoader();
-    scene.fog=null;
-    if(artwork.skyline)loader.load(artwork.skyline,t=>{if(disposed){t.dispose();return;}t.colorSpace=T.SRGBColorSpace;scene.background=t;requestDraw();});
-    const silver=new T.MeshPhysicalMaterial({color:'#DCE4ED',metalness:.95,roughness:.17,clearcoat:1,clearcoatRoughness:.12,envMapIntensity:1.8});
-    const titanium=new T.MeshPhysicalMaterial({color:'#141A24',metalness:.85,roughness:.22,clearcoat:.9,envMapIntensity:1.5});
-    const goldTrim=new T.MeshPhysicalMaterial({color:'#DCC18B',metalness:.9,roughness:.2,emissive:'#A57B30',emissiveIntensity:.25});
-    const luminous=new T.MeshStandardMaterial({color:'#E1F5FF',emissive:'#A7DFFF',emissiveIntensity:2.2,metalness:.35,roughness:.2});
-    scene.add(new T.AmbientLight('#C5D8F4',.65));
-    const centralLight=new T.PointLight('#BCE8FF',90,35,2);centralLight.position.set(0,5,0);scene.add(centralLight);
-    const keyLight=new T.SpotLight('#FFF1D3',140,45,Math.PI/4,.65,2);keyLight.position.set(0,12,8);scene.add(keyLight,keyLight.target);
-    cylinder(0,-.25,0,15,.45,titanium);
-    for(const r of [3,6,10,14.8])ring(0,.02,0,r,.025,goldTrim,true);
-    cylinder(0,.18,2.8,2.2,.36,silver);cylinder(0,.48,2.8,1.95,.26,titanium);ring(0,.65,2.8,1.85,.045,luminous,true);
-    const pedestal=mesh(new T.CylinderGeometry(.85,1.45,.9,8),titanium,0,1.05,2.8);
-    pedestal.add(new T.LineSegments(new T.EdgesGeometry(pedestal.geometry),new T.LineBasicMaterial({color:'#B9E6FF'})));
-    const hc=document.createElement('canvas');hc.width=hc.height=128;const ctx=hc.getContext('2d'),gradient=ctx.createRadialGradient(64,64,0,64,64,64);
-    gradient.addColorStop(0,'rgba(160,220,255,.45)');gradient.addColorStop(.4,'rgba(100,180,255,.18)');gradient.addColorStop(1,'rgba(100,180,255,0)');ctx.fillStyle=gradient;ctx.fillRect(0,0,128,128);
-    const glow=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(hc),transparent:true,blending:T.AdditiveBlending,depthWrite:false}));glow.position.set(0,1.6,2.8);glow.scale.set(5,5,1);scene.add(glow);
-    ids.forEach((id,i)=>{
-      const column=i%5,row=Math.floor(i/5),x=(column-2)*3.15;
-      const g=new T.Group();g.position.set(x,row===0?4.6:.25,-5.5-Math.abs(column-2)*.25);g.rotation.y=-x*.018;scene.add(g);
-      const r=1.22,shoulder=2.25,shape=new T.Shape();
-      shape.moveTo(-r,0);shape.lineTo(r,0);shape.lineTo(r,shoulder);shape.absarc(0,shoulder,r,0,Math.PI,false);shape.lineTo(-r,0);shape.closePath();
-      const geometry=new T.ShapeGeometry(shape,48),p=geometry.attributes.position,uv=[];
-      for(let j=0;j<p.count;j++)uv.push((p.getX(j)+r)/(2*r),p.getY(j)/(shoulder+r));
-      geometry.setAttribute('uv',new T.Float32BufferAttribute(uv,2));
-      const mat=new T.MeshBasicMaterial({color:'#253748',side:T.DoubleSide,toneMapped:false});
-      const face=new T.Mesh(geometry,mat);face.position.z=.025;g.add(face);
-      if(artwork[id])loader.load(artwork[id],t=>{if(disposed){t.dispose();return;}t.colorSpace=T.SRGBColorSpace;const ia=t.image.width/t.image.height,fa=2*r/(shoulder+r);if(ia>fa){t.repeat.x=fa/ia;t.offset.x=(1-t.repeat.x)/2;}else{t.repeat.y=ia/fa;t.offset.y=(1-t.repeat.y)/2;}t.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());mat.map=t;mat.color.set('#FFFFFF');mat.needsUpdate=true;requestDraw();});
-      const points=[new T.Vector3(r,0,0),...new T.EllipseCurve(0,shoulder,r,r,0,Math.PI,false).getPoints(48).map(p=>new T.Vector3(p.x,p.y,0)),new T.Vector3(-r,0,0)];
-      const path=new T.CatmullRomCurve3(points);
-      mesh(new T.TubeGeometry(path,80,.13,12,false),silver,0,0,.12,g);
-      mesh(new T.TubeGeometry(path,80,.027,8,false),luminous,0,0,.24,g);
-      box(0,-.08,0,2.75,.16,.55,titanium,g);text(names[i],0,-.35,.3,2.85,g);
-      g.userData={action:'world:'+id,label:names[i]};clickable.push(g);
-    });
+    // Immersive portal ring. OrbitControls stays off: the hub rig owns the camera.
+    controls.enabled = false;
+    const procedural = [hubSky(), hubStars(), ...hubSkyline()];
+    const water = hubWater();
+    hubPhotoBackdrop(procedural, water);
+    const floorRef = hubPlatform();
+    const cards = ids.some(id => typeof window.STAAR_PORTAL_ARTWORK?.[id] === 'string');
+    const rings = {
+      floor: hubEnergyRing(HUB_RING, .035, '#e9cf98', .022, .14, 30, .22),
+      halo: hubEnergyRing(HUB_RING, cards ? HUB_CARD.lift + HUB_CARD.height + .75 : HUB_PORTAL.lift + HUB_PORTAL.h + HUB_PORTAL.rim + .8, '#fff0cc', .03, .17, 20, -.16),
+    };
+    if (cards) rings.halo.group.visible = false; // at card height it would slice the skyline at eye level
+    else {
+      const haloChrome = new T.Mesh(new T.TorusGeometry(HUB_RING + .26, .05, 10, 220), hubChrome);
+      haloChrome.rotation.x = Math.PI / 2; haloChrome.position.y = rings.halo.group.position.y; scene.add(haloChrome);
+    }
+    hubStageBuild();
+    hubBuildPortals(floorRef);
+    hubBloom = createHubBloom();
+    scene.add(hubMotes(520, 13, 9, '#f1e3c0', {rise: .16, size: .75}));
     approvedArmoredGuardian();
-    const vf=T.MathUtils.degToRad(camera.fov),hf=2*Math.atan(Math.tan(vf/2)*innerWidth/innerHeight),distance=Math.max(19,8.2/Math.tan(hf/2));
-    camera.position.set(0,5.8,distance-5.5);controls.target.set(0,4,-4);controls.enablePan=false;controls.minDistance=distance*.65;controls.maxDistance=distance*1.3;controls.minAzimuthAngle=-.35;controls.maxAzimuthAngle=.35;controls.update();
+    hubFrame();
+    const ui = hubInterface();
+    hubRig = createHubRig(ui, floorRef, rings);
+    ui.bind(hubRig);
+    hubRig.update(0);
+  }
+
+  // ───────────────────────────── Immersive Portal Hub ─────────────────────────────
+  // Ten portals float on a ring around the Guardian stage. Each portal is its
+  // approved illustration (hub-art/*.webp) on a floating card over a chrome
+  // pedestal; without a card it falls back to a procedural chrome arch. The
+  // approved Toronto skyline photo is scene.background, pinned to the horizon.
+  // The camera stays just inside the ring and always looks at the stage, so the
+  // focused portal rises behind the Guardian while its neighbours peek in from the
+  // screen edges. Swipe to turn the ring, tap a side portal to bring it round, tap
+  // the centred portal (or its caption) to enter. Every animation is time-based and
+  // collapses to static framing and instant moves under Reduce Motion.
+  // Glow comes from additive shaders everywhere, plus a subtle UnrealBloom pass on
+  // phone-sized screens (see createHubBloom).
+  const HUB_RING = 10.6, HUB_STEP = Math.PI * 2 / ids.length;
+  const HUB_CAM = {dist: 7.4, height: 5.4, lookY: 2.55, minDist: 6.3, maxDist: 8.8};
+  const HUB_PORTAL = {w: 3.3, h: 4.7, rim: .24, lift: 1.12}; // procedural fallback arch
+  const HUB_CARD = {height: 4.3, lift: 1.05, proxyWidth: 5.6};  // approved portal illustrations
+  const HUB_STAGE_TOP = .6, HUB_INTRO_SECONDS = 3.6;
+  const HUB_DOWNTOWN = Math.atan2(-.17, -1); // CN Tower bearing: just behind the first portal
+  const HUB_FONT = '-apple-system, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif';
+  const HUB_ACCENTS = {
+    home: ['#bfe6ff', '#f0d49a'], work: ['#46a8ff', '#a7e3ff'], creativity: ['#a47dff', '#ff9fe0'],
+    wellbeing: ['#35dcc8', '#c6fbff'], relationships: ['#ff4878', '#ffc0a6'], events: ['#ffab45', '#b48cff'],
+    style: ['#efe9df', '#c9d6ff'], staarverse: ['#cf63ff', '#5cd2ff'], staarsonic: ['#ffb347', '#ff6f3c'],
+    diggitstaar: ['#76d4ff', '#f0d49a'],
+  };
+  const hubTime = {value: 2.4}, hubPointScale = {value: 700}, hubPixelRatio = {value: 1};
+  const hubPortals = [], hubProxies = [];
+  const hubChrome = new T.MeshStandardMaterial({color: '#e2e7ef', metalness: 1, roughness: .13, envMapIntensity: 1.25});
+  const hubGold = new T.MeshStandardMaterial({color: '#d9ad63', metalness: 1, roughness: .2, envMapIntensity: 1.3});
+  const hubGoldTrim = new T.MeshStandardMaterial({color: '#e4ba6e', metalness: 1, roughness: .16, emissive: '#5a3c12', emissiveIntensity: .4});
+  const hubWrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+  const hubHash = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+  const hubClamp = (x, a, b) => Math.min(b, Math.max(a, x));
+  const hubSmooth = (a, b, x) => { const k = hubClamp((x - a) / (b - a), 0, 1); return k * k * (3 - 2 * k); };
+  const hubEase = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  const hubEaseOut = x => 1 - Math.pow(1 - x, 3);
+  const hubBackOut = x => 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2);
+  const hubAdditive = {transparent: true, depthWrite: false, blending: T.AdditiveBlending};
+  const HUB_GLSL = `
+    float hash12(vec2 p){vec3 p3=fract(vec3(p.xyx)*.1031);p3+=dot(p3,p3.yzx+33.33);return fract((p3.x+p3.y)*p3.z);}
+    float vnoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+      return mix(mix(hash12(i),hash12(i+vec2(1.,0.)),f.x),mix(hash12(i+vec2(0.,1.)),hash12(i+vec2(1.,1.)),f.x),f.y);}
+    float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*vnoise(p);p=p*2.03+vec2(17.1,9.2);a*=.5;}return v;}
+    float archSdf(vec2 p,float w,float h){float r=w*.5,cy=h-r;
+      if(p.y>cy)return length(p-vec2(0.,cy))-r;return max(abs(p.x)-r,-p.y);}
+  `;
+  const HUB_VERTEX = `varying vec2 vPos;varying vec2 vUv;varying vec3 vWorld;varying vec3 vN;varying vec3 vV;
+    void main(){vPos=position.xy;vUv=uv;vec4 w=modelMatrix*vec4(position,1.);vWorld=w.xyz;
+      vec4 mv=viewMatrix*w;vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`;
+  // Hub shaders are authored in display (sRGB) colour. hubOutput converts to linear
+  // and appends three's tone-mapping and colour-space chunks, so every hub material
+  // looks the same drawn straight to the screen or through the bloom pipeline.
+  const hubOutput = fragment => fragment.replace(/}\s*$/,
+    'gl_FragColor.rgb=pow(max(gl_FragColor.rgb,vec3(0.)),vec3(2.2));\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}');
+  const hubShader = (fragment, uniforms = {}, options = {}) => new T.ShaderMaterial({
+    vertexShader: options.vertexShader || HUB_VERTEX, fragmentShader: hubOutput(HUB_GLSL + 'uniform float uTime;' + fragment),
+    uniforms: {uTime: hubTime, ...uniforms}, ...(options.material || {}),
+  });
+
+  function hubEnvironment() {
+    // Reflection environment for chrome and gold: night sky, warm Toronto horizon
+    // and a few studio softboxes, prefiltered once with PMREM.
+    const envScene = new T.Scene();
+    envScene.add(new T.Mesh(new T.SphereGeometry(20, 32, 16), new T.ShaderMaterial({side: T.BackSide,
+      vertexShader: 'varying vec3 vD;void main(){vD=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+      fragmentShader: 'varying vec3 vD;void main(){float y=vD.y;vec3 c=mix(vec3(.05,.055,.09),vec3(.008,.01,.02),smoothstep(0.,.9,y));'+
+        'c+=vec3(.62,.46,.32)*exp(-abs(y)*10.);c+=vec3(.2,.2,.26)*exp(-abs(y-.18)*5.)*.6;c=mix(c,vec3(.02,.02,.03),smoothstep(0.,-.4,y));gl_FragColor=vec4(c,1.);}'})));
+    for (const [w, h, color, gain, x, y, z] of [
+      [9, 2.2, '#ffffff', 4.5, 0, 12, 2], [7, .7, '#ffd59a', 3.2, -10, 2.2, -6], [7, .7, '#ffd59a', 3.2, 10, 2.2, 6],
+      [2.6, 5, '#d8eeff', 2.4, 11, 3, -4], [2.6, 5, '#ffffff', 2.0, -11, 3, 4], [14, .35, '#fff4dc', 3, 0, .6, -12],
+      [5, 5, '#ffffff', 1.4, 0, 6, 12]]) {
+      const softbox = new T.Mesh(new T.PlaneGeometry(w, h),
+        new T.MeshBasicMaterial({color: new T.Color(color).multiplyScalar(gain), side: T.DoubleSide}));
+      softbox.position.set(x, y, z); softbox.lookAt(0, 0, 0); envScene.add(softbox);
+    }
+    const generator = new T.PMREMGenerator(renderer), target = generator.fromScene(envScene, .02);
+    generator.dispose();
+    envScene.traverse(node => { node.geometry?.dispose(); node.material?.dispose(); });
+    return target;
+  }
+
+  const hubBuffer = new T.Vector2();
+  function hubFrame() {
+    // Portrait phones are narrow: hold roughly 46° of horizontal view so the focused
+    // portal, the Guardian and both neighbours fit, within a 50–80° vertical FOV.
+    const fov = 2 * Math.atan(Math.tan(T.MathUtils.degToRad(46) / 2) / (camera.aspect || 1));
+    camera.fov = hubClamp(T.MathUtils.radToDeg(fov), 50, 80);
+    camera.updateProjectionMatrix();
+    renderer.getDrawingBufferSize(hubBuffer);
+    hubPointScale.value = hubBuffer.y / (2 * Math.tan(T.MathUtils.degToRad(camera.fov) / 2));
+    hubPixelRatio.value = renderer.getPixelRatio();
+  }
+
+  function hubCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; }
+  function hubTexture(c) {
+    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace;
+    t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); return t;
+  }
+  function hubRoundRect(x, left, top, w, h, r) {
+    x.beginPath(); x.moveTo(left + r, top);
+    x.arcTo(left + w, top, left + w, top + h, r); x.arcTo(left + w, top + h, left, top + h, r);
+    x.arcTo(left, top + h, left, top, r); x.arcTo(left, top, left + w, top, r); x.closePath();
+  }
+  // Canvas letterSpacing is missing on older iOS, so space glyphs by hand.
+  function hubSpaced(x, label, cx, cy, spacing, draw = true) {
+    const chars = [...label], widths = chars.map(ch => x.measureText(ch).width);
+    const total = widths.reduce((a, b) => a + b, 0) + spacing * (chars.length - 1);
+    if (draw) { let px = cx - total / 2; chars.forEach((ch, i) => { x.fillText(ch, px, cy); px += widths[i] + spacing; }); }
+    return total;
+  }
+  function hubNameplateTexture(label, accent) {
+    const [c, x] = hubCanvas(1024, 208);
+    hubRoundRect(x, 14, 14, 996, 180, 90);
+    const fill = x.createLinearGradient(0, 14, 0, 194);
+    fill.addColorStop(0, '#22262f'); fill.addColorStop(.45, '#0b0d12'); fill.addColorStop(1, '#14171e');
+    x.fillStyle = fill; x.fill();
+    const edge = x.createLinearGradient(14, 0, 1010, 0);
+    ['#7f8898', '#ffffff', '#8a93a3', '#f2f5fa', '#7f8898'].forEach((s, i, a) => edge.addColorStop(i / (a.length - 1), s));
+    x.lineWidth = 9; x.strokeStyle = edge; x.stroke();
+    hubRoundRect(x, 30, 30, 964, 148, 74); x.lineWidth = 2.5; x.strokeStyle = 'rgba(226,190,120,.85)'; x.stroke();
+    const text = label.toUpperCase(); let size = 76;
+    do { x.font = `700 ${size}px ${HUB_FONT}`; size -= 2; } while (hubSpaced(x, text, 0, 0, 7, false) > 860 && size > 40);
+    x.textBaseline = 'middle'; x.textAlign = 'left'; x.shadowColor = accent; x.shadowBlur = 24;
+    const ink = x.createLinearGradient(0, 64, 0, 150); ink.addColorStop(0, '#ffffff'); ink.addColorStop(1, '#d5dbe6');
+    x.fillStyle = ink; hubSpaced(x, text, 512, 108, 7);
+    return hubTexture(c);
+  }
+  function hubLabelTexture(label) {
+    const [c, x] = hubCanvas(1024, 104);
+    hubRoundRect(x, 6, 6, 1012, 92, 46);
+    x.fillStyle = 'rgba(6,8,13,.86)'; x.fill(); x.lineWidth = 3; x.strokeStyle = 'rgba(228,195,128,.9)'; x.stroke();
+    x.font = `600 40px ${HUB_FONT}`; x.textBaseline = 'middle'; x.textAlign = 'left'; x.fillStyle = '#f2d79e';
+    hubSpaced(x, label, 512, 54, 6);
+    return hubTexture(c);
+  }
+  function hubCrownTexture() {
+    const [c, x] = hubCanvas(512, 512);
+    const bg = x.createRadialGradient(256, 256, 20, 256, 256, 256);
+    bg.addColorStop(0, '#1b2334'); bg.addColorStop(.7, '#07090e'); bg.addColorStop(1, '#0b0d13');
+    x.fillStyle = bg; x.beginPath(); x.arc(256, 256, 254, 0, Math.PI * 2); x.fill();
+    x.strokeStyle = 'rgba(230,196,128,.9)'; x.lineWidth = 5; x.beginPath(); x.arc(256, 256, 236, 0, Math.PI * 2); x.stroke();
+    x.lineWidth = 2; x.beginPath(); x.arc(256, 256, 214, 0, Math.PI * 2); x.stroke();
+    const goldInk = x.createLinearGradient(0, 170, 0, 350);
+    goldInk.addColorStop(0, '#fff1c8'); goldInk.addColorStop(.5, '#e2b665'); goldInk.addColorStop(1, '#9c7232');
+    x.fillStyle = goldInk; x.shadowColor = 'rgba(255,214,140,.8)'; x.shadowBlur = 24;
+    x.beginPath(); x.moveTo(146, 318); x.lineTo(132, 214); x.lineTo(196, 262); x.lineTo(256, 176);
+    x.lineTo(316, 262); x.lineTo(380, 214); x.lineTo(366, 318); x.closePath(); x.fill();
+    x.fillRect(146, 328, 220, 22);
+    x.shadowBlur = 0; x.fillStyle = '#ffffff';
+    for (const [cx, cy, r] of [[132, 205, 10], [256, 165, 12], [380, 205, 10]]) { x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill(); }
+    return hubTexture(c);
+  }
+  let hubGlowMap = null;
+  function hubGlowSprite(color, scale, opacity = 1) {
+    if (!hubGlowMap) {
+      const [c, x] = hubCanvas(128, 128), g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.18, 'rgba(255,255,255,.55)');
+      g.addColorStop(.45, 'rgba(255,255,255,.14)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = g; x.fillRect(0, 0, 128, 128); hubGlowMap = hubTexture(c);
+    }
+    const sprite = new T.Sprite(new T.SpriteMaterial({map: hubGlowMap, color, opacity, ...hubAdditive, toneMapped: false}));
+    sprite.scale.setScalar(scale); return sprite;
+  }
+
+  function hubSky() {
+    const sky = new T.Mesh(new T.SphereGeometry(330, 48, 24), hubShader(`
+      uniform vec2 uDowntown;varying vec3 vWorld;
+      void main(){vec3 d=normalize(vWorld-cameraPosition);float el=d.y;
+        float toward=pow(max(dot(normalize(d.xz+1e-4),uDowntown),0.),2.);
+        vec3 col=mix(vec3(.034,.04,.088),vec3(.010,.013,.034),smoothstep(.04,.7,el));
+        col+=mix(vec3(.15,.09,.2),vec3(.5,.28,.15),toward)*exp(-max(el,0.)*8.)*(.6+.5*toward);
+        vec2 cu=d.xz/(max(el,0.)+.16)*1.25+vec2(uTime*.006,0.);
+        float cloud=fbm(cu)*.75+fbm(cu*2.7+4.)*.25;
+        float wisp=smoothstep(.5,.8,cloud)*smoothstep(-.01,.05,el)*(1.-smoothstep(.16,.4,el));
+        col=mix(col,mix(vec3(.12,.08,.16),vec3(.62,.38,.22),toward),wisp*.5);
+        float neb=fbm(d.xz/(el+.5)*1.7+9.)*smoothstep(.2,.75,el);
+        col+=vec3(.07,.045,.14)*neb*neb*1.6;
+        col=mix(col,vec3(.018,.02,.032),smoothstep(0.,-.08,el));
+        gl_FragColor=vec4(col,1.);}`,
+      {uDowntown: {value: new T.Vector2(Math.sin(HUB_DOWNTOWN), Math.cos(HUB_DOWNTOWN))}},
+      {material: {side: T.BackSide, depthWrite: false}}));
+    sky.renderOrder = -10; sky.frustumCulled = false; scene.add(sky);
+    return sky;
+  }
+
+  function hubStars() {
+    const count = 1600, position = new Float32Array(count * 3), seed = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      const y = .03 + .97 * Math.pow(hubHash(i * 1.37), .85), az = hubHash(i * 3.11) * Math.PI * 2, r = Math.sqrt(1 - y * y) * 300;
+      position.set([Math.sin(az) * r, y * 300, Math.cos(az) * r], i * 3); seed[i] = hubHash(i * 7.77) * 100;
+    }
+    const geometry = new T.BufferGeometry();
+    geometry.setAttribute('position', new T.BufferAttribute(position, 3));
+    geometry.setAttribute('aSeed', new T.BufferAttribute(seed, 1));
+    const starField = new T.Points(geometry, new T.ShaderMaterial({...hubAdditive, uniforms: {uTime: hubTime, uPR: hubPixelRatio},
+      vertexShader: `attribute float aSeed;uniform float uTime,uPR;varying float vA;varying float vWarm;
+        void main(){vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;
+          float s=fract(aSeed*.731),big=step(.975,s);
+          float tw=.62+.38*sin(uTime*(1.2+2.6*fract(aSeed*.37))+aSeed*6.);
+          vA=(.32+.68*fract(aSeed*.191))*tw*smoothstep(.02,.18,normalize(position).y);vWarm=step(.6,fract(aSeed*.53));
+          gl_PointSize=uPR*(1.+1.9*s*s+big*2.6);}`,
+      fragmentShader: hubOutput(`varying float vA;varying float vWarm;
+        void main(){float d=length(gl_PointCoord-.5);float g=smoothstep(.5,0.,d);g*=g;
+          gl_FragColor=vec4(mix(vec3(.74,.82,1.),vec3(1.,.9,.78),vWarm)*g*vA,1.);}`)}));
+    starField.renderOrder = -9; starField.frustumCulled = false; scene.add(starField);
+    return starField;
+  }
+
+  function hubSkyline() {
+    // One merged mesh (one draw call) for ~350 Toronto towers on a 360° horizon,
+    // with procedural lit windows instead of hundreds of separate boxes.
+    const position = [], windows = [], m = new T.Matrix4(), v = new T.Vector3();
+    const addTower = (az, dist, w, h, d, seed) => {
+      const box = new T.BoxGeometry(w, h, d), p = box.getAttribute('position'), n = box.getAttribute('normal'), index = box.index;
+      m.makeRotationY(az).setPosition(Math.sin(az) * dist, -1.6 + h / 2, Math.cos(az) * dist);
+      for (let k = 0; k < index.count; k++) {
+        const i = index.getX(k);
+        v.fromBufferAttribute(p, i).applyMatrix4(m); position.push(v.x, v.y, v.z);
+        const roof = Math.abs(n.getY(i)) > .5;
+        windows.push(roof ? -1 : Math.abs(n.getX(i)) > .5 ? p.getZ(i) + d / 2 : p.getX(i) + w / 2, p.getY(i) + h / 2, seed);
+      }
+      box.dispose();
+    };
+    for (let i = 0; i < 240; i++) {
+      const az = i / 240 * Math.PI * 2 + (hubHash(i * 3.3) - .5) * .015;
+      const core = Math.exp(-Math.pow(hubWrap(az - HUB_DOWNTOWN) / .38, 2));
+      if (core < .1 && hubHash(i * 9.2) > .62) continue;
+      const dist = 128 + hubHash(i * 7.7) * 34 - core * 10;
+      const h = 1.6 + hubHash(i * 1.9) * (3 + core * 11) + (hubHash(i * 5.1) > .9 ? core * 6 : 0);
+      addTower(az, dist, 2.4 + hubHash(i * 2.7) * 3, h, 2.4 + hubHash(i * 4.4) * 2.6, hubHash(i * 11.1));
+      if (core > .25 && hubHash(i * 13.7) > .45) addTower(az + .004, dist + 9 + hubHash(i * 6.1) * 9,
+        2.2 + hubHash(i * 8.3) * 2.6, h * (.55 + hubHash(i * 2.2) * .7), 2.8, hubHash(i * 17.3));
+    }
+    const geometry = new T.BufferGeometry();
+    geometry.setAttribute('position', new T.Float32BufferAttribute(position, 3));
+    geometry.setAttribute('aWin', new T.Float32BufferAttribute(windows, 3));
+    const city = new T.Mesh(geometry, hubShader(`varying vec3 vWin;varying vec3 vWorld;
+      void main(){vec3 col=vec3(.016,.019,.03);
+        if(vWin.x>=0.){vec2 cell=vec2(vWin.x/.5,vWin.y/.62),id=floor(cell),f=fract(cell);
+          float lit=step(.66,hash12(id+vWin.z*91.7))*step(.7,vWin.y);
+          float shape=smoothstep(.12,.2,f.x)*smoothstep(.88,.8,f.x)*smoothstep(.16,.26,f.y)*smoothstep(.84,.74,f.y);
+          vec3 tint=mix(vec3(1.,.76,.44),vec3(.6,.8,1.),step(.74,hash12(id*1.7+vWin.z*13.)));
+          float flick=.82+.18*sin(uTime*(.4+hash12(id)*1.6)+hash12(id*3.1)*6.28);
+          col+=tint*lit*shape*.5*flick;}
+        float haze=smoothstep(110.,175.,length(vWorld.xz))*.4+(1.-smoothstep(-1.6,9.,vWorld.y))*.3;
+        col=mix(col,vec3(.11,.075,.12),clamp(haze,0.,.75));
+        gl_FragColor=vec4(col,1.);}`, {}, {vertexShader:
+      'attribute vec3 aWin;varying vec3 vWin;varying vec3 vWorld;void main(){vWin=aWin;vec4 w=modelMatrix*vec4(position,1.);vWorld=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}'}));
+    city.frustumCulled = false; scene.add(city);
+    // CN Tower: a lathe silhouette with an animated LED pod and a blinking beacon.
+    const tower = new T.Mesh(new T.LatheGeometry([[2.7,0],[2.1,3],[1.35,12],[1.02,24],[.95,28.2],[2.55,28.6],[2.85,29.6],[2.6,30.9],
+      [1.15,31.4],[.72,33.5],[.64,35.6],[1.08,36.1],[1.08,37],[.52,37.4],[.24,38.2],[.15,46.5]].map(([r, y]) => new T.Vector2(r, y)), 28),
+      hubShader(`varying vec3 vWorld;
+        void main(){float y=(vWorld.y+1.6)/.62;vec3 col=vec3(.03,.034,.05);
+          float pod=smoothstep(28.5,28.8,y)*(1.-smoothstep(30.8,31.1,y));
+          col+=mix(vec3(.62,.36,1.),vec3(1.,.78,.42),.5+.5*sin(uTime*.35))*pod*(.55+.45*sin(y*7.-uTime*1.4))*.9;
+          col+=vec3(1.,.86,.62)*smoothstep(36.,36.2,y)*(1.-smoothstep(36.9,37.1,y))*.7;
+          col+=vec3(.55,.42,.9)*(1.-abs(fract(y*.14)-.5)*2.)*.035*step(y,28.);
+          gl_FragColor=vec4(mix(col,vec3(.11,.075,.12),.3*(1.-smoothstep(0.,30.,y))),1.);}`));
+    tower.scale.setScalar(.62); tower.position.set(Math.sin(HUB_DOWNTOWN) * 140, -1.6, Math.cos(HUB_DOWNTOWN) * 140); scene.add(tower);
+    const beacon = hubGlowSprite('#ff3b3b', 2.4, .9); beacon.position.set(tower.position.x, 46.5 * .62 - 1.4, tower.position.z); scene.add(beacon);
+    const podGlow = hubGlowSprite('#c9a2ff', 11, .3); podGlow.position.set(tower.position.x, 29.6 * .62 - 1.6, tower.position.z); scene.add(podGlow);
+    animated.push(t => { beacon.material.opacity = reduced ? .8 : .25 + .75 * Math.pow(Math.max(0, Math.sin(t * 2.4)), 6); });
+    // Rogers Centre dome beside the tower.
+    const dome = new T.Mesh(new T.SphereGeometry(7.5, 40, 12, 0, Math.PI * 2, 0, Math.PI / 2), hubShader(`varying vec3 vWorld;varying vec3 vN;
+      void main(){vec3 col=vec3(.035,.04,.058)+vec3(.9,.92,1.)*pow(1.-abs(vN.z),3.)*.05;
+        col+=vec3(.95,.82,.62)*smoothstep(.05,0.,abs(vWorld.y+1.35))*.6;gl_FragColor=vec4(mix(col,vec3(.11,.075,.12),.35),1.);}`));
+    dome.scale.set(.75, .32, .75); dome.position.set(Math.sin(HUB_DOWNTOWN + .07) * 134, -1.6, Math.cos(HUB_DOWNTOWN + .07) * 134); scene.add(dome);
+    return [city, tower, beacon, podGlow, dome];
+  }
+
+  function hubWater() {
+    // Lake Ontario. Procedural mode: shimmering columns of skyline light and the CN
+    // Tower's reflection. Photo mode (uPhoto=1): a calm, rotation-independent shimmer
+    // whose far water turns transparent, so the skyline photo's own lake shows at the
+    // horizon and the 3D lake and the photo meet without a seam.
+    const material = hubShader(`uniform vec2 uDowntown;uniform float uTowerAz,uPhoto;varying vec3 vWorld;
+      void main(){vec3 toP=vWorld-cameraPosition;float dist=length(toP.xz);
+        float toward=pow(max(dot(normalize(vWorld.xz+1e-4),uDowntown),0.),3.)*(1.-uPhoto);
+        vec3 col=mix(vec3(.008,.013,.026),vec3(.09,.065,.1),smoothstep(25.,300.,dist));
+        col+=vec3(.42,.24,.13)*toward*smoothstep(50.,320.,dist)*.35;
+        float azc=atan(toP.x,toP.z);float cell=floor(azc*240.);
+        float lit=step(mix(.82,.42,toward),hash12(vec2(cell,3.7)))*(1.-uPhoto);
+        float rip=vnoise(vec2(vWorld.x*1.1+vWorld.z*.3,dist*1.6-uTime*1.3))*vnoise(vec2(azc*900.,dist*.35+uTime*.4));
+        vec3 tint=mix(vec3(1.,.7,.4),vec3(.62,.8,1.),step(.8,hash12(vec2(cell,9.1))));
+        col+=tint*lit*smoothstep(.22,.55,rip)*smoothstep(16.,70.,dist)*.38;
+        float ad=abs(atan(sin(azc-uTowerAz),cos(azc-uTowerAz)));
+        col+=vec3(.75,.55,1.)*exp(-ad*ad*9000.)*smoothstep(.3,.7,rip+.3)*smoothstep(30.,110.,dist)*.5*(1.-uPhoto);
+        float calm=vnoise(vec2(dist*.9-uTime*.5,vWorld.y))*vnoise(vec2(length(vWorld.xz)*2.1+uTime*.3,3.));
+        col+=vec3(.55,.42,.5)*smoothstep(.3,.6,calm)*smoothstep(16.,60.,dist)*.14*uPhoto;
+        float alpha=1.-uPhoto*smoothstep(38.,150.,dist);
+        gl_FragColor=vec4(col,alpha);}`,
+      {uDowntown: {value: new T.Vector2(Math.sin(HUB_DOWNTOWN), Math.cos(HUB_DOWNTOWN))}, uTowerAz: {value: HUB_DOWNTOWN}, uPhoto: {value: 0}},
+      {material: {transparent: true, depthWrite: false}});
+    const water = new T.Mesh(new T.CircleGeometry(420, 96), material);
+    water.rotation.x = -Math.PI / 2; water.position.y = -1.6; water.renderOrder = -5; scene.add(water);
+    return material;
+  }
+
+  // Approved Toronto skyline photo as scene.background. It stays put while the ring
+  // turns (a carousel in front of the city) and is re-pinned to the horizon every
+  // frame, so its waterline meets the 3D lake during the fly-in and when the viewer
+  // looks up or down. Falls back to the procedural city if it is missing or fails.
+  const HUB_SKYLINE = {waterline: .673, above: 19, centre: .62}; // waterline row (from top), degrees of photo above it, CN Tower framing
+  let hubBackdrop = null;
+  function hubPhotoBackdrop(procedural, water) {
+    const src = window.STAAR_HUB_SKYLINE;
+    const fallback = () => { hubBackdrop = null; scene.background = new T.Color('#020611'); procedural.forEach(o => { o.visible = true; }); water.uniforms.uPhoto.value = 0; if (hubLoopReady) requestDraw(); };
+    if (typeof src !== 'string' || !/^data:image\/(jpeg|png|webp);base64,/.test(src)) return false;
+    procedural.forEach(o => { o.visible = false; });
+    scene.background = new T.Color('#140f1f'); // dusk tone for the instant before the photo decodes
+    water.uniforms.uPhoto.value = 1;
+    hubBackdrop = {ready: false, texture: null};
+    hubBackdrop.texture = new T.TextureLoader().load(src, texture => {
+      if (disposed || !hubBackdrop) { texture.dispose(); return; }
+      texture.colorSpace = T.SRGBColorSpace;
+      texture.wrapS = T.MirroredRepeatWrapping; texture.wrapT = T.ClampToEdgeWrapping; // wide screens mirror, never smear
+      texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+      scene.background = texture; hubBackdrop.ready = true;
+      hubAlignBackdrop(); if (hubLoopReady) requestDraw();
+    }, undefined, fallback);
+    return true;
+  }
+  const hubProbe = new T.Vector3(), hubAhead = new T.Vector3();
+  function hubAlignBackdrop() {
+    if (!hubBackdrop?.ready) return;
+    const texture = hubBackdrop.texture, image = texture.image;
+    if (!image?.width) return;
+    camera.updateMatrixWorld();
+    camera.getWorldDirection(hubAhead); hubAhead.y = 0;
+    if (hubAhead.lengthSq() < 1e-6) hubAhead.set(0, 0, -1);
+    hubAhead.normalize();
+    const screenY = lift => {
+      hubProbe.copy(camera.position).addScaledVector(hubAhead, 1000); hubProbe.y += lift;
+      return (hubProbe.project(camera).y + 1) / 2;
+    };
+    const horizon = screenY(0), top = screenY(1000 * Math.tan(T.MathUtils.degToRad(HUB_SKYLINE.above)));
+    const kv = HUB_SKYLINE.waterline / Math.max(.02, top - horizon);
+    const ku = kv * (camera.aspect || 1) / (image.width / image.height);
+    texture.repeat.set(ku, kv);
+    texture.offset.set(HUB_SKYLINE.centre - ku / 2, (1 - HUB_SKYLINE.waterline) - horizon * kv);
+  }
+
+  function hubPlatform() {
+    // Obsidian floor: gold rings, energy spokes running out to every portal and a
+    // light pool under each portal that brightens with focus.
+    const portalPos = Array.from({length: ids.length}, () => new T.Vector3());
+    const portalCol = ids.map(id => new T.Color((HUB_ACCENTS[id] || ['#bfe6ff'])[0]));
+    const floorMesh = new T.Mesh(new T.CircleGeometry(13.6, 160), hubShader(`uniform vec3 uPortal[10];uniform vec3 uPortalCol[10];uniform float uRing;varying vec3 vWorld;
+      float ringLine(float x,float w){float fw=fwidth(x);return 1.-smoothstep(w-fw,w+fw,abs(x));}
+      void main(){vec2 p=vWorld.xz;float r=length(p);
+        vec3 col=mix(vec3(.034,.038,.052),vec3(.012,.013,.019),smoothstep(0.,13.,r));
+        col+=(vnoise(p*1.6)-.5)*.014+(vnoise(p*7.)-.5)*.006;
+        col+=vec3(.38,.62,.9)*exp(-r*r*.16)*.2;
+        vec3 gold=vec3(.86,.67,.37);
+        col+=gold*(ringLine(r-2.75,.02)+ringLine(r-4.35,.014)+ringLine(r-6.05,.014))*.5;
+        col+=gold*ringLine(r-(uRing+1.85),.03)*.55;
+        float sweep=pow(.5+.5*sin(atan(p.x,p.y)-uTime*.6),12.)*smoothstep(3.,9.,r)*(1.-smoothstep(9.,12.,r));
+        col+=vec3(.5,.7,1.)*sweep*.03;
+        for(int i=0;i<10;i++){vec2 pp=uPortal[i].xy;float w=uPortal[i].z;vec2 dir=normalize(pp);
+          float along=dot(p,dir);float off=length(p-dir*along);
+          float spoke=(1.-smoothstep(.02,.06,off))*step(2.8,along)*step(along,uRing-1.35);
+          float pulse=pow(fract(along*.11-uTime*.32+float(i)*.137),10.);
+          col+=uPortalCol[i]*spoke*(.07+.6*pulse)*(.25+.75*w);
+          float dp=length(p-pp);col+=uPortalCol[i]*exp(-dp*dp*.3)*(.06+.5*w);}
+        col*=1.-smoothstep(13.2,13.6,r)*.5;
+        gl_FragColor=vec4(col,1.);}`, {uPortal: {value: portalPos}, uPortalCol: {value: portalCol}, uRing: {value: HUB_RING}}));
+    floorMesh.rotation.x = -Math.PI / 2; scene.add(floorMesh);
+    const side = new T.Mesh(new T.CylinderGeometry(13.6, 13.1, .9, 120, 1, true), hubChrome); side.position.y = -.45; scene.add(side);
+    const lip = new T.Mesh(new T.TorusGeometry(13.6, .06, 10, 160), hubGold); lip.rotation.x = Math.PI / 2; lip.position.y = .01; scene.add(lip);
+    const rim = new T.Mesh(new T.TorusGeometry(13.35, .022, 8, 160), new T.MeshBasicMaterial({color: '#9fd4ff', toneMapped: false}));
+    rim.rotation.x = Math.PI / 2; rim.position.y = .02; scene.add(rim);
+    return {portalPos};
+  }
+
+  function hubEnergyRing(radius, y, color, tube, glowTube, dashes, speed) {
+    // Thin bright core plus a soft additive tube with light dashes travelling round.
+    const group = new T.Group(); group.position.y = y; scene.add(group);
+    const core = new T.Mesh(new T.TorusGeometry(radius, tube, 8, 220), new T.MeshBasicMaterial({color, toneMapped: false, transparent: true}));
+    const glowMat = hubShader(`uniform vec3 uColor;uniform float uDash,uSpeed,uGain;varying vec2 vUv;varying vec3 vN;varying vec3 vV;
+      void main(){float soft=pow(abs(dot(normalize(vN),normalize(vV))),2.4);
+        float dash=pow(.5+.5*sin((vUv.x*uDash-uTime*uSpeed)*6.2832),8.);
+        gl_FragColor=vec4(uColor*soft*(.28+1.1*dash)*uGain,1.);}`,
+      {uColor: {value: new T.Color(color)}, uDash: {value: dashes}, uSpeed: {value: speed}, uGain: {value: reduced ? 1 : 0}}, {material: hubAdditive});
+    const glow = new T.Mesh(new T.TorusGeometry(radius, glowTube, 10, 220), glowMat);
+    for (const ringMesh of [core, glow]) { ringMesh.rotation.x = Math.PI / 2; group.add(ringMesh); }
+    core.material.opacity = reduced ? 1 : 0;
+    return {group, core, glowMat};
+  }
+
+  function hubMotes(count, radius, height, color, options = {}) {
+    // GPU-animated motes: positions come from time + seed, so no per-frame CPU work.
+    const position = new Float32Array(count * 3), seed = new Float32Array(count);
+    for (let i = 0; i < count; i++) seed[i] = hubHash(i * 4.13 + radius) * 100;
+    const geometry = new T.BufferGeometry();
+    geometry.setAttribute('position', new T.BufferAttribute(position, 3));
+    geometry.setAttribute('aSeed', new T.BufferAttribute(seed, 1));
+    const points = new T.Points(geometry, new T.ShaderMaterial({...hubAdditive, uniforms: {uTime: hubTime, uScale: hubPointScale,
+      uColor: {value: new T.Color(color)}, uRadius: {value: radius}, uHeight: {value: height}, uRise: {value: options.rise ?? 1},
+      uSize: {value: options.size ?? 1}, uPower: {value: 1}},
+      vertexShader: `attribute float aSeed;uniform float uTime,uScale,uRadius,uHeight,uRise,uSize,uPower;varying float vA;
+        void main(){float s1=fract(aSeed*.917),s2=fract(aSeed*.371),s3=fract(aSeed*.613);
+          float h=mod(s1*uHeight+uTime*(.25+.5*s2)*uRise,uHeight);
+          float a=s3*6.2832+uTime*(.12+.2*s1)*(s2>.5?1.:-1.);
+          float r=uRadius*(.25+.75*sqrt(s2));
+          vec4 mv=modelViewMatrix*vec4(cos(a)*r,h,sin(a)*r,1.);gl_Position=projectionMatrix*mv;
+          vA=smoothstep(0.,.12,h/uHeight)*(1.-smoothstep(.6,1.,h/uHeight))*(.4+.6*s1)*uPower;
+          gl_PointSize=clamp((.035+.05*s3)*uSize*uScale/-mv.z,1.,18.);}`,
+      fragmentShader: hubOutput(`uniform vec3 uColor;varying float vA;
+        void main(){float d=length(gl_PointCoord-.5);float g=smoothstep(.5,0.,d);gl_FragColor=vec4(uColor*g*g*vA*1.6,1.);}`)}));
+    points.frustumCulled = false; return points;
+  }
+
+  function hubStageBuild() {
+    // Dark metallic geometric pedestal: three faceted octagonal gunmetal tiers with
+    // glowing gold and ice-blue seams on every edge, a crown inlay, light beam and
+    // rising motes. `mount` turns to face the camera and carries the Guardian.
+    const stage = new T.Group(); scene.add(stage);
+    const mount = new T.Group(); stage.add(mount);
+    const gunmetal = new T.MeshPhysicalMaterial({color: '#3a404c', metalness: .88, roughness: .34, envMapIntensity: 1.7,
+      clearcoat: 1, clearcoatRoughness: .08, emissive: '#070b14', flatShading: true});
+    const seamIce = new T.MeshBasicMaterial({color: '#a8e4ff', toneMapped: false});
+    const seamGold = new T.MeshBasicMaterial({color: '#f4d18e', toneMapped: false});
+    const seamDim = new T.MeshBasicMaterial({color: '#4f7c99', toneMapped: false});
+    const octagon = new T.Group(); octagon.rotation.y = Math.PI / 8; stage.add(octagon); // a flat facet faces the viewer
+    const edgeParts = [];
+    const strut = (a, b, radius) => { // thin glowing rod from a to b
+      const d = new T.Vector3().subVectors(b, a), rod = new T.CylinderGeometry(radius, radius, d.length(), 5);
+      rod.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), d.clone().normalize()));
+      return rod.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
+    };
+    for (const [top, bottom, height, y, seam] of [[1.95, 2.14, .22, .11, seamGold], [1.66, 1.82, .2, .32, seamIce], [1.36, 1.48, .18, .51, seamIce]]) {
+      const tier = new T.Mesh(new T.CylinderGeometry(top, bottom, height, 8), gunmetal); tier.position.y = y; octagon.add(tier);
+      const band = new T.Mesh(new T.TorusGeometry(top, .018, 6, 8), seam); // octagonal seam on the top edge
+      band.rotation.x = Math.PI / 2; band.position.y = y + height / 2; octagon.add(band);
+      for (let k = 0; k < 8; k++) { // glowing vertical edges where the facets meet
+        const angle = k * Math.PI / 4;
+        edgeParts.push(strut(new T.Vector3(Math.sin(angle) * bottom, y - height / 2, Math.cos(angle) * bottom),
+          new T.Vector3(Math.sin(angle) * top, y + height / 2, Math.cos(angle) * top), .008));
+      }
+    }
+    const edges = new T.Mesh(mergeGeometries(edgeParts), seamDim); edgeParts.forEach(part => part.dispose()); octagon.add(edges);
+    const baseGlow = new T.Mesh(new T.TorusGeometry(2.14, .03, 6, 8), seamGold);
+    baseGlow.rotation.x = Math.PI / 2; baseGlow.position.y = .005; octagon.add(baseGlow);
+    const crown = new T.Mesh(new T.CircleGeometry(1.22, 72), new T.MeshBasicMaterial({map: hubCrownTexture(), toneMapped: false}));
+    crown.rotation.x = -Math.PI / 2; crown.position.y = HUB_STAGE_TOP + .003; mount.add(crown);
+    const halo = new T.Mesh(new T.TorusGeometry(1.06, .022, 8, 120), new T.MeshBasicMaterial({color: '#bfe8ff', toneMapped: false}));
+    halo.rotation.x = Math.PI / 2; halo.position.y = HUB_STAGE_TOP + .012; stage.add(halo);
+    const beamMat = hubShader(`uniform vec3 uColor;uniform float uPower;varying vec2 vUv;varying vec3 vN;varying vec3 vV;
+      void main(){float core=pow(abs(dot(normalize(vN),normalize(vV))),3.);
+        float fade=exp(-vUv.y*5.5);float bands=.65+.35*sin(vUv.y*46.-uTime*3.2);
+        gl_FragColor=vec4(uColor*core*fade*bands*uPower,1.);}`,
+      {uColor: {value: new T.Color('#9fdcff')}, uPower: {value: reduced ? .85 : 0}}, {material: {...hubAdditive, side: T.DoubleSide}});
+    const beam = new T.Mesh(new T.CylinderGeometry(.14, .48, 15, 40, 1, true), beamMat);
+    beam.position.y = HUB_STAGE_TOP + 7.5; stage.add(beam);
+    const motes = hubMotes(150, 1.35, 6, '#cfeeff'); motes.position.y = HUB_STAGE_TOP; stage.add(motes);
+    const light = new T.PointLight('#bfe4ff', reduced ? 26 : 0, 0, 2); light.position.set(0, 2.8, 0); stage.add(light);
+    // Invisible pick volume so taps on the Guardian never fall through to the portal behind.
+    const proxy = new T.Mesh(new T.CylinderGeometry(1.05, 1.05, 3.9, 12), new T.MeshBasicMaterial({visible: false}));
+    proxy.position.y = HUB_STAGE_TOP + 1.95; mount.add(proxy);
+    hubStage = {stage, mount, beam, beamMat, motes, light, proxy, placeholder: null};
+  }
+
+  function showGuardianPlaceholder() {
+    // Explicitly non-human placeholder: a diamond-set cube of light inside orbiting
+    // rings, labelled as pending approval. Never a person, never a substitute face.
+    if (!hubStage || hubStage.placeholder || disposed) return;
+    const core = new T.Group(); core.position.y = HUB_STAGE_TOP + 1.6; hubStage.mount.add(core);
+    const spin = new T.Group(); core.add(spin);
+    const cube = new T.Group(); cube.rotation.set(-Math.atan(Math.SQRT1_2), 0, Math.PI / 4); spin.add(cube); // balanced on a vertex
+    const size = .95, half = size / 2, parts = [];
+    for (const a of [-half, half]) for (const b of [-half, half]) {
+      parts.push(new T.CylinderGeometry(.026, .026, size, 8).rotateZ(Math.PI / 2).translate(0, a, b));
+      parts.push(new T.CylinderGeometry(.026, .026, size, 8).translate(a, 0, b));
+      parts.push(new T.CylinderGeometry(.026, .026, size, 8).rotateX(Math.PI / 2).translate(a, b, 0));
+    }
+    for (const x of [-half, half]) for (const y of [-half, half]) for (const z of [-half, half]) parts.push(new T.SphereGeometry(.06, 12, 8).translate(x, y, z));
+    const edges = mergeGeometries(parts); parts.forEach(part => part.dispose());
+    cube.add(new T.Mesh(edges, new T.MeshBasicMaterial({color: '#e8f8ff', toneMapped: false})));
+    const glassMat = hubShader(`uniform vec3 uColor;uniform float uPower;varying vec3 vN;varying vec3 vV;varying vec3 vWorld;
+      void main(){float fres=pow(1.-abs(dot(normalize(vN),normalize(vV))),2.);
+        float scan=.75+.25*sin(vWorld.y*26.-uTime*2.4);
+        gl_FragColor=vec4(uColor*(.08+.85*fres)*scan*uPower,1.);}`,
+      {uColor: {value: new T.Color('#7fd8ff')}, uPower: {value: 1}}, {material: {...hubAdditive, side: T.DoubleSide}});
+    cube.add(new T.Mesh(new T.BoxGeometry(size, size, size), glassMat));
+    spin.add(new T.Mesh(new T.IcosahedronGeometry(.2, 2), new T.MeshBasicMaterial({color: '#ffffff', toneMapped: false})));
+    const glow = hubGlowSprite('#8fdcff', 3.4, .55); core.add(glow);
+    core.add(hubGlowSprite('#ffffff', 1.05, .7));
+    const rings = [[.92, '#f0cf8c', 1.15, .3, .5], [1.08, '#dfe8f4', .35, -.9, -.38], [1.24, '#7fd8ff', -1.05, 1.1, .27]].map(([r, color, tx, tz, speed]) => {
+      const pivot = new T.Group(); core.add(pivot);
+      const torus = new T.Mesh(new T.TorusGeometry(r, .013, 8, 140), new T.MeshBasicMaterial({color, toneMapped: false}));
+      torus.rotation.set(tx, 0, tz); pivot.add(torus); return {pivot, speed};
+    });
+    const label = new T.Mesh(new T.PlaneGeometry(2.3, .234),
+      new T.MeshBasicMaterial({map: hubLabelTexture('GUARDIAN MODEL PENDING APPROVAL'), transparent: true, toneMapped: false, depthWrite: false}));
+    // On the top tier, so the caption never covers it on short phones (iPhone SE).
+    label.position.set(0, .66, 1.5); label.rotation.x = -.7; label.renderOrder = 4; hubStage.mount.add(label);
+    hubStage.placeholder = {core, spin, glassMat, glow, rings, label};
+  }
+
+  function hubPortalEnergy(a, b, i) {
+    // Portal surface: swirling vortex, sparkles, rim light and an iris that opens on
+    // ignition. If locked artwork is bundled it sits in the centre, contain-fit
+    // (never cropped or stretched).
+    return hubShader(`uniform vec3 uA,uB;uniform vec2 uSize;uniform float uOpen,uFocus,uFlash,uHasMap,uMapAspect,uSeed;uniform sampler2D uMap;varying vec2 vPos;
+      void main(){float inside=-archSdf(vPos,uSize.x,uSize.y);
+        vec2 q=(vPos-vec2(0.,uSize.y*.52))/uSize.x;float rad=length(q),ang=atan(q.y,q.x);
+        float t=uTime+uSeed;
+        float fil=pow(.5+.5*sin(ang*3.+rad*11.-t*1.1),5.)*smoothstep(1.05,.08,rad);
+        float n=fbm(vec2(ang*1.6+t*.06,rad*3.4-t*.32)+uSeed);
+        vec3 col=mix(uB*.05,uA*.2,smoothstep(1.,0.,rad));
+        col+=uA*(fil*.5+n*n*.42)+uB*pow(n,3.)*.55;
+        col+=mix(uA,vec3(1.),.55)*exp(-rad*rad*16.)*.6;
+        vec2 sp=vPos*8.;float sh=hash12(floor(sp)+uSeed*7.);
+        col+=vec3(1.)*step(.93,sh)*smoothstep(.4,0.,length(fract(sp)-.5))*pow(max(0.,sin(t*2.6+sh*50.)),10.);
+        if(uHasMap>.5){float bw=uSize.x*.86,bh=bw/uMapAspect;
+          if(bh>uSize.y*.6){bh=uSize.y*.6;bw=bh*uMapAspect;}
+          vec2 auv=(vPos-vec2(0.,uSize.y*.5))/vec2(bw,bh)+.5;
+          float inBox=step(0.,auv.x)*step(auv.x,1.)*step(0.,auv.y)*step(auv.y,1.);
+          float soft=smoothstep(0.,.035,auv.x)*smoothstep(1.,.965,auv.x)*smoothstep(0.,.05,auv.y)*smoothstep(1.,.95,auv.y);
+          vec3 art=texture2D(uMap,clamp(auv,0.,1.)).rgb;
+          col=mix(col,art*(.6+.48*uFocus),inBox*soft);
+          col+=mix(uA,vec3(1.),.4)*inBox*(1.-soft)*.35;}
+        col+=mix(uA,vec3(1.),.4)*exp(-inside*6.5)*(.45+.7*uFocus);
+        float front=uOpen*1.45;
+        float open=smoothstep(front,front-.14,rad);
+        float iris=exp(-pow((rad-front)*12.,2.))*(1.-uOpen)*step(.001,uOpen);
+        vec3 closed=vec3(.01,.012,.02)+uA*exp(-inside*8.)*.08;
+        col=mix(closed,col,open)+mix(uA,vec3(1.),.6)*iris*1.6;
+        col*=mix(.5,1.1,uFocus);
+        col+=mix(uA,vec3(1.),.75)*uFlash*.85;
+        gl_FragColor=vec4(col,1.);}`,
+      {uA: {value: new T.Color(a)}, uB: {value: new T.Color(b)}, uSize: {value: new T.Vector2(HUB_PORTAL.w, HUB_PORTAL.h)},
+        uOpen: {value: reduced ? 1 : 0}, uFocus: {value: 0}, uFlash: {value: 0}, uHasMap: {value: 0}, uMapAspect: {value: 16 / 9},
+        uSeed: {value: i * 3.71}, uMap: {value: null}});
+  }
+
+  function hubBuildPortals(floorRef) {
+    const {w, h, rim, lift} = HUB_PORTAL;
+    const outline = (width, height, y0, path) => {
+      const r = width / 2, top = y0 + height - r;
+      path.moveTo(-r, y0); path.lineTo(r, y0); path.lineTo(r, top); path.absarc(0, top, r, 0, Math.PI, false); path.lineTo(-r, y0);
+      return path;
+    };
+    const frameShape = outline(w + rim * 2, h + rim * 2, -rim, new T.Shape()); frameShape.holes.push(outline(w, h, 0, new T.Path()));
+    const frameGeo = new T.ExtrudeGeometry(frameShape, {depth: .16, bevelEnabled: true, bevelThickness: .05, bevelSize: .045, bevelSegments: 3, curveSegments: 36}).translate(0, 0, -.08);
+    const trimShape = outline(w + .02, h + .02, -.01, new T.Shape()); trimShape.holes.push(outline(w - .12, h - .12, .06, new T.Path()));
+    const trimGeo = new T.ExtrudeGeometry(trimShape, {depth: .2, bevelEnabled: false, curveSegments: 36}).translate(0, 0, -.1);
+    const glassGeo = new T.ShapeGeometry(outline(w, h, 0, new T.Shape()), 36);
+    const haloGeo = new T.PlaneGeometry(w + 5.2, h + 4.4).translate(0, h / 2, 0);
+    const plateGeo = new T.PlaneGeometry(2.9, 2.9 * 208 / 1024);
+    const pedestalGeo = new T.CylinderGeometry(1.15, 1.32, .24, 56);
+    const pedRingGeo = new T.TorusGeometry(1.2, .028, 8, 96), pedGoldGeo = new T.TorusGeometry(1.33, .03, 8, 96);
+    const columnFor = height => new T.CylinderGeometry(.95, 1.12, height, 40, 1, true);
+    const archColumn = lift - rim - .05 - .24, cardColumn = HUB_CARD.lift - .05 - .24;
+    const archColumnGeo = columnFor(archColumn), cardColumnGeo = columnFor(cardColumn);
+    // Touch target: one generous invisible plane per portal (2 triangles) covering
+    // the pedestal, the portal and its nameplate. A finger never has to hit a thin
+    // chrome edge, and a tap tests 22 triangles instead of tens of thousands.
+    const proxyMat = new T.MeshBasicMaterial({side: T.DoubleSide, visible: false});
+    const hubBackGlass = new T.MeshStandardMaterial({color: '#0b0e15', metalness: .9, roughness: .24, envMapIntensity: .9});
+    const loader = new T.TextureLoader();
+    const haloMaterial = (accent, width, height, rimWidth) => hubShader(`uniform vec3 uA;uniform vec2 uSize;uniform float uRim,uGlow;varying vec2 vPos;
+        void main(){float d=archSdf(vPos-vec2(0.,-uRim),uSize.x+2.*uRim,uSize.y+2.*uRim);float o=max(d,0.);
+          float g=(exp(-o*2.6)*.85+exp(-o*.8)*.32)*smoothstep(2.4,1.,o)*step(-.05,d);
+          gl_FragColor=vec4(uA*g*uGlow*(.9+.1*sin(uTime*1.7+vPos.y*.6)),1.);}`,
+      {uA: {value: accent.clone()}, uSize: {value: new T.Vector2(width, height)}, uRim: {value: rimWidth}, uGlow: {value: 0}}, {material: hubAdditive});
+
+    // Approved portal illustration on a floating card: chrome sheen sweep, twinkling
+    // diamonds, an accent halo that follows the arch, and a scan-line reveal when the
+    // portal ignites. Seen from behind it is dark metal, so no portal looks hollow.
+    function cardPortal(portal, src, i) {
+      portal.lift = HUB_CARD.lift; portal.mid = HUB_CARD.height * .5;
+      const cardMat = hubShader(`uniform sampler2D uMap;uniform vec3 uA;uniform float uOpen,uFocus,uFlash,uSeed,uLoaded;varying vec2 vUv;
+        void main(){vec4 t=texture2D(uMap,vUv);vec3 col=t.rgb;float a=t.a*uLoaded;
+          float l=max(col.r,max(col.g,col.b)),sat=l-min(col.r,min(col.g,col.b));
+          if(gl_FrontFacing){
+            float chrome=smoothstep(.42,.85,l)*(1.-smoothstep(.1,.32,sat));
+            float sweep=fract(uTime*.09+uSeed*.13)*3.2-1.1;
+            col+=vec3(1.)*chrome*exp(-pow((vUv.x*.9+vUv.y*.55-sweep)*6.5,2.))*.42;
+            float h=hash12(floor(vUv*vec2(96.,88.))+uSeed);
+            col+=vec3(1.)*smoothstep(.8,.97,l)*pow(max(0.,sin(uTime*(1.8+2.6*h)+h*40.)),14.)*.85;
+            col*=mix(.58,1.06,uFocus);
+            col+=mix(uA,vec3(1.),.7)*uFlash*.55;
+          }else{col=vec3(.05,.055,.07)+uA*.1*(1.-a);}
+          float edge=uOpen*1.3-.12;
+          float shown=smoothstep(edge,edge-.06,vUv.y);
+          float scan=exp(-pow((vUv.y-edge)*38.,2.))*step(.002,uOpen)*(1.-step(.999,uOpen))*step(.08,t.a);
+          col+=mix(uA,vec3(1.),.5)*scan*2.;
+          gl_FragColor=vec4(col,clamp(a*shown+scan*.7*uLoaded,0.,1.));}`,
+        {uMap: {value: null}, uA: {value: portal.accent.clone()}, uOpen: {value: reduced ? 1 : 0}, uFocus: {value: 0},
+          uFlash: {value: 0}, uSeed: {value: i * 3.71}, uLoaded: {value: 0}},
+        {material: {transparent: true, depthWrite: false, side: T.DoubleSide}});
+      let haloMat = null;
+      loader.load(src, texture => {
+        if (disposed) { texture.dispose(); return; }
+        texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+        const height = HUB_CARD.height, width = height * texture.image.width / Math.max(1, texture.image.height);
+        const card = new T.Mesh(new T.PlaneGeometry(width, height).translate(0, height / 2, 0), cardMat);
+        card.renderOrder = 2; portal.lifted.add(card);
+        haloMat = haloMaterial(portal.accent, width * .9, height * .93, 0);
+        const halo = new T.Mesh(new T.PlaneGeometry(width + 4.6, height + 4).translate(0, height / 2, 0), haloMat);
+        halo.position.z = -.25; halo.renderOrder = 1; portal.lifted.add(halo);
+        cardMat.uniforms.uMap.value = texture; cardMat.uniforms.uLoaded.value = 1;
+        // Fit the touch target to this card's real width (capped short of the neighbours).
+        if (portal.proxy) portal.proxy.scale.x = Math.min(6.2, width + .4) / HUB_CARD.proxyWidth;
+        if (hubLoopReady) requestDraw();
+      }, undefined, () => { /* an undecodable card leaves the pedestal glowing on its own */ });
+      portal.apply = (ig, f, flash) => {
+        cardMat.uniforms.uOpen.value = ig; cardMat.uniforms.uFocus.value = f; cardMat.uniforms.uFlash.value = flash;
+        if (haloMat) haloMat.uniforms.uGlow.value = ig * (.22 + .75 * f) + flash * 1.2;
+      };
+      return HUB_CARD.proxyWidth;
+    }
+
+    // Procedural fallback when no illustration is bundled: chrome arch with gold trim,
+    // energy surface, nameplate and halo.
+    function archPortal(portal, accentA, accentB, i) {
+      portal.lift = lift; portal.mid = h * .5;
+      const {lifted} = portal;
+      lifted.add(new T.Mesh(frameGeo, hubChrome));
+      lifted.add(new T.Mesh(trimGeo, hubGoldTrim));
+      const energy = hubPortalEnergy(accentA, accentB, i);
+      const glass = new T.Mesh(glassGeo, energy); glass.position.z = -.02; lifted.add(glass);
+      const back = new T.Mesh(glassGeo, hubBackGlass); back.rotation.y = Math.PI; back.position.z = -.07; lifted.add(back); // no hollow frames from behind
+      const haloMat = haloMaterial(portal.accent, w, h, rim);
+      const halo = new T.Mesh(haloGeo, haloMat); halo.position.z = -.2; halo.renderOrder = 1; lifted.add(halo);
+      const plateMat = new T.MeshBasicMaterial({map: hubNameplateTexture(names[i], accentA), transparent: true, toneMapped: false, opacity: reduced ? 1 : 0});
+      const plate = new T.Mesh(plateGeo, plateMat); plate.position.set(0, .44, .2); plate.renderOrder = 3; lifted.add(plate);
+      portal.apply = (ig, f, flash) => {
+        energy.uniforms.uOpen.value = ig; energy.uniforms.uFocus.value = f; energy.uniforms.uFlash.value = flash;
+        haloMat.uniforms.uGlow.value = ig * (.35 + 1.05 * f) + flash * 1.4;
+        plateMat.opacity = hubClamp(ig * 1.4 - .2, 0, 1) * (.72 + .28 * f);
+      };
+      return w + 1.3;
+    }
+
+    ids.forEach((id, i) => {
+      const alpha = Math.PI - i * HUB_STEP; // portal 0 opposite the camera; order runs left → right
+      const group = new T.Group(); group.position.set(Math.sin(alpha) * HUB_RING, 0, Math.cos(alpha) * HUB_RING);
+      group.rotation.y = alpha + Math.PI; scene.add(group); // face the stage
+      floorRef.portalPos[i].set(group.position.x, group.position.z, 0);
+      const [accentA, accentB] = HUB_ACCENTS[id] || ['#bfe6ff', '#f0d49a'];
+      const lifted = new T.Group(); group.add(lifted);
+      const portal = {id, index: i, group, lifted, accent: new T.Color(accentA), lift, mid: h * .5,
+        yaw: -i * HUB_STEP, ignite: reduced ? 1 : 0, flash: 0, focus: 0, phase: hubHash(i * 5.3) * 6.28};
+      const art = window.STAAR_PORTAL_ARTWORK?.[id];
+      const isCard = typeof art === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(art);
+      const proxyWidth = isCard ? cardPortal(portal, art, i) : archPortal(portal, accentA, accentB, i);
+      lifted.position.y = portal.lift;
+      const pedestal = new T.Mesh(pedestalGeo, hubChrome); pedestal.position.y = .12; group.add(pedestal);
+      portal.pedRingMat = new T.MeshBasicMaterial({color: portal.accent.clone(), toneMapped: false});
+      const pedRing = new T.Mesh(pedRingGeo, portal.pedRingMat); pedRing.rotation.x = Math.PI / 2; pedRing.position.y = .245; group.add(pedRing);
+      const pedGold = new T.Mesh(pedGoldGeo, hubGold); pedGold.rotation.x = Math.PI / 2; pedGold.position.y = .02; group.add(pedGold);
+      portal.columnMat = hubShader(`uniform vec3 uA;uniform float uPower;varying vec2 vUv;varying vec3 vN;varying vec3 vV;
+        void main(){float f=abs(dot(normalize(vN),normalize(vV)));
+          float rise=.6+.4*sin(vUv.y*20.-uTime*3.);
+          gl_FragColor=vec4(uA*(pow(f,2.)*.25+pow(1.-f,3.)*.6)*rise*(1.-vUv.y*.5)*uPower,1.);}`,
+        {uA: {value: portal.accent.clone()}, uPower: {value: reduced ? .6 : 0}}, {material: {...hubAdditive, side: T.DoubleSide}});
+      const columnHeight = isCard ? cardColumn : archColumn;
+      const column = new T.Mesh(isCard ? cardColumnGeo : archColumnGeo, portal.columnMat); column.position.y = .24 + columnHeight / 2; group.add(column);
+      const proxyHeight = portal.lift + (isCard ? HUB_CARD.height + .5 : h + rim + .7);
+      const proxy = new T.Mesh(new T.PlaneGeometry(proxyWidth, proxyHeight), proxyMat); proxy.position.set(0, proxyHeight / 2, .15);
+      proxy.userData = {action: 'world:' + id, label: names[i], index: i};
+      group.add(proxy); clickable.push(proxy); hubProxies.push(proxy);
+      portal.proxy = proxy; hubPortals.push(portal);
+    });
+  }
+
+  function hubInterface() {
+    // In-page caption: ‹ focused world › with 46 px targets. Sits above the React
+    // Native control row (14.2% of the height, or the safe area + 94 px).
+    const style = document.createElement('style');
+    style.textContent = `
+      html,body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+      body.hub-immersive header{display:none}
+      body.hub-immersive footer{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;margin:-1px;padding:0;border:0}
+      #hub-caption{position:absolute;left:50%;bottom:max(14.2vh,calc(env(safe-area-inset-bottom,0px) + 94px));transform:translate(-50%,12px);display:flex;align-items:center;gap:10px;opacity:0;transition:opacity .55s ease,transform .55s ease;pointer-events:none;z-index:4}
+      #hub-caption.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+      #hub-caption button{background:rgba(10,12,20,.6);border:1px solid rgba(232,211,164,.55);color:#f4efe4;border-radius:999px;min-height:46px;min-width:46px;padding:0;font:500 26px/1 ${HUB_FONT};-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 0 18px rgba(232,200,140,.16),inset 0 1px 0 rgba(255,255,255,.16);touch-action:manipulation}
+      #hub-caption button:active{transform:scale(.96)}
+      #hub-name{min-width:210px!important;padding:9px 22px!important;display:flex;flex-direction:column;align-items:center;gap:4px}
+      #hub-name b{font:700 15px/1.1 ${HUB_FONT};letter-spacing:.2em;background:linear-gradient(180deg,#fff,#d9dee8 55%,#a9b2c2);-webkit-background-clip:text;background-clip:text;color:transparent;transition:opacity .16s ease}
+      #hub-name small{font:600 9.5px/1 ${HUB_FONT};letter-spacing:.14em;color:#e9cf96;white-space:nowrap;transition:opacity .16s ease}
+      #hub-caption.swap b,#hub-caption.swap small{opacity:0}
+      @media (prefers-reduced-motion:reduce){#hub-caption,#hub-name b,#hub-name small{transition:none}}`;
+    document.head.append(style);
+    document.body.classList.add('hub-immersive');
+    // Lock page zoom: pinch belongs to the 3D camera, not to WKWebView scaling.
+    document.querySelector('meta[name="viewport"]')?.setAttribute('content',
+      'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover');
+    document.addEventListener('gesturestart', e => e.preventDefault());
+    const caption = document.createElement('div'); caption.id = 'hub-caption';
+    const button = (id, label, aria) => {
+      const b = document.createElement('button'); b.id = id; b.type = 'button'; b.textContent = label;
+      if (aria) b.setAttribute('aria-label', aria); return b;
+    };
+    const prev = button('hub-prev', '‹', 'Previous world'), next = button('hub-next', '›', 'Next world'), name = button('hub-name', '');
+    const title = document.createElement('b'), hint = document.createElement('small');
+    hint.textContent = 'SWIPE TO TURN · TAP TO ENTER'; name.append(title, hint);
+    caption.append(prev, name, next); document.body.append(caption);
+    const status = document.querySelector('#status');
+    let shown = -1, swapTimer = 0;
+    return {
+      bind(rig) {
+        prev.addEventListener('click', () => rig.step(-1));
+        next.addEventListener('click', () => rig.step(1));
+        name.addEventListener('click', () => rig.enterFocused());
+        addEventListener('keydown', e => {
+          if (e.metaKey || e.ctrlKey || e.altKey) return;
+          if (e.key === 'ArrowRight') { rig.step(1); e.preventDefault(); }
+          else if (e.key === 'ArrowLeft') { rig.step(-1); e.preventDefault(); }
+        });
+      },
+      show() { caption.classList.add('on'); },
+      set(i) {
+        if (i === shown) return; shown = i;
+        const apply = () => { title.textContent = names[i].toUpperCase(); name.setAttribute('aria-label', 'Enter ' + names[i]); caption.classList.remove('swap'); };
+        clearTimeout(swapTimer);
+        if (reduced || !title.textContent) apply(); else { caption.classList.add('swap'); swapTimer = setTimeout(apply, 150); }
+      },
+      announce(i) { if (status) status.textContent = names[i] + ', ' + (i + 1) + ' of ' + ids.length + '. Swipe to turn the ring; tap the centred portal to enter.'; },
+      interacted() { hint.textContent = 'TAP PORTAL TO ENTER'; },
+    };
+  }
+
+  function createHubRig(ui, floorRef, rings) {
+    const N = ids.length;
+    const st = {yaw: 0, vel: 0, target: 0, focus: 0, dist: HUB_CAM.dist, distTarget: HUB_CAM.dist, look: 0, lookTarget: 0,
+      push: 1, pulse: 0, intro: !reduced, introT: 0, fast: false, dragging: false, live: -1, lastEnter: -1e9, power: reduced ? 1 : 0};
+    const indexFor = yaw => ((Math.round(-yaw / HUB_STEP) % N) + N) % N;
+    const yawFor = (i, from) => { const base = -i * HUB_STEP; return base + Math.PI * 2 * Math.round((from - base) / (Math.PI * 2)); };
+    const ray = new T.Raycaster(), ndc = new T.Vector2(), probe = new T.Vector3();
+    const pickables = [hubStage.proxy, ...hubProxies];
+    const draw = () => { if (hubLoopReady) requestDraw(); };
+
+    function focus(i, velocity = 0) {
+      i = ((i % N) + N) % N; st.focus = i; st.target = yawFor(i, st.yaw);
+      if (reduced) { st.yaw = st.target; st.vel = 0; } else st.vel = velocity;
+      ui.announce(i); report('focus', {action: 'world:' + ids[i]}); draw();
+    }
+    function enter(i) {
+      const now = performance.now(); if (now - st.lastEnter < 900) return; st.lastEnter = now;
+      const portal = hubPortals[i]; portal.flash = 1; if (!reduced) st.push = 0;
+      report('select', {action: 'world:' + portal.id}); draw();
+    }
+    const skipIntro = () => { if (st.intro) st.fast = true; };
+    function step(direction) { skipIntro(); ui.interacted(); focus(st.focus + direction); }
+    function enterFocused() { if (st.intro) { skipIntro(); return; } enter(st.focus); }
+    function trackPortal(i) {
+      // Approved model only: glance toward the portal's on-screen bearing, projected
+      // onto the camera plane so the neck never twists toward the portal behind him.
+      if (!guardianHeadTracking?.ready) return;
+      hubPortals[i].lifted.getWorldPosition(probe); probe.y += hubPortals[i].mid * 1.1;
+      camera.updateMatrixWorld(); probe.applyMatrix4(camera.matrixWorldInverse); probe.z = 0; probe.applyMatrix4(camera.matrixWorld);
+      guardianHeadTracking.setTargetWorld(probe);
+    }
+    function pick(clientX, clientY) {
+      const r = canvas.getBoundingClientRect(); if (!r.width || !r.height) return null;
+      ndc.set((clientX - r.left) / r.width * 2 - 1, -(clientY - r.top) / r.height * 2 + 1);
+      camera.updateMatrixWorld(); ray.setFromCamera(ndc, camera);
+      const hit = ray.intersectObjects(pickables, false)[0];
+      if (hit) return hit.object === hubStage.proxy ? 'stage' : hit.object.userData.index;
+      // Forgiving fallback for small on-screen portals (landscape, iPad split view).
+      let best = null, bestDistance = Math.max(28, Math.min(r.width, r.height) * .06);
+      for (const portal of hubPortals) {
+        portal.lifted.getWorldPosition(probe); probe.y += portal.mid;
+        probe.applyMatrix4(camera.matrixWorldInverse); if (probe.z > -.5) continue;
+        probe.applyMatrix4(camera.projectionMatrix);
+        const d = Math.hypot((probe.x + 1) / 2 * r.width + r.left - clientX, (1 - probe.y) / 2 * r.height + r.top - clientY);
+        if (d < bestDistance) { best = portal.index; bestDistance = d; }
+      }
+      return best;
+    }
+    function tap(x, y) {
+      if (st.intro) return;
+      const target = pick(x, y);
+      if (target === 'stage') { st.pulse = 1; draw(); return; }
+      if (target === null) return;
+      ui.interacted();
+      const aligned = Math.abs(hubWrap(st.yaw - yawFor(target, st.yaw))) < HUB_STEP * .22;
+      if (target === st.focus && aligned) enter(target); else focus(target);
+    }
+
+    // Touch: one finger turns the ring (with inertia and snap), two fingers pinch the
+    // camera closer. A tap counts only for a single short, still touch, so lifting
+    // the resting finger of a pinch can never open a portal by accident.
+    const pointers = new Map(); let gesture = null;
+    const slop = () => Math.max(9, Math.min(canvas.clientWidth || innerWidth, canvas.clientHeight || innerHeight) * .022);
+    const spread = () => { const [a, b] = [...pointers.values()]; return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0; };
+    canvas.addEventListener('pointerdown', e => {
+      if (disposed || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      try { canvas.setPointerCapture(e.pointerId); } catch { /* capture is best effort in WKWebView */ }
+      pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+      skipIntro();
+      const now = e.timeStamp || performance.now();
+      if (pointers.size === 1) { gesture = {x0: e.clientX, y0: e.clientY, t0: now, x: e.clientX, y: e.clientY, t: now, moved: false, multi: false, vel: 0}; st.vel = 0; }
+      else if (gesture) { gesture.multi = true; gesture.spread0 = spread(); gesture.dist0 = st.distTarget; st.dragging = false; }
+      draw();
+    });
+    canvas.addEventListener('pointermove', e => {
+      const point = pointers.get(e.pointerId); if (!point || !gesture) return;
+      point.x = e.clientX; point.y = e.clientY;
+      if (st.intro) return;
+      const now = e.timeStamp || performance.now();
+      if (pointers.size >= 2) {
+        const d = spread();
+        if (gesture.spread0 > 0 && d > 0) st.distTarget = hubClamp(gesture.dist0 * gesture.spread0 / d, HUB_CAM.minDist, HUB_CAM.maxDist);
+        draw(); return;
+      }
+      if (gesture.multi) return; // the finger left over after a pinch never drags or taps
+      if (!gesture.moved && Math.hypot(e.clientX - gesture.x0, e.clientY - gesture.y0) > slop()) { gesture.moved = true; st.dragging = true; ui.interacted(); }
+      if (gesture.moved) {
+        const dx = e.clientX - gesture.x, dy = e.clientY - gesture.y, dt = Math.max(.001, (now - gesture.t) / 1000);
+        const k = HUB_STEP * 1.55 / Math.max(260, canvas.clientWidth || innerWidth);
+        st.yaw += dx * k; st.target = st.yaw;
+        gesture.vel = gesture.vel * .55 + dx * k / dt * .45;
+        st.lookTarget = hubClamp(st.lookTarget + dy * .009, -1.1, 1.7);
+        draw();
+      }
+      gesture.x = e.clientX; gesture.y = e.clientY; gesture.t = now;
+    });
+    const end = e => {
+      if (!pointers.delete(e.pointerId) || !gesture || pointers.size) return;
+      const g = gesture, now = e.timeStamp || performance.now(); gesture = null; st.dragging = false; st.lookTarget = 0;
+      if (e.type === 'pointerup' && !g.multi && !g.moved && now - g.t0 < 500) tap(e.clientX, e.clientY);
+      else if (!st.intro) {
+        const velocity = g.multi || now - g.t > 80 ? 0 : hubClamp(g.vel, -7, 7); // a finger that rested before lifting has no fling
+        focus(indexFor(st.yaw + velocity * .26), velocity);
+      }
+      draw();
+    };
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', end);
+    canvas.addEventListener('lostpointercapture', e => setTimeout(() => end(e), 32)); // fallback only; pointerup normally lands first
+    canvas.addEventListener('wheel', e => {
+      if (st.intro) return; e.preventDefault();
+      st.distTarget = hubClamp(st.distTarget * Math.exp(e.deltaY * .0012), HUB_CAM.minDist, HUB_CAM.maxDist); draw();
+    }, {passive: false});
+
+    function update(dt) {
+      dt = hubClamp(dt || 0, 0, .1); // real-time down to 10 fps; the spring sub-steps keep it stable
+      if (!reduced) hubTime.value += dt;
+      let yaw, dist, height, lookY;
+      if (st.intro) {
+        // Establishing shot: start high outside the ring, sweep round and descend
+        // inside it while the floor ring lights, the portals ignite one by one and
+        // the Guardian stage powers up.
+        st.introT += dt * (st.fast ? 4 : 1);
+        const p = Math.min(1, st.introT / HUB_INTRO_SECONDS);
+        const e1 = hubEase(Math.min(1, p * 1.15)), e2 = hubEase(hubClamp((p - .16) / .84, 0, 1));
+        yaw = 1.3 * (1 - hubEaseOut(p));
+        dist = 23 + (HUB_CAM.dist - 23) * e1; height = 13 + (HUB_CAM.height - 13) * e2; lookY = 1.4 + (HUB_CAM.lookY - 1.4) * e2;
+        hubPortals.forEach((portal, k) => {
+          const before = portal.ignite;
+          portal.ignite = hubEaseOut(hubClamp((st.introT - (.5 + k * .17)) / .75, 0, 1));
+          if (before === 0 && portal.ignite > 0) portal.flash = Math.max(portal.flash, .9);
+        });
+        st.power = hubClamp((st.introT - .9) / 1.3, 0, 1);
+        if (p >= 1) {
+          st.intro = false; st.yaw = st.target = 0; st.vel = 0; st.power = 1;
+          hubPortals.forEach(portal => { portal.ignite = 1; });
+          ui.show(); ui.announce(0);
+        }
+      }
+      if (!st.intro) {
+        if (!st.dragging) {
+          if (reduced) { st.yaw = st.target; st.vel = 0; }
+          else {
+            // Lightly under-damped spring: keeps the fling velocity, settles in ~0.6 s.
+            const steps = Math.max(1, Math.ceil(dt / .016)), h = dt / steps;
+            for (let s = 0; s < steps; s++) { st.vel += (-34 * (st.yaw - st.target) - 10.5 * st.vel) * h; st.yaw += st.vel * h; }
+            if (Math.abs(st.yaw - st.target) < 1e-4 && Math.abs(st.vel) < 1e-3) { st.yaw = st.target; st.vel = 0; }
+          }
+        }
+        st.dist += (st.distTarget - st.dist) * (reduced ? 1 : 1 - Math.exp(-9 * dt));
+        st.look += (st.lookTarget - st.look) * (reduced ? 1 : 1 - Math.exp(-6 * dt));
+        st.push = Math.min(1, st.push + dt / .85);
+        yaw = st.yaw; dist = st.dist - (reduced ? 0 : Math.sin(Math.PI * st.push) * .9);
+        height = HUB_CAM.height + st.look * .22; lookY = HUB_CAM.lookY + st.look;
+        const live = indexFor(yaw);
+        if (live !== st.live) { st.live = live; ui.set(live); trackPortal(live); }
+      }
+      camera.position.set(Math.sin(yaw) * dist, height, Math.cos(yaw) * dist);
+      camera.lookAt(0, lookY, 0);
+      const time = hubTime.value, ease = rate => reduced ? 1 : 1 - Math.exp(-rate * dt);
+      const ringPower = st.intro ? hubClamp((st.introT - .15) / .9, 0, 1) : 1;
+      const haloPower = st.intro ? hubClamp((st.introT - 2.3) / .8, 0, 1) : 1;
+      rings.floor.glowMat.uniforms.uGain.value = ringPower; rings.floor.core.material.opacity = ringPower;
+      rings.halo.glowMat.uniforms.uGain.value = haloPower; rings.halo.core.material.opacity = haloPower;
+      const stage = hubStage;
+      stage.mount.rotation.y += hubWrap(yaw - stage.mount.rotation.y) * ease(5); // the Guardian turns to face you
+      const beamGrow = Math.max(.001, hubEaseOut(st.power));
+      stage.beam.scale.y = beamGrow; stage.beam.position.y = HUB_STAGE_TOP + 7.5 * beamGrow;
+      stage.beamMat.uniforms.uPower.value = st.power * (.85 + (reduced ? 0 : .15 * Math.sin(time * 2.1))) + st.pulse * .8;
+      stage.motes.material.uniforms.uPower.value = st.power;
+      stage.light.intensity = 26 * st.power + st.pulse * 30;
+      const placeholder = stage.placeholder;
+      if (placeholder) {
+        const grow = Math.max(.001, hubBackOut(hubClamp((st.power - .1) / .9, 0, 1)));
+        placeholder.core.scale.setScalar(grow * (1 + st.pulse * .12));
+        placeholder.core.position.y = HUB_STAGE_TOP + 1.6 + (reduced ? 0 : Math.sin(time * 1.15) * .08);
+        if (!reduced) { placeholder.spin.rotation.y += dt * .5; placeholder.rings.forEach(ring => { ring.pivot.rotation.y += dt * ring.speed; }); }
+        const breathe = reduced ? 1 : .92 + .08 * Math.sin(time * 2.3);
+        placeholder.glow.material.opacity = .55 * st.power * breathe + st.pulse * .45;
+        placeholder.glow.scale.setScalar(3.4 * (breathe + st.pulse * .3));
+        placeholder.glassMat.uniforms.uPower.value = st.power * (1 + st.pulse);
+        placeholder.label.material.opacity = st.power;
+      }
+      st.pulse *= reduced ? 0 : Math.exp(-dt * 3);
+      for (const portal of hubPortals) {
+        const target = st.intro ? 0 : 1 - hubSmooth(0, HUB_STEP * .9, Math.abs(hubWrap(yaw - portal.yaw)));
+        portal.focus += (target - portal.focus) * ease(10);
+        portal.flash *= reduced ? 0 : Math.exp(-dt * 3.4);
+        const ig = portal.ignite, f = portal.focus;
+        portal.lifted.position.y = portal.lift + (reduced ? 0 : Math.sin(time * .9 + portal.phase) * .07);
+        portal.lifted.scale.setScalar(1 + .05 * f + .03 * portal.flash);
+        portal.apply(ig, f, portal.flash);
+        portal.pedRingMat.color.copy(portal.accent).multiplyScalar(.25 + ig * (.35 + .9 * f));
+        portal.columnMat.uniforms.uPower.value = ig * (.3 + .8 * f) + portal.flash;
+        floorRef.portalPos[portal.index].z = ig * (.25 + .75 * f) + portal.flash;
+      }
+    }
+    function busy() {
+      if (st.intro || st.dragging || st.yaw !== st.target || st.push < 1 || st.pulse > .005) return true;
+      if (Math.abs(st.dist - st.distTarget) > 1e-3 || Math.abs(st.look - st.lookTarget) > 1e-3) return true;
+      return hubPortals.some(portal => portal.flash > .01 ||
+        Math.abs(portal.focus - (1 - hubSmooth(0, HUB_STEP * .9, Math.abs(hubWrap(st.yaw - portal.yaw))))) > .002);
+    }
+    if (!st.intro) { ui.show(); ui.announce(0); }
+    return {update, busy, focus, step, enterFocused, reset: () => focus(0)};
+  }
+
+  // Subtle bloom: chrome highlights, glowing seams and halos bleed soft light the way
+  // the concept renders do. Phone-sized drawing buffers only (an iPad-sized HDR
+  // multisample buffer costs too much memory); it needs renderable half-float colour
+  // and is dropped if the device can't keep up. Without it the hub still glows
+  // through its additive halos.
+  const HUB_BLOOM = {strength: .5, radius: .62, threshold: .8, maxPixels: 2.1e6};
+  function createHubBloom() {
+    const ratio = renderer.getPixelRatio();
+    if (viewWidth * viewHeight * ratio * ratio > HUB_BLOOM.maxPixels) return null;
+    if (!renderer.extensions.has('EXT_color_buffer_float') && !renderer.extensions.has('EXT_color_buffer_half_float')) return null;
+    let composer = null;
+    try {
+      // One 4x multisampled HDR buffer: the output pass never swaps, so the composer's
+      // second buffer is never allocated.
+      composer = new EffectComposer(renderer, new T.WebGLRenderTarget(viewWidth, viewHeight, {type: T.HalfFloatType, samples: 4}));
+      composer.setPixelRatio(ratio);
+      composer.addPass(new RenderPass(scene, camera));
+      composer.addPass(new UnrealBloomPass(new T.Vector2(viewWidth, viewHeight), HUB_BLOOM.strength, HUB_BLOOM.radius, HUB_BLOOM.threshold));
+      const output = new OutputPass(); output.needsSwap = false; composer.addPass(output);
+      renderer.setRenderTarget(composer.readBuffer);
+      const gl = renderer.getContext(), complete = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+      renderer.setRenderTarget(null);
+      if (!complete) throw new Error('bloom buffer incomplete');
+    } catch {
+      renderer.setRenderTarget(null);
+      composer?.passes.forEach(pass => pass.dispose?.()); composer?.dispose();
+      return null;
+    }
+    document.documentElement.dataset.hubBloom = 'on';
+    return {
+      render: delta => composer.render(delta),
+      resize() {
+        const next = renderer.getPixelRatio();
+        if (viewWidth * viewHeight * next * next > HUB_BLOOM.maxPixels) return false;
+        composer.setPixelRatio(next); composer.setSize(viewWidth, viewHeight); return true;
+      },
+      dispose() { composer.passes.forEach(pass => pass.dispose?.()); composer.dispose(); document.documentElement.dataset.hubBloom = 'off'; },
+    };
+  }
+  function hubDropBloom() { hubBloom?.dispose(); hubBloom = null; }
+
+  let hubPerfFrames = 0, hubSlowFrames = 0;
+  function hubAdaptiveResolution(delta) {
+    // Older iPhones: if over half the recent frames miss ~36 fps, step the pixel
+    // ratio down (2 → 1.75 → 1.5 → 1.25) instead of dropping frames; still slow at
+    // 1.25, drop the bloom.
+    if (!delta || document.hidden) return;
+    hubPerfFrames++; if (delta > .028) hubSlowFrames++;
+    if (hubPerfFrames < 90) return;
+    const ratio = renderer.getPixelRatio();
+    if (hubSlowFrames > 45 && ratio > 1.26) { renderer.setPixelRatio(Math.max(1.25, ratio - .25)); applyViewport(true); }
+    else if (hubSlowFrames > 45 && hubBloom) hubDropBloom();
+    hubPerfFrames = hubSlowFrames = 0;
+  }
+  function applyViewport(force = false) {
+    const [w, h] = viewportSize();
+    if (!force && w === viewWidth && h === viewHeight) return;
+    viewWidth = w; viewHeight = h;
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+    renderer.setSize(w, h, false);
+    if (hubBloom && !hubBloom.resize()) hubDropBloom();
+    if (immersiveHub) hubFrame();
+    if (hubLoopReady) requestDraw();
   }
   function home() {shell();for(const r of[1.8,2.05,2.3])ring(0,2.6,-5,r,.12);ring(0,2.6,-4.85,2.05,.03,amber);sofa(-3,1,.2);sofa(2.2,-1.8,-.4);cylinder(-.6,.55,1.7,1.35,.15,black);cylinder(-.6,.28,1.7,.32,.5,gold);sphere(3.8,1.8,1,.5,blue);ring(3.8,1.8,1,.8,.025,blue);panel('Smart controls','connections',-4,2.7,-2);panel('Rooms & routines','conversation:0',3.8,2.7,-3);panel('Daily check-in','checkins',0,.9,4,amber);}
   function work() {shell(true);plinth(0,-1,3.8);globe(0,3.7,-1,2);cylinder(0,.85,-1,3.4,.6);ring(0,1.2,-1,3.2,.04,blue,true);for(let i=0;i<12;i++){const a=i*Math.PI/6;box(Math.sin(a)*3,1.23,-1+Math.cos(a)*3,.65,.04,.4,blue).rotation.y=a;}['Employment','Businesses','Career','Teams'].forEach((n,i)=>panel(n,i===0?'conversation:0':'connections',(i-1.5)*3,2,2.5,amber,2.6));panel('Connect workplace','connections',0,.85,5,blue,4);sofa(8,-3,-.6);}
@@ -708,6 +1732,7 @@ if (renderer) {
   importApprovedWorld();
   controls.update();controls.saveState();
   let frame=0,visible=true,firstFrameReady=false,lastFrameAt=null;const start=performance.now();
+  hubLoopReady=true;
   function requestDraw(){if(!frame&&visible)frame=requestAnimationFrame(draw);}
   function draw(now){
     frame=0;if(!visible)return;
@@ -717,9 +1742,10 @@ if (renderer) {
       modelMotions.forEach(motion=>motion.update(delta,visible));
       worldPhysicsQa?.frame(now);
       walkController?.tick(Math.max(0,Math.min(delta,.075)));
-      animated.forEach(fn=>fn(t));controls.update();
+      animated.forEach(fn=>fn(t));
+      if(hubRig){hubRig.update(delta);hubAlignBackdrop();if(!reduced)hubAdaptiveResolution(delta);}else controls.update();
       const renderStart=guardianDeviceQa ? performance.now() : 0;
-      renderer.render(scene,camera);
+      if(hubBloom)hubBloom.render(delta);else renderer.render(scene,camera);
       if (guardianArrivalPending) {
         guardianArrivalPending = false;
         report('guardian-arrived');
@@ -734,7 +1760,8 @@ if (renderer) {
       }
       // A scene is ready only after WebGL has successfully drawn its first frame.
       if(!firstFrameReady){firstFrameReady=true;report('ready',{geometry:true,objects:scene.children.length});}
-      if(!reduced || walkController?.pressedCount())requestDraw();
+      // Reduce Motion renders on demand; keep drawing only while a gesture or snap is in flight.
+      if(!reduced || walkController?.pressedCount() || hubRig?.busy())requestDraw();
     } catch {
       guardianDeviceQa?.failedFrame();
       visible=false;cancelAnimationFrame(frame);frame=0;
@@ -745,13 +1772,20 @@ if (renderer) {
   }
   controls.addEventListener('change',requestDraw);requestDraw();
   document.addEventListener('visibilitychange',()=>{visible=!document.hidden;if(!visible)guardianFaceMotion?.mute();lastFrameAt=null;if(!visible)cancelAnimationFrame(frame);frame=0;if(visible)requestDraw();});
-  addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);requestDraw();});
-  const raycaster=new T.Raycaster();let down=null;
-  canvas.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
-  canvas.addEventListener('pointercancel',()=>{down=null;});
+  // WKWebView does not always fire window 'resize' when React Native changes the
+  // web view's frame, so also watch the canvas box itself.
+  addEventListener('resize',()=>applyViewport());
+  window.visualViewport?.addEventListener('resize',()=>applyViewport());
+  if(typeof ResizeObserver==='function')new ResizeObserver(()=>applyViewport()).observe(canvas);
+  if(immersiveHub)hubFrame();
+  const raycaster=new T.Raycaster();let down=null;const activePointers=new Set();
+  // A tap is one short, still, single-finger touch. A second finger (pinch) cancels it.
+  canvas.addEventListener('pointerdown',e=>{activePointers.add(e.pointerId);down=activePointers.size===1?[e.clientX,e.clientY,e.timeStamp||performance.now()]:null;});
+  canvas.addEventListener('pointercancel',e=>{activePointers.delete(e.pointerId);down=null;});
   const portalFocusPosition=new T.Vector3();
   canvas.addEventListener('pointermove',e=>{
-    if(world!=='hub'||!guardianHeadTracking?.ready||disposed)return;
+    // The immersive hub rig drives head tracking from focus changes instead.
+    if(world!=='hub'||immersiveHub||!guardianHeadTracking?.ready||disposed)return;
     const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;
     raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,
       -(e.clientY-r.top)/r.height*2+1),camera);
@@ -769,13 +1803,14 @@ if (renderer) {
     requestDraw();
   });
   canvas.addEventListener('pointerleave',()=>{guardianHeadTracking?.clearTarget();requestDraw();});
-  canvas.addEventListener('pointerup',e=>{const origin=down;down=null;if(!origin||Math.hypot(e.clientX-origin[0],e.clientY-origin[1])>7)return;const r=canvas.getBoundingClientRect();raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);const hit=raycaster.intersectObjects(clickable,true)[0];if(hit){if(importedControls.length){const control=hitControl(hit.object,importedControls);if(control)report('select',{action:control.action});}else{let n=hit.object;while(n&&!n.userData.action)n=n.parent;if(n)report('select',{action:n.userData.action});}}});
-  document.querySelector('#reset').addEventListener('click',()=>{controls.reset();requestDraw();});
-  document.querySelector('#title').textContent=world==='hub'?'STAARWARDD · PORTAL HUB':(singles?'STAAR Love · Singles':names[ids.indexOf(world)]);
-  document.querySelector('#status').textContent='Drag to explore · pinch or scroll to move closer · tap a labelled control';
-  if(world==='hub'&&!guardianPresentation){document.querySelector('header').style.display='none';document.querySelector('footer').style.display='none';}
-  if(world!=='hub')for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
+  canvas.addEventListener('pointerup',e=>{activePointers.delete(e.pointerId);const origin=down;down=null;if(immersiveHub||!origin||Math.hypot(e.clientX-origin[0],e.clientY-origin[1])>10||(e.timeStamp||performance.now())-origin[2]>600)return;const r=canvas.getBoundingClientRect();raycaster.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),camera);const hit=raycaster.intersectObjects(clickable,true)[0];if(hit){if(importedControls.length){const control=hitControl(hit.object,importedControls);if(control)report('select',{action:control.action});}else{let n=hit.object;while(n&&!n.userData.action)n=n.parent;if(n)report('select',{action:n.userData.action});}}});
+  document.querySelector('#reset').addEventListener('click',()=>{if(hubRig)hubRig.reset();else controls.reset();requestDraw();});
+  document.querySelector('#title').textContent=world==='hub'?'STAARWAARDD · PORTAL HUB':(singles?'STAAR Love · Singles':names[ids.indexOf(world)]);
+  document.querySelector('#status').textContent=immersiveHub
+    ?'Ten portals surround the Guardian. Swipe to turn the ring; tap the centred portal to enter.'
+    :'Drag to explore · pinch or scroll to move closer · tap a labelled control';
+  for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
   canvas.addEventListener('webglcontextlost',e=>{worldPhysicsQa?.contextLost();e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
-  addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();guardianNeckPoseQa?.dispose();controls.dispose();disposeModel(scene);env.dispose();renderer.dispose();});
+  addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();guardianNeckPoseQa?.dispose();controls.dispose();hubDropBloom();disposeModel(scene);env.dispose();renderer.dispose();});
 }
 

@@ -14,14 +14,14 @@ test('3D hub contains ten clickable world portals and a Guardian, not just a pla
   const ids=[...match[1].matchAll(/'([^']+)'/g)].map(m=>m[1]);
   assert.equal(ids.length,10);
   assert.equal(new Set(ids).size,10);
-  assert.match(scene,/ids\.forEach\(\(id,i\)=>/);
-  assert.match(scene,/g\.userData=\{action:'world:'\+id/);
-  assert.match(scene,/clickable\.push\(g\)/);
+  assert.match(scene,/ids\.forEach\(\(id, i\) =>/);
+  assert.match(scene,/proxy\.userData = \{action: 'world:'\s*\+\s*id/);
+  assert.match(scene,/clickable\.push\(proxy\)/);
   assert.match(scene,/approvedArmoredGuardian\(\);/);
   assert.match(scene,/raycaster\.intersectObjects\(clickable,true\)/);
   assert.match(scene,/report\('select',\{action:n\.userData\.action\}\)/);
   assert.match(hub,/onThreeDimensionalPortalAction/);
-  assert.match(hub,/if \(onSignIn\) setInspectedPortal\(target\)/);
+  assert.match(hub,/if \(onSignIn\) \{ setInspectedPortal\(target\)/);
   assert.match(hub,/else openPortal\(target\.id\)/);
 });
 
@@ -33,6 +33,7 @@ test('production remains fail-closed against unapproved private Guardian QA',asy
   assert.match(builder,/const privateQaBuild = process\.env\.STAAR_PRIVATE_DEVICE_QA_BUILD === '1'/);
   assert.match(builder,/if \(!privateQaBuild && \(privateGuardianQa \|\| privateWorlds \|\| internalHomeReview\)\)/);
   assert.match(workflow,/triggering:\s*\n\s*events: \[\]/);
-  assert.doesNotMatch(workflow,/publishing:/);
+  assert.match(workflow,/submit_to_testflight: true/);
+  assert.match(workflow,/testFlightInternalTestingOnly": true/);
   assert.doesNotMatch(workflow,/STAAR_PRIVATE_DEVICE_QA_BUILD:\s*['"]?1/);
 });

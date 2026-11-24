@@ -4,23 +4,29 @@ import {readFile} from 'node:fs/promises';
 const home=()=>readFile(new URL('../components/staarwardd/world-hub.tsx',import.meta.url),'utf8');
 const scene=()=>readFile(new URL('../components/staarwardd/world-scene.tsx',import.meta.url),'utf8');
 const route=()=>readFile(new URL('../app/hub.tsx',import.meta.url),'utf8').catch(()=>readFile(new URL('../app/(tabs)/hub.tsx',import.meta.url),'utf8'));
-test('The signed-in homepage contains ten direct portals and a Guardian-only scene', async () => {
- const [src, entry] = await Promise.all([home(), route()]);
+test('The signed-in homepage is the immersive 3D portal ring around the Guardian stage', async () => {
+ const [src, entry, renderer] = await Promise.all([home(), route(), readFile(new URL('../scene-src/worlds.js', import.meta.url), 'utf8')]);
  assert.match(entry, /<WorldHub/);
- assert.match(src, /<WorldScene world="hub" embedded onAction=\{onThreeDimensionalPortalAction\}/);
- assert.match(src, /onThreeDimensionalPortalAction/);
- assert.match(src, /lockedPortalArtwork/);
- assert.match(src, /const target = WORLDS\.find/);
- assert.match(src, /router\.push\(\{ pathname: '\/environment'/);
- assert.match(src, /3D PORTAL CHAMBER/);
+ // Mount once, after iOS reports Reduce Motion, so the WebView never loads twice.
+ assert.match(src, /reduceMotion !== null && <WorldScene world="hub" embedded onAction=/);
+ // All ten worlds stay one tap away natively (list sheet + VoiceOver route).
+ assert.match(src, /WORLDS\.map\(world =>/);
+ assert.match(src, /onPress=\{\(\) => openPortal\(world\.id\)\}/);
+ // No flat 5x2 tile grid in front of the 3D scene.
+ assert.doesNotMatch(src, /renderPortal|WORLDS\.slice\(0, 5\)|WORLDS\.slice\(5, 10\)/);
  assert.doesNotMatch(src, /ENTER FULL 3D HUB|<GuardianCharacter\b/);
+ // Ten portals on a ring; the camera stays inside it; touch picking uses cheap proxies.
+ assert.match(renderer, /const immersiveHub = world === 'hub' && !guardianPresentation/);
+ assert.match(renderer, /const HUB_RING = [\d.]+, HUB_STEP = Math\.PI \* 2 \/ ids\.length/);
+ assert.match(renderer, /ray\.intersectObjects\(pickables, false\)/);
+ assert.match(renderer, /GUARDIAN MODEL PENDING APPROVAL/);
 });
 
 test('Private rig presentation is restricted to explicitly staged native review builds', async () => {
  const renderer = await readFile(new URL('../scene-src/worlds.js', import.meta.url), 'utf8');
  assert.match(await scene(), /const qaEnabled = !guardianPresentation && Platform\.OS/);
  const builder = await readFile(new URL('../scene-src/build.mjs', import.meta.url), 'utf8');
- assert.match(builder, /Boolean\(privateGuardianQa\) && process\.env\.STAAR_INTERNAL_HOME_REVIEW === '1'/);
+ assert.match(builder, /Boolean\(privateGuardianQa\) && process\.env\.STAAR_INTERNAL_HOME_REVIEW\s*===\s*'1'/);
  assert.match(renderer, /guardianPresentation && window\.STAAR_INTERNAL_HOME_REVIEW === true && Boolean\(window\.ReactNativeWebView\)/);
  assert.match(renderer, /internalQaRoute \|\| internalHomeReview/);
  assert.match(renderer, /document\.querySelector\('header'\)\.hidden/);
