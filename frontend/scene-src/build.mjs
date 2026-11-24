@@ -39,7 +39,7 @@ const worldData=approvedWorlds ? JSON.stringify(approvedWorlds) : 'null';
 // Hub artwork (see hub-art/README.md): the ten approved portal illustrations as
 // transparent WebP cards, plus the Toronto skyline backdrop. The page's CSP only
 // allows data: images, so they are inlined. A missing card falls back to a
-// procedural chrome portal; a missing skyline falls back to the procedural city.
+// procedural chrome portal; a missing backdrop falls back to the procedural city.
 const portalArtIds=['home','work','creativity','wellbeing','relationships','events','style','staarverse','staarsonic','diggitstaar'];
 const portalArt={};
 for(const id of portalArtIds){
@@ -47,11 +47,11 @@ for(const id of portalArtIds){
   catch{/* optional card */}
 }
 const portalArtData=Object.keys(portalArt).length?JSON.stringify(portalArt):'null';
+// Backdrop: the locked homepage's cosmic sky (moon, galaxy, starfield) over the
+// night Toronto skyline. worlds.js pins its waterline with HUB_SKYLINE.
 let hubSkyline=null;
-for(const [file,type] of [[path.join(root,'hub-art','toronto-skyline.jpg'),'jpeg'],[path.join(root,'../assets/images/staarwardd/toronto-skyline-pan.png'),'png']]){
-  try{hubSkyline=`data:image/${type};base64,`+(await readFile(file)).toString('base64');break;}
-  catch{/* try the next source */}
-}
+try{hubSkyline='data:image/webp;base64,'+(await readFile(path.join(root,'hub-art','cosmic-skyline.webp'))).toString('base64');}
+catch{/* optional backdrop */}
 const hubSkylineData=JSON.stringify(hubSkyline);
 const result=await build({entryPoints:[path.join(root,'worlds.js')],bundle:true,minify:true,format:'iife',target:'es2020',write:false,legalComments:'inline'});
 const code=result.outputFiles[0].text.replace(/<\/script/gi,'<\\/script');

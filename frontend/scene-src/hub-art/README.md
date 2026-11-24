@@ -5,7 +5,7 @@
 Every file is optional:
 
 - A portal without a card falls back to the procedural chrome arch.
-- A missing or undecodable skyline falls back to the procedural night city.
+- A missing or undecodable backdrop falls back to the procedural night city.
 
 ## Portal cards
 
@@ -31,17 +31,31 @@ Each card was made in four steps:
 3. Scaled down proportionally to at most 512 px wide. Cards are never stretched; the renderer sizes each card from its own aspect ratio.
 4. Saved as WebP with straight (unpremultiplied) alpha.
 
-## Skyline
+## Backdrop
 
-| File | Use | Source | Source sha256 (first 16) | Output | Output sha256 (first 16) |
-|---|---|---|---|---|---|
-| toronto-skyline.jpg | `scene.background` of the hub | `frontend/assets/images/staarwardd/toronto-skyline-pan.png` (this branch) | 9564f886c0212aa8 | 1584×672 JPEG, same framing | fd51fd8d5b7da8f5 |
+| File | Use | Size | sha256 (first 16) |
+|---|---|---|---|
+| cosmic-skyline.webp | `scene.background` of the hub | 2048×1471 WebP | 9a45d60981309ece |
 
-The renderer pins the photo's waterline to the 3D horizon. If you replace the photo, update
+**What it shows:** the backdrop of the locked homepage master
+(`frontend/assets/images/staarwardd/locked/homepage.png`): a large grey moon with a blue rim, a
+purple spiral galaxy and a dense starfield, over the night Toronto skyline (CN Tower, Rogers
+Centre) and the lake.
+
+**How it was made (24 Nov 2026, at the owner's request):**
+
+1. Generated with Magnific from a text description of that backdrop. The locked master was
+   not uploaded anywhere and is unchanged.
+2. Recomposed in Magnific so the moon rises behind the skyscrapers left of the CN Tower and the
+   galaxy sits to its right, which keeps all three inside a phone's view.
+3. The starry sky was extended upward with the plate's own stars, so tall screens never run
+   past the top of the image.
+
+The renderer pins the plate's waterline to the 3D horizon. If you replace the plate, update
 `HUB_SKYLINE` in `worlds.js`. It has three values:
 
 - `waterline`: the waterline row, measured from the top as a fraction of the image height.
-- `above`: how many degrees of photo sit above the waterline.
+- `above`: how many degrees of sky sit above the waterline.
 - `centre`: the horizontal framing.
 
 ## Open items before release

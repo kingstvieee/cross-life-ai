@@ -4,6 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createModelMotion, disposeModel } from './model-motion.js';
 import {createGuardianLocomotion} from './guardian-locomotion.js';
 import {createGuardianHeadTracking} from './guardian-head-tracking.js';
+import {createGuardianIdle} from './guardian-idle.js';
 import {inspectGuardianRigIntegrity} from './guardian-rig-integrity.js';
 import {createWorldPhysicsProbe} from './world-physics-qa.js';
 import { modelControls, hitControl } from './model-navigation.js';
@@ -15,12 +16,21 @@ import {applyGuardianSpeechFrame} from './guardian-speech-bridge.js';
 import {createGuardianDevicePerformanceProbe} from './guardian-device-performance.js';
 import {createGuardianNeckPoseProbe} from './guardian-neck-pose-probe.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { worldIds, worldNames, fallbackActions } from './navigation.js';
+
+// GLB textures must decode through <img> (the page's CSP allows blob: images) and
+// never through fetch(), which that CSP blocks (no connect-src). three's GLTFLoader
+// would pick its fetch-based ImageBitmapLoader on iOS 17+ and in WKWebView (no
+// "Safari" user-agent token) and silently drop every embedded texture, including
+// the Guardian's face atlas. This plugin swaps in the <img>-based TextureLoader.
+const offlineGltfLoader = () => new GLTFLoader().register(parser => {
+  parser.textureLoader = new T.TextureLoader(parser.options.manager);
+  return {name: 'STAAR_offline_image_decoder'};
+});
 
 const ids = worldIds;
 const names = worldNames;
@@ -110,6 +120,7 @@ if (renderer) {
   let disposed = false;
   let hubRig = null, hubStage = null, hubLoopReady = false, hubBloom = null;
   let guardianArrivalPending = false;
+  let hubGuardianFlight = null; // immersive hub: {flight, guardian, active} once the Guardian model is mounted
   let importedControls = [];
   let walkController = null;
   let guardianFaceMotion = null;
@@ -400,19 +411,19 @@ if (renderer) {
     const unavailable = () => {
       if (disposed) return;
       if (guardianPresentation) report('guardian-unavailable');
-      // The hub never shows an empty stage: an unapproved, missing or broken
-      // model falls back to the clearly labelled non-human Guardian core.
-      if (immersiveHub) { showGuardianPlaceholder(); if (hubLoopReady) requestDraw(); }
+      // Owner direction (24 Nov 2026): no placeholder shapes. Without a model the
+      // hub keeps its pedestal, crown and light beam, and never shows a stand-in.
+      if (immersiveHub && hubLoopReady) requestDraw();
     };
     if (!asset?.glbBase64 || asset.sourceImageSha256!=='d7f18158a91778a7f3ce97c7326b1c75afefdc792c77ab02c4fead0e3ffa659c') {
-      // Explicitly non-human, non-approved placeholder. Never substitute a different person's image.
+      // Never substitute a different person's image or a stand-in figure.
       unavailable(); return;
     }
     try {
       const decoded=atob(asset.glbBase64);
       const bytes=new Uint8Array(decoded.length);
       for(let i=0;i<decoded.length;i++)bytes[i]=decoded.charCodeAt(i);
-      new GLTFLoader().parse(bytes.buffer,'',model=>{
+      offlineGltfLoader().parse(bytes.buffer,'',model=>{
         if(!model?.scene){unavailable();return;}
         if(disposed){disposeModel(model.scene);return;}
         const guardian=model.scene;
@@ -421,7 +432,37 @@ if (renderer) {
         // or retain zero-scale legacy silver/chrome armour in the live scene.
         const integrity=inspectGuardianRigIntegrity(guardian,{detachHiddenLegacy:true});
         if(!integrity.valid){disposeModel(guardian);unavailable();return;}
-        // Verified exact GLB may explicitly declare its real source coordinates.
+        // V4 private visual study only: retain the exact source GLB and its hash.
+        // Correct the misleading pale titanium material values without touching the face,
+        // skeleton, textures, animation clips or production-approved rendering path.
+        if (internal && immersiveHub) {
+          const palette = {
+            B229_VARIANT_black_titanium_no_silver: [0x232832, .88, .27],
+            B247_Layered_Forged_Chrome_CINEMATIC_CHROME: [0x252a33, .86, .25],
+            B247_Titanium_Secondary_CINEMATIC_CHROME: [0x363d49, .82, .32],
+            B229_mirror_chrome_armor: [0x292e37, .9, .22],
+            B229_gold_light_trim: [0xcda650, .85, .25],
+            B229_polished_gold: [0xd9b15d, .9, .24],
+            B247_Laser_Gold_Channels_CINEMATIC_CHROME: [0xd5ac55, .9, .24],
+            B247_Cinematic_Amber_Lightline_CINEMATIC_CHROME: [0xe5a44c, .55, .25],
+          };
+          const revised = new Map();
+          guardian.traverse(node => {
+            if (!node.isMesh || !node.material) return;
+            const recolor = material => {
+              if (!Object.prototype.hasOwnProperty.call(palette, material.name)) return material;
+              if (revised.has(material)) return revised.get(material);
+              const [color, metalness, roughness] = palette[material.name];
+              const copy = material.clone();
+              copy.color.setHex(color); copy.metalness = metalness; copy.roughness = roughness;
+              if (copy.emissive) copy.emissive.multiplyScalar(.12);
+              copy.envMapIntensity = .85; copy.needsUpdate = true;
+              revised.set(material, copy); return copy;
+            };
+            node.material = Array.isArray(node.material) ? node.material.map(recolor) : recolor(node.material);
+          });
+        }
+
         // Preserve existing Y-up models and never guess an unspecified axis.
         const upAxis=model.parser?.json?.extras?.STAAR_Guardian_Coordinates?.upAxis;
         if(upAxis==='Z')guardian.rotation.x=-Math.PI/2;
@@ -429,7 +470,7 @@ if (renderer) {
         const bounds=new T.Box3().setFromObject(guardian);
         const dimensions=bounds.getSize(new T.Vector3());
         if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000){disposeModel(guardian);unavailable();return;}
-        const scale=Math.min(3.65/dimensions.y,4.5/Math.max(dimensions.x,dimensions.z,.1));
+        const scale=Math.min((internal && immersiveHub ? 3.15 : 3.65)/dimensions.y,4.5/Math.max(dimensions.x,dimensions.z,.1));
         guardian.scale.setScalar(scale);
         // Centre approved full armour above the existing Guardian plinth, never crop the emblem.
         const centre=bounds.getCenter(new T.Vector3());
@@ -505,9 +546,13 @@ if (renderer) {
               flight.rotation.y = hoverBlend * .035 * Math.sin(hoverTime * 1.1);
             });
           }
+        } else if (immersiveHub && hubStage) {
+          // In the hub the stage mount turns with the camera, so the Guardian keeps
+          // facing the viewer. He flies in and lands on the pedestal (hubGuardianArrival).
+          const flight = new T.Group(); hubStage.mount.add(flight); flight.add(guardian);
+          hubGuardianFlight = {flight, guardian, active: !reduced};
         } else {
-          // In the hub the stage mount turns with the camera, so the Guardian keeps facing the viewer.
-          (immersiveHub && hubStage ? hubStage.mount : scene).add(guardian);
+          scene.add(guardian);
         }
         modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
         // The internal branch is source-hash pinned but NEVER an Apple
@@ -521,6 +566,13 @@ if (renderer) {
         guardianHeadTracking=createGuardianHeadTracking(guardian,
           {approvedAsset:true,reducedMotion:reduced});
         modelMotions.push(guardianHeadTracking);
+        if (hubGuardianFlight) {
+          // Breathing and weight shift whenever no clip or flight pose owns the body.
+          const idle=createGuardianIdle(guardian,hubGuardianFlight.flight,{reducedMotion:reduced,
+            busy:()=>hubGuardianFlight.active||guardianLocomotion?.snapshot().phase!=='idle'});
+          modelMotions.push(idle);
+          hubGuardianArrival();
+        }
         guardianFaceMotion=createApprovedGuardianFaceMotion(guardian,{
           rigSha256:asset.rigModelSha256,expectedRigSha256:asset.rigModelSha256});
         // Only the exact build-time receipt-checked Guardian GLB can signal
@@ -612,7 +664,6 @@ if (renderer) {
   const hubSmooth = (a, b, x) => { const k = hubClamp((x - a) / (b - a), 0, 1); return k * k * (3 - 2 * k); };
   const hubEase = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
   const hubEaseOut = x => 1 - Math.pow(1 - x, 3);
-  const hubBackOut = x => 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2);
   const hubAdditive = {transparent: true, depthWrite: false, blending: T.AdditiveBlending};
   const HUB_GLSL = `
     float hash12(vec2 p){vec3 p3=fract(vec3(p.xyx)*.1031);p3+=dot(p3,p3.yzx+33.33);return fract((p3.x+p3.y)*p3.z);}
@@ -701,14 +752,6 @@ if (renderer) {
     x.textBaseline = 'middle'; x.textAlign = 'left'; x.shadowColor = accent; x.shadowBlur = 24;
     const ink = x.createLinearGradient(0, 64, 0, 150); ink.addColorStop(0, '#ffffff'); ink.addColorStop(1, '#d5dbe6');
     x.fillStyle = ink; hubSpaced(x, text, 512, 108, 7);
-    return hubTexture(c);
-  }
-  function hubLabelTexture(label) {
-    const [c, x] = hubCanvas(1024, 104);
-    hubRoundRect(x, 6, 6, 1012, 92, 46);
-    x.fillStyle = 'rgba(6,8,13,.86)'; x.fill(); x.lineWidth = 3; x.strokeStyle = 'rgba(228,195,128,.9)'; x.stroke();
-    x.font = `600 40px ${HUB_FONT}`; x.textBaseline = 'middle'; x.textAlign = 'left'; x.fillStyle = '#f2d79e';
-    hubSpaced(x, label, 512, 54, 6);
     return hubTexture(c);
   }
   function hubCrownTexture() {
@@ -875,11 +918,13 @@ if (renderer) {
     return material;
   }
 
-  // Approved Toronto skyline photo as scene.background. It stays put while the ring
-  // turns (a carousel in front of the city) and is re-pinned to the horizon every
-  // frame, so its waterline meets the 3D lake during the fly-in and when the viewer
-  // looks up or down. Falls back to the procedural city if it is missing or fails.
-  const HUB_SKYLINE = {waterline: .673, above: 19, centre: .62}; // waterline row (from top), degrees of photo above it, CN Tower framing
+  // Backdrop with the locked homepage's look (hub-art/cosmic-skyline.webp): moon,
+  // spiral galaxy and starfield over the night Toronto skyline and lake. It is
+  // scene.background, stays put while the ring turns (a carousel in front of the
+  // city) and is re-pinned to the horizon every frame, so its waterline meets the
+  // 3D lake during the fly-in and when the viewer looks up or down. Falls back to
+  // the procedural city if it is missing or fails to decode.
+  const HUB_SKYLINE = {waterline: .777, above: 23.2, centre: .525}; // waterline row (from top), degrees of sky above it, framing (moon, CN Tower, galaxy)
   let hubBackdrop = null;
   function hubPhotoBackdrop(procedural, water) {
     const src = window.STAAR_HUB_SKYLINE;
@@ -920,8 +965,8 @@ if (renderer) {
   }
 
   function hubPlatform() {
-    // Obsidian floor: gold rings, energy spokes running out to every portal and a
-    // light pool under each portal that brightens with focus.
+    // Obsidian floor: concentric gold rings round the pedestal and a soft light pool
+    // under each portal that brightens with focus. No radial lines.
     const portalPos = Array.from({length: ids.length}, () => new T.Vector3());
     const portalCol = ids.map(id => new T.Color((HUB_ACCENTS[id] || ['#bfe6ff'])[0]));
     const floorMesh = new T.Mesh(new T.CircleGeometry(13.6, 160), hubShader(`uniform vec3 uPortal[10];uniform vec3 uPortalCol[10];uniform float uRing;varying vec3 vWorld;
@@ -933,13 +978,7 @@ if (renderer) {
         vec3 gold=vec3(.86,.67,.37);
         col+=gold*(ringLine(r-2.75,.02)+ringLine(r-4.35,.014)+ringLine(r-6.05,.014))*.5;
         col+=gold*ringLine(r-(uRing+1.85),.03)*.55;
-        float sweep=pow(.5+.5*sin(atan(p.x,p.y)-uTime*.6),12.)*smoothstep(3.,9.,r)*(1.-smoothstep(9.,12.,r));
-        col+=vec3(.5,.7,1.)*sweep*.03;
-        for(int i=0;i<10;i++){vec2 pp=uPortal[i].xy;float w=uPortal[i].z;vec2 dir=normalize(pp);
-          float along=dot(p,dir);float off=length(p-dir*along);
-          float spoke=(1.-smoothstep(.02,.06,off))*step(2.8,along)*step(along,uRing-1.35);
-          float pulse=pow(fract(along*.11-uTime*.32+float(i)*.137),10.);
-          col+=uPortalCol[i]*spoke*(.07+.6*pulse)*(.25+.75*w);
+        for(int i=0;i<10;i++){vec2 pp=uPortal[i].xy;float w=uPortal[i].z;
           float dp=length(p-pp);col+=uPortalCol[i]*exp(-dp*dp*.3)*(.06+.5*w);}
         col*=1.-smoothstep(13.2,13.6,r)*.5;
         gl_FragColor=vec4(col,1.);}`, {uPortal: {value: portalPos}, uPortalCol: {value: portalCol}, uRing: {value: HUB_RING}}));
@@ -990,40 +1029,26 @@ if (renderer) {
   }
 
   function hubStageBuild() {
-    // Dark metallic geometric pedestal: three faceted octagonal gunmetal tiers with
-    // glowing gold and ice-blue seams on every edge, a crown inlay, light beam and
-    // rising motes. `mount` turns to face the camera and carries the Guardian.
+    // Dark metallic geometric pedestal: three faceted octagonal gunmetal tiers, a
+    // glowing gold base and top rim, a crown inlay, light beam and rising motes.
+    // `mount` turns to face the camera and carries the Guardian.
     const stage = new T.Group(); scene.add(stage);
     const mount = new T.Group(); stage.add(mount);
-    const gunmetal = new T.MeshPhysicalMaterial({color: '#3a404c', metalness: .88, roughness: .34, envMapIntensity: 1.7,
+    const gunmetal = new T.MeshPhysicalMaterial({color: '#202631', metalness: .92, roughness: .24, envMapIntensity: 1.25,
       clearcoat: 1, clearcoatRoughness: .08, emissive: '#070b14', flatShading: true});
-    const seamIce = new T.MeshBasicMaterial({color: '#a8e4ff', toneMapped: false});
     const seamGold = new T.MeshBasicMaterial({color: '#f4d18e', toneMapped: false});
-    const seamDim = new T.MeshBasicMaterial({color: '#4f7c99', toneMapped: false});
     const octagon = new T.Group(); octagon.rotation.y = Math.PI / 8; stage.add(octagon); // a flat facet faces the viewer
-    const edgeParts = [];
-    const strut = (a, b, radius) => { // thin glowing rod from a to b
-      const d = new T.Vector3().subVectors(b, a), rod = new T.CylinderGeometry(radius, radius, d.length(), 5);
-      rod.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 1, 0), d.clone().normalize()));
-      return rod.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
-    };
-    for (const [top, bottom, height, y, seam] of [[1.95, 2.14, .22, .11, seamGold], [1.66, 1.82, .2, .32, seamIce], [1.36, 1.48, .18, .51, seamIce]]) {
+    for (const [top, bottom, height, y] of [[1.95, 2.14, .22, .11], [1.66, 1.82, .2, .32], [1.36, 1.48, .18, .51]]) {
       const tier = new T.Mesh(new T.CylinderGeometry(top, bottom, height, 8), gunmetal); tier.position.y = y; octagon.add(tier);
-      const band = new T.Mesh(new T.TorusGeometry(top, .018, 6, 8), seam); // octagonal seam on the top edge
-      band.rotation.x = Math.PI / 2; band.position.y = y + height / 2; octagon.add(band);
-      for (let k = 0; k < 8; k++) { // glowing vertical edges where the facets meet
-        const angle = k * Math.PI / 4;
-        edgeParts.push(strut(new T.Vector3(Math.sin(angle) * bottom, y - height / 2, Math.cos(angle) * bottom),
-          new T.Vector3(Math.sin(angle) * top, y + height / 2, Math.cos(angle) * top), .008));
-      }
+      const edge = new T.Mesh(new T.TorusGeometry(top, .012, 6, 8), hubGold);
+      edge.rotation.x = Math.PI / 2; edge.position.y = y + height / 2 + .002; octagon.add(edge);
     }
-    const edges = new T.Mesh(mergeGeometries(edgeParts), seamDim); edgeParts.forEach(part => part.dispose()); octagon.add(edges);
+    const topRim = new T.Mesh(new T.TorusGeometry(1.36, .014, 6, 8), seamGold); // glowing rim of the top tier
+    topRim.rotation.x = Math.PI / 2; topRim.position.y = HUB_STAGE_TOP; octagon.add(topRim);
     const baseGlow = new T.Mesh(new T.TorusGeometry(2.14, .03, 6, 8), seamGold);
     baseGlow.rotation.x = Math.PI / 2; baseGlow.position.y = .005; octagon.add(baseGlow);
     const crown = new T.Mesh(new T.CircleGeometry(1.22, 72), new T.MeshBasicMaterial({map: hubCrownTexture(), toneMapped: false}));
     crown.rotation.x = -Math.PI / 2; crown.position.y = HUB_STAGE_TOP + .003; mount.add(crown);
-    const halo = new T.Mesh(new T.TorusGeometry(1.06, .022, 8, 120), new T.MeshBasicMaterial({color: '#bfe8ff', toneMapped: false}));
-    halo.rotation.x = Math.PI / 2; halo.position.y = HUB_STAGE_TOP + .012; stage.add(halo);
     const beamMat = hubShader(`uniform vec3 uColor;uniform float uPower;varying vec2 vUv;varying vec3 vN;varying vec3 vV;
       void main(){float core=pow(abs(dot(normalize(vN),normalize(vV))),3.);
         float fade=exp(-vUv.y*5.5);float bands=.65+.35*sin(vUv.y*46.-uTime*3.2);
@@ -1036,44 +1061,82 @@ if (renderer) {
     // Invisible pick volume so taps on the Guardian never fall through to the portal behind.
     const proxy = new T.Mesh(new T.CylinderGeometry(1.05, 1.05, 3.9, 12), new T.MeshBasicMaterial({visible: false}));
     proxy.position.y = HUB_STAGE_TOP + 1.95; mount.add(proxy);
-    hubStage = {stage, mount, beam, beamMat, motes, light, proxy, placeholder: null};
+    hubStage = {stage, mount, beam, beamMat, motes, light, proxy};
   }
 
-  function showGuardianPlaceholder() {
-    // Explicitly non-human placeholder: a diamond-set cube of light inside orbiting
-    // rings, labelled as pending approval. Never a person, never a substitute face.
-    if (!hubStage || hubStage.placeholder || disposed) return;
-    const core = new T.Group(); core.position.y = HUB_STAGE_TOP + 1.6; hubStage.mount.add(core);
-    const spin = new T.Group(); core.add(spin);
-    const cube = new T.Group(); cube.rotation.set(-Math.atan(Math.SQRT1_2), 0, Math.PI / 4); spin.add(cube); // balanced on a vertex
-    const size = .95, half = size / 2, parts = [];
-    for (const a of [-half, half]) for (const b of [-half, half]) {
-      parts.push(new T.CylinderGeometry(.026, .026, size, 8).rotateZ(Math.PI / 2).translate(0, a, b));
-      parts.push(new T.CylinderGeometry(.026, .026, size, 8).translate(a, 0, b));
-      parts.push(new T.CylinderGeometry(.026, .026, size, 8).rotateX(Math.PI / 2).translate(a, b, 0));
-    }
-    for (const x of [-half, half]) for (const y of [-half, half]) for (const z of [-half, half]) parts.push(new T.SphereGeometry(.06, 12, 8).translate(x, y, z));
-    const edges = mergeGeometries(parts); parts.forEach(part => part.dispose());
-    cube.add(new T.Mesh(edges, new T.MeshBasicMaterial({color: '#e8f8ff', toneMapped: false})));
-    const glassMat = hubShader(`uniform vec3 uColor;uniform float uPower;varying vec3 vN;varying vec3 vV;varying vec3 vWorld;
-      void main(){float fres=pow(1.-abs(dot(normalize(vN),normalize(vV))),2.);
-        float scan=.75+.25*sin(vWorld.y*26.-uTime*2.4);
-        gl_FragColor=vec4(uColor*(.08+.85*fres)*scan*uPower,1.);}`,
-      {uColor: {value: new T.Color('#7fd8ff')}, uPower: {value: 1}}, {material: {...hubAdditive, side: T.DoubleSide}});
-    cube.add(new T.Mesh(new T.BoxGeometry(size, size, size), glassMat));
-    spin.add(new T.Mesh(new T.IcosahedronGeometry(.2, 2), new T.MeshBasicMaterial({color: '#ffffff', toneMapped: false})));
-    const glow = hubGlowSprite('#8fdcff', 3.4, .55); core.add(glow);
-    core.add(hubGlowSprite('#ffffff', 1.05, .7));
-    const rings = [[.92, '#f0cf8c', 1.15, .3, .5], [1.08, '#dfe8f4', .35, -.9, -.38], [1.24, '#7fd8ff', -1.05, 1.1, .27]].map(([r, color, tx, tz, speed]) => {
-      const pivot = new T.Group(); core.add(pivot);
-      const torus = new T.Mesh(new T.TorusGeometry(r, .013, 8, 140), new T.MeshBasicMaterial({color, toneMapped: false}));
-      torus.rotation.set(tx, 0, tz); pivot.add(torus); return {pivot, speed};
+  // Continuous arrival: the Guardian flies in over the focused portal, lands on the
+  // pedestal as the intro settles (the existing Build 230 flight pose, blended back
+  // to standing), gives at the knees, and hands over to breathing. Under Reduce
+  // Motion he simply stands there from the start.
+  const HUB_GUARDIAN_FLIGHT = {start: 2.0, seconds: 2.3, settle: .6};
+  function hubGuardianArrival() {
+    const {flight, guardian} = hubGuardianFlight;
+    const occupy = () => {
+      // The stage light would sit inside his chest: make it a frontal key light (the
+      // mount turns with the camera, so it stays frontal) and let the beam step back
+      // as soon as he appears, so he never flies through a blown-out beam.
+      flight.visible = true;
+      hubStage.guardian = guardian;
+      hubStage.mount.add(hubStage.light); hubStage.light.position.set(0, 3.4, 3.4);
+    };
+    const land = () => {
+      hubGuardianFlight.active = false;
+      flight.position.set(0, 0, 0); flight.rotation.set(0, 0, 0); occupy();
+      guardianArrivalPending = true;
+      if (hubLoopReady) requestDraw();
+    };
+    if (reduced) { land(); return; }
+    flight.visible = false;
+    flight.updateMatrixWorld(true);
+    const frameInverse = flight.getWorldQuaternion(new T.Quaternion()).invert(), q = new T.Quaternion();
+    const rig = (name, extra) => {
+      const joint = guardian.getObjectByName('B230_QA_Joint_' + name);
+      if (!joint?.isBone) return [];
+      const inverse = frameInverse.clone().multiply(joint.getWorldQuaternion(q)).invert();
+      return [{joint, rest: joint.quaternion.clone(), ...extra,
+        pitchAxis: new T.Vector3(1, 0, 0).applyQuaternion(inverse), spreadAxis: new T.Vector3(0, 0, 1).applyQuaternion(inverse)}];
+    };
+    const flightJoints = [
+      ['Chest', .12, 0, 0],
+      ['UpperArm_L', -1.28, -.28, -.22], ['UpperArm_R', -.72, .55, .30],
+      ['Forearm_L', -.20, 0, -.10], ['Forearm_R', -.42, 0, .16],
+      ['Hand_L', .12, -.03, -.06], ['Hand_R', .18, .06, .10],
+      ['Thigh_L', .20, 0, 0], ['Thigh_R', .29, 0, 0],
+      ['Calf_L', -.23, 0, 0], ['Calf_R', -.31, 0, 0],
+    ].flatMap(([name, pitch, spread, steer]) => rig(name, {pitch, spread, steer}));
+    const knees = [['Thigh_L', .22], ['Thigh_R', .22], ['Calf_L', -.36], ['Calf_R', -.36]].flatMap(([name, bend]) => rig(name, {bend}));
+    const path = new T.CubicBezierCurve3(new T.Vector3(5.2, 6.2, -11.5), new T.Vector3(-1.8, 4.2, -7.2),
+      new T.Vector3(-.9, .25, -1.7), new T.Vector3(0, 0, 0));
+    let begin = null, touchdown = null;
+    animated.push(time => {
+      if (!hubGuardianFlight.active || disposed) return;
+      begin ??= Math.max(time, HUB_GUARDIAN_FLIGHT.start);
+      if (time < begin) return; // the pedestal waits empty while the hub powers up
+      if (!flight.visible) occupy();
+      const progress = Math.min((time - begin) / HUB_GUARDIAN_FLIGHT.seconds, 1);
+      if (progress < 1) {
+        const eased = progress * progress * (3 - 2 * progress);
+        path.getPoint(eased, flight.position);
+        const bank = Math.sin(Math.PI * progress) * (1 - progress);
+        flight.rotation.set(.16 * bank, -.32 * bank, .38 * bank);
+        const poseWeight = 1 - T.MathUtils.smoothstep(progress, .66, 1), steering = Math.sin(progress * Math.PI * 2);
+        for (const {joint, rest, pitch, spread, steer, pitchAxis, spreadAxis} of flightJoints) {
+          joint.quaternion.copy(rest)
+            .multiply(q.setFromAxisAngle(pitchAxis, pitch * poseWeight))
+            .multiply(q.setFromAxisAngle(spreadAxis, (spread + steer * steering) * poseWeight));
+        }
+        return;
+      }
+      // Touchdown: the knees give and straighten again while the body dips and rises.
+      touchdown ??= time;
+      flight.position.set(0, 0, 0); flight.rotation.set(0, 0, 0);
+      for (const {joint, rest} of flightJoints) joint.quaternion.copy(rest);
+      const u = Math.min((time - touchdown) / HUB_GUARDIAN_FLIGHT.settle, 1);
+      const give = Math.sin(Math.PI * u) * (1 - .35 * u);
+      flight.position.y = -.055 * give;
+      for (const {joint, rest, bend, pitchAxis} of knees) joint.quaternion.copy(rest).multiply(q.setFromAxisAngle(pitchAxis, bend * give));
+      if (u >= 1) land();
     });
-    const label = new T.Mesh(new T.PlaneGeometry(2.3, .234),
-      new T.MeshBasicMaterial({map: hubLabelTexture('GUARDIAN MODEL PENDING APPROVAL'), transparent: true, toneMapped: false, depthWrite: false}));
-    // On the top tier, so the caption never covers it on short phones (iPhone SE).
-    label.position.set(0, .66, 1.5); label.rotation.x = -.7; label.renderOrder = 4; hubStage.mount.add(label);
-    hubStage.placeholder = {core, spin, glassMat, glow, rings, label};
   }
 
   function hubPortalEnergy(a, b, i) {
@@ -1457,7 +1520,9 @@ if (renderer) {
         yaw = st.yaw; dist = st.dist - (reduced ? 0 : Math.sin(Math.PI * st.push) * .9);
         height = HUB_CAM.height + st.look * .22; lookY = HUB_CAM.lookY + st.look;
         const live = indexFor(yaw);
-        if (live !== st.live) { st.live = live; ui.set(live); trackPortal(live); }
+        if (live !== st.live) { st.live = live; ui.set(live); }
+        // The Guardian's head follows the portal you drag, or the one sliding into focus.
+        trackPortal(st.dragging ? live : st.focus);
       }
       camera.position.set(Math.sin(yaw) * dist, height, Math.cos(yaw) * dist);
       camera.lookAt(0, lookY, 0);
@@ -1470,21 +1535,10 @@ if (renderer) {
       stage.mount.rotation.y += hubWrap(yaw - stage.mount.rotation.y) * ease(5); // the Guardian turns to face you
       const beamGrow = Math.max(.001, hubEaseOut(st.power));
       stage.beam.scale.y = beamGrow; stage.beam.position.y = HUB_STAGE_TOP + 7.5 * beamGrow;
-      stage.beamMat.uniforms.uPower.value = st.power * (.85 + (reduced ? 0 : .15 * Math.sin(time * 2.1))) + st.pulse * .8;
+      const occupied = stage.guardian ? .22 : 1; // a dimmer beam once the Guardian stands in it
+      stage.beamMat.uniforms.uPower.value = (st.power * (.85 + (reduced ? 0 : .15 * Math.sin(time * 2.1))) + st.pulse * .8) * occupied;
       stage.motes.material.uniforms.uPower.value = st.power;
-      stage.light.intensity = 26 * st.power + st.pulse * 30;
-      const placeholder = stage.placeholder;
-      if (placeholder) {
-        const grow = Math.max(.001, hubBackOut(hubClamp((st.power - .1) / .9, 0, 1)));
-        placeholder.core.scale.setScalar(grow * (1 + st.pulse * .12));
-        placeholder.core.position.y = HUB_STAGE_TOP + 1.6 + (reduced ? 0 : Math.sin(time * 1.15) * .08);
-        if (!reduced) { placeholder.spin.rotation.y += dt * .5; placeholder.rings.forEach(ring => { ring.pivot.rotation.y += dt * ring.speed; }); }
-        const breathe = reduced ? 1 : .92 + .08 * Math.sin(time * 2.3);
-        placeholder.glow.material.opacity = .55 * st.power * breathe + st.pulse * .45;
-        placeholder.glow.scale.setScalar(3.4 * (breathe + st.pulse * .3));
-        placeholder.glassMat.uniforms.uPower.value = st.power * (1 + st.pulse);
-        placeholder.label.material.opacity = st.power;
-      }
+      stage.light.intensity = (stage.guardian ? 2.2 : 26) * st.power + st.pulse * (stage.guardian ? 1.5 : 30);
       st.pulse *= reduced ? 0 : Math.exp(-dt * 3);
       for (const portal of hubPortals) {
         const target = st.intro ? 0 : 1 - hubSmooth(0, HUB_STEP * .9, Math.abs(hubWrap(yaw - portal.yaw)));
@@ -1670,7 +1724,7 @@ if (renderer) {
     try {
       const raw=atob(asset.glbBase64), bytes=new Uint8Array(raw.length);
       for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
-      new GLTFLoader().parse(bytes.buffer,'',gltf=>{
+      offlineGltfLoader().parse(bytes.buffer,'',gltf=>{
         if(!gltf?.scene)return;
         if(disposed){disposeModel(gltf.scene);return;}
         const model=gltf.scene;
@@ -1711,7 +1765,7 @@ if (renderer) {
           try{
             const rawProxy=atob(asset.collisionGlbBase64),data=new Uint8Array(rawProxy.length);
             for(let i=0;i<rawProxy.length;i++)data[i]=rawProxy.charCodeAt(i);
-            new GLTFLoader().parse(data.buffer,'',proxy=>{
+            offlineGltfLoader().parse(data.buffer,'',proxy=>{
               if(disposed||!proxy?.scene){if(proxy?.scene)disposeModel(proxy.scene);return;}
               const collisionOnly=proxy.scene;
               collisionOnly.scale.copy(model.scale);

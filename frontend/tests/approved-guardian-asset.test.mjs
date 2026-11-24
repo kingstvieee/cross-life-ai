@@ -114,7 +114,8 @@ test('scene builder and renderer only enable guardian model if verified assets e
  assert.match(builder,/loadApprovedArmoredGuardianAsset\(root\)/);
  assert.match(builder,/window\.STAAR_APPROVED_GUARDIAN_MODEL=/);
  assert.match(runtime,/asset\?\.glbBase64/);
- assert.match(runtime,/new GLTFLoader\(\)\.parse/);
+ // Parsed in-page by GLTFLoader, with textures decoded through <img> (see offlineGltfLoader).
+ assert.match(runtime,/offlineGltfLoader\(\)\.parse/);
  assert.match(runtime,/approvedArmoredGuardian\(\)/);
 });
 

@@ -19,7 +19,11 @@ test('The signed-in homepage is the immersive 3D portal ring around the Guardian
  assert.match(renderer, /const immersiveHub = world === 'hub' && !guardianPresentation/);
  assert.match(renderer, /const HUB_RING = [\d.]+, HUB_STEP = Math\.PI \* 2 \/ ids\.length/);
  assert.match(renderer, /ray\.intersectObjects\(pickables, false\)/);
- assert.match(renderer, /GUARDIAN MODEL PENDING APPROVAL/);
+ // Owner direction 24 Nov 2026: no placeholder shapes. Without a model the stage keeps only
+ // its pedestal, crown and beam; the backdrop is the locked homepage's cosmic sky.
+ assert.doesNotMatch(renderer, /showGuardianPlaceholder|GUARDIAN MODEL PENDING APPROVAL/);
+ assert.match(renderer, /if \(immersiveHub && hubLoopReady\) requestDraw\(\);/);
+ assert.match(await readFile(new URL('../scene-src/build.mjs', import.meta.url), 'utf8'), /hub-art','cosmic-skyline\.webp'/);
 });
 
 test('Private rig presentation is restricted to explicitly staged native review builds', async () => {
@@ -28,6 +32,10 @@ test('Private rig presentation is restricted to explicitly staged native review 
  const builder = await readFile(new URL('../scene-src/build.mjs', import.meta.url), 'utf8');
  assert.match(builder, /Boolean\(privateGuardianQa\) && process\.env\.STAAR_INTERNAL_HOME_REVIEW\s*===\s*'1'/);
  assert.match(renderer, /window\.STAAR_INTERNAL_HOME_REVIEW === true && Boolean\(window\.ReactNativeWebView\)/);
+ // GLB textures (the Guardian's face atlas included) decode through <img>, never fetch(),
+ // because the offline page's CSP has no connect-src.
+ assert.match(renderer, /parser\.textureLoader = new T\.TextureLoader\(parser\.options\.manager\)/);
+ assert.doesNotMatch(renderer, /new GLTFLoader\(\)\.parse\(/);
  assert.match(renderer, /internalQaRoute \|\| internalHomeReview/);
  assert.match(renderer, /document\.querySelector\('header'\)\.hidden/);
  assert.match(renderer, /report\('guardian-arrived'\)/);
