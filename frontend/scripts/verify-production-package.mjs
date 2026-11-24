@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadApprovedArmoredGuardianAsset } from '../scene-src/approved-guardian-asset.mjs';
-import { loadApprovedWorldAssets, REQUIRED_WORLD_ASSETS } from '../scene-src/approved-world-assets.mjs';
+import { loadApprovedProductionWorldAssets, REQUIRED_PRODUCTION_WORLD_ASSETS } from '../scene-src/approved-world-assets.mjs';
 import { verifyReleaseEvidence } from './verify-release-evidence.mjs';
 import { verifyApprovedSoundtrack } from './verify-approved-soundtrack.mjs';
 import { verifyStagedNativeSource } from './stage-approved-startup-audio.mjs';
@@ -27,6 +27,11 @@ export const EXPECTED_APP = Object.freeze({
 });
 
 export const VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK = 108; // Authenticated Expo ledger, 2026-11-20: highest preview 108, App Store 105.
+// Authenticated Codemagic build history 2026-11-23: build 115 completed,
+ // signed STAARHub.ipa and uploaded to App Store Connect on 2026-11-22.
+ // Do not assume the (separately authenticated) Expo ledger is current.
+export const VERIFIED_CODEMAGIC_IOS_BUILD_HIGH_WATERMARK = 115;
+export const RECOVERED_EXTERNAL_IOS_BUILD_FLOOR = VERIFIED_CODEMAGIC_IOS_BUILD_HIGH_WATERMARK;
 export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFlightBuild = VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK) {
   const blockers = [];
   const facts = {};
@@ -42,12 +47,12 @@ export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFli
   } catch (err) { fail('guardian', err?.message ?? err); }
 
   try {
-    const worlds = await loadApprovedWorldAssets(path.join(root, 'scene-src'));
-    if (!worlds) fail('worlds', 'The ten individually approved, evidence-paired world GLBs are absent');
+    const worlds = await loadApprovedProductionWorldAssets(path.join(root, 'scene-src'));
+    if (!worlds) fail('worlds', 'Ten production destinations need eleven evidence-paired GLBs, including DIGGITSTAAR workstation and Singles Lounge');
     else {
       const keys = Object.keys(worlds).sort();
-      if (keys.length !== REQUIRED_WORLD_ASSETS.length ||
-          REQUIRED_WORLD_ASSETS.some(key => !keys.includes(key))) {
+      if (keys.length !== REQUIRED_PRODUCTION_WORLD_ASSETS.length ||
+          REQUIRED_PRODUCTION_WORLD_ASSETS.some(key => !keys.includes(key))) {
         fail('worlds', 'Missing required world variants');
       } else {
         approvedWorlds = worlds;
@@ -117,11 +122,13 @@ export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFli
     const build = Number(ios.buildNumber);
     facts.iosBuildNumber = ios.buildNumber;
     facts.expoHighestKnownIssuedIosBuild = VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK;
+    facts.unconfirmedExternalBuildFloor = RECOVERED_EXTERNAL_IOS_BUILD_FLOOR;
+    facts.verifiedCodemagicBuildHighWatermark = VERIFIED_CODEMAGIC_IOS_BUILD_HIGH_WATERMARK;
     // Older TestFlight receipts cannot override the higher verified Expo preview.
-    const issuedFloor=Math.max(VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK,
+    const issuedFloor=Math.max(VERIFIED_EAS_IOS_BUILD_HIGH_WATERMARK, RECOVERED_EXTERNAL_IOS_BUILD_FLOOR,
       Number.isSafeInteger(lastTestFlightBuild) ? lastTestFlightBuild : Number.POSITIVE_INFINITY);
     if (!Number.isSafeInteger(build) || build <= issuedFloor)
-      fail('ios-build-number', 'Candidate iOS build number must exceed every known Expo iOS build (issued high-water mark 108; refresh ledger before signing)');
+      fail('ios-build-number', 'Candidate must exceed Codemagic verified 115 and Expo verified 108; refresh Apple/Expo ledgers before signing');
     if (ios.bundleIdentifier !== EXPECTED_APP.bundleId || ios.appleTeamId !== EXPECTED_APP.appleTeamId)
       fail('ios-identity', 'Apple app identity differs from the locked target');
     if (expo.owner !== EXPECTED_APP.easOwner ||
@@ -135,6 +142,16 @@ export async function inspectProductionPackage(root = FRONTEND_ROOT, lastTestFli
         eas?.build?.production?.ios?.simulator !== false ||
         String(eas?.submit?.production?.ios?.ascAppId) !== EXPECTED_APP.ascAppId)
       fail('eas-production', 'Store distribution or App Store Connect linkage differs from approved configuration');
+    const prodUrl = eas?.build?.production?.env?.EXPO_PUBLIC_BACKEND_URL;
+    const origin = typeof prodUrl === 'string' ? prodUrl.trim() : '';
+    // A signed store binary must not ship with the old Emergent backend or
+    // the shared QA database. This gate deliberately stays closed until a
+    // separately verified production API is supplied.
+    if (!/^https:\/\/[^/?#]+$/.test(origin) ||
+        origin === 'https://cross-life-ai.emergent.host' ||
+        origin === 'https://staarwardd-guardian-preview.onrender.com')
+      fail('production-backend-not-certified',
+        'Production API must be a verified dedicated HTTPS deployment; legacy Emergent and preview MongoDB are not approved for the signed release');
   } catch (err) { fail('eas-config', err?.message ?? err); }
 
   return {

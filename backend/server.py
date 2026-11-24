@@ -27,6 +27,8 @@ from provider_connections import build_provider_router
 from guardian_alignment_routes import build_alignment_router
 from guardian_mission_routes import build_guardian_mission_router
 from guardian_notice_routes import build_guardian_notice_router
+from guardian_tool_registry_routes import build_guardian_tool_registry_router
+from guardian_execution_routes import build_guardian_execution_router, ensure_guardian_execution_indexes
 from guardian_mission_engine import ensure_indexes as ensure_guardian_mission_indexes
 
 ROOT_DIR = Path(__file__).parent
@@ -40,6 +42,21 @@ EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+
+# Operational readiness checks use real MongoDB connectivity, not static success.
+# Never expose credentials, account IDs, or database hostnames.
+@app.get("/api/health/live", tags=["operations"])
+async def guardian_liveness():
+    return {"status": "alive", "service": "staarwardd-guardian"}
+
+@app.get("/api/health/ready", tags=["operations"])
+async def guardian_readiness():
+    try:
+        await asyncio.wait_for(db.command("ping"), timeout=3.0)
+    except Exception:
+        raise HTTPException(status_code=503, detail="database_unavailable")
+    return {"status": "ready", "database": "connected", "service": "staarwardd-guardian"}
+
 
 # ============================================================
 # STATIC CONFIG
@@ -218,6 +235,7 @@ def user_public(u: Dict[str, Any]) -> Dict[str, Any]:
 @app.on_event("startup")
 async def startup():
     await ensure_guardian_indexes(db)
+    await ensure_guardian_execution_indexes(db)
     await ensure_guardian_mission_indexes(db.guardian_missions)
     await ensure_identity_indexes(db)
     await db.provider_flows.create_index('expires_at', expireAfterSeconds=0)
@@ -1191,6 +1209,8 @@ async def root():
 
 
 install_guardian_core(app, db=db, get_current_user=get_current_user)
+app.include_router(build_guardian_tool_registry_router(require_account_user=require_account_user), prefix="/api")
+app.include_router(build_guardian_execution_router(require_account_user=require_account_user, portals=PORTALS, db=db), prefix="/api")
 app.include_router(build_guardian_mission_router(
     db=db, require_account_user=require_account_user,
     preview_enabled=os.getenv("GUARDIAN_PREVIEW_ENABLED") == "true",
@@ -1226,7 +1246,8 @@ app.add_middleware(
     CORSMiddleware,
     # Credentialed web requests are allowed only from the configured application.
     allow_credentials=bool(app_origin()),
-    allow_origins=[app_origin()] if app_origin() else ["*"],
+    # Missing AUTH_APP_URL fails closed instead of inviting arbitrary origins.
+    allow_origins=[app_origin()] if app_origin() else [],
     allow_methods=["*"],
     allow_headers=["*"],
 )

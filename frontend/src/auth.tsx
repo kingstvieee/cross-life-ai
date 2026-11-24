@@ -82,9 +82,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (signedIn) { setUser(signedIn); setToken(null); setLoading(false); return; }
       }
       const t = await readToken();
+      // A first-time guest has no account session. Do not hold the entire Hub
+      // behind a cold-start network call just to discover a missing token.
+      if (!t && !(Platform.OS === 'web' && sameOriginApi)) {
+        setUser(null); setToken(null); setLoading(false); return;
+      }
       const headers = new Headers();
       if (t) headers.set('Authorization', `Bearer ${t}`);
-      const r = await fetch(backendUrl('/api/auth/me'), { headers, credentials: 'include' });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      let r: Response;
+      try {
+        r = await fetch(backendUrl('/api/auth/me'), {
+          headers, credentials: 'include', signal: controller.signal,
+        });
+      } finally { clearTimeout(timeout); }
       if (r.ok) {
         const account = await r.json();
         if (!account.is_demo && !String(account.user_id).startsWith('demo_')) {

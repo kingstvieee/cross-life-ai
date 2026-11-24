@@ -1,0 +1,46 @@
+{
+  "schema": "staarhub-auth-production-provision-2026-11-23-v1",
+  "date": "2026-11-23",
+  "authentication": {
+    "provider": "Google via Canadian Auth0 tenant",
+    "realBrowserLoginCompleted": true,
+    "previewApiAuthMeStatus": 200,
+    "ownerEmailMatchedExpected": true,
+    "authenticatedGuardianMissionsStatus": 200,
+    "accountIdNotRecorded": true,
+    "sessionCookieNotRecorded": true,
+    "portalPrivacyDomains": 7,
+    "onboardingComplete": false,
+    "productionOAuthReadbackVerified": false
+  },
+  "renderProduction": {
+    "serviceId": "srv-dc28fg56e07s73b2r0ng",
+    "name": "staarwardd-guardian-production",
+    "url": "https://staarwardd-guardian-production.onrender.com",
+    "branch": "integration/final-3d-hub",
+    "compute": "free",
+    "rootDirectory": "backend",
+    "nonSecretVariablesConfigured": 13,
+    "dbSecretConfigured": false,
+    "authClientSecretConfigured": false,
+    "initialDeployStatus": "failed",
+    "secondDeployStatus": "building at last check",
+    "lastChange": "backend/.python-version pinned 3.12.11; default Render Python 3.14 incompatibility suspected",
+    "productionApiCertified": false
+  },
+  "mongoAtlas": {
+    "cluster": "Cluster0",
+    "tier": "M0 free",
+    "usedMB": 141.94,
+    "totalMB": 512,
+    "backupStatus": "inactive",
+    "ownerAuthorizedPaidUpgrade": false,
+    "backupsCertified": false
+  },
+  "signedRelease": {
+    "productionPreflightPass": false,
+    "signedIpaBuild116Created": false,
+    "testflight116Submitted": false
+  },
+  "safety": "No session cookie, database password, client secret or connection URI is retained in source control; do not merge/sign until production auth/database/readiness verified."
+}

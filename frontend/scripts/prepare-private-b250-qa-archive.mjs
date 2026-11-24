@@ -12,10 +12,14 @@ import {verifyApprovedSoundtrack} from './verify-approved-soundtrack.mjs';
 import {verifyStagedNativeSource} from './stage-approved-startup-audio.mjs';
 import {loadInternalGuardianQaAsset,B250_PRIVATE_RELATIVE_PATH,
   B250_PRIVATE_IPHONE_QA_SHA256} from '../scene-src/internal-guardian-qa.mjs';
+import {loadInternalTenWorldQaAssets,TEN_WORLD_SHA} from '../scene-src/internal-ten-world-qa.mjs';
 import {LOCKED_STARTUP_SHA} from './verify-production-package.mjs';
 const FRONTEND=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const REPO=path.resolve(FRONTEND,'..');
 export const QA_PRIVATE_INCLUDE='frontend/'+ 'scene-src/'+B250_PRIVATE_RELATIVE_PATH;
+export const QA_PRIVATE_WORLD_INCLUDES=Object.freeze(Object.keys(TEN_WORLD_SHA).sort().map(key=>
+  'frontend/scene-src/assets/private-world-qa/'+key+'.glb'));
+
 const qaEnv={EAS_BUILD_PROFILE:'preview',STAAR_IPHONE_ONLY_QA:'1',
   EXPO_PUBLIC_GUARDIAN_DEVICE_QA:'1',EXPO_PUBLIC_WORLD_COLLISION_QA:'1'};
 
@@ -24,7 +28,9 @@ export function makePrivateB250QaIgnore(rootGitignore,frontendGitignore){
  return production.trimEnd()+'\n'+
   '# Additional internal QA-only biometric GLB; NEVER use this ignore in production.\n'+
   '!frontend/scene-src/assets/private-guardian-qa/\n'+
-  '!'+QA_PRIVATE_INCLUDE+'\n';
+  '!'+QA_PRIVATE_INCLUDE+'\n'+
+  '!frontend/scene-src/assets/private-world-qa/\n'+
+  QA_PRIVATE_WORLD_INCLUDES.map(file=>'!'+file+'\n').join('');
 }
 async function filmSha(frontend){
  const b=await readFile(path.join(frontend,'assets/videos/guardian-startup.mp4'));
@@ -33,14 +39,18 @@ async function filmSha(frontend){
  return hash;
 }
 export async function preparePrivateB250QaArchive({repoRoot=REPO,frontendRoot=path.join(repoRoot,'frontend')}={}){
- const [guardian,audio,native,film,rootIgnore,frontendIgnore]=await Promise.all([
+ const [guardian,worlds,audio,native,film,rootIgnore,frontendIgnore]=await Promise.all([
   loadInternalGuardianQaAsset(path.join(frontendRoot,'scene-src'),{env:qaEnv}),
+  loadInternalTenWorldQaAssets(path.join(frontendRoot,'scene-src'),{env:qaEnv}),
   verifyApprovedSoundtrack(frontendRoot),
   verifyStagedNativeSource(frontendRoot),
   filmSha(frontendRoot),
   readFile(path.join(repoRoot,'.gitignore'),'utf8'),
   readFile(path.join(frontendRoot,'.gitignore'),'utf8')
  ]);
+ if(!worlds || Object.keys(worlds).length!==QA_PRIVATE_WORLD_INCLUDES.length ||
+    Object.entries(worlds).some(([key,world])=>world.modelSha256!==TEN_WORLD_SHA[key]))
+    throw Error('private_b250_qa_ten_world_hashes_missing_or_mismatched');
  const expected=makePrivateB250QaIgnore(rootIgnore,frontendIgnore);
  const approvedAudioOnly=generatePrivateEasIgnore(rootIgnore,frontendIgnore);
  const target=path.join(repoRoot,'.easignore');
@@ -51,6 +61,8 @@ export async function preparePrivateB250QaArchive({repoRoot=REPO,frontendRoot=pa
  await chmod(target,0o600);
  return {schema:'staar-b250-private-iphone-eas-upload-rules-v1',
   exactB250Sha256:guardian.rigModelSha256,
+  privateWorldQaCount:Object.keys(worlds).length,
+  privateWorldQaHashes:Object.fromEntries(Object.entries(worlds).map(([key,x])=>[key,x.modelSha256])),
   approvedAudioSha256:audio.sha256,approvedAudioModule:native.sourceModule,
   startupFilmSha256:film,previewOnly:true,noAppleSigningVerified:true,
   includePath:QA_PRIVATE_INCLUDE,easignoreSha256:createHash('sha256').update(expected).digest('hex'),
@@ -66,14 +78,20 @@ export async function inspectPrivateB250QaArchive({archiveRoot,checkoutRoot=FRON
  const roots=[path.join(inspected,'frontend'),inspected];
  for(const root of roots){
   try{
-   const [qa,film]=await Promise.all([
+   const [qa,worlds,film]=await Promise.all([
     loadInternalGuardianQaAsset(path.join(root,'scene-src'),{env:qaEnv}),
+    loadInternalTenWorldQaAssets(path.join(root,'scene-src'),{env:qaEnv}),
     filmSha(root)
    ]);
    if(qa.rigModelSha256!==B250_PRIVATE_IPHONE_QA_SHA256)
      throw Error('private_b250_qa_invalid_archive_hash');
+   if(!worlds || Object.keys(worlds).length!==QA_PRIVATE_WORLD_INCLUDES.length ||
+     Object.entries(worlds).some(([key,x])=>x.modelSha256!==TEN_WORLD_SHA[key]))
+     throw Error('private_b250_qa_ten_world_archive_mismatch');
    return {schema:'staar-b250-private-eas-archive-inspection-v1',
     archiveVerified:true,guardianSha256:qa.rigModelSha256,
+    privateWorldQaCount:Object.keys(worlds).length,
+    privateWorldQaHashes:Object.fromEntries(Object.entries(worlds).map(([key,x])=>[key,x.modelSha256])),
     approvedAudioSha256:archivedAudio.sha256,startupFilmSha256:film,
     productionReleaseApproved:false,physicalIphoneTested:false,AppleSignedIpaVerified:false};
   }catch(err){if(root===roots[roots.length-1])throw err;}

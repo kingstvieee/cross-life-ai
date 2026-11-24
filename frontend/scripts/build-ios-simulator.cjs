@@ -11,7 +11,9 @@ if (!projectName || !workspace) throw new Error('Prebuild and pod install must r
 const project = xcode.project(path.join(ios, projectName, 'project.pbxproj'));
 project.parseSync();
 const target = Object.values(project.pbxNativeTargetSection()).find(item =>
-  item && typeof item === 'object' && item.productType?.replaceAll('"', '') === 'com.apple.product-type.application');
+  item && typeof item === 'object' &&
+  item.name?.replaceAll('"', '') === 'STAARHub' &&
+  item.productType?.replaceAll('"', '') === 'com.apple.product-type.application');
 if (!target) throw new Error('Generated iPhone app target is missing.');
 execFileSync('xcodebuild', ['-workspace', path.join(ios, workspace), '-scheme', target.name.replaceAll('"', ''),
   '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator',

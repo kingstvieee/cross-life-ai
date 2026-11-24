@@ -57,6 +57,6 @@ test("Guardian only offers automatic return speech after a meaningful foreground
   assert.match(source, /setServerConsentReady\(false\);\s*setServerGreetingConsent\(false\);\s*setForegroundEpoch\(epoch => epoch \+ 1\)/);
   assert.match(source, /\[api, greetingKey, foregroundEpoch\]/);
   assert.match(source, /return \(\) => sub\.remove\(\)/);
-  assert.match(source, /foregroundEpoch, audio\.master, audio\.voice, audio\.speechQuiet, greet/);
+  assert.match(source, /foregroundEpoch, audio\.master, audio\.voice, audio\.speechQuiet, audio\.voicePlaybackActive, audio\.speechPhase, .*greet/);
   assert.match(source, /serverPrivate \|\| serverSpeechQuiet/);
 });

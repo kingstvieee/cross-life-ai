@@ -1,0 +1,67 @@
+{
+  "schema": "staarhub-production-world-coverage-audit-v1",
+  "date": "2026-11-23",
+  "scope": "Non-destructive inspection of owner-provided private QA and DIGGITSTAAR media archives; no model files uploaded to GitHub.",
+  "inventory": [
+    {
+      "source": "STAARHUB_Private_Internal_3D_QA_Stage_2026-11-23.zip",
+      "type": "Private internal QA",
+      "glbCount": 11,
+      "guardianGlbCount": 1,
+      "worldGlbCount": 10,
+      "hasDiggitstaarWorkstationGlb": false,
+      "containsRelationshipsSingles": true,
+      "crcCheck": "PASS",
+      "productionCertified": false
+    },
+    {
+      "source": "DIGGITSTAAR_HOLOGRAPHIC_PRODUCTION_PACKAGE.zip",
+      "type": "Cinematic video media",
+      "glbCount": 0,
+      "productionCertified3D": false
+    },
+    {
+      "source": "DIGGITSTAAR_StarHub_Approved_Workstation_Production_Package.zip",
+      "type": "Cinematic workstation video media",
+      "glbCount": 0,
+      "productionCertified3D": false
+    },
+    {
+      "source": "DIGGITSTAAR_HOLOGRAPHIC_QA_FIXED_STAR_HUB_INSTALLER.zip",
+      "type": "Native 2D video touchscreen overlay source/installer; not an interactive GLB",
+      "glbCount": 0,
+      "productionCertified3D": false
+    }
+  ],
+  "requiredProduction": {
+    "destinationCount": 10,
+    "modelVariantCount": 11,
+    "extraVariant": "relationships-singles",
+    "missingProductionSpecificModel": "diggitstaar-workstation.glb",
+    "requiredReceipt": "diggitstaar-workstation.json",
+    "acceptanceFields": [
+      "modelSha256",
+      "worldId",
+      "variant",
+      "exportRightsConfirmed",
+      "founderVisualApproved",
+      "deviceCaptureVerified",
+      "animationVerified",
+      "navigationVerified",
+      "designEvidenceId",
+      "actualDeviceCaptureId"
+    ],
+    "releaseAllowed": false
+  },
+  "technicalChanges": {
+    "preservedLegacyNineDestinationTenVariantQARegister": true,
+    "newProductionLoader": "loadApprovedProductionWorldAssets",
+    "productionPreflightRequires11DistinctGLBs": true,
+    "threeJsRuntimeRequiresCompleteProductionSet": true,
+    "diggitstaarRuntimeAssetKey": "diggitstaar-workstation",
+    "regressionTests": "frontend/tests/ten-portal-production-model-gate.test.mjs",
+    "allFrontendTestsPassing": 372,
+    "iosSigningTriggered": false
+  },
+  "caution": "Creative founder approvals are retained. These checks do not assert that any reviewed GLB meets locked likeness or rights/device acceptance."
+}

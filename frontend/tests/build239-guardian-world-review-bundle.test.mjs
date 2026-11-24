@@ -132,5 +132,5 @@ test('Build239 reads exports locally only and does not replace release gate or a
  assert.match(source,/releasePermitted:false/);
  assert.match(source,/finalWorldsAccepted:0/);
  const app=JSON.parse(await readFile(new URL('../app.json',import.meta.url),'utf8'));
- assert.equal(app.expo.ios.buildNumber,'109');
+ assert.equal(app.expo.ios.buildNumber,'116');
 });

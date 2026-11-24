@@ -10,7 +10,17 @@ export const WORLD_VARIANTS = Object.freeze({
  relationships:['realm','singles'], events:['village'], style:['closet'],
  staarverse:['universe'], staarsonic:['studio'],
 });
+// Historical nine-destination / ten-variant review registry. Its binary hashes
+// and test receipts remain unchanged to preserve prior audit evidence.
 const allEntries=WORLD_IDS.flatMap(id=>WORLD_VARIANTS[id].map(variant=>({id,variant,key:id+'-'+variant})));
+// Production has TEN distinct portal destinations, with Singles Lounge as the
+// eleventh scene variant. The new DIGGITSTAAR GLB must be independently
+// exported and certified rather than substituting a 5-second video.
+export const PRODUCTION_WORLD_IDS=Object.freeze([...WORLD_IDS,'diggitstaar']);
+export const PRODUCTION_WORLD_VARIANTS=Object.freeze({...WORLD_VARIANTS,diggitstaar:['workstation']});
+const productionEntries=Object.freeze(PRODUCTION_WORLD_IDS.flatMap(id=>
+  PRODUCTION_WORLD_VARIANTS[id].map(variant=>({id,variant,key:id+'-'+variant}))));
+export const REQUIRED_PRODUCTION_WORLD_ASSETS=Object.freeze(productionEntries.map(x=>x.key));
 const sha=value=>typeof value==='string' && /^[a-f0-9]{64}$/.test(value);
 const fail=x=>{throw new Error('world_asset_'+x);};
 export function assertWorldModelNotReviewOnly(modelHash){
@@ -19,10 +29,10 @@ export function assertWorldModelNotReviewOnly(modelHash){
 const safeKey=value=>typeof value==='string' && /^[a-z0-9_-]{2,96}$/.test(value);
 
 /** Every approved world needs its own geometry, visual evidence and production permissions.
- * One asset reused nine times can never satisfy the locked 9-world visual designs.
+ * One asset reused across worlds cannot satisfy the ten locked portal designs.
  */
 export function validateWorldAsset(bytes,receipt,expected) {
- if(!expected || !allEntries.some(x=>x.key===expected.key)) fail('unknown_world');
+ if(!expected || !productionEntries.some(x=>x.key===expected.key)) fail('unknown_world');
  if(!Buffer.isBuffer(bytes)||bytes.length<40||bytes.length>32*1024*1024) fail('invalid_size');
  if(bytes.toString('ascii',0,4)!=='glTF'||bytes.readUInt32LE(4)!==2||bytes.readUInt32LE(8)!==bytes.length) fail('invalid_glb');
  const len=bytes.readUInt32LE(12);
@@ -93,12 +103,14 @@ export function validateWorldCollisionProxy(bytes, receipt, expected) {
  return {sha256:digest,solidProxyCount:solids.length,glbBase64:bytes.toString('base64')};
 }
 
-/** All-or-none release packaging: a partial collection cannot masquerade as 9/9 complete.
- * No files is valid during development; every nonempty production delivery must be complete.
+/** All-or-none release packaging. The historical loader remains available for
+ * old nine-world review tests; production MUST call the ten-destination loader.
+ * No final files is valid during development, not a production approval.
  */
-export async function loadApprovedWorldAssets(root) {
+export async function loadApprovedWorldAssets(root,{includeDiggitstaar=false}={}) {
  const dir=path.join(root,'assets','worlds'), loaded=[],missing=[];
- for(const entry of allEntries){
+ const entries=includeDiggitstaar?productionEntries:allEntries;
+ for(const entry of entries){
   let bytes,receipt;
   try{bytes=await readFile(path.join(dir,entry.key+'.glb'));}catch(e){if(e.code!=='ENOENT')throw e;}
   try{receipt=JSON.parse(await readFile(path.join(dir,entry.key+'.json'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
@@ -127,4 +139,9 @@ export async function loadApprovedWorldAssets(root) {
  if(fingerprints.size!==loaded.length)fail('duplicate_world_models');
  return Object.fromEntries(loaded.map(({id,variant,...data})=>[id+'-'+variant,data]));
 }
+// Kept for historical QA receipts only: nine destinations / ten variations.
 export const REQUIRED_WORLD_ASSETS = allEntries.map(x=>x.key);
+// The ONLY loader accepted by native commercial release and signed preflight.
+export async function loadApprovedProductionWorldAssets(root){
+  return loadApprovedWorldAssets(root,{includeDiggitstaar:true});
+}

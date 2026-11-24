@@ -12,8 +12,8 @@ test('generated scene config binds a per-render session to renderer messages',()
 test('both hosts reject old iframe and WebView events after retry',()=>{
  for(const path of ['../components/staarwardd/world-scene.tsx','../components/staarwardd/world-scene.web.tsx']){
    const src=read(path);
-   assert.match(src,/worldSceneHtml\(world, variant, session(?:, qaEnabled(?:, worldQaEnabled)?)?\)/);
-   assert.match(src,/\[world, variant, retryCount\]/);
+   assert.match(src,/worldSceneHtml\(world, variant, session, (?:qaEnabled, worldQaEnabled|false, false), guardianPresentation, reduceGuardianMotion\)/);
+   assert.match(src,/\[world, variant, retryCount, guardianPresentation, reduceGuardianMotion\]/);
    assert.match(src,/message\.session !== session|event\.data\?\.session !== session/);
  }
 });

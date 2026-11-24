@@ -1,6 +1,75 @@
 workflows:
-  staar-testflight-110:
-    name: STAAR Hub 110 — 10 Worlds + Guardian — Internal TestFlight
+  staar-native-compile-116:
+    name: STAAR Hub 116 — iPhone + Watch Native Compile Audit (unsigned)
+    instance_type: mac_mini_m2
+    max_build_duration: 75
+    triggering:
+      events: []
+    environment:
+      node: 22
+      xcode: 26.6
+      vars:
+        EAS_BUILD_PROFILE: preview
+        STAAR_PRIVATE_DEVICE_QA_BUILD: '0'
+        STAAR_IPHONE_ONLY_QA: '0'
+        EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '0'
+        EXPO_PUBLIC_WORLD_COLLISION_QA: '0'
+        EXPO_PUBLIC_BACKEND_URL: https://staarwardd-guardian-preview.onrender.com
+    scripts:
+      - name: Verify candidate 116, portal pages and QA boundaries
+        script: |
+          set -euo pipefail
+          cd frontend
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const a = JSON.parse(fs.readFileSync('app.json','utf8')).expo;
+          if (a.version !== '1.0.4' || a.ios.buildNumber !== '116')
+            throw Error('Native compile audit requires exact candidate 1.0.4 (116)');
+          NODE
+          corepack enable
+          yarn install --frozen-lockfile
+          node --test --test-concurrency=4 tests/*.test.mjs
+          yarn exec tsc --noEmit
+      - name: Generate offline 3D runtime and audit Expo manifest
+        script: |
+          set -euo pipefail
+          cd frontend
+          node scene-src/build.mjs
+          npx expo config --json > /tmp/staar116-native-expo-config.json
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const c=JSON.parse(fs.readFileSync('/tmp/staar116-native-expo-config.json','utf8'));
+          if(c.ios?.bundleIdentifier!=='com.emergent.crosslifeai.z79271')
+            throw Error('Apple bundle identity mismatch');
+          if(c.ios?.buildNumber!=='116')
+            throw Error('Apple build identity mismatch');
+          NODE
+      - name: Generate iPhone and Watch Xcode projects without signing
+        script: |
+          set -euo pipefail
+          cd frontend
+          npx expo prebuild --platform ios --non-interactive --clean
+          node scripts/verify-native-targets.cjs
+          cd ios && pod install
+      - name: Compile iPhone and Watch targets without issuing an IPA
+        script: |
+          set -euo pipefail
+          cd frontend
+          # Do not force -sdk iphonesimulator: it incorrectly builds the
+          # companion Watch target against the iOS SDK and requires iOS-only
+          # WCSessionDelegate methods during Watch Swift compilation.
+          # This helper lets Xcode choose iOS/watchOS SDKs per native target.
+          if node scripts/build-ios-simulator.cjs > /tmp/staar116-native-compile.log 2>&1; then
+            tail -35 /tmp/staar116-native-compile.log
+          else
+            tail -115 /tmp/staar116-native-compile.log >&2
+            exit 1
+          fi
+    artifacts:
+      - /tmp/staar116-native-compile.log
+      - /tmp/xcodebuild_logs/*.log
+  staar-home-reconciliation-preflight:
+    name: STAAR Hub — approved-asset-gated IPA (manual, no publishing)
     instance_type: mac_mini_m2
     max_build_duration: 120
     triggering:
@@ -8,66 +77,88 @@ workflows:
     integrations:
       app_store_connect: STAAR Codemagic QA 109
     environment:
-      groups:
-        - staar-private-110
       node: 22
       xcode: 26.6
       ios_signing:
         provisioning_profiles:
           - STAARHub_AppStore_Codemagic_2026_11_20
+          - STAARWatch_AppStore_CertNov19_2026_11_23
         certificates:
           - STAAR QA 109 Distribution
       vars:
-        EAS_BUILD_PROFILE: preview
-        STAAR_IPHONE_ONLY_QA: '1'
-        EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '1'
-        EXPO_PUBLIC_WORLD_COLLISION_QA: '1'
-        EXPO_PUBLIC_BACKEND_URL: https://cross-life-ai.emergent.host
+        EAS_BUILD_PROFILE: production
+        STAAR_IPHONE_ONLY_QA: '0'
+        EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '0'
+        EXPO_PUBLIC_WORLD_COLLISION_QA: '0'
+        STAAR_REQUIRE_WATCH_APP: '1'
     scripts:
-      - name: Download and authenticate PRIVATE encrypted 3D assets
+      - name: Validate dedicated production API and persist build environment
         script: |
           set -eu
-          # Fail before network activity or build work if the protected key is absent.
-          if [ -z "${STAAR_PRIVATE_B110_KEY:-}" ]; then
-            echo "BLOCKED: STAAR_PRIVATE_B110_KEY is not provisioned in the Codemagic environment group." >&2
-            exit 1
-          fi
-          case "$STAAR_PRIVATE_B110_KEY" in
-            *[!0-9a-fA-F]*|'') echo "BLOCKED: invalid private-key format." >&2; exit 1 ;;
+          url="${STAAR_PRODUCTION_BACKEND_URL:-}"
+          case "$url" in
+            https://* ) ;;
+            * ) echo 'BLOCKED: secure production API not configured' >&2; exit 1 ;;
           esac
-          if [ "${#STAAR_PRIVATE_B110_KEY}" -ne 64 ]; then
-            echo "BLOCKED: private key must be 64 hexadecimal characters." >&2
-            exit 1
-          fi
-          PRIVATE_ARCHIVE=$(mktemp /tmp/staar-private-110.XXXXXXXX.enc)
-          trap 'rm -f "$PRIVATE_ARCHIVE"' EXIT
-          curl --fail --silent --show-error -L --retry 3 \
-            'https://drive.google.com/uc?export=download&id=1E-bR8B2V_o33Mb519iA6ea_ouCM_gUWV' \
-            -o "$PRIVATE_ARCHIVE"
-          node scripts/decrypt-private-b110.mjs "$PRIVATE_ARCHIVE"
-          rm -f "$PRIVATE_ARCHIVE"
-          trap - EXIT
+          case "$url" in
+            *cross-life-ai.emergent.host*|*staarwardd-guardian-preview.onrender.com* )
+              echo 'BLOCKED: production cannot use legacy or preview backend' >&2; exit 1 ;;
+          esac
+          [[ "$url" != */*/*/* ]] || { echo 'BLOCKED: production API must be an HTTPS origin' >&2; exit 1; }
+          echo "EXPO_PUBLIC_BACKEND_URL=$url" >> "$CM_ENV"
+          export EXPO_PUBLIC_BACKEND_URL="$url"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const p='frontend/eas.json',d=JSON.parse(fs.readFileSync(p,'utf8'));
+          d.build.production.env.EXPO_PUBLIC_BACKEND_URL=process.env.EXPO_PUBLIC_BACKEND_URL;
+          fs.writeFileSync(p,JSON.stringify(d,null,2)+'\n');
+          NODE
+      - name: Certify locked portal artwork, guest access and companion evidence
+        script: |
+          set -eu
+          node scripts/audit-locked-portal-visuals.mjs
+      - name: Stage separately approved production assets from protected delivery
+        script: |
+          set -eu
+          node scripts/stage-approved-release-assets.mjs
+      - name: Verify approved production asset delivery without staging private QA files
+        script: |
+          set -eu
           cd frontend
-          node scripts/stage-private-guardian-b250-qa.mjs
-          node --input-type=module -e "import('./scene-src/internal-ten-world-qa.mjs').then(m=>m.loadInternalTenWorldQaAssets(process.cwd()+'/scene-src').then(w=>{if(Object.keys(w).length!==10)throw Error('ten_worlds_missing');console.log('10 GLBs hash verified')}))"
-          node scripts/prepare-private-b250-qa-archive.mjs prepare
-      - name: Set unique iPhone TestFlight version 110
+          node --input-type=module <<'NODE'
+          import {loadApprovedArmoredGuardianAsset} from './scene-src/approved-guardian-asset.mjs';
+          import {loadApprovedWorldAssets,REQUIRED_WORLD_ASSETS} from './scene-src/approved-world-assets.mjs';
+          const root=process.cwd()+'/scene-src';
+          const guardian=await loadApprovedArmoredGuardianAsset(root);
+          const worlds=await loadApprovedWorldAssets(root);
+          if(!guardian) throw Error('BLOCKED: approved Guardian GLB and signed receipt absent');
+          if(!worlds || Object.keys(worlds).length!==REQUIRED_WORLD_ASSETS.length)
+            throw Error('BLOCKED: approved world GLBs and receipts incomplete');
+          console.log('Approved Guardian and all world models passed validation');
+          NODE
+      - name: Require explicitly approved unused post-115 build number
         script: |
           cd frontend
           node - <<'NODE'
           const fs=require('node:fs');
-          const name='app.json',data=JSON.parse(fs.readFileSync(name,'utf8'));
-          if(data.expo.version!=='1.0.4'||data.expo.ios.buildNumber!=='109')
-            throw Error('Incorrect base version — refuse to build with duplicate number');
-          data.expo.ios.buildNumber='110';
-          fs.writeFileSync(name,JSON.stringify(data,null,2)+'\n');
+          const n=Number(process.env.STAAR_NEXT_IOS_BUILD);
+          if(!Number.isSafeInteger(n)||n<=115) throw Error('Set STAAR_NEXT_IOS_BUILD to an Apple-confirmed unused number above 115');
+          const p='app.json',d=JSON.parse(fs.readFileSync(p,'utf8'));
+          d.expo.ios.buildNumber=String(n);
+          fs.writeFileSync(p,JSON.stringify(d,null,2)+'\n');
           NODE
-      - name: Install Expo dependencies and bundle the real Guardian and 10 GLBs
+      - name: Fail closed before expensive signing unless independent release evidence passes
+        script: |
+          set -eu
+          cd frontend
+          node scripts/verify-production-package.mjs
+          node scripts/verify-live-production-backend.mjs
+      - name: Install dependencies and verify ten-portal home
         script: |
           cd frontend
           corepack enable
           yarn install --frozen-lockfile
-          node --test tests/build252-private-b250-iphone-qa-loader.test.mjs tests/build252-private-preview-archive-policy.test.mjs
+          node --test tests/ten-portal-home-contract.test.mjs tests/guardian-audio-visual.test.mjs tests/build111-immersive-hub-home-contract.test.mjs tests/claude-3d-chamber-release-gate.test.mjs
       - name: Native iOS prebuild
         script: |
           cd frontend
@@ -76,6 +167,21 @@ workflows:
         script: |
           cd frontend/ios
           pod install
+      - name: Verify registered Watch app signing entitlement and provisioning profile
+        script: |
+          set -eu
+          watch_id='R9BPDSU4BW.com.emergent.crosslifeai.z79271.watchkitapp'
+          profile_dir="$HOME/Library/MobileDevice/Provisioning Profiles"
+          found=0
+          for file in "$profile_dir"/*.mobileprovision; do
+            [ -f "$file" ] || continue
+            tmpfile=$(mktemp)
+            security cms -D -i "$file" > "$tmpfile" 2>/dev/null || { rm -f "$tmpfile"; continue; }
+            actual=$(plutil -extract 'Entitlements.application-identifier' raw -o - "$tmpfile" 2>/dev/null || true)
+            rm -f "$tmpfile"
+            if [ "$actual" = "$watch_id" ]; then found=1; break; fi
+          done
+          [ "$found" = 1 ] || { echo 'BLOCKED: no matching Apple Watch App Store provisioning profile installed in Codemagic' >&2; exit 1; }
       - name: Set App Store Connect signing
         script: |
           cd frontend
@@ -87,13 +193,13 @@ workflows:
           test -n "$WORKSPACE"
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
           xcode-project build-ipa --workspace "$WORKSPACE" --scheme "$SCHEME"
+      - name: Verify actual signed IPA and embedded Watch app locally
+        script: |
+          set -eu
+          cd frontend
+          ipa=$(find build/ios/ipa -name '*.ipa' -type f -print -quit)
+          [ -n "$ipa" ] || { echo 'BLOCKED: missing actual signed IPA' >&2; exit 1; }
+          bash scripts/verify-build220-ipa.sh "$ipa"
     artifacts:
       - frontend/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-    publishing:
-      app_store_connect:
-        auth: integration
-        # Upload internal-only builds without requesting external beta review.
-        submit_to_testflight: false
-        submit_to_app_store: false
-        beta_groups: []

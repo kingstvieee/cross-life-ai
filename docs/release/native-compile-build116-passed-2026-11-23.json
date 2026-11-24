@@ -1,0 +1,39 @@
+{
+  "schema": "staarhub-native-compile-evidence-v1",
+  "observedDate": "2026-11-23",
+  "source": "Authenticated Codemagic build detail and final Xcode log",
+  "codemagic": {
+    "buildId": "6b041e5b8f52ca27512a8b32",
+    "appId": "6aff5ef45a7d472536dc7640",
+    "commit": "401b59892a5a787312f7547ac61d3b90b952663e",
+    "branch": "integration/final-3d-hub",
+    "workflow": "STAAR Hub 116 — iPhone + Watch Native Compile Audit (unsigned)",
+    "status": "finished",
+    "duration": "11m 20s",
+    "sourceValidation": "pass",
+    "offline3d": "pass",
+    "nativeProjectGeneration": "pass",
+    "nativeCompilation": "pass",
+    "xcodeTerminalMarker": "** BUILD SUCCEEDED **",
+    "nativeCompilationDuration": "8m 14s",
+    "signedIpaGenerated": false,
+    "testflightSubmitted": false
+  },
+  "releaseStatus": {
+    "nativeCompilationBlockerResolved": true,
+    "founderCreativeApprovalsPreserved": true,
+    "guardianProductionGLBCertified": false,
+    "tenWorldProductionGLBsCertified": false,
+    "approvedAACInProductionStaging": false,
+    "dedicatedProductionBackendCertified": false,
+    "googleEndToEndAccountReadbackCertified": false,
+    "physicalIphoneWatchQACompleted": false,
+    "signedReleaseReady": false
+  },
+  "notes": [
+    "Signed Build 115 previously observed in App Store Connect is a DIFFERENT prior branch and cannot certify Build 116.",
+    "Do not relabel review-only 3D assets as production assets.",
+    "New iOS Build 116 currently used as unsigned compile identity; verify actual provider high-watermark before any signed build.",
+    "Pass status does not establish optical likeness, every tool's live provider integration, TestFlight installation, or physical-device acceptance."
+  ]
+}

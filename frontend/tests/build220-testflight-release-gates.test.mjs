@@ -23,7 +23,8 @@ test('Build 220 macOS signed IPA verifier checks real archive signing and fixed 
  const code=await readFile(new URL('../scripts/verify-build220-ipa.sh',import.meta.url),'utf8');
  for(const marker of ['codesign --verify --deep --strict',
    'TeamIdentifier=R9BPDSU4BW','com.emergent.crosslifeai.z79271',
-   '"$build" == "109"','"$version" == "1.0.4"','SIGNED_IPA_SHA256']){
+   '"$build" == "$expected_build"','"$version" == "$expected_version"','SIGNED_IPA_SHA256',
+   'embedded.mobileprovision','WATCH_APP_SIGNED','STAAR_REQUIRE_WATCH_APP']){
   assert.ok(code.includes(marker),marker);
  }
 });
@@ -33,5 +34,8 @@ test('Build 220 founder approval and actual signed build remain required in EAS 
  assert.ok(wf.includes('type: require-approval'));
  assert.ok(wf.includes('node scripts/verify-production-package.mjs'));
  assert.ok(wf.includes('type: testflight'));
- assert.ok(wf.includes('needs: [build_ios, founder_acceptance]'));
+ assert.ok(wf.includes('needs: [build_ios, verify_ipa_metadata, founder_acceptance]'));
+ assert.ok(wf.includes('eas/download_build'));
+ assert.ok(wf.includes('verify-ipa-archive-metadata.py'));
+ assert.ok(wf.includes('needs: [verify_ipa_metadata]'));
 });

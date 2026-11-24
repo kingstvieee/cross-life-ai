@@ -111,6 +111,7 @@ def test_code_pkce_verified_identity_and_private_session_cookie(monkeypatch, pro
     client, db, requests = make(monkeypatch)
     start, params = begin(client, provider)
     assert params["code_challenge_method"] == ["S256"]
+    assert "prompt" not in params  # Auth0 decides whether to reuse an existing secure SSO session.
     assert "HttpOnly" in start.headers["set-cookie"] and "Secure" in start.headers["set-cookie"]
     verifier = db.auth_flows.docs[0]["verifier"]
     challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")

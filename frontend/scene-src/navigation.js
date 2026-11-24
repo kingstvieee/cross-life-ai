@@ -1,5 +1,5 @@
-export const worldIds = ['home','work','creativity','wellbeing','relationships','events','style','staarverse','staarsonic'];
-export const worldNames = ['STAAR Hub','STAAR Work','STAAR Dreams','STAAR Health','STAAR Love','STAAR Village','STAAR Closet','STARVERSE','STAARSONIC'];
+export const worldIds = ['home','work','creativity','wellbeing','relationships','events','style','staarverse','staarsonic','diggitstaar'];
+export const worldNames = ['STAAR Hub','STAAR Work','STAAR Dreams','STAAR Health','STAAR Love','STAAR Village','STAAR Closet','STARVERSE','STAARSONIC','DIGGITSTAAR'];
 
 // These controls remain usable when the device has no WebGL capability.
 export function fallbackActions(world) {

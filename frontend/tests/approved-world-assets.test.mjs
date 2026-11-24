@@ -65,7 +65,7 @@ test('no final worlds falls back to preview; incomplete or duplicated deliveries
 test('approved world geometry loads only if accepted and fallback remains',async()=>{
  const builder=await readFile(new URL('../scene-src/build.mjs',import.meta.url),'utf8');
  const renderer=await readFile(new URL('../scene-src/worlds.js',import.meta.url),'utf8');
- assert.match(builder,/loadApprovedWorldAssets\(root\)/);
+ assert.match(builder,/loadApprovedProductionWorldAssets\(root\)/);
  assert.match(builder,/STAAR_APPROVED_WORLD_ASSETS=/);
  assert.match(renderer,/window\.STAAR_APPROVED_WORLD_ASSETS/);
  assert.match(renderer,/worldQaEnabled&&window\.STAAR_PRIVATE_WORLDS_QA/); 

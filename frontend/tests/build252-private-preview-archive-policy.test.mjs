@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,writeFile,rm,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
-import {makePrivateB250QaIgnore,QA_PRIVATE_INCLUDE,
+import {makePrivateB250QaIgnore,QA_PRIVATE_INCLUDE,QA_PRIVATE_WORLD_INCLUDES,
  preparePrivateB250QaArchive,inspectPrivateB250QaArchive} from '../scripts/prepare-private-b250-qa-archive.mjs';
 import {generatePrivateEasIgnore} from '../scripts/prepare-private-eas-archive.mjs';
 const rootIgnore='node_modules/\n*.zip\n';
@@ -14,6 +14,12 @@ test('QA include rules unignore exact parent and private file and retain product
  assert.ok(qa.startsWith(prod.trimEnd()));
  assert.ok(qa.includes('!frontend/scene-src/assets/private-guardian-qa/\n'));
  assert.ok(qa.includes('!'+QA_PRIVATE_INCLUDE+'\n'));
+ assert.equal(QA_PRIVATE_WORLD_INCLUDES.length,10);
+ assert.ok(qa.includes('!frontend/scene-src/assets/private-world-qa/\n'));
+ for(const file of QA_PRIVATE_WORLD_INCLUDES){
+  assert.ok(qa.includes('!'+file+'\n'),file);
+  assert.equal(prod.includes('!'+file),false,file);
+ }
  assert.ok(prod.includes('!frontend/assets/audio/Starward_Guardian_Approved_AAC_iOS.m4a'));
  assert.equal(prod.includes('!'+QA_PRIVATE_INCLUDE),false);
 });

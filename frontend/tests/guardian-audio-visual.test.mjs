@@ -24,9 +24,12 @@ test('Guardian avatar speaking state follows actual voice, not speech requests',
   assert.match(provider, /onStart:\(\)=>\{if\(requestId===speechRequest\.current && !speechQuietRef\.current\)setVoicePlaybackActive\(true\)/);
   assert.match(provider, /setVoicePlaybackActive\(false\)/);
   assert.match(provider, /\[user\?\.user_id\]/);
-  assert.match(hub, /<GuardianCharacter state=\{audio\.voicePlaybackActive \? 'speaking' : guardianState\}/);
-  assert.match(hub, /GUARDIAN PREPARING VOICE/);
-  assert.match(hub, /audio\.voicePlaybackActive \? 'GUARDIAN SPEAKING'/);
+  const scene = read('../components/staarwardd/world-scene.tsx');
+  assert.match(hub, /<WorldScene world="hub" embedded onAction=\{onThreeDimensionalPortalAction\}/);
+  assert.match(scene, /const allowed=audio.master&&audio.voice&&!audio.speechQuiet&&audio.voicePlaybackActive/);
+  assert.match(scene, /guardianWireFrame\(allowed\?\(guardianAudioFrame\?\?audio.guardianAudioFrame\):null,session\)/);
+  assert.match(hub, /audio\.voicePlaybackActive/);
+  assert.match(hub, /audio\.speechPhase !== 'idle'/);
   assert.doesNotMatch(hub, /setGuardianState\('speaking'\); setGuardianSpeaking\(true\)/);
 });
 

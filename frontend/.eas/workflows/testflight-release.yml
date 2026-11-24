@@ -8,7 +8,7 @@ on:
         description: Confirm the approved production TestFlight candidate
         required: true
         options:
-          - 1.0.4 (109)
+          - 1.0.4 (116)
 
 concurrency:
   group: staar-hub-testflight-release
@@ -32,21 +32,43 @@ jobs:
 
   build_ios:
     needs: [preflight]
-    name: Build STAAR Hub 1.0.4 (109)
+    name: Build STAAR Hub 1.0.4 (116)
     type: build
     params:
       platform: ios
       profile: production
-      message: STAAR Hub 1.0.4 (109) portal connections and device checks
+      message: STAAR Hub 1.0.4 (116) portal connections and device checks
+
+  verify_ipa_metadata:
+    name: Inspect the actual signed IPA for correct iPhone and Watch packaging
+    needs: [build_ios]
+    steps:
+      - uses: eas/checkout
+      - id: download_ipa
+        uses: eas/download_build
+        with:
+          build_id: ${{ needs.build_ios.outputs.build_id }}
+          extensions: [ipa]
+      - name: Check exact build number, provisioning and code-signature files
+        run: |
+          set -eu
+          if [ -f scripts/verify-ipa-archive-metadata.py ]; then
+            python3 scripts/verify-ipa-archive-metadata.py "${{ steps.download_ipa.outputs.artifact_path }}"
+          elif [ -f frontend/scripts/verify-ipa-archive-metadata.py ]; then
+            python3 frontend/scripts/verify-ipa-archive-metadata.py "${{ steps.download_ipa.outputs.artifact_path }}"
+          else
+            echo 'BLOCKED: signed IPA archive verification script missing' >&2
+            exit 1
+          fi
 
   founder_acceptance:
-    name: Founder approves tested, signed Build 109
-    needs: [build_ios]
+    name: Founder approves tested, signed Build 116
+    needs: [verify_ipa_metadata]
     type: require-approval
 
   submit_ios:
-    name: Submit build 109 to TestFlight
-    needs: [build_ios, founder_acceptance]
+    name: Submit build 116 to TestFlight
+    needs: [build_ios, verify_ipa_metadata, founder_acceptance]
     type: testflight
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}

@@ -23,18 +23,21 @@ export function evaluateIphoneQaPreview({app,eas,sceneHost,qaBoundary,qaArchive,
  require(exact(ios?.bundleIdentifier,EXPECTED_APP.bundleId),'wrong_apple_bundle');
  require(exact(ios?.appleTeamId,EXPECTED_APP.appleTeamId),'wrong_apple_team');
  require(exact(expo?.version,'1.0.4'),'unexpected_app_version');
- require(exact(ios?.buildNumber,'109'),'unexpected_ios_build_number');
+ require(exact(ios?.buildNumber,'116'),'unexpected_ios_build_number');
  require(Array.isArray(expo?.plugins)&&expo.plugins.includes('@bacons/apple-targets'),
    'watch_target_plugin_absent');
  require(exact(eas?.build?.preview?.distribution,'internal'),'preview_not_internal');
  require(exact(eas?.build?.preview?.ios?.simulator,false),'preview_not_physical_device');
  require(exact(eas?.build?.preview?.env?.EXPO_PUBLIC_GUARDIAN_DEVICE_QA,'1'),'guardian_qa_disabled');
  require(exact(eas?.build?.preview?.env?.EXPO_PUBLIC_WORLD_COLLISION_QA,'1'),'world_qa_disabled');
+ require(exact(eas?.build?.preview?.env?.STAAR_PRIVATE_DEVICE_QA_BUILD,'1'),'private_qa_bundle_disabled');
  require(exact(eas?.build?.production?.distribution,'store'),'production_profile_changed');
  require(exact(eas?.build?.production?.env?.EXPO_PUBLIC_GUARDIAN_DEVICE_QA,'0'),
    'guardian_qa_enabled_in_production');
  require(exact(eas?.build?.production?.env?.EXPO_PUBLIC_WORLD_COLLISION_QA,'0'),
    'world_qa_enabled_in_production');
+ require(eas?.build?.production?.env?.STAAR_PRIVATE_DEVICE_QA_BUILD !== '1',
+   'private_qa_enabled_in_production');
  require(exact(String(eas?.submit?.production?.ios?.ascAppId),EXPECTED_APP.ascAppId),
    'app_store_submission_target_changed');
  require(isRecord(eas?.build?.development)&&
@@ -42,7 +45,8 @@ export function evaluateIphoneQaPreview({app,eas,sceneHost,qaBoundary,qaArchive,
    'development_qa_disabled');
  require(typeof sceneHost==='string'&&sceneHost.includes("Platform.OS==='ios'")&&
    sceneHost.includes('normalizeIphoneQa')&&sceneHost.includes('exportWorldQaArchive')&&
-   sceneHost.includes('worldSceneHtml(world, variant, session, qaEnabled, worldQaEnabled)'),
+   sceneHost.includes('worldSceneHtml(world, variant, session, qaEnabled, worldQaEnabled, guardianPresentation, reduceGuardianMotion)') &&
+   sceneHost.includes('const qaEnabled = !guardianPresentation &&'),
    'device_qa_controls_missing');
  require(typeof qaBoundary==='string'&&qaBoundary.includes("certification:'UNVERIFIED'")&&
    qaBoundary.includes('physicalIphoneOwnerAttestation:false')&&
@@ -64,7 +68,7 @@ export function evaluateIphoneQaPreview({app,eas,sceneHost,qaBoundary,qaArchive,
    blockers:blocked,
    releaseMode:'INTERNAL_IOS_QA_ONLY',
    version:'1.0.4',
-   iosBuild:'109',
+   iosBuild:'116',
    noSigningOrSubmissionPerformed:true,
    noOwnerDeviceOrAppleCredentialsInspected:true,
    noPhysicalIphoneTestPerformed:true,
