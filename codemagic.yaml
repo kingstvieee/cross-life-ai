@@ -77,6 +77,8 @@ workflows:
     integrations:
       app_store_connect: STAAR Codemagic QA 109
     environment:
+      groups:
+        - staar-private-110
       node: 22
       xcode: 26.6
       ios_signing:
@@ -87,6 +89,8 @@ workflows:
           - STAAR QA 109 Distribution
       vars:
         EAS_BUILD_PROFILE: production
+        STAAR_INTERNAL_TESTFLIGHT_GUARDIAN: '1'
+        STAAR_INTERNAL_HOME_REVIEW: '1'
         STAAR_IPHONE_ONLY_QA: '0'
         EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '0'
         EXPO_PUBLIC_WORLD_COLLISION_QA: '0'
@@ -117,7 +121,11 @@ workflows:
       - name: Internal review scope (physical certification deferred)
         script: |
           echo 'Owner-authorized internal TestFlight review; physical certification and protected production assets are not certified.'
-          echo 'Missing approved models use existing runtime fallbacks. No private QA assets are staged.'
+          set -eu
+          test -n "${STAAR_B252_KEY:-}"
+          mkdir -p frontend/scene-src/assets/private-guardian-qa
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in private-encrypted/guardian-b252.glb.enc -out frontend/scene-src/assets/private-guardian-qa/guardian-b250-iphone-qa.glb -pass env:STAAR_B252_KEY
+          echo '057099cac71e04d6e1282b23fb52c9d593b8c1a4e055309254ca1f5609a42134  frontend/scene-src/assets/private-guardian-qa/guardian-b250-iphone-qa.glb' | shasum -a 256 -c -
       - name: Resolve next internal TestFlight build number
         script: |
           set -eu

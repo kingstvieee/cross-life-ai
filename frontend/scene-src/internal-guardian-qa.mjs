@@ -13,7 +13,7 @@ export const B250_PRIVATE_RELATIVE_PATH='assets/private-guardian-qa/guardian-b25
 export const INTERNAL_QA_SCHEMA='staar-b250-private-internal-iphone-qa-v1';
 
 export function isInternalGuardianQaBuild(env=process.env){
-  return env?.EAS_BUILD_PROFILE==='preview' &&
+  return (env?.STAAR_INTERNAL_TESTFLIGHT_GUARDIAN==='1' && env?.EAS_BUILD_PROFILE==='production') || env?.EAS_BUILD_PROFILE==='preview' &&
     env?.STAAR_IPHONE_ONLY_QA==='1' &&
     env?.EXPO_PUBLIC_GUARDIAN_DEVICE_QA==='1' &&
     env?.EXPO_PUBLIC_WORLD_COLLISION_QA==='1';

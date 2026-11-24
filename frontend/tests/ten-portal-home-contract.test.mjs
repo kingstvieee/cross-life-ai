@@ -23,9 +23,11 @@ test('ten distinct portals are ordered and navigable', async () => {
  assert.match(scenes, /function diggitstaar\(/);
  assert.match(scenes, /diggitstaar\}\)\[world\]/);
 });
-test('signed TestFlight workflow does not stage the unapproved B250 QA Guardian', async () => {
+test('signed TestFlight workflow stages exact B252 Guardian only for internal review', async () => {
  const yaml = await read('../../codemagic.yaml');
- assert.doesNotMatch(yaml, /STAAR_INTERNAL_HOME_REVIEW/);
+ assert.match(yaml, /STAAR_INTERNAL_HOME_REVIEW: '1'/);
+ assert.match(yaml, /STAAR_INTERNAL_TESTFLIGHT_GUARDIAN: '1'/);
+ assert.match(yaml, /057099cac71e04d6e1282b23fb52c9d593b8c1a4e055309254ca1f5609a42134/);
  assert.doesNotMatch(yaml, /stage-private-guardian-b250-qa/);
  assert.match(yaml, /staar-home-reconciliation-preflight/);
  assert.match(yaml, /Internal review scope \(physical certification deferred\)/);

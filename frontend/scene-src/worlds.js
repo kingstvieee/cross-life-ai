@@ -388,7 +388,7 @@ if (renderer) {
     // Separate private device-only route. This review model is explicitly
     // quarantined from the regular approved-asset importer and production
     // runtime; its real binary hash is checked by build.mjs at staging time.
-    const internalHomeReview = guardianPresentation && window.STAAR_INTERNAL_HOME_REVIEW === true && Boolean(window.ReactNativeWebView);
+    const internalHomeReview = window.STAAR_INTERNAL_HOME_REVIEW === true && Boolean(window.ReactNativeWebView);
     const internalQaRoute = !guardianPresentation && window.STAAR_GUARDIAN_QA === true;
     const internal=world==='hub' && (internalQaRoute || internalHomeReview) &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.schema==='staar-b250-private-internal-iphone-qa-v1' &&
@@ -526,7 +526,7 @@ if (renderer) {
         // Only the exact build-time receipt-checked Guardian GLB can signal
         // readiness. 2D stills and the known rejected 3D models never do.
         guardianFaceMotion.mute();
-        if(internal){
+        if(internal && guardianPresentation){
           document.querySelector('#title').textContent='GUARDIAN · PRIVATE IPHONE QA';
           document.querySelector('#status').textContent='REVIEW ONLY · NOT A RELEASED 3D GUARDIAN';
         }

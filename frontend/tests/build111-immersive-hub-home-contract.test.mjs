@@ -27,7 +27,7 @@ test('Private rig presentation is restricted to explicitly staged native review 
  assert.match(await scene(), /const qaEnabled = !guardianPresentation && Platform\.OS/);
  const builder = await readFile(new URL('../scene-src/build.mjs', import.meta.url), 'utf8');
  assert.match(builder, /Boolean\(privateGuardianQa\) && process\.env\.STAAR_INTERNAL_HOME_REVIEW\s*===\s*'1'/);
- assert.match(renderer, /guardianPresentation && window\.STAAR_INTERNAL_HOME_REVIEW === true && Boolean\(window\.ReactNativeWebView\)/);
+ assert.match(renderer, /window\.STAAR_INTERNAL_HOME_REVIEW === true && Boolean\(window\.ReactNativeWebView\)/);
  assert.match(renderer, /internalQaRoute \|\| internalHomeReview/);
  assert.match(renderer, /document\.querySelector\('header'\)\.hidden/);
  assert.match(renderer, /report\('guardian-arrived'\)/);

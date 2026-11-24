@@ -31,7 +31,7 @@ test('production remains fail-closed against unapproved private Guardian QA',asy
     source('../../codemagic.yaml')
   ]);
   assert.match(builder,/const privateQaBuild = process\.env\.STAAR_PRIVATE_DEVICE_QA_BUILD === '1'/);
-  assert.match(builder,/if \(!privateQaBuild && \(privateGuardianQa \|\| privateWorlds \|\| internalHomeReview\)\)/);
+  assert.match(builder,/if \(!privateQaBuild && \(privateGuardianQa \|\| privateWorlds \|\| internalHomeReview\) && !internalTestFlightGuardian\)/);
   assert.match(workflow,/triggering:\s*\n\s*events: \[\]/);
   assert.match(workflow,/submit_to_testflight: true/);
   assert.match(workflow,/testFlightInternalTestingOnly": true/);

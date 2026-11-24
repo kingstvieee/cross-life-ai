@@ -9,6 +9,7 @@ import {loadInternalTenWorldQaAssets, isWorldQaBuild} from './internal-ten-world
 
 const root=path.dirname(fileURLToPath(import.meta.url));
 const approvedGuardian=await loadApprovedArmoredGuardianAsset(root);
+const internalTestFlightGuardian = process.env.STAAR_INTERNAL_TESTFLIGHT_GUARDIAN === '1';
 const guardianData=approvedGuardian ? JSON.stringify(approvedGuardian) : 'null';
 // The private 3D review model is loaded only inside an explicitly flagged
 // physical-iPhone preview; production never receives its private base64 bytes.
@@ -21,16 +22,16 @@ if (privateQaBuild && (!isInternalGuardianQaBuild() || !isWorldQaBuild())) {
 }
 // Even with the private QA switch off, refuse accidentally staged private files
 // from any production source checkout rather than trusting the bundler to omit them.
-if (process.env.EAS_BUILD_PROFILE === 'production') {
+if (process.env.EAS_BUILD_PROFILE === 'production' && !internalTestFlightGuardian) {
   await loadInternalGuardianQaAsset(root);
   await loadInternalTenWorldQaAssets(root);
 }
-const privateGuardianQa = privateQaBuild ? await loadInternalGuardianQaAsset(root) : null;
-const internalHomeReview = privateQaBuild && Boolean(privateGuardianQa) && process.env.STAAR_INTERNAL_HOME_REVIEW === '1';
+const privateGuardianQa = (privateQaBuild || internalTestFlightGuardian) ? await loadInternalGuardianQaAsset(root) : null;
+const internalHomeReview = (privateQaBuild || internalTestFlightGuardian) && Boolean(privateGuardianQa) && process.env.STAAR_INTERNAL_HOME_REVIEW === '1';
 const privateGuardianData = privateGuardianQa ? JSON.stringify(privateGuardianQa) : 'null';
 const privateWorlds = privateQaBuild ? await loadInternalTenWorldQaAssets(root) : null;
 const privateWorldsData = privateWorlds ? JSON.stringify(privateWorlds) : 'null';
-if (!privateQaBuild && (privateGuardianQa || privateWorlds || internalHomeReview)) {
+if (!privateQaBuild && (privateGuardianQa || privateWorlds || internalHomeReview) && !internalTestFlightGuardian) {
   throw new Error('Private QA data must not enter production runtime');
 }
 const approvedWorlds=await loadApprovedProductionWorldAssets(root);
