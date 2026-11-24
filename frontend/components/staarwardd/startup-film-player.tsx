@@ -108,5 +108,29 @@ export default function StartupFilmPlayer({ muted, playing, onEnd, onError, onRe
     }
   }, [audioSessionReady, gate.playFilm, gate.playApprovedMusic, player, soundtrack, onError]);
 
+  useEffect(() => {
+    if (!gate.playFilm) return;
+    let previous = player.currentTime;
+    let lastAdvance = Date.now();
+    let recovered = false;
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const position = player.currentTime;
+      if (player.duration > 0 && position >= player.duration - 0.15) {
+        clearInterval(timer); onEnd(); return;
+      }
+      if (position > previous + 0.03) {
+        previous = position; lastAdvance = now; recovered = false; return;
+      }
+      if (now - lastAdvance < 4500) return;
+      if (!recovered) {
+        recovered = true; lastAdvance = now;
+        try { player.pause(); player.currentTime = Math.max(0, position - 0.1); player.play(); }
+        catch { clearInterval(timer); onError(); }
+      } else { clearInterval(timer); onError(); }
+    }, 500);
+    return () => clearInterval(timer);
+  }, [gate.playFilm, player, onEnd, onError]);
+
   return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls={false} playsInline />;
 }
