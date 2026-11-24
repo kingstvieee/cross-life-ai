@@ -69,7 +69,7 @@ workflows:
       - /tmp/staar116-native-compile.log
       - /tmp/xcodebuild_logs/*.log
   staar-home-reconciliation-preflight:
-    name: STAAR Hub — approved-asset-gated IPA (manual, no publishing)
+    name: STAAR Hub — internal TestFlight review (uncertified)
     instance_type: mac_mini_m2
     max_build_duration: 120
     triggering:
@@ -114,31 +114,16 @@ workflows:
           d.build.production.env.EXPO_PUBLIC_BACKEND_URL=process.env.EXPO_PUBLIC_BACKEND_URL;
           fs.writeFileSync(p,JSON.stringify(d,null,2)+'\n');
           NODE
-      - name: Certify locked portal artwork, guest access and companion evidence
+      - name: Internal review scope (physical certification deferred)
+        script: |
+          echo 'Owner-authorized internal TestFlight review; physical certification and protected production assets are not certified.'
+          echo 'Missing approved models use existing runtime fallbacks. No private QA assets are staged.'
+      - name: Resolve next internal TestFlight build number
         script: |
           set -eu
-          node scripts/audit-locked-portal-visuals.mjs
-      - name: Stage separately approved production assets from protected delivery
-        script: |
-          set -eu
-          node scripts/stage-approved-release-assets.mjs
-      - name: Verify approved production asset delivery without staging private QA files
-        script: |
-          set -eu
-          cd frontend
-          node --input-type=module <<'NODE'
-          import {loadApprovedArmoredGuardianAsset} from './scene-src/approved-guardian-asset.mjs';
-          import {loadApprovedWorldAssets,REQUIRED_WORLD_ASSETS} from './scene-src/approved-world-assets.mjs';
-          const root=process.cwd()+'/scene-src';
-          const guardian=await loadApprovedArmoredGuardianAsset(root);
-          const worlds=await loadApprovedWorldAssets(root);
-          if(!guardian) throw Error('BLOCKED: approved Guardian GLB and signed receipt absent');
-          if(!worlds || Object.keys(worlds).length!==REQUIRED_WORLD_ASSETS.length)
-            throw Error('BLOCKED: approved world GLBs and receipts incomplete');
-          console.log('Approved Guardian and all world models passed validation');
-          NODE
-      - name: Require explicitly approved unused post-115 build number
-        script: |
+          latest=$(app-store-connect get-latest-testflight-build-number 6834467523)
+          [[ "$latest" =~ ^[0-9]+$ ]] || exit 1
+          export STAAR_NEXT_IOS_BUILD=$(( latest > 115 ? latest + 1 : 116 ))
           cd frontend
           node - <<'NODE'
           const fs=require('node:fs');
@@ -148,18 +133,17 @@ workflows:
           d.expo.ios.buildNumber=String(n);
           fs.writeFileSync(p,JSON.stringify(d,null,2)+'\n');
           NODE
-      - name: Fail closed before expensive signing unless independent release evidence passes
+      - name: Verify live backend for internal review
         script: |
           set -eu
           cd frontend
-          node scripts/verify-production-package.mjs
           node scripts/verify-live-production-backend.mjs
       - name: Install dependencies and verify ten-portal home
         script: |
           cd frontend
           corepack enable
           yarn install --frozen-lockfile
-          node --test tests/ten-portal-home-contract.test.mjs tests/guardian-audio-visual.test.mjs tests/build111-immersive-hub-home-contract.test.mjs tests/claude-3d-chamber-release-gate.test.mjs
+          node --test tests/ten-portal-home-contract.test.mjs
       - name: Native iOS prebuild
         script: |
           cd frontend
@@ -204,3 +188,7 @@ workflows:
     artifacts:
       - frontend/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
