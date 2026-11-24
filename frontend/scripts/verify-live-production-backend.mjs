@@ -19,7 +19,15 @@ export async function verifyLiveProductionBackend(origin,{request=globalThis.fet
     const r=await request(base+path,{...init,redirect:'manual',headers:{Accept:'application/json',...(init.headers||{})},signal:AbortSignal.timeout(65_000)});
     return r;
   }
-  const live=await probe('/api/health/live');
+  // Render may cold-start; retry transport failures only, never bypass a failed security check.
+  let live;
+  for(let attempt=0;attempt<3;attempt++){
+    try { live=await probe('/api/health/live'); break; }
+    catch(error){
+      if(attempt===2 || !['TimeoutError','AbortError','TypeError'].includes(error.name)) throw error;
+      console.warn('Production liveness transport retry '+(attempt+1));
+    }
+  }
   if(live.status!==200||(await live.json()).status!=='alive')throw new Error('production_liveness_failed');
   const ready=await probe('/api/health/ready');
   const readyBody=await ready.json();

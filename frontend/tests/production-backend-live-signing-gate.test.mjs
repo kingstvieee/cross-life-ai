@@ -42,3 +42,12 @@ test('offline backend, 401 Google config, permissive CORS, or anonymous access f
  }
  await assert.rejects(verifyLiveProductionBackend(base,{request:(u,o)=>o?.method==='OPTIONS'?res(200,{}):respond(u,o)}),/production_cors_origin_not_rejected/);
 });
+
+test('cold-start timeout retries liveness without bypassing readiness or security',async()=>{
+ let attempts=0;
+ const r=await verifyLiveProductionBackend(base,{request:(u,o)=>{
+  if(u.endsWith('/api/health/live')&&++attempts===1)throw new DOMException('timeout','TimeoutError');
+  return respond(u,o);
+ }});
+ assert.equal(attempts,2);assert.equal(r.database,'connected');
+});
