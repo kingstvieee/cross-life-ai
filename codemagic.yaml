@@ -122,9 +122,11 @@ workflows:
         script: |
           echo 'Owner-authorized internal TestFlight review; physical certification and protected production assets are not certified.'
           set -eu
-          test -n "${STAAR_B252_KEY:-}"
+          export STAAR_B252_KEY="${STAAR_B252_KEY_RECOVERED:-${STAAR_B252_KEY:-}}"
+          test -n "$STAAR_B252_KEY"
+          test "${#STAAR_B252_KEY}" -eq 64 || { echo "Guardian credential length invalid"; exit 1; }
           mkdir -p frontend/scene-src/assets/private-guardian-qa
-          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in private-encrypted/guardian-b252.glb.enc -out frontend/scene-src/assets/private-guardian-qa/guardian-b250-iphone-qa.glb -pass env:STAAR_B252_KEY
+          openssl enc -d -aes-256-cbc -md sha256 -pbkdf2 -iter 200000 -in private-encrypted/guardian-b252.glb.enc -out frontend/scene-src/assets/private-guardian-qa/guardian-b250-iphone-qa.glb -pass env:STAAR_B252_KEY
           echo '057099cac71e04d6e1282b23fb52c9d593b8c1a4e055309254ca1f5609a42134  frontend/scene-src/assets/private-guardian-qa/guardian-b250-iphone-qa.glb' | shasum -a 256 -c -
       - name: Resolve next internal TestFlight build number
         script: |
