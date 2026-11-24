@@ -91,6 +91,7 @@ workflows:
         EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '0'
         EXPO_PUBLIC_WORLD_COLLISION_QA: '0'
         STAAR_REQUIRE_WATCH_APP: '1'
+        STAAR_PRODUCTION_BACKEND_URL: https://staarwardd-guardian-production.onrender.com
     scripts:
       - name: Validate dedicated production API and persist build environment
         script: |
