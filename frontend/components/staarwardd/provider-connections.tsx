@@ -21,7 +21,7 @@ export function ProviderConnections() {
       const data = await r.json(); if (epoch !== generation.current) throw new Error('Connection request cancelled.'); return data;
     } finally { clearTimeout(timeout); }
   }
-  async function load() { try { const data = await request(''); if (Array.isArray(data)) setProviders(data); } catch { setMessage('Calendar connections are not available from this server yet.'); } }
+  async function load() { try { const data = await request(''); if (Array.isArray(data)) setProviders(data.filter(p => p.id === 'google' || p.id === 'microsoft')); } catch { setMessage('Calendar connections are not available from this server yet.'); } }
   async function act(fn: () => Promise<void>) { if (busy) return; const epoch = generation.current; setBusy(true); setMessage(''); try { await fn(); } catch (e) { if (epoch === generation.current) setMessage(e instanceof Error ? e.message : 'Connection failed.'); } finally { if (epoch === generation.current) setBusy(false); } }
   const button = (label: string, fn: () => Promise<void>, disabled = false) => <Pressable accessibilityRole="button" disabled={busy || disabled} onPress={() => { void act(fn); }} style={{ padding: 16, borderRadius: 14, borderWidth: 1, borderColor: '#74849B', opacity: busy || disabled ? .4 : 1 }}><Text style={{ color: '#EDF2FA' }}>{label}</Text></Pressable>;
   return <View style={{ gap: 16 }}><Text style={{ color: '#EDF2FA', fontSize: 22 }}>Calendar connections</Text>

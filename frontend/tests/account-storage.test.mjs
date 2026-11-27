@@ -22,9 +22,9 @@ test("Guardian greeting opt-in keys are isolated and legacy global settings are 
   assert.match(source, /accountStorageKey\('staarwardd\.guardian\.proactive-greeting\.v2', user\.user_id\)/);
   assert.match(source, /user && !user\.is_demo/);
   assert.match(source, /setPreferenceReady\(false\)/);
-  assert.match(source, /setGreetingEnabled\(false\)/);
-  assert.match(source, /if \(alive\) \{ setGreetingEnabled\(value === 'enabled'\); setPreferenceReady\(true\); \}/);
-  assert.match(source, /disabled=\{!greetingKey \|\| !preferenceReady \|\| !serverConsentReady \|\| savingGreeting \|\| serverPrivate \|\| serverSpeechQuiet\}/);
+  assert.match(source, /setArrivalPreference\('off'\)/);
+  assert.match(source, /setArrivalPreference\(decodeArrivalPreference\(value\)\); setPreferenceOwner\(greetingKey\); setPreferenceReady\(true\);/);
+  assert.match(source, /disabled=\{!greetingKey \|\| !preferenceReady \|\| !serverConsentReady \|\| savingGreeting \|\| serverPrivate \|\| serverSpeechQuiet \|\| !audio\.audioHydrated \|\| audio\.accountSpeechQuiet\}/);
   assert.match(source, /const greetingActive = greetingEnabled && serverGreetingConsent && !serverPrivate && !serverSpeechQuiet/);
   assert.match(source, /accessibilityState=\{\{ checked: greetingActive \}\}/);
   assert.match(source, /if \(activeGreetingKey\.current !== savedFor\) return/);

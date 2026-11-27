@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CONNECTIONS } from '@/lib/staarwardd/connections';
 import { WORLD_BY_ID } from '@/lib/staarwardd/world-directory';
 import { HomeConnection } from '@/components/staarwardd/home-connection';
+import { CanvaConnection } from '@/components/staarwardd/canva-connection';
 import { ProviderConnections } from '@/components/staarwardd/provider-connections';
 import { useAuth } from '@/src/auth';
 import { accountStorageKey } from '@/src/account-storage';
@@ -29,6 +30,7 @@ export default function Connections() {
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{entry.areas.map(area => <Text key={area} style={{ color: '#D9E1EC', backgroundColor: '#1A2230', padding: 12, borderRadius: 12 }}>{area}</Text>)}</View>
       {world === 'home' && <HomeConnection key={user?.user_id} />}
       {world === 'work' && <ProviderConnections key={user?.user_id} />}
+      {(world === 'diggitstaar' || world === 'creativity') && <CanvaConnection key={user?.user_id} />}
       {!!entry.tools.length && <Text style={{ color: '#F1F4F8', fontSize: 22 }}>External websites — not connected</Text>}
       {!!entry.tools.length && <Text style={{ color: '#BBC5D3', lineHeight: 22 }}>These shortcuts only open provider websites. Google and Microsoft calendar connections above use a separate, authorized read-only API when configured.</Text>}
       {entry.tools.map(tool => <View key={tool.name} style={{ gap: 5 }}>{button('Open ' + tool.name, () => { void open(tool.url); })}<Text style={{ color: '#96A4B8' }}>External tool · {new URL(tool.url).hostname}</Text></View>)}

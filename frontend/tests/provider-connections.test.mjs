@@ -42,3 +42,15 @@ test('calendar connection status refreshes after foreground and hides stale conn
  assert.match(code,/if \(s !== 'active'\) \{ controller\.current\?\.abort\(\); generation\.current\+\+; setProviders\(\[\]\)/);
  assert.match(code,/\} else \{ void load\(\); \}/);
 });
+
+test('DIGGITSTAAR Canva consent and design readback are real, separate from calendar and sign-in', () => {
+  const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
+  const library = read('../components/staarwardd/canva-connection.tsx');
+  const connections = read('../app/connections.tsx');
+  assert.match(connections, /world === 'diggitstaar' \|\| world === 'creativity'/);
+  assert.match(library, /location\.origin !== 'https:\/\/www\.canva\.com' \|\| location\.pathname !== '\/api\/oauth\/authorize'/);
+  assert.match(library, /result\.readback_verified !== true/);
+  assert.match(library, /call\('\/canva\/designs', controller\)/);
+  assert.match(library, /setStatus\(null\); setDesigns\(null\)/);
+  assert.match(code, /data\.filter\(p => p\.id === 'google' \|\| p\.id === 'microsoft'\)/);
+});

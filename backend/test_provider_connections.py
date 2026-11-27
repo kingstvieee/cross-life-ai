@@ -246,3 +246,56 @@ def test_disconnect_during_request_prevents_stale_calendar_disclosure(monkeypatc
     assert reply.json()["detail"] == "provider_reconnect_required"
     assert [req.method for req in requests] == ["POST" if stage == "refresh" else "GET"]
     assert not db.provider_connections.docs
+
+
+def test_canva_consent_uses_distinct_scope_and_returns_only_verified_metadata(monkeypatch):
+    from base64 import b64decode
+    monkeypatch.setenv('CONNECT_CANVA_CLIENT_ID', 'canva-id')
+    monkeypatch.setenv('CONNECT_CANVA_CLIENT_SECRET', 'canva-secret')
+    designs = {
+        'items': [{'id': 'C1', 'title': 'Campaign board', 'owner': {'id': 'private-owner'},
+                   'urls': {'edit_url': 'https://example.test/private-edit'}, 'thumbnail': {'url': 'https://example.test/private-image'}}],
+        'continuation': 'private-continuation',
+    }
+    client, db, requests = make(monkeypatch, calendar_payload=designs)
+    auth = {'Authorization': 'Bearer alice'}
+    flow, params = begin(client, 'canva')
+    assert urlsplit(flow['url']).path == '/api/oauth/authorize'
+    assert params['scope'] == ['design:meta:read']
+    assert params['code_challenge_method'] == ['s256']
+    assert 'canva-secret' not in flow['url']
+    response = client.get('/api/connections/canva/callback', params={'state': params['state'][0], 'code': 'approved'})
+    assert response.status_code == 200
+    assert 'Canva permission received' in response.text
+    token_request = requests[-1]
+    assert str(token_request.url) == 'https://api.canva.com/rest/v1/oauth/token'
+    assert b64decode(token_request.headers['Authorization'].split()[1]) == b'canva-id:canva-secret'
+    fields = parse_qs(token_request.content.decode())
+    assert fields['redirect_uri'] == ['https://hub.example.test/api/connections/canva/callback']
+    assert 'client_secret' not in fields and 'code_verifier' in fields
+    assert client.get('/api/connections/canva/designs', headers=auth).status_code == 409
+    assert client.post('/api/connections/canva/finish/' + flow['flow'], headers={'Authorization': 'Bearer bob'}).status_code == 409
+    connected = client.post('/api/connections/canva/finish/' + flow['flow'], headers=auth)
+    assert connected.json() == {'connected': True, 'capability': 'design_metadata_read_only', 'readback_verified': True}
+    assert requests[-1].url.params['sort_by'] == 'modified_descending'
+    assert 'private-provider-token' not in str(db.provider_connections.docs)
+    canva = client.get('/api/connections/canva/designs', headers=auth)
+    assert canva.status_code == 200
+    assert canva.json()['designs'] == [{'id': 'C1', 'title': 'Campaign board'}]
+    assert canva.headers['cache-control'] == 'no-store'
+    assert 'private-' not in canva.text
+    assert client.get('/api/connections/canva/calendar', headers=auth).status_code == 404
+    assert client.get('/api/connections/canva/designs', headers={'Authorization': 'Bearer bob'}).status_code == 409
+    assert client.delete('/api/connections/canva', headers=auth).status_code == 200
+    assert client.get('/api/connections/canva/designs', headers=auth).status_code == 409
+
+
+def test_canva_does_not_connect_when_provider_readback_has_wrong_shape(monkeypatch):
+    monkeypatch.setenv('CONNECT_CANVA_CLIENT_ID', 'canva-id')
+    monkeypatch.setenv('CONNECT_CANVA_CLIENT_SECRET', 'canva-secret')
+    client, db, _ = make(monkeypatch, calendar_payload={'items': [{'title': 'No design ID'}]})
+    flow, params = begin(client, 'canva')
+    assert client.get('/api/connections/canva/callback', params={'state': params['state'][0], 'code': 'approved'}).status_code == 200
+    denied = client.post('/api/connections/canva/finish/' + flow['flow'], headers={'Authorization': 'Bearer alice'})
+    assert denied.status_code == 502
+    assert not db.provider_connections.docs

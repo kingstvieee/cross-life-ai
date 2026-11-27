@@ -1,4 +1,4 @@
-"""Read-only calendar connections. Tokens remain encrypted on the server.
+"""Read-only account connections for calendars and Canva design metadata. Tokens remain encrypted on the server.
 
 Provider app registration is distinct from STAAR account sign-in. No scopes are
 silently borrowed from login and no write actions are exposed by this router.
@@ -18,6 +18,7 @@ from fastapi.responses import HTMLResponse
 
 SPECS = {
     "google": {"authorize": "https://accounts.google.com/o/oauth2/v2/auth", "token": "https://oauth2.googleapis.com/token", "scope": "https://www.googleapis.com/auth/calendar.events.readonly", "api": "https://www.googleapis.com/calendar/v3/calendars/primary/events"},
+    "canva": {"authorize": "https://www.canva.com/api/oauth/authorize", "token": "https://api.canva.com/rest/v1/oauth/token", "scope": "design:meta:read", "api": "https://api.canva.com/rest/v1/designs"},
     "microsoft": {"authorize": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize", "token": "https://login.microsoftonline.com/common/oauth2/v2.0/token", "scope": "offline_access Calendars.ReadBasic", "api": "https://graph.microsoft.com/v1.0/me/calendarView"},
 }
 
@@ -54,6 +55,35 @@ def calendar_query(provider):
         return {"timeMin": start, "timeMax": end, "maxResults": 25, "singleEvents": "true", "orderBy": "startTime", "fields": "items(id,summary,start,end)"}
     return {"startDateTime": start, "endDateTime": end, "$top": 25, "$select": "id,subject,start,end", "$orderby": "start/dateTime"}
 
+def capability(provider):
+    return "design_metadata_read_only" if provider == "canva" else "calendar_read_only"
+
+def read_query(provider):
+    return {"sort_by": "modified_descending"} if provider == "canva" else calendar_query(provider)
+
+def readback_items(provider, payload):
+    if not isinstance(payload, dict):
+        raise HTTPException(502, "provider_read_unavailable")
+    items = payload.get("value" if provider == "microsoft" else "items")
+    if not isinstance(items, list) or any(not isinstance(item, dict) for item in items[:25]):
+        raise HTTPException(502, "provider_read_unavailable")
+    if provider == "canva" and any(not isinstance(item.get("id"), str) or not item["id"] for item in items[:25]):
+        raise HTTPException(502, "provider_read_unavailable")
+    return items[:25]
+
+def design_summary(item):
+    title = item.get("title")
+    return {"id": item["id"][:128], "title": title[:240] if isinstance(title, str) and title.strip() else "Untitled design"}
+
+async def exchange_token(client, provider, cfg, **fields):
+    if provider == "canva":
+        # Canva authenticates the app using Basic, not form-encoded credentials.
+        if fields.get("grant_type") == "authorization_code":
+            fields["redirect_uri"] = cfg["redirect_uri"]
+        return await client.post(SPECS[provider]["token"], data=fields, auth=(cfg["client_id"], cfg["client_secret"]))
+    return await client.post(SPECS[provider]["token"], data={**cfg, **fields})
+
+
 def build_provider_router(*, db, require_account_user, limiter, http_client=None):
     def private_response(response: Response):
         response.headers["Cache-Control"] = "no-store"
@@ -87,7 +117,7 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
             linked = await db.provider_connections.find_one({"user_id": user["user_id"], "provider": provider}, {"_id": 0, "linked_at": 1, "reconnect_required": 1, "tokens": 1})
             # Never return the token; its presence is required for a truthful status.
             has_token = bool(linked and isinstance(linked.get("tokens"), str) and linked["tokens"])
-            output.append({"id": provider, "configured": configured, "connected": bool(has_token and not linked.get("reconnect_required")), "reconnect_required": bool(linked and (linked.get("reconnect_required") or not has_token)), "linked_at": linked.get("linked_at") if linked else None, "capability": "calendar_read_only"})
+            output.append({"id": provider, "configured": configured, "connected": bool(has_token and not linked.get("reconnect_required")), "reconnect_required": bool(linked and (linked.get("reconnect_required") or not has_token)), "linked_at": linked.get("linked_at") if linked else None, "capability": capability(provider)})
         return output
 
     @router.post("/{provider}/start")
@@ -100,6 +130,9 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
         await db.provider_flows.insert_one({"state": hashed(state), "flow": hashed(flow), "user_id": user["user_id"], "provider": provider, "verifier": seal({"verifier": verifier}), "expires_at": now() + timedelta(minutes=10), "status": "waiting"})
         query = {"client_id": cfg["client_id"], "redirect_uri": cfg["redirect_uri"], "response_type": "code", "scope": SPECS[provider]["scope"], "state": state, "code_challenge": challenge, "code_challenge_method": "S256", "prompt": "consent"}
         if provider == "google": query.update(access_type="offline", include_granted_scopes="false")
+        if provider == "canva":
+            query.pop("prompt")
+            query["code_challenge_method"] = "s256"
         return {"flow": flow, "url": SPECS[provider]["authorize"] + "?" + urlencode(query)}
 
     @router.get("/{provider}/callback", response_class=HTMLResponse)
@@ -112,14 +145,15 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
             if error or not code: raise ValueError("denied")
             verifier = unseal(flow["verifier"])["verifier"]
             async with make_client() as client:
-                result = await client.post(SPECS[provider]["token"], data={**cfg, "code": code, "grant_type": "authorization_code", "code_verifier": verifier})
+                result = await exchange_token(client, provider, cfg, code=code, grant_type="authorization_code", code_verifier=verifier)
             if result.status_code != 200: raise ValueError("token_exchange_failed")
             tokens = result.json()
-            if not isinstance(tokens.get("access_token"), str) or not tokens["access_token"]: raise ValueError("invalid_token")
+            if not isinstance(tokens, dict) or not isinstance(tokens.get("access_token"), str) or not tokens["access_token"]: raise ValueError("invalid_token")
             tokens["expires_at"] = (now() + timedelta(seconds=max(0, min(int(tokens.get("expires_in", 3600)), 86400)))).timestamp()
             await db.provider_flows.update_one({"flow": flow["flow"]}, {"$set": {"status": "consented", "tokens": seal(tokens)}, "$unset": {"verifier": ""}})
-            return HTMLResponse("<h1>Calendar permission received</h1><p>Return to STAAR Hub and choose Finish connection. No calendar has been read yet.</p>", headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'"})
-        except (ValueError, httpx.HTTPError, KeyError):
+            kind = "Canva" if provider == "canva" else "Calendar"
+            return HTMLResponse(f"<h1>{kind} permission received</h1><p>Return to STAAR Hub and choose Finish connection. No account content has been read yet.</p>", headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'"})
+        except (ValueError, TypeError, OverflowError, httpx.HTTPError, KeyError):
             await db.provider_flows.delete_one({"flow": flow["flow"]})
             raise HTTPException(400, "provider_consent_failed")
 
@@ -134,19 +168,17 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
         if not isinstance(token, str) or not token: raise HTTPException(409, "provider_reconnect_required")
         try:
             async with make_client() as client:
-                probe = await client.get(SPECS[provider]["api"], params=calendar_query(provider), headers={"Authorization": "Bearer " + token})
+                probe = await client.get(SPECS[provider]["api"], params=read_query(provider), headers={"Authorization": "Bearer " + token})
             if probe.status_code in (401, 403): raise HTTPException(409, "provider_reconnect_required")
             if probe.status_code != 200: raise HTTPException(502, "provider_read_unavailable")
-            payload = probe.json()
-            items = payload.get("items" if provider == "google" else "value")
-            if not isinstance(items, list) or any(not isinstance(item, dict) for item in items[:25]): raise HTTPException(502, "provider_read_unavailable")
+            readback_items(provider, probe.json())
         except (httpx.HTTPError, ValueError, AttributeError):
             raise HTTPException(502, "provider_read_unavailable")
         # Atomically consume consent only after proven read permission; no data is stored.
         consumed = await db.provider_flows.find_one_and_delete(query)
         if not consumed: raise HTTPException(409, "consent_not_finished_or_expired")
         await db.provider_connections.update_one({"user_id": user["user_id"], "provider": provider}, {"$set": {"tokens": consumed["tokens"], "linked_at": now(), "reconnect_required": False}}, upsert=True)
-        return {"connected": True, "capability": "calendar_read_only", "readback_verified": True}
+        return {"connected": True, "capability": capability(provider), "readback_verified": True}
 
     @router.delete("/{provider}")
     async def disconnect(provider: str, authorization: str = Header(None)):
@@ -158,7 +190,18 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
 
     @router.get("/{provider}/calendar")
     async def calendar(provider: str, authorization: str = Header(None)):
-        user = await account(authorization); limiter("provider_read:" + user["user_id"], 30, 60); cfg = configuration(provider)
+        return await provider_read(provider, "calendar_read_only", authorization)
+
+    @router.get("/canva/designs")
+    async def canva_designs(authorization: str = Header(None)):
+        return await provider_read("canva", "design_metadata_read_only", authorization)
+
+    async def provider_read(provider, expected_capability, authorization):
+        user = await account(authorization)
+        if provider not in SPECS or capability(provider) != expected_capability:
+            raise HTTPException(404, "unknown_provider_capability")
+        limiter("provider_read:" + user["user_id"], 30, 60)
+        cfg = configuration(provider)
         record = await db.provider_connections.find_one({"user_id": user["user_id"], "provider": provider})
         if not record: raise HTTPException(409, "provider_not_connected")
         if record.get("reconnect_required") or not record.get("tokens"): raise HTTPException(409, "provider_reconnect_required")
@@ -170,7 +213,7 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
                         await invalidate_revoked_token(record)
                         raise HTTPException(409, "provider_reconnect_required")
                     await require_current_connection(record)
-                    result = await client.post(SPECS[provider]["token"], data={**cfg, "grant_type": "refresh_token", "refresh_token": tokens["refresh_token"]})
+                    result = await exchange_token(client, provider, cfg, grant_type="refresh_token", refresh_token=tokens["refresh_token"])
                     if result.status_code in (400, 401, 403):
                         await invalidate_revoked_token(record)
                         raise HTTPException(409, "provider_reconnect_required")
@@ -182,17 +225,16 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
                     await db.provider_connections.update_one({"_id": record["_id"], "tokens": record["tokens"]}, {"$set": {"tokens": refreshed_token}})
                     record["tokens"] = refreshed_token
                 await require_current_connection(record)
-                response = await client.get(SPECS[provider]["api"], params=calendar_query(provider), headers={"Authorization": "Bearer " + tokens["access_token"]})
+                response = await client.get(SPECS[provider]["api"], params=read_query(provider), headers={"Authorization": "Bearer " + tokens["access_token"]})
                 if response.status_code in (401, 403):
                     await invalidate_revoked_token(record)
                     raise HTTPException(409, "provider_reconnect_required")
                 if response.status_code != 200: raise HTTPException(502, "provider_read_unavailable")
-                data = response.json()
-                if not isinstance(data, dict): raise HTTPException(502, "provider_read_unavailable")
-                items = data.get("items" if provider == "google" else "value")
-                if not isinstance(items, list) or any(not isinstance(x, dict) for x in items[:25]):
-                    raise HTTPException(502, "provider_read_unavailable")
+                items = readback_items(provider, response.json())
                 await require_current_connection(record)
-                return {"provider": provider, "read_at": now().isoformat(), "events": [event_summary(provider, x) for x in items[:25]]}
+                result = {"provider": provider, "read_at": now().isoformat()}
+                if provider == "canva":
+                    return {**result, "designs": [design_summary(item) for item in items]}
+                return {**result, "events": [event_summary(provider, item) for item in items]}
             except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError): raise HTTPException(502, "provider_read_unavailable")
     return router

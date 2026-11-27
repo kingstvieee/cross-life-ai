@@ -15,3 +15,31 @@ export function isProactiveWelcomeTime(date: Date): boolean {
     return false;
   }
 }
+
+export type ArrivalPreference = 'off' | 'awake-hours' | 'on-entry';
+
+export function decodeArrivalPreference(value: string | null): ArrivalPreference {
+  if (value === 'arrival-on-entry') return 'on-entry';
+  return value === 'enabled' ? 'awake-hours' : 'off';
+}
+
+export function permitsArrivalTime(date: Date, preference: ArrivalPreference): boolean {
+  return Number.isFinite(date.getTime()) &&
+    (preference === 'on-entry' || (preference === 'awake-hours' && isProactiveWelcomeTime(date)));
+}
+
+// Ephemeral cooldown protects against repeated greetings if navigation remounts Home.
+export function makeArrivalCooldown(intervalMs = 20 * 60 * 1000) {
+  let accountKey: string | null = null;
+  let lastAttempt = -Infinity;
+  return (key: string, now: number) => {
+    if (!key || !Number.isFinite(now)) return false;
+    if (accountKey !== key) {
+      accountKey = key;
+      lastAttempt = -Infinity;
+    }
+    if (now - lastAttempt < intervalMs) return false;
+    lastAttempt = now;
+    return true;
+  };
+}

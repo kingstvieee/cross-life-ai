@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, AppState, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, Alert, AppState, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,25 +7,15 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WorldScene } from './world-scene';
+import { lockedPortalArtwork } from './locked-portal-artwork';
 import { WORLDS } from '@/lib/staarwardd/world-directory';
 import { useAuth } from '@/src/auth';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
 import { accountStorageKey } from '@/src/account-storage';
 import { GUEST_GUARDIAN_WELCOME } from '@/src/guardian-voice-policy';
-import { isProactiveWelcomeTime } from '@/src/guardian-greeting-policy';
+import { decodeArrivalPreference, isProactiveWelcomeTime, makeArrivalCooldown, permitsArrivalTime, type ArrivalPreference } from '@/src/guardian-greeting-policy';
 
-const lockedPortalArtwork = {
-  home: require('@/assets/images/staarwardd/locked/home.png'),
-  work: require('@/assets/images/staarwardd/locked/work.png'),
-  creativity: require('@/assets/images/staarwardd/locked/creativity.png'),
-  wellbeing: require('@/assets/images/staarwardd/locked/wellbeing.png'),
-  relationships: require('@/assets/images/staarwardd/locked/love.png'),
-  events: require('@/assets/images/staarwardd/locked/events.png'),
-  style: require('@/assets/images/staarwardd/locked/style.png'),
-  staarverse: require('@/assets/images/staarwardd/locked/staarverse.png'),
-  staarsonic: require('@/assets/images/staarwardd/locked/staarsonic.png'),
-  diggitstaar: require('@/scene-src/portal-art/diggitstaar.png'),
-};
+const claimAutomaticArrival = makeArrivalCooldown();
 
 type World = (typeof WORLDS)[number];
 
@@ -55,10 +45,8 @@ function HubFocus({ onFocus }: { onFocus: () => () => void }) {
   return null;
 }
 
-const ignoreGuestSceneAction = () => { /* Guest previews have no private commands. */ };
-
-function GuestPortalExplorer({ world, onClose, onSignIn, reduced }: {
-  world: World; onClose: () => void; onSignIn: () => void; reduced: boolean;
+function GuestPortalExplorer({ world, onClose, onSignIn }: {
+  world: World; onClose: () => void; onSignIn: () => void;
 }) {
   return <SafeAreaView style={s.guestExplorer} accessibilityViewIsModal>
     <View style={s.guestToolbar}>
@@ -70,14 +58,10 @@ function GuestPortalExplorer({ world, onClose, onSignIn, reduced }: {
         <Text style={s.previewEnterText}>Sign in for tools</Text>
       </Pressable>
     </View>
+    <Image source={lockedPortalArtwork[world.id]} style={{ width: '100%', aspectRatio: 16 / 9 }} contentFit="contain" accessible={false} />
     <View style={s.guestCover}>
-      <Image source={lockedPortalArtwork[world.id]} style={StyleSheet.absoluteFill} contentFit="contain" accessible={false} />
-      <LinearGradient pointerEvents="none" colors={['#0B0C1355', '#0B0C13EB']} style={StyleSheet.absoluteFill} />
       <Text accessibilityRole="header" style={s.previewTitle}>{world.name}</Text>
-      <Text style={s.previewDetail}>Guest preview. Private tools stay locked until you sign in.</Text>
-    </View>
-    <View style={s.flex}>
-      <WorldScene world={world.id} readOnly onAction={ignoreGuestSceneAction} reduceGuardianMotion={reduced} embedded />
+      <Text style={s.previewDetail}>{world.id === 'diggitstaar' ? 'Guest entrance. Sign in to access studio tools.' : 'Guest preview. Private tools stay locked until you sign in.'}</Text>
     </View>
   </SafeAreaView>;
 }
@@ -96,7 +80,10 @@ export function WorldHub({ onSignIn }: { onSignIn?: (world?: string) => void } =
   const [message, setGuardianMessage] = useState('');
   const [modelAvailable, setModelAvailable] = useState(false);
   const [guardianSpeaking, setGuardianSpeaking] = useState(false);
-  const [greetingEnabled, setGreetingEnabled] = useState(false);
+  const [arrivalPreference, setArrivalPreference] = useState<ArrivalPreference>('off');
+  const [preferenceOwner, setPreferenceOwner] = useState<string | null>(null);
+  const [consentOwner, setConsentOwner] = useState<string | null>(null);
+  const greetingEnabled = arrivalPreference !== 'off';
   const greetingKey = user && !user.is_demo ? accountStorageKey('staarwardd.guardian.proactive-greeting.v2', user.user_id) : null;
   const greeted = useRef(false);
   const voiceEpoch = useRef(0);
@@ -122,13 +109,13 @@ export function WorldHub({ onSignIn }: { onSignIn?: (world?: string) => void } =
     let alive = true;
     // Never inherit the previous account's opt-in while the new one is loading.
     setPreferenceReady(false);
-    setGreetingEnabled(false);
+    setArrivalPreference('off');
     greeted.current = false;
     voiceEpoch.current += 1;
     if (!greetingKey) return () => { alive = false; };
     void AsyncStorage.getItem(greetingKey).then(value => {
-      if (alive) { setGreetingEnabled(value === 'enabled'); setPreferenceReady(true); }
-    }).catch(() => { if (alive) setPreferenceReady(true); });
+      if (alive) { setArrivalPreference(decodeArrivalPreference(value)); setPreferenceOwner(greetingKey); setPreferenceReady(true); }
+    }).catch(() => { if (alive) { setPreferenceOwner(greetingKey); setPreferenceReady(true); } });
     return () => { alive = false; };
   }, [greetingKey]);
   useEffect(() => {
@@ -150,6 +137,7 @@ export function WorldHub({ onSignIn }: { onSignIn?: (world?: string) => void } =
         setServerCheckIns(state.consent?.checkIns === true);
         setServerPrivate(state.privateMode === true);
         setServerSpeechQuiet(state.speechQuiet === true);
+        setConsentOwner(greetingKey);
         setServerConsentReady(true);
       }).catch(() => { /* Fail closed: an unverified server cannot authorize unsolicited speech. */ });
     return () => { alive = false; controller.abort(); clearTimeout(timeout); };
@@ -213,11 +201,11 @@ export function WorldHub({ onSignIn }: { onSignIn?: (world?: string) => void } =
     }
     // Transport emits playback-active only after the voice actually starts.
     setGuardianSpeaking(true);
-    setGuardianMessage(guest ? `Device voice: ${GUEST_GUARDIAN_WELCOME}` : 'Welcome back. Your ten worlds are ready.');
+    setGuardianMessage(guest ? `Device voice: ${GUEST_GUARDIAN_WELCOME}` : 'Welcome back. Guardian is here.');
     try {
       const spoken = guest
         ? await audio.speakGuestWelcome()
-        : await audio.speak('Welcome back. Guardian is here. Your ten worlds are ready when you are.', undefined, 'guardian');
+        : await audio.speak('Welcome back. Guardian is here. Which world are we opening today?', undefined, 'guardian');
       if (!spoken && focused.current && epoch === voiceEpoch.current) {
         setGuardianMessage(guest ? 'Device voice did not play. Check Silent Mode and media volume.' : 'Guardian voice did not play. Check Silent Mode or media volume. Text chat is still available.');
       }
@@ -234,35 +222,45 @@ export function WorldHub({ onSignIn }: { onSignIn?: (world?: string) => void } =
     audio.speak, audio.speakGuestWelcome, audio.update, audio.setSpeechQuiet, guest]);
 
   useEffect(() => {
-    if (!focused.current || !appActive || !isProactiveWelcomeTime(new Date()) || !preferenceReady || !audio.audioHydrated || audio.volume <= 0 || !modelAvailable || !arrivalComplete || !serverConsentReady || !serverGreetingConsent || serverPrivate || serverSpeechQuiet || !greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || audio.voicePlaybackActive || audio.speechPhase !== 'idle' || user?.cross_life_paused || greeted.current) return;
+    if (!focused.current || !appActive || !permitsArrivalTime(new Date(), arrivalPreference) || !preferenceReady || !audio.audioHydrated || audio.volume <= 0 || !modelAvailable || !arrivalComplete || !serverConsentReady || !serverGreetingConsent || serverPrivate || serverSpeechQuiet || !greetingKey || !greetingEnabled || !audio.master || !audio.voice || audio.speechQuiet || audio.voicePlaybackActive || audio.speechPhase !== 'idle' || user?.cross_life_paused || greeted.current) return;
+    if (guest || preferenceOwner !== greetingKey || consentOwner !== greetingKey ||
+        audio.accountSpeechQuiet || AppState.currentState !== 'active' ||
+        !claimAutomaticArrival(greetingKey, Date.now())) return;
     greeted.current = true;
     void greet();
-  }, [hasFocus, arrivalComplete, modelAvailable, appActive, preferenceReady, serverConsentReady, serverGreetingConsent, serverPrivate, serverSpeechQuiet, greetingKey, greetingEnabled, foregroundEpoch, audio.master, audio.voice, audio.speechQuiet, audio.voicePlaybackActive, audio.speechPhase, user?.cross_life_paused, audio.audioHydrated, audio.volume, greet]);
-  const setGreeting = (enabled: boolean) => {
+  }, [hasFocus, arrivalComplete, modelAvailable, appActive, preferenceReady, serverConsentReady, serverGreetingConsent, serverPrivate, serverSpeechQuiet, greetingKey, greetingEnabled, foregroundEpoch, audio.master, audio.voice, audio.speechQuiet, audio.voicePlaybackActive, audio.speechPhase, user?.cross_life_paused, audio.audioHydrated, audio.volume, greet, arrivalPreference, guest, preferenceOwner, consentOwner, audio.accountSpeechQuiet]);
+  const setGreeting = (enabled: boolean, explicitlyEnableDeviceVoice = false) => {
     if (!greetingKey || !preferenceReady || !serverConsentReady || savingGreeting) return;
+    if (preferenceOwner !== greetingKey || consentOwner !== greetingKey || activeGreetingKey.current !== greetingKey) return;
     const savedFor = greetingKey;
     setSavingGreeting(true);
     // Revocation is immediate locally; enabling never triggers speech before server acknowledgement.
-    setGreetingEnabled(false);
+    setArrivalPreference('off');
     greeted.current = true;
     void (async () => {
       try {
+        if (!enabled) await AsyncStorage.setItem(savedFor, 'disabled');
+        if (activeGreetingKey.current !== savedFor) return;
         const response = await api('/api/guardian/core/workflows/rsf-fabric-sourcing/proactive-consent', {
           method: 'POST',
           body: JSON.stringify({ greetings: enabled, check_ins: serverCheckIns }),
         });
         if (!response.ok) throw new Error('Guardian consent could not be saved');
         if (activeGreetingKey.current !== savedFor) return;
-        await AsyncStorage.setItem(savedFor, enabled ? 'enabled' : 'disabled');
+        if (enabled) await AsyncStorage.setItem(savedFor, 'arrival-on-entry');
         if (activeGreetingKey.current !== savedFor) return;
         setServerGreetingConsent(enabled);
-        setGreetingEnabled(enabled);
+        if (enabled && explicitlyEnableDeviceVoice) {
+          audio.update({ master: true, voice: true });
+          audio.setSpeechQuiet(false);
+        }
+        setArrivalPreference(enabled ? 'on-entry' : 'off');
         greeted.current = !enabled;
       } catch {
         if (activeGreetingKey.current !== savedFor) return;
         setServerConsentReady(false);
         setServerGreetingConsent(false);
-        setGreetingEnabled(false);
+        setArrivalPreference('off');
         greeted.current = true;
         setGuardianMessage('Guardian could not verify consent. Automatic greeting remains off.');
       } finally {
@@ -271,6 +269,20 @@ export function WorldHub({ onSignIn }: { onSignIn?: (world?: string) => void } =
     })();
   };
   const greetingActive = greetingEnabled && serverGreetingConsent && !serverPrivate && !serverSpeechQuiet;
+  const changeArrivalVoice = () => {
+    if (arrivalPreference === 'on-entry' && greetingActive) { setGreeting(false); return; }
+    const ownerAtPrompt = greetingKey;
+    const accountStillMatches = () => ownerAtPrompt !== null && activeGreetingKey.current === ownerAtPrompt;
+    const deviceIsSilent = !audio.master || !audio.voice || audio.speechQuiet;
+    const prompt = 'Let Guardian greet you when you open the Hub, even during Toronto quiet hours. '
+      + (deviceIsSilent ? 'This choice also turns on Guardian playback on this device. You can mute it again anytime. ' : '')
+      + 'It never turns on the microphone or overrides account quiet or private mode.';
+    Alert.alert('Arrival voice', prompt, [
+      { text: 'Cancel', style: 'cancel' },
+      ...(greetingActive ? [{ text: 'Turn off', onPress: () => { if (accountStillMatches()) setGreeting(false); } }] : []),
+      { text: deviceIsSilent ? 'Enable arrival and device voice' : 'Enable on entry', onPress: () => { if (accountStillMatches()) setGreeting(true, deviceIsSilent); } },
+    ]);
+  };
   const navigationLocked = useRef(false);
   const onFocus = useCallback(() => {
     focused.current = true;
@@ -339,9 +351,9 @@ export function WorldHub({ onSignIn }: { onSignIn?: (world?: string) => void } =
               disabled={!audio.audioHydrated || guardianSpeaking || audio.voicePlaybackActive} onPress={() => { void greet(true); }} style={s.icon}>
               <Ionicons name="volume-high-outline" size={22} color="#F4F0E6" />
             </Pressable>
-            <Pressable accessibilityRole="switch" accessibilityState={{ checked: greetingActive }} accessibilityLabel="Automatic Guardian greeting"
-              disabled={!greetingKey || !preferenceReady || !serverConsentReady || savingGreeting || serverPrivate || serverSpeechQuiet}
-              onPress={() => setGreeting(!greetingActive)} style={s.icon}>
+            <Pressable accessibilityRole="switch" accessibilityState={{ checked: greetingActive }} accessibilityLabel="Arrival voice" accessibilityHint="Set when Guardian speaks on opening the Hub"
+              disabled={!greetingKey || !preferenceReady || !serverConsentReady || savingGreeting || serverPrivate || serverSpeechQuiet || !audio.audioHydrated || audio.accountSpeechQuiet}
+              onPress={changeArrivalVoice} style={s.icon}>
               <Ionicons name={greetingActive ? 'sparkles' : 'sparkles-outline'} size={22} color={greetingActive ? '#F4DA9F' : '#D5D9E2'} />
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="Silence Guardian" onPress={() => {
@@ -386,7 +398,7 @@ export function WorldHub({ onSignIn }: { onSignIn?: (world?: string) => void } =
         </View>
       </Modal>
       </View>}
-      {onSignIn && inspectedPortal && <GuestPortalExplorer world={inspectedPortal} reduced={motionReduced}
+      {onSignIn && inspectedPortal && <GuestPortalExplorer world={inspectedPortal}
         onClose={closePortalPreview} onSignIn={() => openSignIn(inspectedPortal.id)} />}
     </View>
   );

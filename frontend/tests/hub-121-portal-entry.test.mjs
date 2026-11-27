@@ -5,7 +5,9 @@ const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 
 test('guest portal selection opens a local read-only world, leaving sign-in explicit', () => {
   const hub = read('../components/staarwardd/world-hub.tsx');
-  assert.match(hub, /<WorldScene world=\{world\.id\} readOnly onAction=\{ignoreGuestSceneAction\}/);
+  const guest = hub.slice(hub.indexOf('function GuestPortalExplorer'), hub.indexOf('export function WorldHub'));
+  assert.match(guest, /<Image source=\{lockedPortalArtwork\[world\.id\]\}/);
+  assert.doesNotMatch(guest, /<WorldScene|artworkForSignedInPortal|onAction=/);
   assert.match(hub, /if \(onSignIn\) \{ setInspectedPortal\(target\); return; \}/);
   assert.match(hub, /onThreeDimensionalPortalAction[\s\S]*openPortal\(action\.slice\('world:'\.length\)\)/);
   assert.match(hub, /onPress=\{\(\) => openPortal\(world\.id\)\}/);

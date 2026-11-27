@@ -139,6 +139,14 @@ workflows:
           target=frontend/scene-src/assets/private-guardian-qa/guardian-winged-review.glb
           curl --proto "=https" --proto-redir "=https" --location --fail --silent --show-error --max-time 120 --max-filesize 6000000 --output "$target" "https://drive.usercontent.google.com/download?export=download&confirm=t&id=${STAAR_WINGED_REVIEW_DRIVE_ID}"
           echo "4a06b9a96e0ea6068394b9ccb1a2c74d61c455a94ddd201a935268309d4c961f  $target" | shasum -a 256 -c -
+      - name: Validate and stage the protected DIGGITSTAAR master
+        script: |
+          set -eu
+          if [ "${STAAR_PRIVATE_PORTAL_ARTWORK_AUTHORIZED:-}" != 1 ] || [ ! -f "${STAAR_DIGGITSTAAR_MASTER_PATH:-}" ]; then
+            echo "BLOCKED: exact owner-authorized DIGGITSTAAR master missing from the protected runner." >&2
+            exit 1
+          fi
+          node scripts/stage-diggitstaar-internal-artwork.mjs "$STAAR_DIGGITSTAAR_MASTER_PATH"
       - name: Resolve next internal TestFlight build number
         script: |
           set -eu

@@ -8,19 +8,20 @@ const locked={home:'home',work:'work',creativity:'creativity',wellbeing:'wellbei
 const checks=[];
 const check=(name,ok,detail)=>checks.push({name,status:ok?'PASS':'BLOCKED',detail});
 const hub=await read('components/staarwardd/world-hub.tsx');
+const artwork=await read('components/staarwardd/locked-portal-artwork.ts');
 const guest=await read('components/staarwardd/access-boundary.tsx');
 const directory=await read('lib/staarwardd/world-directory.ts');
 const portal=await read('lib/staarwardd/portal-data.ts');
 for(const id of required){
  const file='assets/images/staarwardd/locked/'+locked[id]+'.png';
  let exists=false;try{await access(path.join(root,file));exists=true;}catch{}
- check('locked artwork: '+id,exists&&hub.includes('locked/'+locked[id]+'.png')&&directory.includes(id),file);
+ check('locked artwork: '+id,exists&&artwork.includes('locked/'+locked[id]+'.png')&&directory.includes(id),file);
 }
 const diggitArt='scene-src/portal-art/diggitstaar.png';
 const digest=async p=>createHash('sha256').update(await readFile(path.join(root,p))).digest('hex');
 let diggitDistinct=false;
-try {diggitDistinct=(await digest(diggitArt))!==(await digest('assets/images/staarwardd/locked/work.png')) && hub.includes('portal-art/diggitstaar.png') && portal.includes('portal-art/diggitstaar.png');} catch {}
-check('DIGGITSTAAR distinct art wired',diggitDistinct,'Dedicated PNG differs from Work art and is wired to both routes; owner approval remains separate');
+try {diggitDistinct=(await digest(diggitArt))!==(await digest('assets/images/staarwardd/locked/work.png')) && artwork.includes('portal-art/diggitstaar.png') && portal.includes('portal-art/diggitstaar.png');} catch {}
+check('DIGGITSTAAR distinct art wired',diggitDistinct,'Dedicated entrance artwork differs from Work. This does not verify the iOS-only studio attachment.');
 check('guest preview boundary',guest.includes('<WorldHub onSignIn=')&&hub.includes('if (onSignIn) { setInspectedPortal'), 'Static route/preview guard only; device navigation not certified');
 check('homepage 3D scene wired',hub.includes('<WorldScene world="hub" embedded'), 'Source wiring only; device render not certified');
 check('Atlas/Kaia locked reference',await access(path.join(root,'assets/images/staarwardd/atlas-kaia-locked.jpeg')).then(()=>true,()=>false),'Reference photo only; does not prove a holographic rig');

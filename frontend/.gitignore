@@ -51,3 +51,6 @@ scene-src/assets/private-world-qa/
 # Private owner-approved song for local EAS staging only; never publish to public GitHub
 assets/audio/Starward_Guardian_Approved_AAC_iOS.m4a
 components/staarwardd/startup-approved-soundtrack-source.native.ts
+
+# Authorized private iOS studio artwork, staged by the internal review build only.
+components/staarwardd/diggitstaar-studio-source.ios.ts

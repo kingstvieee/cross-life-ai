@@ -13,6 +13,8 @@ import { VoiceInput } from '@/components/staarwardd/voice-input';
 import { useStaarAudio } from '@/lib/staarwardd/audio-provider';
 import { conversationKey, rememberConversation, type ConversationSessions } from '@/lib/staarwardd/conversation-session';
 
+import { workFocusHandoff } from '@/src/work-focus';
+
 const MAX_CHAT_CHARS = 50000;
 const COMPANION_NAMES: Record<string, string> = { guardian: 'Guardian', kaia: 'Kaia', atlas: 'Atlas' };
 
@@ -23,7 +25,7 @@ const conversationCacheByUser = new Map<string, ConversationSessions>();
 export default function Chat() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { portal, draft, voiceIntent } = useLocalSearchParams<{ portal?: string; draft?: string; voiceIntent?: string }>();
+  const { portal, draft, voiceIntent, workFocus } = useLocalSearchParams<{ portal?: string; draft?: string; voiceIntent?: string; workFocus?: string }>();
   const { api, user } = useAuth();
   const audio = useStaarAudio();
   const companion = COMPANION_NAMES[user?.companion || 'guardian'];
@@ -88,7 +90,10 @@ export default function Chat() {
     setHistoryReady(false); setNotice('');
     const cached = conversationCacheByUser.get(userKey)?.[sessionKey];
     setMsgs(cached?.turns ?? []);
-    setInput(cached?.draft ?? '');
+    const focusText = workFocus === 'review' && user && !user.is_demo && portal === 'work'
+      ? workFocusHandoff.consume(userKey, portal)
+      : null;
+    setInput(focusText ? [cached?.draft, focusText].filter(Boolean).join('\n\n').slice(0, MAX_CHAT_CHARS) : cached?.draft ?? '');
     void api('/api/guardian/history' + (portal ? '?portal=' + encodeURIComponent(portal) : ''))
       .then(async r => {
         if (!r.ok) throw new Error('Conversation history could not be loaded.');
@@ -101,7 +106,7 @@ export default function Chat() {
       .finally(() => { if (active) setHistoryReady(true); });
     }, 0);
     return () => { active = false; clearTimeout(timer); };
-  }, [api, portal, sessionKey, userKey]);
+  }, [api, portal, sessionKey, userKey, workFocus, user?.is_demo]);
 
   const suggestions = portal
     ? [portalMeta[portal]?.tagline || 'What should I focus on?', 'Help me choose a practical next step']
