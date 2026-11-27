@@ -4,7 +4,7 @@ import os
 from guardian_poppy import discover
 from datetime import datetime, timezone
 from typing import Literal, Optional
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from pydantic import BaseModel, Field
 from guardian_life_map import LifeMapStore, PORTALS
 from guardian_store import GuardianStore
@@ -30,7 +30,11 @@ class NotificationInput(BaseModel):
 
 
 def life_map_router(*, db, get_current_user):
-    router = APIRouter(prefix='/guardian/life-map', tags=['guardian-life-map'])
+    def prevent_caching(response: Response):
+        response.headers['Cache-Control'] = 'private, no-store'
+
+    router = APIRouter(prefix='/guardian/life-map', tags=['guardian-life-map'],
+                       dependencies=[Depends(prevent_caching)])
     # Lazy collection access keeps legacy router construction backwards compatible.
     def memory():
         return LifeMapStore(db.guardian_life_map)
@@ -73,6 +77,8 @@ def life_map_router(*, db, get_current_user):
         state = await core.ensure_user(current['user_id'])
         if state.get('private_mode'):
             return {'queued': False, 'reason': 'private_mode'}
+        if current.get('cross_life_paused'):
+            return {'queued': False, 'reason': 'cross_life_paused'}
         decision = await core.proactive_decision(current['user_id'], 'rsf-fabric-sourcing', kind=body.kind, at=datetime.now(timezone.utc))
         if body.kind == 'greetings':
             key = 'greeting:' + sha256((authorization or '').encode()).hexdigest() + ':' + body.event_id

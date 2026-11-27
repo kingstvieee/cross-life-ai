@@ -70,6 +70,14 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
             {"$set": {"reconnect_required": True}, "$unset": {"tokens": ""}},
         )
 
+    async def require_current_connection(record):
+        current = await db.provider_connections.find_one({
+            "_id": record["_id"], "user_id": record["user_id"],
+            "provider": record["provider"], "tokens": record["tokens"],
+        })
+        if not current or current.get("reconnect_required"):
+            raise HTTPException(409, "provider_reconnect_required")
+
     @router.get("")
     async def status(authorization: str = Header(None)):
         user = await account(authorization); output = []
@@ -161,6 +169,7 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
                     if not tokens.get("refresh_token"):
                         await invalidate_revoked_token(record)
                         raise HTTPException(409, "provider_reconnect_required")
+                    await require_current_connection(record)
                     result = await client.post(SPECS[provider]["token"], data={**cfg, "grant_type": "refresh_token", "refresh_token": tokens["refresh_token"]})
                     if result.status_code in (400, 401, 403):
                         await invalidate_revoked_token(record)
@@ -172,6 +181,7 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
                     refreshed_token = seal(tokens)
                     await db.provider_connections.update_one({"_id": record["_id"], "tokens": record["tokens"]}, {"$set": {"tokens": refreshed_token}})
                     record["tokens"] = refreshed_token
+                await require_current_connection(record)
                 response = await client.get(SPECS[provider]["api"], params=calendar_query(provider), headers={"Authorization": "Bearer " + tokens["access_token"]})
                 if response.status_code in (401, 403):
                     await invalidate_revoked_token(record)
@@ -182,6 +192,7 @@ def build_provider_router(*, db, require_account_user, limiter, http_client=None
                 items = data.get("items" if provider == "google" else "value")
                 if not isinstance(items, list) or any(not isinstance(x, dict) for x in items[:25]):
                     raise HTTPException(502, "provider_read_unavailable")
+                await require_current_connection(record)
                 return {"provider": provider, "read_at": now().isoformat(), "events": [event_summary(provider, x) for x in items[:25]]}
             except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError): raise HTTPException(502, "provider_read_unavailable")
     return router

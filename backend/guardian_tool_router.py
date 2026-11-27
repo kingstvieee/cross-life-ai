@@ -62,7 +62,7 @@ class GuardianToolRouter:
                         receipt['verified'] = bool(readback(outcome))
                         receipt['status'] = 'verified' if receipt['verified'] else 'readback_failed'
                 except Exception:
-                    receipt['status'] = 'failed'
-                    receipt['reason'] = 'adapter_failure'
+                    receipt['status'] = 'failed' if spec.read_only else 'unknown'
+                    receipt['reason'] = 'adapter_failure' if spec.read_only else 'provider_outcome_unresolved'
         self._receipts[request_id] = dict(receipt)
         return dict(receipt)

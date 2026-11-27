@@ -111,3 +111,31 @@ def test_inbox_reconciles_abandoned_claim_without_automatic_retry():
     assert run(store.notifications('owner', at + timedelta(seconds=61)))[0]['state'] == 'uncertain'
     assert run(store.retry_notification('owner', event['key'])) == {'state':'pending'}
     assert run(store.notifications('owner'))[0]['retries'] == 1
+
+
+def test_context_ranks_authorized_portals_together_and_checks_memory_epoch():
+    store = LifeMapStore(FakeCollection())
+    policy = {portal: {"access": True, "share": portal != "wellbeing"}
+              for portal in ("work", "home", "wellbeing")}
+    user = {"user_id": "owner", "portals_enabled": list(policy), "portal_privacy": policy}
+    for portal, text in (("work", "studio"), ("home", "studio lighting"),
+                         ("wellbeing", "studio lighting")):
+        run(store.save("owner", fact_id=portal, portal=portal, text=text,
+                       source_id=f"note-{portal}", source_span=text))
+    assert [record["portal"] for record in run(store.context(user, "studio lighting?"))] == ["home", "work"]
+    epoch = run(store.snapshot("owner"))["memoryVersion"]
+    run(store.delete("owner", "home"))
+    assert run(store.context({**user, "_life_map_revision": epoch}, "studio")) == []
+
+
+def test_distinct_events_share_interruption_budget_and_keep_original_expiry():
+    from datetime import datetime, timedelta
+    store = LifeMapStore(FakeCollection())
+    first, second = [
+        run(store.enqueue("owner", key=key, kind="greetings", decision={"allowed": True}))["event"]
+        for key in ("one", "two")
+    ]
+    at = datetime.fromisoformat(second["createdAt"])
+    assert run(store.claim_notification("owner", first["key"], {"allowed": True}, at))["claimed"]
+    assert run(store.claim_notification("owner", second["key"], {"allowed": True}, at))["reason"] == "interruption_budget"
+    assert run(store.claim_notification("owner", second["key"], {"allowed": True}, at + timedelta(minutes=11)))["reason"] == "expired"

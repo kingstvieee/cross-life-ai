@@ -51,6 +51,23 @@ class DurableExecutorTests(unittest.TestCase):
         self.assertEqual(result["status"], "unknown")
         self.assertFalse(result["verified"])
 
+    def test_write_timeout_remains_unknown_without_replaying(self):
+        def timeout_after_possible_write(arguments):
+            self.calls.append(arguments)
+            raise TimeoutError
+
+        self.router.register(ToolSpec("mail.update", "mail.write", False, True),
+                             timeout_after_possible_write)
+        args = {"message": "example"}
+        expiry = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+        self.store.grant(approval_id="a2", actor="u1", tool="mail.update",
+                         arguments=args, expires_at=expiry)
+        kwargs = dict(session_actor="u1", session_scopes={"mail.write"}, request_id="r2",
+                      tool="mail.update", arguments=args, approval_id="a2")
+        assert self.executor.execute(**kwargs)["status"] == "unknown"
+        assert self.executor.execute(**kwargs)["reason"] == "provider_outcome_unresolved"
+        assert self.calls == [args]
+
     def test_session_scope_denial(self):
         result = self.executor.execute(session_actor="u1", session_scopes=set(),
                       request_id="r1", tool="mail.send", arguments={})
