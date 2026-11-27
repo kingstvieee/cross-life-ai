@@ -14,6 +14,7 @@ import {createGroundSupportIndex} from './player-ground-support.js';
 import {createApprovedGuardianFaceMotion} from './guardian-face-motion.js';
 import {applyGuardianSpeechFrame} from './guardian-speech-bridge.js';
 import {createGuardianDevicePerformanceProbe} from './guardian-device-performance.js';
+import {createPrivateWingPose,mountPrivateSpeakingFace} from './guardian-winged-fit.js';
 import {createGuardianNeckPoseProbe} from './guardian-neck-pose-probe.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -124,6 +125,7 @@ if (renderer) {
   let importedControls = [];
   let walkController = null;
   let guardianFaceMotion = null;
+  let mountedGuardianFaceSha256 = null;
   let guardianLocomotion = null;
   let guardianHeadTracking = null;
   let guardianNeckPoseQa = null;
@@ -158,11 +160,7 @@ if (renderer) {
     }
     if(!packet||packet.source!=='staar-native-guardian-audio-v1')return;
     const accepted=applyGuardianSpeechFrame(guardianFaceMotion,packet,{
-      session,modelSha256:window.STAAR_GUARDIAN_QA===true &&
-        window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.internalQaOnly===true &&
-        window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.productionApproved===false
-          ? window.STAAR_PRIVATE_GUARDIAN_QA_MODEL.rigModelSha256
-          : window.STAAR_APPROVED_GUARDIAN_MODEL?.rigModelSha256,
+      session,modelSha256:mountedGuardianFaceSha256,
     });
     guardianDeviceQa?.packet(packet,accepted);
     if(accepted)requestDraw();
@@ -407,7 +405,12 @@ if (renderer) {
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.productionApproved===false &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.physicalIphoneCertified===false
         ? window.STAAR_PRIVATE_GUARDIAN_QA_MODEL : null;
-    const asset=internal??window.STAAR_APPROVED_GUARDIAN_MODEL;
+    const fit=window.STAAR_LOCAL_WINGED_GUARDIAN_QA;
+    const wingedQa=world==='hub' && fit?.schema==='staar-winged-fit-v1' && fit.internalQaOnly===true &&
+      fit.productionApproved===false && fit.physicalIphoneCertified===false &&
+      (fit.localOnly===true ? window.STAAR_GUARDIAN_QA===true : fit.localOnly===false && Boolean(internal) && internalHomeReview)
+      ? fit : null;
+    const asset=wingedQa??internal??window.STAAR_APPROVED_GUARDIAN_MODEL;
     const unavailable = () => {
       if (disposed) return;
       if (guardianPresentation) report('guardian-unavailable');
@@ -419,19 +422,29 @@ if (renderer) {
       // Never substitute a different person's image or a stand-in figure.
       unavailable(); return;
     }
-    try {
-      const decoded=atob(asset.glbBase64);
+    const parseLocalGlb=base64=>{
+      const decoded=atob(base64);
       const bytes=new Uint8Array(decoded.length);
       for(let i=0;i<decoded.length;i++)bytes[i]=decoded.charCodeAt(i);
-      offlineGltfLoader().parse(bytes.buffer,'',model=>{
+      return offlineGltfLoader().parseAsync(bytes.buffer,'');
+    };
+    let guardian, donor;
+    parseLocalGlb(asset.glbBase64).then(async model=>{
         if(!model?.scene){unavailable();return;}
-        if(disposed){disposeModel(model.scene);return;}
-        const guardian=model.scene;
+        guardian=model.scene;
+        if(disposed){disposeModel(guardian);return;}
+        let faceRoot=guardian, wingPose;
+        if(wingedQa){
+          donor=(await parseLocalGlb(wingedQa.faceGlbBase64??internal?.glbBase64)).scene;
+          if(disposed){disposeModel(guardian);disposeModel(donor);return;}
+          wingPose=createPrivateWingPose(guardian,model.animations);
+          faceRoot=mountPrivateSpeakingFace(guardian,donor);
+        }
         // Build242 repair acceptance: full-body neck must truly carry the protected
         // head skin. Do not show a frozen head, disable two-sided face rendering,
         // or retain zero-scale legacy silver/chrome armour in the live scene.
-        const integrity=inspectGuardianRigIntegrity(guardian,{detachHiddenLegacy:true});
-        if(!integrity.valid){disposeModel(guardian);unavailable();return;}
+        const integrity=wingedQa?null:inspectGuardianRigIntegrity(guardian,{detachHiddenLegacy:true});
+        if(integrity && !integrity.valid){disposeModel(guardian);unavailable();return;}
         // V4 private visual study only: retain the exact source GLB and its hash.
         // Correct the misleading pale titanium material values without touching the face,
         // skeleton, textures, animation clips or production-approved rendering path.
@@ -550,7 +563,7 @@ if (renderer) {
           // In the hub the stage mount turns with the camera, so the Guardian keeps
           // facing the viewer. He flies in and lands on the pedestal (hubGuardianArrival).
           const flight = new T.Group(); hubStage.mount.add(flight); flight.add(guardian);
-          hubGuardianFlight = {flight, guardian, active: !reduced};
+          hubGuardianFlight = {flight, guardian, active: !reduced, wingPose};
         } else {
           scene.add(guardian);
         }
@@ -573,7 +586,7 @@ if (renderer) {
           modelMotions.push(idle);
           hubGuardianArrival();
         }
-        guardianFaceMotion=createApprovedGuardianFaceMotion(guardian,{
+        guardianFaceMotion=createApprovedGuardianFaceMotion(faceRoot,{
           rigSha256:asset.rigModelSha256,expectedRigSha256:asset.rigModelSha256});
         // Only the exact build-time receipt-checked Guardian GLB can signal
         // readiness. 2D stills and the known rejected 3D models never do.
@@ -583,17 +596,21 @@ if (renderer) {
           document.querySelector('#status').textContent='REVIEW ONLY · NOT A RELEASED 3D GUARDIAN';
         }
         if(guardianFaceMotion.readyForPlayback){
+          mountedGuardianFaceSha256=asset.rigModelSha256;
           guardianDeviceQa?.modelReady(asset.rigModelSha256);
           // Bind geometry diagnostics only inside the internal iPhone QA run.
           // A private review-only GLB still cannot pass the asset importer.
-          if(guardianDeviceQa)guardianNeckPoseQa=createGuardianNeckPoseProbe(guardian,
+          if(guardianDeviceQa && !wingedQa)guardianNeckPoseQa=createGuardianNeckPoseProbe(guardian,
             {approvedAsset:true});
           report('guardian-face-ready',{modelSha256:asset.rigModelSha256});
         }
         if (guardianPresentation && !guardianFaceMotion.readyForPlayback) report('guardian-unavailable');
         requestDraw();
-      },unavailable);
-    } catch { unavailable(); }
+      }).catch(()=>{
+        if(guardian){guardian.removeFromParent();disposeModel(guardian);}
+        if(donor && !donor.parent)disposeModel(donor);
+        unavailable();
+      });
   }
   function hub() {
     if (guardianPresentation) {
@@ -1070,7 +1087,7 @@ if (renderer) {
   // Motion he simply stands there from the start.
   const HUB_GUARDIAN_FLIGHT = {start: 2.0, seconds: 2.3, settle: .6};
   function hubGuardianArrival() {
-    const {flight, guardian} = hubGuardianFlight;
+    const {flight, guardian, wingPose} = hubGuardianFlight;
     const occupy = () => {
       // The stage light would sit inside his chest: make it a frontal key light (the
       // mount turns with the camera, so it stays frontal) and let the beam step back
@@ -1115,6 +1132,7 @@ if (renderer) {
       if (!flight.visible) occupy();
       const progress = Math.min((time - begin) / HUB_GUARDIAN_FLIGHT.seconds, 1);
       if (progress < 1) {
+        wingPose?.(false,progress);
         const eased = progress * progress * (3 - 2 * progress);
         path.getPoint(eased, flight.position);
         const bank = Math.sin(Math.PI * progress) * (1 - progress);
@@ -1132,6 +1150,7 @@ if (renderer) {
       flight.position.set(0, 0, 0); flight.rotation.set(0, 0, 0);
       for (const {joint, rest} of flightJoints) joint.quaternion.copy(rest);
       const u = Math.min((time - touchdown) / HUB_GUARDIAN_FLIGHT.settle, 1);
+      wingPose?.(true,u);
       const give = Math.sin(Math.PI * u) * (1 - .35 * u);
       flight.position.y = -.055 * give;
       for (const {joint, rest, bend, pitchAxis} of knees) joint.quaternion.copy(rest).multiply(q.setFromAxisAngle(pitchAxis, bend * give));
@@ -1865,6 +1884,6 @@ if (renderer) {
     :'Drag to explore · pinch or scroll to move closer · tap a labelled control';
   for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
   canvas.addEventListener('webglcontextlost',e=>{worldPhysicsQa?.contextLost();e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
-  addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();guardianNeckPoseQa?.dispose();controls.dispose();hubDropBloom();disposeModel(scene);env.dispose();renderer.dispose();});
+  addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;mountedGuardianFaceSha256=null;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();guardianNeckPoseQa?.dispose();controls.dispose();hubDropBloom();disposeModel(scene);env.dispose();renderer.dispose();});
 }
 

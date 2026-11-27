@@ -79,6 +79,7 @@ workflows:
     environment:
       groups:
         - staar-private-110
+        - staar-winged-review
       node: 22
       xcode: 26.6
       ios_signing:
@@ -91,6 +92,7 @@ workflows:
         EAS_BUILD_PROFILE: production
         STAAR_INTERNAL_TESTFLIGHT_GUARDIAN: '1'
         STAAR_INTERNAL_HOME_REVIEW: '1'
+        STAAR_WINGED_SIGNED_INTERNAL_REVIEW: '1'
         STAAR_IPHONE_ONLY_QA: '0'
         EXPO_PUBLIC_GUARDIAN_DEVICE_QA: '0'
         EXPO_PUBLIC_WORLD_COLLISION_QA: '0'
@@ -128,6 +130,15 @@ workflows:
           mkdir -p frontend/scene-src/assets/private-guardian-qa
           openssl enc -d -aes-256-cbc -md sha256 -pbkdf2 -iter 200000 -in private-encrypted/guardian-b252.glb.enc -out frontend/scene-src/assets/private-guardian-qa/guardian-b250-iphone-qa.glb -pass env:STAAR_B252_KEY
           echo '057099cac71e04d6e1282b23fb52c9d593b8c1a4e055309254ca1f5609a42134  frontend/scene-src/assets/private-guardian-qa/guardian-b250-iphone-qa.glb' | shasum -a 256 -c -
+      - name: Stage exact winged model from private build configuration
+        script: |
+          set -eu
+          case "${STAAR_WINGED_REVIEW_DRIVE_ID:-}" in
+            ""|*[!a-zA-Z0-9_-]*) echo 'Winged asset source missing or invalid' >&2; exit 1 ;;
+          esac
+          target=frontend/scene-src/assets/private-guardian-qa/guardian-winged-review.glb
+          curl --proto "=https" --proto-redir "=https" --location --fail --silent --show-error --max-time 120 --max-filesize 6000000 --output "$target" "https://drive.usercontent.google.com/download?export=download&confirm=t&id=${STAAR_WINGED_REVIEW_DRIVE_ID}"
+          echo "4a06b9a96e0ea6068394b9ccb1a2c74d61c455a94ddd201a935268309d4c961f  $target" | shasum -a 256 -c -
       - name: Resolve next internal TestFlight build number
         script: |
           set -eu
