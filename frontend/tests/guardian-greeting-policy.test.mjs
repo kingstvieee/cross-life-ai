@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { decodeArrivalPreference, isProactiveWelcomeTime, permitsArrivalTime, makeArrivalCooldown } from '../src/guardian-greeting-policy.ts';
+import { decodeArrivalPreference, isProactiveWelcomeTime, permitsArrivalTime, shouldRearmArrival, makeArrivalCooldown, arrivalPresentationAllowsGreeting, decodeArrivalConsent } from '../src/guardian-greeting-policy.ts';
 
 test('unsolicited Guardian welcome is silent before noon and after ten PM', () => {
   // Toronto is UTC-05 in November; constructor is independent of the CI machine timezone.
@@ -14,9 +14,9 @@ test('unsolicited Guardian welcome is silent before noon and after ten PM', () =
   assert.equal(isProactiveWelcomeTime(at(22, 0)), false);
 });
 
-test('first launch respects arrival preference, foreground return keeps protected hours', () => {
+test('first launch and foreground return honor only the current account arrival preference', () => {
   const hub = readFileSync(new URL('../components/staarwardd/world-hub.tsx', import.meta.url), 'utf8');
-  assert.match(hub, /if \(!isProactiveWelcomeTime\(new Date\(\)\)\) return/);
+  assert.match(hub, /if \(shouldRearmArrival\(new Date\(\), awaySince, foregroundArrivalPreference\.current\)\) greeted\.current = false/);
   assert.match(hub, /if \(!focused\.current \|\| !appActive \|\| !permitsArrivalTime\(new Date\(\), arrivalPreference\) \|\| !preferenceReady/);
   assert.match(hub, /setAppActive\(state === 'active'\)/);
   assert.match(hub, /if \(!focused\.current \|\| AppState\.currentState !== 'active'\) return/);
@@ -64,4 +64,40 @@ test('arrival voice requires current account consent and cannot implicitly unmut
   assert.match(hub, /if \(enabled && explicitlyEnableDeviceVoice\)/);
   assert.match(hub, /Enable arrival and device voice/);
   assert.match(hub, /onPress: \(\) => \{ if \(accountStillMatches\(\)\) setGreeting\(true, deviceIsSilent\); \}/);
+});
+
+test('a warm return permits the same explicit arrival choice, never a legacy after-hours preference', () => {
+  const overnight = new Date('2026-11-27T03:00:00-05:00');
+  const ago = overnight.getTime() - 20 * 60 * 1000;
+  assert.equal(shouldRearmArrival(overnight, ago, 'on-entry'), true);
+  assert.equal(shouldRearmArrival(overnight, ago, 'awake-hours'), false);
+  assert.equal(shouldRearmArrival(overnight, ago, 'off'), false);
+  assert.equal(shouldRearmArrival(overnight, ago + 1, 'on-entry'), false);
+  assert.equal(shouldRearmArrival(overnight, null, 'on-entry'), false);
+  const hub = readFileSync(new URL('../components/staarwardd/world-hub.tsx', import.meta.url), 'utf8');
+  assert.match(hub, /greetingKey && preferenceOwner === greetingKey && preferenceReady \? arrivalPreference : 'off'/);
+  assert.match(hub, /setServerConsentReady\(false\);\s*setServerGreetingConsent\(false\);\s*setForegroundEpoch/);
+});
+
+test('a broken or delayed visual rig cannot keep an opted-in arrival silent indefinitely', () => {
+  assert.equal(arrivalPresentationAllowsGreeting(true, true, false), true);
+  assert.equal(arrivalPresentationAllowsGreeting(false, true, false), false);
+  assert.equal(arrivalPresentationAllowsGreeting(true, false, false), false);
+  assert.equal(arrivalPresentationAllowsGreeting(false, false, true), true);
+  const hub = readFileSync(new URL('../components/staarwardd/world-hub.tsx', import.meta.url), 'utf8');
+  assert.match(hub, /setTimeout\(\(\) => setArrivalVisualWaitElapsed\(true\), MAX_ARRIVAL_VISUAL_WAIT_MS\)/);
+  const automatic = hub.slice(hub.indexOf('if (!focused.current || !appActive'), hub.indexOf('const setGreeting'));
+  assert.match(automatic, /arrivalPresentationAllowsGreeting\(modelAvailable, arrivalComplete, arrivalVisualWaitElapsed\)/);
+  assert.match(automatic, /!serverConsentReady \|\| !serverGreetingConsent \|\| serverPrivate \|\| serverSpeechQuiet/);
+});
+
+test('arrival consent fails closed if a successful response lacks explicit privacy flags', () => {
+  for (const value of [null, {}, {consent:{greetings:true}}, {consent:{greetings:true},privateMode:false},
+    {consent:{greetings:true},privateMode:false,speechQuiet:'false'}]) {
+    assert.equal(decodeArrivalConsent(value), null);
+  }
+  assert.deepEqual(decodeArrivalConsent({consent:{greetings:true,checkIns:true},privateMode:false,speechQuiet:false}),
+    {greetings:true,checkIns:true,privateMode:false,speechQuiet:false});
+  assert.deepEqual(decodeArrivalConsent({consent:{greetings:'true'},privateMode:true,speechQuiet:true}),
+    {greetings:false,checkIns:false,privateMode:true,speechQuiet:true});
 });

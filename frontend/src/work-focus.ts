@@ -24,3 +24,16 @@ export function createWorkFocusHandoff() {
 }
 
 export const workFocusHandoff = createWorkFocusHandoff();
+
+export function workFocusHubPreferenceKey(userId: string) {
+  return workFocusKey(userId) + '.show-on-hub.v1';
+}
+
+export function visibleHubWorkFocus(
+  saved: { account: string; title: string } | null,
+  activeAccount: string | null,
+  visibility: { foreground: boolean; privacyVerified: boolean; privateMode: boolean },
+) {
+  return saved && activeAccount && saved.account === activeAccount &&
+    visibility.foreground && visibility.privacyVerified && !visibility.privateMode ? saved.title : '';
+}

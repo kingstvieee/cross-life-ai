@@ -38,8 +38,8 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
   const sceneKey = `${world}:${variant}`;
   const failed = failedScene === sceneKey;
   useEffect(() => {
-    if (failed && guardianPresentation) onGuardianUnavailable?.();
-  }, [failed, guardianPresentation, onGuardianUnavailable]);
+    if (world === 'hub' && !readOnly && failed) onGuardianUnavailable?.();
+  }, [world, readOnly, failed, onGuardianUnavailable]);
   useEffect(() => {
     sceneReady.current = false;
     const watchdog = setTimeout(() => { if (!sceneReady.current) setFailedScene(sceneKey); }, 15000);
@@ -65,10 +65,9 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
         onGuardianModelReady?.(event.data.modelSha256);
         return;
       }
-      if (guardianPresentation && event.data?.source === 'staar-scene-v1' && event.data.world === world) {
-        if (event.data.type === 'guardian-arrived') onGuardianArrival?.();
-        if (event.data.type === 'guardian-unavailable') onGuardianUnavailable?.();
-        return;
+      if (world === 'hub' && event.data?.source === 'staar-scene-v1' && event.data.world === world) {
+        if (event.data.type === 'guardian-arrived') { onGuardianArrival?.(); return; }
+        if (event.data.type === 'guardian-unavailable') { onGuardianUnavailable?.(); return; }
       }
       const action = sceneAction(event.data, world);
       if (action) { const next = { world, action, atMs: Date.now() }; if (shouldDispatchSceneAction(lastDispatch.current, next)) { lastDispatch.current = next; onAction(action); } }

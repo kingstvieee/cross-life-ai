@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '@/src/auth';
-import { cleanWorkFocus, workFocusHandoff, workFocusKey } from '@/src/work-focus';
+import { cleanWorkFocus, workFocusHandoff, workFocusHubPreferenceKey, workFocusKey } from '@/src/work-focus';
 
 export default function WorkFocus() {
   const { user, api } = useAuth();
@@ -21,6 +21,8 @@ function OwnerWorkFocus({ owner, api }: { owner: string; api: ReturnType<typeof 
   const [notice, setNotice] = useState('');
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showOnHub, setShowOnHub] = useState(false);
+  const hubPrefKey = workFocusHubPreferenceKey(owner);
   const key = workFocusKey(owner);
   const mounted = useRef(false);
 
@@ -28,8 +30,11 @@ function OwnerWorkFocus({ owner, api }: { owner: string; api: ReturnType<typeof 
     mounted.current = true;
     let live = true;
     const controller = new AbortController();
-    void Promise.resolve().then(() => Platform.OS === 'web' ? globalThis.sessionStorage.getItem(key) : SecureStore.getItemAsync(key))
-      .then(value => { if (live) { const name = cleanWorkFocus(value); setSaved(name); setTitle(name); setReady(true); } })
+    const read = (id: string) => Platform.OS === 'web' ? globalThis.sessionStorage.getItem(id) : SecureStore.getItemAsync(id);
+    void Promise.resolve().then(() => Promise.all([read(key), read(hubPrefKey)]))
+      .then(([value, visible]) => {
+        if (live) { const name = cleanWorkFocus(value); setSaved(name); setTitle(name); setShowOnHub(visible === 'yes'); setReady(true); }
+      })
       .catch(() => { if (live) setNotice('Could not read project storage on this device.'); });
     void api('/api/portal/work/state', { signal: controller.signal }).then(async response => {
       if (!response.ok) throw new Error('Work unavailable');
@@ -40,7 +45,7 @@ function OwnerWorkFocus({ owner, api }: { owner: string; api: ReturnType<typeof 
       if (live) { setTasks(Array.from(new Set<string>(open))); setStatus(open.length ? 'Choose an open task or name a project.' : 'No open tasks. Name a project below.'); }
     }).catch(() => { if (live) setStatus('Could not load open tasks. You can still name a project.'); });
     return () => { live = false; mounted.current = false; controller.abort(); };
-  }, [api, key]);
+  }, [api, key, hubPrefKey]);
 
   async function save() {
     const clean = cleanWorkFocus(title);
@@ -51,6 +56,21 @@ function OwnerWorkFocus({ owner, api }: { owner: string; api: ReturnType<typeof 
       else await SecureStore.setItemAsync(key, clean);
       if (mounted.current) { setSaved(clean); setNotice(Platform.OS === 'web' ? 'Saved for this browser session.' : 'Saved on this device.'); }
     } catch { if (mounted.current) setNotice('Project focus could not be saved.'); }
+    finally { if (mounted.current) setSaving(false); }
+  }
+
+  async function toggleHubFocus() {
+    if (saving || !ready || !saved) return;
+    const next = !showOnHub;
+    setSaving(true);
+    try {
+      if (Platform.OS === 'web') globalThis.sessionStorage.setItem(hubPrefKey, next ? 'yes' : 'no');
+      else await SecureStore.setItemAsync(hubPrefKey, next ? 'yes' : 'no');
+      if (mounted.current) {
+        setShowOnHub(next);
+        setNotice(next ? 'Your focus can appear on your signed-in Hub. It will not be spoken or sent automatically.' : 'Your focus is hidden on the Hub.');
+      }
+    } catch { if (mounted.current) setNotice('Could not update Hub visibility on this device.'); }
     finally { if (mounted.current) setSaving(false); }
   }
 
@@ -76,6 +96,7 @@ function OwnerWorkFocus({ owner, api }: { owner: string; api: ReturnType<typeof 
         value={title} onChangeText={setTitle} maxLength={120} style={{ padding: 12, borderWidth: 1, borderColor: '#74664C', color: '#F1F4F8' }} />
       {button('Save current focus', () => { void save(); }, !ready || saving || !cleanWorkFocus(title))}
       {saved ? <Text style={{ color: '#C5CEDB' }}>Current focus: {saved}</Text> : null}
+      {button(showOnHub ? 'Hide focus on Hub' : 'Show focus on Hub', () => { void toggleHubFocus(); }, saving || !ready || !saved)}
       {button('Review focus with Guardian', () => {
         if (workFocusHandoff.stage(owner, saved)) router.push({ pathname: '/chat', params: { portal: 'work', workFocus: 'review' } } as never);
       }, !saved)}

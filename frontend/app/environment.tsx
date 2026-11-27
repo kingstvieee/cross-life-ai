@@ -6,6 +6,7 @@ import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { WorldScene } from '@/components/staarwardd/world-scene';
 import { artworkForSignedInPortal, hasDiggitstaarStudio } from '@/components/staarwardd/locked-portal-artwork';
 import { useAuth } from '@/src/auth';
+import { relationshipNotesMode } from '@/src/relationship-notes';
 import { WORLD_BY_ID, worldConversation, type WorldId } from '@/lib/staarwardd/world-directory';
 
 export default function Environment() {
@@ -50,9 +51,13 @@ export default function Environment() {
         </Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           {world === 'diggitstaar' && button('Campaign editor', () => router.push('/diggit-campaign' as never))}
+          {world === 'events' && button('Toronto events', () => router.push('/community-discovery' as never))}
           {world === 'work' && button('Current Work', () => router.push('/work-focus' as never))}
           {world === 'wellbeing' && button('Check-ins', () => router.push('/checkins' as never))}
           {world === 'wellbeing' && button('Pet care', () => router.push('/petcare' as never))}
+          {world === 'relationships' && variant === 'realm' && relationshipNotesMode('relationship-notes', user) === 'relationship-notes' &&
+            button('Relationship notes', () => router.push({ pathname: '/guardian-tools', params: { view: 'relationship-notes' } }))}
+          {world === 'staarsonic' && user && !user.is_demo && button('Track session sheet', () => router.push('/staarsonic-track-sheet' as never))}
           {world === 'style' && Platform.OS === 'web' && button('Style Swap', () => router.push('/style-swap' as never))}
           {button(world === 'home' ? 'Home connections and device setup' : world === 'diggitstaar' ? 'Canva account and designs' : 'Connection setup',
             () => router.push({ pathname: '/connections', params: { world } } as never))}

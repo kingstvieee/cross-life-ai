@@ -56,3 +56,13 @@ test('Voluntary speech remains consent- and user-settings-gated; display correct
  assert.match(src,/serverGreetingConsent/);
  assert.match(src,/audio\.setSpeechQuiet\(true\)/);
 });
+
+test('immersive Home uses a rendered Guardian landing, not a guessed portal intro timeout', async () => {
+ const hub = await readFile(new URL('../components/staarwardd/world-hub.tsx', import.meta.url), 'utf8');
+ assert.match(hub, /onGuardianArrival=\{onGuardianArrival\}/);
+ assert.doesNotMatch(hub, /HUB_INTRO_MS|onSceneReady=\{onSceneReady\}/);
+ for (const name of ['world-scene.tsx','world-scene.web.tsx']) {
+  const bridge = await readFile(new URL('../components/staarwardd/' + name, import.meta.url), 'utf8');
+  assert.match(bridge, /if \(world === 'hub' &&[^\n]*staar-scene-v1[^\n]*\) \{\s*if \([^\n]*guardian-arrived[^\n]*onGuardianArrival/);
+ }
+});

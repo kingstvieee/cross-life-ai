@@ -24,6 +24,7 @@ from companion_speech import MODEL as COMPANION_SPEECH_MODEL, PROFILES as SPEECH
 from style_swap_routes import build_style_swap_router
 from identity_routes import SESSION_COOKIE, app_origin, build_identity_router, ensure_identity_indexes
 from provider_connections import build_provider_router
+from community_discovery import build_community_discovery_router
 from guardian_alignment_routes import build_alignment_router
 from guardian_mission_routes import build_guardian_mission_router
 from guardian_notice_routes import build_guardian_notice_router
@@ -1221,6 +1222,7 @@ app.include_router(build_guardian_notice_router(
 app.include_router(build_style_swap_router(get_current_user=get_current_user, rate_limit=rate_limit), prefix="/api")
 app.include_router(build_identity_router(db=db, limiter=rate_limit), prefix="/api")
 app.include_router(build_provider_router(db=db, require_account_user=require_account_user, limiter=rate_limit), prefix="/api")
+app.include_router(build_community_discovery_router(require_account_user=require_account_user, limiter=rate_limit), prefix="/api")
 app.include_router(build_alignment_router(db, require_account_user, rate_limit), prefix="/api")
 from petcare.routes import build_petcare_router
 app.include_router(build_petcare_router(db, require_account_user), prefix="/api")

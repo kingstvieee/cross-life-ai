@@ -36,7 +36,9 @@ test("Guardian automatic speech requires verified server consent and privacy gat
   const source = readFileSync(new URL("../components/staarwardd/world-hub.tsx", import.meta.url), "utf8");
   assert.match(source, /api\('\/api\/guardian\/life-map\/overview'/);
   assert.match(source, /api\('\/api\/guardian\/core\/workflows\/rsf-fabric-sourcing\/proactive-consent'/);
-  assert.match(source, /state\.consent\?\.greetings === true/);
+  assert.match(source, /const state = decodeArrivalConsent\(await response\.json\(\)\)/);
+  assert.match(source, /if \(!alive \|\| !state\) return;/);
+  assert.match(source, /setServerGreetingConsent\(state\.greetings\)/);
   assert.match(source, /setServerConsentReady\(false\)/);
   assert.match(source, /setServerGreetingConsent\(false\)/);
   assert.match(source, /!serverConsentReady \|\| !serverGreetingConsent \|\| serverPrivate \|\| serverSpeechQuiet/);
@@ -51,8 +53,7 @@ test("Guardian automatic speech requires verified server consent and privacy gat
 test("Guardian only offers automatic return speech after a meaningful foreground absence", () => {
   const source = readFileSync(new URL("../components/staarwardd/world-hub.tsx", import.meta.url), "utf8");
   assert.match(source, /AppState\.addEventListener\('change'/);
-  assert.match(source, /Date\.now\(\) - awaySince < 20 \* 60 \* 1000/);
-  assert.match(source, /if \(!isProactiveWelcomeTime\(new Date\(\)\)\) return/);
+  assert.match(source, /if \(shouldRearmArrival\(new Date\(\), awaySince, foregroundArrivalPreference\.current\)\) greeted\.current = false/);
   assert.match(source, /setForegroundEpoch\(epoch => epoch \+ 1\)/);
   assert.match(source, /setServerConsentReady\(false\);\s*setServerGreetingConsent\(false\);\s*setForegroundEpoch\(epoch => epoch \+ 1\)/);
   assert.match(source, /\[api, greetingKey, foregroundEpoch\]/);

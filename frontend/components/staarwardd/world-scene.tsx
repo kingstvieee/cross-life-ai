@@ -124,8 +124,8 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
   }, [session]);
   useEffect(() => { setLoadFailed(false); setRetryCount(0); }, [world, variant]);
   useEffect(() => {
-    if (guardianPresentation && loadFailed) onGuardianUnavailable?.();
-  }, [guardianPresentation, loadFailed, onGuardianUnavailable]);
+    if (world === 'hub' && !readOnly && loadFailed) onGuardianUnavailable?.();
+  }, [world, readOnly, loadFailed, onGuardianUnavailable]);
   if (guardianPresentation && loadFailed) return null;
   const fallback = readOnly ? [] : sceneFallbackActions(world);
   if (loadFailed) return <ScrollView contentContainerStyle={{ padding: 22, gap: 12, backgroundColor: '#030713', minHeight: embedded ? 0 : 420 }}>
@@ -199,9 +199,9 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
       onError={() => setLoadFailed(true)}
       onRenderProcessGone={() => setLoadFailed(true)}
       onContentProcessDidTerminate={() => setLoadFailed(true)}
-      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (!message || typeof message !== 'object' || !('session' in message) || message.session !== session) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'ready' && message.world === world) { sceneReady.current = true; onSceneReady?.(); return; } if (readOnly) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && 'modelSha256' in message && message.source === 'staar-scene-v1' && message.type === 'guardian-face-ready' && world === 'hub' && message.world === world && typeof message.modelSha256 === 'string') { audio.setGuardianRigHash(message.modelSha256); onGuardianModelReady?.(message.modelSha256); return; } if (guardianPresentation && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.world === 'hub') {
-          if (message.type === 'guardian-arrived') onGuardianArrival?.();
-          if (message.type === 'guardian-unavailable') onGuardianUnavailable?.();
+      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (!message || typeof message !== 'object' || !('session' in message) || message.session !== session) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'ready' && message.world === world) { sceneReady.current = true; onSceneReady?.(); return; } if (readOnly) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && 'modelSha256' in message && message.source === 'staar-scene-v1' && message.type === 'guardian-face-ready' && world === 'hub' && message.world === world && typeof message.modelSha256 === 'string') { audio.setGuardianRigHash(message.modelSha256); onGuardianModelReady?.(message.modelSha256); return; } if (world === 'hub' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.world === 'hub') {
+          if (message.type === 'guardian-arrived') { onGuardianArrival?.(); return; }
+          if (message.type === 'guardian-unavailable') { onGuardianUnavailable?.(); return; }
         }
         if(qaEnabled && 'source' in message && 'type' in message && 'world' in message &&
         'metrics' in message && message.source==='staar-scene-v1' &&

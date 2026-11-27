@@ -74,9 +74,9 @@ workflows:
     max_build_duration: 120
     triggering:
       events: []
-    integrations:
+    integrations: &staar_hub_apple_integration
       app_store_connect: STAAR Codemagic QA 109
-    environment:
+    environment: &staar_hub_signing_environment
       groups:
         - staar-private-110
         - staar-winged-review
@@ -98,7 +98,7 @@ workflows:
         EXPO_PUBLIC_WORLD_COLLISION_QA: '0'
         STAAR_REQUIRE_WATCH_APP: '1'
         STAAR_PRODUCTION_BACKEND_URL: https://staarwardd-guardian-production.onrender.com
-    scripts:
+    scripts: &staar_hub_signing_scripts
       - name: Validate dedicated production API and persist build environment
         script: |
           set -eu
@@ -142,10 +142,16 @@ workflows:
       - name: Validate and stage the protected DIGGITSTAAR master
         script: |
           set -eu
-          if [ "${STAAR_PRIVATE_PORTAL_ARTWORK_AUTHORIZED:-}" != 1 ] || [ ! -f "${STAAR_DIGGITSTAAR_MASTER_PATH:-}" ]; then
+          if [ "${STAAR_PRIVATE_PORTAL_ARTWORK_AUTHORIZED:-}" != 1 ]; then
             echo "BLOCKED: exact owner-authorized DIGGITSTAAR master missing from the protected runner." >&2
             exit 1
           fi
+          if [ "${STAAR_DIGGITSTAAR_MANUAL_TRANSFER:-}" = 1 ]; then
+            : "${HOME:?missing runner home}"
+            export STAAR_DIGGITSTAAR_MASTER_PATH="$HOME/.staar-internal-handoff/studio.jpeg"
+            export STAAR_DIGGITSTAAR_WAIT_SECONDS=180
+          fi
+          node scripts/wait-for-diggitstaar-internal-artwork.mjs
           node scripts/stage-diggitstaar-internal-artwork.mjs "$STAAR_DIGGITSTAAR_MASTER_PATH"
       - name: Resolve next internal TestFlight build number
         script: |
@@ -214,6 +220,11 @@ workflows:
           ipa=$(find build/ios/ipa -name '*.ipa' -type f -print -quit)
           [ -n "$ipa" ] || { echo 'BLOCKED: missing actual signed IPA' >&2; exit 1; }
           bash scripts/verify-build220-ipa.sh "$ipa"
+          python3 scripts/verify-diggitstaar-ipa-asset.py "$ipa"
+          mkdir -p "$CM_BUILD_DIR/staar-private-archive-proof"
+          printf 'source=%s\nbuild_run=%s\n' "$(git rev-parse HEAD)" "$CM_BUILD_ID" > "$CM_BUILD_DIR/staar-private-archive-proof/receipt.txt"
+          shasum -a 256 "$ipa" >> "$CM_BUILD_DIR/staar-private-archive-proof/receipt.txt"
+          printf '%s\n' 'archive_checks=app_metadata,watch,exact_studio_bytes' >> "$CM_BUILD_DIR/staar-private-archive-proof/receipt.txt"
     artifacts:
       - frontend/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
@@ -222,3 +233,17 @@ workflows:
         auth: integration
         # Upload to App Store Connect for internal testing only; do not request external beta review.
         submit_to_testflight: false
+
+  staar-hub-signed-archive-only:
+    name: STAAR Hub — signed archive verification only (no upload)
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    triggering:
+      events: []
+    integrations: *staar_hub_apple_integration
+    environment: *staar_hub_signing_environment
+    scripts: *staar_hub_signing_scripts
+    # The signed binary remains on the temporary builder. The app, artwork
+    # and build logs are not exported as Codemagic artifacts on this lane.
+    artifacts:
+      - staar-private-archive-proof/receipt.txt

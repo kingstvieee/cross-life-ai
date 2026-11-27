@@ -13,7 +13,8 @@ test('latest mainline polish preserves release guardian server consent and owner
   assert.match(hub, /setServerGreetingConsent\(/);
   assert.match(hub, /setServerConsentReady\(/);
   assert.match(hub, /serverPrivate \|\| serverSpeechQuiet/);
-  assert.match(hub, /isProactiveWelcomeTime/);
+  assert.match(hub, /shouldRearmArrival/);
+  assert.match(hub, /permitsArrivalTime/);
   assert.match(hub, /accountStorageKey\(/);
   assert.match(hub, /setArrivalComplete\(/);
   // Motion now lives in the 3D scene; the hub still waits for Reduce Motion before mounting it.

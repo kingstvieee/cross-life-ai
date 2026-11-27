@@ -47,3 +47,22 @@ test('public portal builds use artwork and never default to debug geometry', () 
   assert.match(fallback, /number \| null = null/);
   assert.match(env, /button\('Current Work', \(\) => router\.push\('\/work-focus'/);
 });
+
+test('Home work context is same-account, foreground and privacy-verified only', async () => {
+  const { visibleHubWorkFocus, workFocusHubPreferenceKey } = await import('../src/work-focus.ts');
+  const stored = { account: 'owner', title: 'Release prep' };
+  const okay = { foreground: true, privacyVerified: true, privateMode: false };
+  assert.equal(visibleHubWorkFocus(stored, 'owner', okay), 'Release prep');
+  assert.equal(visibleHubWorkFocus(stored, 'other-account', okay), '');
+  assert.equal(visibleHubWorkFocus(stored, null, okay), '');
+  for (const blocked of [{ foreground: false }, { privacyVerified: false }, { privateMode: true }]) {
+    assert.equal(visibleHubWorkFocus(stored, 'owner', { ...okay, ...blocked }), '');
+  }
+  assert.notEqual(workFocusHubPreferenceKey('owner'), workFocusHubPreferenceKey('other-account'));
+  const home = readFileSync(new URL('../components/staarwardd/world-hub.tsx', import.meta.url), 'utf8');
+  const focus = readFileSync(new URL('../app/work-focus.tsx', import.meta.url), 'utf8');
+  assert.match(home, /read\(workFocusHubPreferenceKey\(workAccount\)\) !== 'yes'/);
+  assert.match(home, /Continue: \{hubWorkFocus\}/);
+  assert.doesNotMatch(home, /audio\.speak\([^;\n]*hubWorkFocus/);
+  assert.match(focus, /Show focus on Hub/);
+});
