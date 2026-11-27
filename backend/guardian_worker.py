@@ -37,11 +37,13 @@ class GuardianWorker:
         owner = mission["owner_id"]
         mid = mission["mission_id"]
         token = mission["lease_token"]
+        mission = await transition(
+            self.collection, owner_id=owner, mission_id=mid,
+            expected="leased", target="running", lease_token=token,
+        )
         handler_name = mission.get("handler")
         handler = self.handlers.get(handler_name)
         if handler is None:
-            await transition(self.collection, owner_id=owner, mission_id=mid,
-                             expected="leased", target="running", lease_token=token)
             await transition(self.collection, owner_id=owner, mission_id=mid,
                              expected="running", target="blocked", lease_token=token,
                              checkpoint={"reason": "unregistered_handler"})
@@ -54,13 +56,9 @@ class GuardianWorker:
             budget_cad=mission.get("budget_cad"),
         ):
             await transition(self.collection, owner_id=owner, mission_id=mid,
-                             expected="leased", target="running", lease_token=token)
-            await transition(self.collection, owner_id=owner, mission_id=mid,
                              expected="running", target="awaiting_approval",
                              lease_token=token)
             return True
-        await transition(self.collection, owner_id=owner, mission_id=mid,
-                         expected="leased", target="running", lease_token=token)
         stop = asyncio.Event()
         heartbeat = asyncio.create_task(self._heartbeat(owner, mid, token, stop))
         execution = asyncio.create_task(handler(mission))

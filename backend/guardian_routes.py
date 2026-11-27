@@ -4,7 +4,7 @@ import os
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Header, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from guardian_store import GuardianStore
 from starcenttinel_gate import inspect_independent_control_plane
@@ -52,6 +52,8 @@ class GuardianSpeechRequest(BaseModel):
 
 
 class GuardianConsentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     greetings: bool = False
     check_ins: bool = False
 
@@ -62,6 +64,8 @@ class GuardianProactiveRequest(BaseModel):
 
 
 class GuardianDispatchRequest(GuardianLeaseRequest):
+    model_config = ConfigDict(extra="forbid")
+
     action: str = Field(min_length=1)
     action_version: str = Field(min_length=1)
     action_hash: str = Field(min_length=1)
@@ -80,6 +84,8 @@ class GuardianOperationCancelRequest(BaseModel):
 
 
 class GuardianProviderEventRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     event_id: str = Field(min_length=1)
     idempotency_key: str = Field(min_length=1)
     outcome: str

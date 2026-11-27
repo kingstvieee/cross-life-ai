@@ -26,6 +26,20 @@ def preview_digest(mission):
     return canonical_digest(fields)
 
 
+def _approval_binding(mission):
+    return {"actor_id": mission["owner_id"], "mission_id": mission["mission_id"],
+            "action": PREVIEW_HANDLER, "source": "authenticated_preview_approval"}
+
+
+def _approval_matches(mission):
+    approval = mission.get("preview_approval") or {}
+    if approval.get("digest") != preview_digest(mission):
+        return False
+    # Existing preview receipts predate the binding. They remain read-only and
+    # tenant-scoped by the mission store.
+    return "binding" not in approval or approval["binding"] == _approval_binding(mission)
+
+
 async def queue_preview(collection, *, owner_id, mission_id, digest, run_at=None):
     query = {"owner_id": owner_id, "mission_id": mission_id}
     mission = await collection.find_one(query)
@@ -60,6 +74,7 @@ async def queue_preview(collection, *, owner_id, mission_id, digest, run_at=None
             "not_before": start, "updated_at": now,
             "preview_approval": {
                 "digest": digest, "requested_run_at": run_at, "approved_at": now,
+                "binding": _approval_binding(mission),
             },
         }},
         return_document=True,
@@ -82,7 +97,7 @@ async def reschedule_preview(collection, *, owner_id, mission_id, expected_start
     mission = await collection.find_one(query)
     approval = (mission or {}).get("preview_approval") or {}
     if (not mission or mission.get("status") != "queued" or mission.get("handler") != PREVIEW_HANDLER
-            or mission.get("attempts") != 0 or approval.get("digest") != preview_digest(mission)):
+            or mission.get("attempts") != 0 or not _approval_matches(mission)):
         raise MissionConflict("Only unstarted previews can be rescheduled")
     now = bson_datetime(now_utc())
     start = bson_datetime(run_at)
@@ -108,7 +123,7 @@ async def reschedule_preview(collection, *, owner_id, mission_id, expected_start
 
 async def execute_preview(mission):
     if (mission.get("estimated_cost_cad") != 0 or
-            mission.get("preview_approval", {}).get("digest") != preview_digest(mission)):
+            not _approval_matches(mission)):
         raise MissionConflict("Preview approval is invalid")
     return {
         "kind": PREVIEW_HANDLER,
@@ -121,11 +136,10 @@ async def execute_preview(mission):
 
 async def verify_preview(mission):
     result = (mission.get("checkpoint") or {}).get("result")
-    approval = (mission.get("preview_approval") or {}).get("digest")
     return result == {
         "kind": PREVIEW_HANDLER,
         "mission_id": mission["mission_id"],
         "proposal_digest": preview_digest(mission),
         "objective": mission["objective"],
         "success_criteria": mission["success_criteria"],
-    } and approval == preview_digest(mission) and mission.get("estimated_cost_cad") == 0
+    } and _approval_matches(mission) and mission.get("estimated_cost_cad") == 0

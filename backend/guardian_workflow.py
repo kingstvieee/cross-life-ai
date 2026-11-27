@@ -207,6 +207,13 @@ def _matching_grant(current: Dict[str, Any], authority: Mapping[str, Any], *, sc
     if scope == "portal-weave":
         grants = list(saved.get("portalGrants", []))
     for grant in grants:
+        if "expiresAt" in grant:
+            try:
+                expiry = datetime.fromisoformat(grant["expiresAt"])
+            except (ValueError, TypeError):
+                continue
+            if expiry.tzinfo is None or expiry <= datetime.now(timezone.utc):
+                continue
         if grant.get("state", "active") != "active" or grant.get("revoked"):
             continue
         if int(grant.get("version", -1)) != int(saved.get("version", 0)):
@@ -257,6 +264,10 @@ def dispatch(workflow: Optional[Dict[str, Any]], workflow_id: str, *, owner: str
         raise ValueError("action_hash_mismatch")
     for item in current["dispatches"]:
         if item.get("idempotencyKey") == idempotency_key:
+            if (item.get("actionHash") != computed_hash
+                    or item.get("authorityGrantId") != grant["grantId"]
+                    or item.get("authorityVersion") != int(grant["version"])):
+                raise ValueError("idempotency_conflict")
             return current
     dispatch_id = f"dispatch:{idempotency_key}"
     boundary = {"dispatchId": dispatch_id, "idempotencyKey": idempotency_key, "state": "persisted", "sentAt": None, "cannotRecall": True}
@@ -269,6 +280,8 @@ def dispatch(workflow: Optional[Dict[str, Any]], workflow_id: str, *, owner: str
 
 def authorize_send(workflow: Optional[Dict[str, Any]], workflow_id: str, *, idempotency_key: str) -> Dict[str, Any]:
     current = _require_workflow(workflow, workflow_id)
+    if current.get("status") == "cancelled":
+        raise ValueError("workflow_cancelled")
     matches = [item for item in current["dispatches"] if item.get("idempotencyKey") == idempotency_key]
     if not matches:
         raise ValueError("dispatch_not_found")
@@ -278,7 +291,12 @@ def authorize_send(workflow: Optional[Dict[str, Any]], workflow_id: str, *, idem
         if (current.get("cancellation") or {}).get("state") == "requested":
             raise ValueError("workflow_cancellation_requested")
         authority = {"version": item.get("authorityVersion"), "grantId": item.get("authorityGrantId"), "portals": item.get("context", {}).get("portals", [])}
-        if not _matching_grant(current, authority, scope="execute", action=item["action"], action_version=item["actionVersion"], action_hash=item["actionHash"]):
+        persisted_hash = _canonical_hash({
+            "action": item["action"], "version": item["actionVersion"], "context": item["context"],
+        })
+        if persisted_hash != item["actionHash"]:
+            raise ValueError("action_hash_mismatch")
+        if not _matching_grant(current, authority, scope="execute", action=item["action"], action_version=item["actionVersion"], action_hash=persisted_hash):
             raise ValueError("authority_revoked_or_stale")
     return current
 

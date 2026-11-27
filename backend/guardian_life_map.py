@@ -7,10 +7,29 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
+import re
 import secrets
 from datetime import timedelta
 
 PORTALS = frozenset(('home', 'work', 'creativity', 'wellbeing', 'relationships', 'community', 'style'))
+
+
+def _rank_records(state, portals, query):
+    terms = set(re.findall(r"\w+", query.casefold()))
+    scored = []
+    for record in state['records']:
+        if record['status'] != 'current' or record['portal'] not in portals:
+            continue
+        overlap = len(terms.intersection(re.findall(r"\w+", record['text'].casefold())))
+        if overlap or not terms:
+            scored.append((-overlap, record['factId'], record))
+    scored.sort(key=lambda item: item[:2])
+    return [deepcopy(record) for _, _, record in scored]
+
+
+def _notification_expired(event, at):
+    lifetime = timedelta(minutes=10 if event['kind'] == 'greetings' else 60)
+    return datetime.fromisoformat(event['createdAt']) + lifetime <= at
 
 
 class LifeMapStore:
@@ -72,9 +91,7 @@ class LifeMapStore:
         if portal not in PORTALS:
             raise ValueError('invalid_portal')
         state = await self.snapshot(user_id)
-        terms = set(query.lower().split())
-        candidates = [r for r in state['records'] if r['status'] == 'current' and r['portal'] == portal]
-        return [deepcopy(r) for r in sorted(candidates, key=lambda r: (-len(terms & set(r['text'].lower().split())), r['factId'])) if not terms or terms & set(r['text'].lower().split())][:50]
+        return _rank_records(state, {portal}, query)[:50]
 
     async def enqueue(self, user_id, *, key, kind, decision):
         if kind not in ('greetings', 'checkIns') or not key or len(key) > 300:
@@ -106,11 +123,17 @@ class LifeMapStore:
                 return {'claimed': False, 'reason': decision['reason']}
             if event['state'] == 'claimed' and datetime.fromisoformat(event['claimUntil']) <= at:
                 event['state'] = 'uncertain'
-            if event['state'] == 'pending' and datetime.fromisoformat(event.get('retryAt', event['createdAt'])) + timedelta(minutes=10 if event['kind'] == 'greetings' else 60) <= at:
+            if event['state'] == 'pending' and _notification_expired(event, at):
                 event['state'] = 'expired'
             if event['state'] != 'pending':
                 return {'claimed': False, 'reason': event['state']}
-            event.update(state='claimed', claimUntil=(at + timedelta(seconds=60)).isoformat(), deliveryTokenHash=sha256(token.encode()).hexdigest())
+            recent_cutoff = at - timedelta(hours=1)
+            if any(other is not event and other['kind'] == event['kind']
+                   and other.get('lastClaimedAt')
+                   and datetime.fromisoformat(other['lastClaimedAt']) > recent_cutoff
+                   for other in state['events']):
+                return {'claimed': False, 'reason': 'interruption_budget'}
+            event.update(state='claimed', lastClaimedAt=at.isoformat(), claimUntil=(at + timedelta(seconds=60)).isoformat(), deliveryTokenHash=sha256(token.encode()).hexdigest())
             return {'claimed': True, 'token': token, 'kind': event['kind'], 'key': key}
         return await self._change(user_id, operation)
 
@@ -120,7 +143,7 @@ class LifeMapStore:
             for event in state['events']:
                 if event['state'] == 'claimed' and datetime.fromisoformat(event['claimUntil']) <= at:
                     event['state'] = 'uncertain'
-                if event['state'] == 'pending' and datetime.fromisoformat(event.get('retryAt', event['createdAt'])) + timedelta(minutes=10 if event['kind'] == 'greetings' else 60) <= at:
+                if event['state'] == 'pending' and _notification_expired(event, at):
                     event['state'] = 'expired'
             return state['events']
         return await self._change(user_id, operation)
@@ -143,6 +166,8 @@ class LifeMapStore:
             event = next((e for e in state['events'] if e['key'] == key), None)
             if not event or event['state'] not in ('failed', 'uncertain'):
                 raise ValueError('notification_not_retryable')
+            if _notification_expired(event, datetime.now(timezone.utc)):
+                raise ValueError('notification_expired')
             if event.get('retries', 0) >= 3:
                 raise ValueError('notification_retry_limit')
             event.update(state='pending', retries=event.get('retries', 0) + 1, retryAt=datetime.now(timezone.utc).isoformat())
@@ -155,7 +180,12 @@ class LifeMapStore:
         if user.get('is_demo') or user.get('cross_life_paused') or user.get('_guardian_private'):
             return []
         allowed = [p for p in PORTALS if p in user.get('portals_enabled', []) and user.get('portal_privacy', {}).get(p, {}).get('access') is True and (p == portal or user.get('portal_privacy', {}).get(p, {}).get('share') is True)]
-        records = []
-        for candidate in allowed:
-            records.extend(await self.recall(user['user_id'], portal=candidate, query=query))
-        return [{k:r[k] for k in ('factId', 'revision', 'portal', 'text', 'sourceId', 'sourceSpan', 'evidenceStatus')} for r in records[:12]]
+        if not allowed:
+            return []
+        state = await self.snapshot(user['user_id'])
+        expected_version = user.get('_life_map_revision')
+        if expected_version is not None and state.get('memoryVersion', 0) != expected_version:
+            return []
+        records = _rank_records(state, set(allowed), query)
+        fields = ('factId', 'revision', 'portal', 'text', 'sourceId', 'sourceSpan', 'evidenceStatus')
+        return [{key: record[key] for key in fields} for record in records[:12]]

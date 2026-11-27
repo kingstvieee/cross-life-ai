@@ -33,7 +33,7 @@ class Collection:
                 return
         if upsert: await self.insert_one({**query, **update.get('$set', {})})
 
-def make(monkeypatch, calendar_status=200, calendar_payload=None):
+def make(monkeypatch, calendar_status=200, calendar_payload=None, on_request=None):
     monkeypatch.setenv('PROVIDER_TOKEN_ENCRYPTION_KEY', Fernet.generate_key().decode())
     monkeypatch.setenv('CONNECT_CALLBACK_ORIGIN', 'https://hub.example.test')
     for provider in ['GOOGLE', 'MICROSOFT']:
@@ -46,6 +46,8 @@ def make(monkeypatch, calendar_status=200, calendar_payload=None):
         return {'user_id': auth.split()[1]}
     def respond(req):
         requests.append(req)
+        if on_request is not None:
+            on_request(req, db)
         active_calendar_status = calendar_status['value'] if isinstance(calendar_status, dict) else calendar_status
         if req.method == 'POST': return httpx.Response(200, json={'access_token': 'private-provider-token', 'refresh_token': 'private-refresh', 'expires_in': 3600})
         if calendar_payload is not None: return httpx.Response(active_calendar_status, json=calendar_payload)
@@ -215,4 +217,32 @@ def test_calendar_finish_rejects_non_event_records_before_saving_auth(monkeypatc
     denied = client.post('/api/connections/google/finish/' + flow['flow'], headers={'Authorization': 'Bearer alice'})
     assert denied.status_code == 502
     assert denied.json()['detail'] == 'provider_read_unavailable'
+    assert not db.provider_connections.docs
+
+
+@pytest.mark.parametrize("stage", ["refresh", "read"])
+def test_disconnect_during_request_prevents_stale_calendar_disclosure(monkeypatch, stage):
+    armed = False
+
+    def disconnect(req, db):
+        method = "POST" if stage == "refresh" else "GET"
+        if armed and req.method == method:
+            db.provider_connections.docs.clear()
+
+    client, db, requests = make(monkeypatch, on_request=disconnect)
+    flow, params = begin(client)
+    headers = {"Authorization": "Bearer alice"}
+    callback = client.get("/api/connections/google/callback",
+                          params={"state": params["state"][0], "code": "approved"})
+    assert callback.status_code == 200
+    assert client.post("/api/connections/google/finish/" + flow["flow"], headers=headers).status_code == 200
+    if stage == "refresh":
+        record = db.provider_connections.docs[0]
+        record["tokens"] = seal({**unseal(record["tokens"]), "expires_at": 0})
+    armed = True
+    requests.clear()
+    reply = client.get("/api/connections/google/calendar", headers=headers)
+    assert reply.status_code == 409
+    assert reply.json()["detail"] == "provider_reconnect_required"
+    assert [req.method for req in requests] == ["POST" if stage == "refresh" else "GET"]
     assert not db.provider_connections.docs

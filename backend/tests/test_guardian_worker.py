@@ -34,6 +34,7 @@ async def test_unregistered_handler_blocks_without_execution(monkeypatch):
         return mission
     async def change(_, **kwargs):
         transitions.append((kwargs["expected"], kwargs["target"]))
+        return mission
     monkeypatch.setattr(module, "recover_expired_leases", recover)
     monkeypatch.setattr(module, "claim_mission", claim)
     monkeypatch.setattr(module, "transition", change)
@@ -55,6 +56,7 @@ async def test_missing_approval_never_invokes_handler(monkeypatch):
         return mission
     async def change(_, **kwargs):
         transitions.append(kwargs["target"])
+        return mission
     async def handler(_):
         invoked.append(True)
     monkeypatch.setattr(module, "recover_expired_leases", recover)
@@ -67,7 +69,7 @@ async def test_missing_approval_never_invokes_handler(monkeypatch):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("outcome", ["success", "handler_failure", "lease_loss"])
+@pytest.mark.parametrize("outcome", ["success", "handler_failure", "lease_loss", "approval_revoked"])
 async def test_execution_requires_lease_and_separate_verification(monkeypatch, outcome):
     transitions = []
     executing = asyncio.Event()
@@ -82,7 +84,9 @@ async def test_execution_requires_lease_and_separate_verification(monkeypatch, o
         return mission
     async def change(_, **kwargs):
         transitions.append(kwargs["target"])
+        return {**mission, "approved": False} if outcome == "approval_revoked" else mission
     async def handler(_):
+        assert outcome != "approval_revoked"
         if outcome == "handler_failure":
             raise RuntimeError("provider result unknown")
         if outcome == "lease_loss":
@@ -107,7 +111,10 @@ async def test_execution_requires_lease_and_separate_verification(monkeypatch, o
         assert transitions == ["running"]
         return
     assert await worker.run_once() is True
-    assert transitions == ["running", "verifying" if outcome == "success" else "blocked"]
+    assert transitions == ["running", {
+        "success": "verifying", "handler_failure": "blocked",
+        "approval_revoked": "awaiting_approval",
+    }[outcome]]
 
 
 @pytest.mark.asyncio
