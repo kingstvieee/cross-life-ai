@@ -414,7 +414,7 @@ const s = StyleSheet.create({
   worldThumb: { width: 84, height: 48, borderRadius: 10, overflow: 'hidden', backgroundColor: '#05060A' },
   worldName: { color: '#FFFFFF', fontSize: 15, fontWeight: '800', letterSpacing: .4 },
   worldDetail: { color: '#C9CEDA', fontSize: 12, marginTop: 2 },
-  guestExplorer: { ...StyleSheet.absoluteFillObject, backgroundColor: '#070912' },
+  guestExplorer: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: '#070912' },
   guestToolbar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 8 },
   guestBack: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
   guestLink: { color: '#E8D8AE', fontSize: 14, fontWeight: '700' },
