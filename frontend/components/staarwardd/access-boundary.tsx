@@ -1,8 +1,8 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRootNavigationState, useRouter } from "expo-router";
 import { useAuth } from "@/src/auth";
 import { backendUrl } from "@/src/backend-config";
 import { enabledLoginProviders } from "@/src/login-provider-availability";
@@ -13,32 +13,59 @@ import Onboarding from '@/app/onboarding';
 import { BlurView } from 'expo-blur';
 import { StaarAudioProvider } from '@/lib/staarwardd/audio-provider';
 import { WorldHub } from './world-hub';
+import { portalDestination } from "@/src/scene-events";
 import { AccessField } from './access-field';
 
 export function AccessBoundary({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const [showSignIn, setShowSignIn] = useState(false);
+  const pendingGuestPortal = useRef<string | null>(null);
   const accountId = user && !user.is_demo ? user.user_id : null;
   useEffect(() => {
     if (accountId) setShowSignIn(false);
   }, [accountId]);
 
   if (loading) return <View style={styles.page}><ActivityIndicator accessibilityLabel="Checking session" /></View>;
-  if (user && !user.is_demo) return <Fragment key={user.user_id}>{user.onboarding_complete ? children : <Onboarding />}</Fragment>;
+  if (user && !user.is_demo) return <Fragment key={user.user_id}>{user.onboarding_complete
+    ? <>{children}<ResumeGuestPortal pending={pendingGuestPortal} /></>
+    : <Onboarding />}</Fragment>;
 
-  // Guests share the locked Home. Account providers and private routes stay unmounted.
+  const closeSignIn = () => {
+    pendingGuestPortal.current = null;
+    setShowSignIn(false);
+  };
+  const openSignIn = (world?: string) => {
+    pendingGuestPortal.current = portalDestination(world);
+    setShowSignIn(true);
+  };
+  // Guests start in the locked Home and may open read-only local previews.
+  // Account providers and private routes stay unmounted until sign-in.
   return (
     <StaarAudioProvider>
-      <WorldHub onSignIn={() => setShowSignIn(true)} />
+      <WorldHub onSignIn={openSignIn} />
       <Modal visible={showSignIn} animationType="fade" presentationStyle="overFullScreen" transparent
-        onRequestClose={() => setShowSignIn(false)}>
-        <SignInScreen onBackToHub={() => setShowSignIn(false)} />
+        onRequestClose={closeSignIn}>
+        <SignInScreen onBackToHub={closeSignIn} backLabel={pendingGuestPortal.current ? 'Back to portal' : 'Back to Home'} />
       </Modal>
     </StaarAudioProvider>
   );
 }
 
-export function SignInScreen({ onBackToHub }: { onBackToHub?: () => void } = {}) {
+/** A guest can explicitly continue a preview after authentication and onboarding. */
+function ResumeGuestPortal({ pending }: { pending: { current: string | null } }) {
+  const router = useRouter();
+  const navigation = useRootNavigationState();
+  useEffect(() => {
+    if (!navigation?.key) return;
+    const world = portalDestination(pending.current);
+    if (!world) return;
+    pending.current = null;
+    router.push({ pathname: '/environment', params: { world } } as never);
+  }, [navigation?.key, pending, router]);
+  return null;
+}
+
+export function SignInScreen({ onBackToHub, backLabel = 'Back to Home' }: { onBackToHub?: () => void; backLabel?: string } = {}) {
   const insets = useSafeAreaInsets();
   const { signIn } = useAuth();
   const replay = useStartupReplay();
@@ -47,16 +74,28 @@ export function SignInScreen({ onBackToHub }: { onBackToHub?: () => void } = {})
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(true);
+  const [checks, setChecks] = useState(0);
+  const [providerCheckFailed, setProviderCheckFailed] = useState(false);
   useEffect(() => {
+    const controller = new AbortController();
     let active = true;
-    void Promise.resolve().then(() => fetch(backendUrl("/api/auth/providers")))
-      .then(r => r.ok ? r.json() : null).then(data => {
-        if (active) setEnabled(enabledLoginProviders(data, Platform.OS !== 'web'));
-        if (active && !data) setError('Account sign-in is unavailable. You can still explore the portals.');
-      }).catch(() => { if (active) setError('Account sign-in is not connected. You can still explore the portals.'); })
-      .finally(() => { if (active) setChecking(false); });
-    return () => { active = false; };
-  }, []);
+    setChecking(true); setProviderCheckFailed(false); setEnabled([]); setError('');
+    const failCheck = () => {
+      if (!active) return;
+      setEnabled([]); setProviderCheckFailed(true); setChecking(false);
+      setError('Could not check sign-in. Retry, or go back to explore the portals.');
+    };
+    const timeout = setTimeout(() => { controller.abort(); failCheck(); }, 15000);
+    void Promise.resolve().then(() => fetch(backendUrl("/api/auth/providers"), { signal: controller.signal }))
+      .then(async r => {
+        if (!r.ok) throw new Error('provider_status_unavailable');
+        const data = await r.json();
+        if (!data || !Array.isArray(data.providers)) throw new Error('provider_status_invalid');
+        if (active && !controller.signal.aborted) setEnabled(enabledLoginProviders(data, Platform.OS !== 'web'));
+      }).catch(failCheck)
+      .finally(() => { clearTimeout(timeout); if (active) setChecking(false); });
+    return () => { active = false; clearTimeout(timeout); controller.abort(); };
+  }, [checks]);
   const connect = async (name: string) => {
     if (busy) return;
     setBusy(name); setError('');
@@ -97,10 +136,12 @@ export function SignInScreen({ onBackToHub }: { onBackToHub?: () => void } = {})
           })}
         </View>
         {error ? <Text accessibilityRole="alert" style={styles.copy}>{error}</Text> : null}
+        {providerCheckFailed && !checking && <Pressable accessibilityRole="button" accessibilityLabel="Retry sign-in check"
+          style={styles.retry} onPress={() => setChecks(value => value + 1)}><Text style={styles.providerLabel}>Retry sign-in check</Text></Pressable>}
         <View style={styles.dividerRow}><View style={styles.divider} /><Text style={styles.dividerText}>DISCOVER FIRST</Text><View style={styles.divider} /></View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Back to Home" onPress={onBackToHub ?? (() => router.replace("/guest"))} style={({ pressed }) => [pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={backLabel} onPress={onBackToHub ?? (() => router.replace("/guest"))} style={({ pressed }) => [pressed && styles.pressed]}>
           <LinearGradient colors={["#F2F5F7", "#A3ADB8", "#E5E9EE"]} locations={[0, 0.53, 1]} style={styles.guestButton}>
-            <Ionicons name="planet-outline" size={19} color="#12161B" /><Text style={styles.guestLabel}>Back to Home</Text><Ionicons name="arrow-forward" size={18} color="#12161B" />
+            <Ionicons name="planet-outline" size={19} color="#12161B" /><Text style={styles.guestLabel}>{backLabel}</Text><Ionicons name="arrow-forward" size={18} color="#12161B" />
           </LinearGradient>
         </Pressable>
         <View style={styles.privateNote}><Ionicons name="lock-closed-outline" size={12} color="#858F9C" /><Text style={styles.privateText}>Sign in to enter a portal</Text></View>
@@ -132,6 +173,7 @@ const styles = StyleSheet.create({
   entryCopy: { fontSize: 13, lineHeight: 20, color: "#939EAC", marginTop: 5, marginBottom: 24 },
   providerStack: { gap: 10 },
   provider: { minHeight: 50, borderRadius: 12, borderWidth: 1, borderColor: "#363E49", backgroundColor: "#141920", flexDirection: "row", alignItems: "center", paddingHorizontal: 14, gap: 12 },
+  retry: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   providerIcon: { width: 20, alignItems: "center" },
   providerGlyph: { color: "#DDE2E9", fontSize: 19, fontWeight: "600" },
   providerLabel: { flex: 1, color: "#D8DEE6", fontSize: 13, fontWeight: "500" },

@@ -10,18 +10,19 @@ import { shouldDispatchSceneAction, type SceneDispatch } from '@/src/scene-actio
 import {normalizeIphoneQa, iphoneQaStatus} from '@/src/iphone-qa-controls';
 import {readWorldQaArchive,saveWorldQaCapture,exportWorldQaArchive,clearWorldQaArchive,worldQaProgress} from '@/src/iphone-qa-archive';
 
-export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFrame = null, embedded = false, onSceneReady, onGuardianModelReady, guardianPresentation = false, reduceGuardianMotion = false, onGuardianArrival, onGuardianUnavailable }: { world: string; variant?: 'realm' | 'singles'; onAction: (action: string) => void; guardianAudioFrame?: GuardianAudioFrame | null; embedded?: boolean; onSceneReady?: () => void; onGuardianModelReady?: (modelSha256: string) => void; guardianPresentation?: boolean; reduceGuardianMotion?: boolean; onGuardianArrival?: () => void; onGuardianUnavailable?: () => void }) {
+export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFrame = null, embedded = false, onSceneReady, onGuardianModelReady, readOnly = false, guardianPresentation = false, reduceGuardianMotion = false, onGuardianArrival, onGuardianUnavailable }: { world: string; variant?: 'realm' | 'singles'; onAction: (action: string) => void; guardianAudioFrame?: GuardianAudioFrame | null; embedded?: boolean; readOnly?: boolean; onSceneReady?: () => void; onGuardianModelReady?: (modelSha256: string) => void; guardianPresentation?: boolean; reduceGuardianMotion?: boolean; onGuardianArrival?: () => void; onGuardianUnavailable?: () => void }) {
   const audio=useStaarAudio();
   const webviewRef=useRef<WebView>(null);
   const pushGuardianFrame=()=>{
+    if(readOnly)return;
     const allowed=audio.master&&audio.voice&&!audio.speechQuiet&&audio.voicePlaybackActive;
     const packet=guardianWireFrame(allowed?(guardianAudioFrame??audio.guardianAudioFrame):null,session);
     const js="window.dispatchEvent(new MessageEvent('message',{data:"+JSON.stringify(packet)+"}));true;";
     webviewRef.current?.injectJavaScript(js);
   };
   // Explicitly opt-in at build time; disabled in normal production builds.
-  const qaEnabled = !guardianPresentation && Platform.OS==='ios' && world==='hub' && process.env.EXPO_PUBLIC_GUARDIAN_DEVICE_QA === '1';
-  const worldQaEnabled = Platform.OS==='ios' && world!=='hub' && process.env.EXPO_PUBLIC_WORLD_COLLISION_QA === '1';
+  const qaEnabled = !guardianPresentation && Platform.OS==='ios' && world==='hub' && process.env.EXPO_PUBLIC_GUARDIAN_DEVICE_QA === '1' && !readOnly;
+  const worldQaEnabled = Platform.OS==='ios' && world!=='hub' && process.env.EXPO_PUBLIC_WORLD_COLLISION_QA === '1' && !readOnly;
   const worldQaLatest = useRef<string | null>(null);
   const [worldQaSummary,setWorldQaSummary] = useState('No capture yet');
   const [motionQaSummary,setMotionQaSummary] = useState('No Guardian motion test requested');
@@ -81,7 +82,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
       message:qaLatest.current}).catch(()=>{});
   };
   const [retryCount, setRetryCount] = useState(0);
-  const session = useMemo(() => `${Date.now()}_${Math.random().toString(36).slice(2)}`, [world, variant, retryCount, guardianPresentation, reduceGuardianMotion]);
+  const session = useMemo(() => `${Date.now()}_${Math.random().toString(36).slice(2)}`, [world, variant, retryCount, guardianPresentation, reduceGuardianMotion, readOnly]);
   useEffect(()=>{
     qaLatest.current=null;worldQaLatest.current=null;
     setQaReady(false);setWorldQaReady(false);
@@ -107,11 +108,12 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
   ]);
 
   useEffect(()=>{
+    if (readOnly) return;
     audio.setGuardianRigHash(null);
     return ()=>audio.setGuardianRigHash(null);
-  },[world,variant,session,audio.setGuardianRigHash]);
+  },[world,variant,session,audio.setGuardianRigHash,readOnly]);
 
-  const html = useMemo(() => worldSceneHtml(world, variant, session, qaEnabled, worldQaEnabled, guardianPresentation, reduceGuardianMotion), [world, variant, session, qaEnabled, worldQaEnabled, guardianPresentation, reduceGuardianMotion]);
+  const html = useMemo(() => worldSceneHtml(world, variant, session, qaEnabled, worldQaEnabled, guardianPresentation, reduceGuardianMotion, readOnly), [world, variant, session, qaEnabled, worldQaEnabled, guardianPresentation, reduceGuardianMotion, readOnly]);
   const [loadFailed, setLoadFailed] = useState(false);
   const sceneReady = useRef(false);
   const lastDispatch = useRef<SceneDispatch | null>(null);
@@ -125,10 +127,10 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
     if (guardianPresentation && loadFailed) onGuardianUnavailable?.();
   }, [guardianPresentation, loadFailed, onGuardianUnavailable]);
   if (guardianPresentation && loadFailed) return null;
-  const fallback = sceneFallbackActions(world);
+  const fallback = readOnly ? [] : sceneFallbackActions(world);
   if (loadFailed) return <ScrollView contentContainerStyle={{ padding: 22, gap: 12, backgroundColor: '#030713', minHeight: embedded ? 0 : 420 }}>
     <Text accessibilityRole="alert" style={{ color: '#F2DFB4', fontSize: 18, fontWeight: '700' }}>3D preview unavailable</Text>
-    <Text style={{ color: '#D6DFEC', lineHeight: 22 }}>The local scene could not load. Use these safe navigation controls instead. No devices or external services have been activated.</Text>
+    <Text style={{ color: '#D6DFEC', lineHeight: 22 }}>{readOnly ? 'The local guest scene could not load. Your portal artwork is still available above.' : 'The local scene could not load. Use these safe navigation controls instead. No devices or external services have been activated.'}</Text>
     <Pressable accessibilityRole="button" accessibilityLabel="Retry local 3D scene" onPress={() => { setRetryCount(count => count + 1); setLoadFailed(false); }}
       style={{ minHeight: 48, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#D5C08B', justifyContent: 'center' }}><Text style={{ color: '#F2DFB4', fontSize: 15 }}>Retry 3D preview</Text></Pressable>
     {fallback.map(([label, action]) => <Pressable key={action} accessibilityRole="button"
@@ -197,7 +199,7 @@ export function WorldScene({ world, variant = 'realm', onAction, guardianAudioFr
       onError={() => setLoadFailed(true)}
       onRenderProcessGone={() => setLoadFailed(true)}
       onContentProcessDidTerminate={() => setLoadFailed(true)}
-      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (!message || typeof message !== 'object' || !('session' in message) || message.session !== session) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'ready' && message.world === world) { sceneReady.current = true; onSceneReady?.(); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && 'modelSha256' in message && message.source === 'staar-scene-v1' && message.type === 'guardian-face-ready' && world === 'hub' && message.world === world && typeof message.modelSha256 === 'string') { audio.setGuardianRigHash(message.modelSha256); onGuardianModelReady?.(message.modelSha256); return; } if (guardianPresentation && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.world === 'hub') {
+      onMessage={event => { try { const message: unknown = JSON.parse(event.nativeEvent.data); if (!message || typeof message !== 'object' || !('session' in message) || message.session !== session) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'unavailable' && message.world === world) { setLoadFailed(true); return; } if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.type === 'ready' && message.world === world) { sceneReady.current = true; onSceneReady?.(); return; } if (readOnly) return; if (message && typeof message === 'object' && 'source' in message && 'type' in message && 'world' in message && 'modelSha256' in message && message.source === 'staar-scene-v1' && message.type === 'guardian-face-ready' && world === 'hub' && message.world === world && typeof message.modelSha256 === 'string') { audio.setGuardianRigHash(message.modelSha256); onGuardianModelReady?.(message.modelSha256); return; } if (guardianPresentation && 'source' in message && 'type' in message && 'world' in message && message.source === 'staar-scene-v1' && message.world === 'hub') {
           if (message.type === 'guardian-arrived') onGuardianArrival?.();
           if (message.type === 'guardian-unavailable') onGuardianUnavailable?.();
         }

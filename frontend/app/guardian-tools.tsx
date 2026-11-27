@@ -35,7 +35,8 @@ function GuardianToolsAccount() {
   const load=useCallback(async()=>{
     const [memory,inbox,state]=await Promise.all([checked(`/api/guardian/life-map/records?portal=${encodeURIComponent(portal)}`),checked('/api/guardian/life-map/notifications'),checked('/api/guardian/life-map/overview')]);
     setNotes(memory.records);setEvents(inbox.events);setOverview(state);
-  },[checked,portal]);
+    audio.setAccountSpeechQuiet(state.speechQuiet === true);
+  },[checked,portal,audio.setAccountSpeechQuiet]);
   useEffect(()=>{let active=true;setBusy(true);load().catch(e=>{if(active)setNotice(e.message);}).finally(()=>{if(active)setBusy(false);});return()=>{active=false;};},[load]);
   async function perform(task:()=>Promise<unknown>) {setBusy(true);setNotice('');try{await task();await load();}catch(e){setNotice(e instanceof Error?e.message:'The request failed.');}finally{setBusy(false);}}
   const save=()=>perform(async()=>{
@@ -54,7 +55,7 @@ function GuardianToolsAccount() {
     <View style={s.card}><Text style={s.heading}>Presence & privacy</Text>
       <View style={s.row}><Text style={s.label}>Greet me on arrival</Text><Switch accessibilityLabel="Arrival greetings" disabled={busy} value={!!consent.greetings} onValueChange={value=>perform(async()=>{await checked(CORE+'/proactive-consent',{method:'POST',body:JSON.stringify({greetings:value,check_ins:!!consent.checkIns})});if(value)audio.update({master:true,voice:true});})}/></View>
       <View style={s.row}><Text style={s.label}>Discretionary check-ins</Text><Switch accessibilityLabel="Discretionary check-ins" disabled={busy} value={!!consent.checkIns} onValueChange={value=>perform(async()=>{if(!value)await bindCheckinAccount('');await checked(CORE+'/proactive-consent',{method:'POST',body:JSON.stringify({greetings:!!consent.greetings,check_ins:value})});})}/></View>
-      <View style={s.row}><Text style={s.label}>Quiet speech</Text><Switch accessibilityLabel="Quiet Guardian speech" disabled={busy} value={!!overview?.speechQuiet || audio.speechQuiet} onValueChange={value=>{audio.setSpeechQuiet(value);void perform(()=>checked(CORE+'/speech',{method:'POST',body:JSON.stringify({quiet:value})}));}}/></View>
+      <View style={s.row}><Text style={s.label}>Quiet speech</Text><Switch accessibilityLabel="Quiet Guardian speech" disabled={busy} value={!!overview?.speechQuiet || audio.speechQuiet} onValueChange={value=>{if(value)audio.setSpeechQuiet(true);void perform(async()=>{await checked(CORE+'/speech',{method:'POST',body:JSON.stringify({quiet:value})});audio.setAccountSpeechQuiet(value);if(!value)audio.setSpeechQuiet(false);});}}/></View>
       <View style={s.row}><Text style={s.label}>Private mode</Text><Switch accessibilityLabel="Guardian private mode" disabled={busy} value={!!overview?.privateMode} onValueChange={value=>{if(value){audio.setSpeechQuiet(true);audio.stopAll();}void perform(async()=>{if(value)await bindCheckinAccount('');await checked('/api/guardian/core/private-mode',{method:'POST',body:JSON.stringify({enabled:value})});});}}/></View>
       <Text style={s.copy}>Discretionary greetings and check-ins respect your saved consent, quiet speech and Toronto morning focus. Private mode blocks proactive delivery. Browser sound permissions can still require one tap.</Text>
       <Text style={s.copy}>{overview?.voiceConfigured ? 'Server voice is configured; playback is verified per attempt.' : 'Server voice is not configured. Installed device speech is available as a labelled fallback.'}</Text>

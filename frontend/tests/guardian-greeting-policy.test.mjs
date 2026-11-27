@@ -21,7 +21,7 @@ test('both first-launch and foreground-return automatic greeting paths enforce h
   assert.match(hub, /setAppActive\(state === 'active'\)/);
   assert.match(hub, /if \(!focused\.current \|\| AppState\.currentState !== 'active'\) return/);
   assert.match(hub, /const greet = useCallback/);
-  assert.match(hub, /onPress=\{\(\) => \{ void greet\(\); \}\}/);
+  assert.match(hub, /onPress=\{\(\) => \{ void greet\(true\); \}\}/);
   assert.match(hub, /serverPrivate \|\| serverSpeechQuiet/);
 });
 

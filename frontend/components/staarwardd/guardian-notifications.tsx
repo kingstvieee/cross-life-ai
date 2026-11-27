@@ -31,8 +31,9 @@ function AccountNotifications() {
         const stateResponse=await api('/api/guardian/life-map/overview');
         if(!stateResponse.ok || !active.current) return;
         const state=await stateResponse.json();
+        if(!active.current) return;
+        latest.current.setAccountSpeechQuiet(state.speechQuiet === true);
         if(state.privateMode || user?.cross_life_paused) { latest.current.stopAll();setLine('');return; }
-        if(state.speechQuiet && !latest.current.speechQuiet) latest.current.setSpeechQuiet(true);
         if(state.consent?.greetings) {
           const queued=await api('/api/guardian/life-map/notifications',{method:'POST',body:JSON.stringify({kind:'greetings',event_id:eventId.current})});
           if(!queued.ok || !active.current) return;

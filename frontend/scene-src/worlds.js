@@ -49,9 +49,11 @@ if (guardianPresentation) {
 // VoiceOver but is visually hidden while WebGL is healthy.
 const immersiveHub = world === 'hub' && !guardianPresentation;
 const reduced =window.STAAR_REDUCE_GUARDIAN_MOTION === true || matchMedia('(prefers-reduced-motion: reduce)').matches;
+const readOnly = window.STAAR_SCENE_READ_ONLY === true;
 const canvas = document.querySelector('canvas');
 const session = window.STAAR_SCENE_SESSION || '';
 const report = (type, data = {}) => {
+  if (readOnly && type !== 'ready' && type !== 'unavailable') return;
   const event = { source: 'staar-scene-v1', world, session, type, ...data };
   if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(event));
   else parent.postMessage(event, '*');
@@ -64,7 +66,7 @@ const addNavigationFallback = () => {
   if (!actions) return;
   actions.replaceChildren();
   document.querySelector('footer').style.display='';
-  for (const [label, action] of fallbackActions(world)) {
+  for (const [label, action] of readOnly ? [] : fallbackActions(world)) {
     const button = document.createElement('button');
     button.textContent = label;
     button.addEventListener('click', () => report('select', { action }));
@@ -74,7 +76,7 @@ const addNavigationFallback = () => {
 let renderer;
 try { renderer = new T.WebGLRenderer({ canvas, alpha: guardianPresentation, antialias: true, powerPreference: 'low-power' }); }
 catch {
-  document.querySelector('#status').textContent = '3D rendering is unavailable on this device. Navigation remains available below.';
+  document.querySelector('#status').textContent = readOnly ? 'The guest 3D preview is unavailable on this device.' : '3D rendering is unavailable on this device. Navigation remains available below.';
   document.querySelector('#reset').hidden = true;
   addNavigationFallback();
   report('unavailable');
@@ -357,7 +359,8 @@ if (renderer) {
   function panel(label,action,x,y,z,accent=blue,width=3) {
     const g=new T.Group();g.position.set(x,y,z);scene.add(g);
     box(0,0,0,width,.8,.16,black,g);box(0,-.42,.02,width,.035,.2,accent,g);text(label,0,.02,.1,width*.92,g);
-    g.userData={label,action};clickable.push(g);return g;
+    if (!readOnly) { g.userData={label,action};clickable.push(g); }
+    return g;
   }
   function floor(r=13,mat=black) {cylinder(0,-.25,0,r,.45,mat);for(let n=3;n<r;n+=3)ring(0,.01,0,n,.014,gold,true);ring(0,.02,0,r-.1,.045,chrome,true);}
   function plinth(x=0,z=0,r=2.7,accent=blue) {cylinder(x,.2,z,r,.4);cylinder(x,.45,z,r*.93,.15,black);ring(x,.55,z,r*.9,.035,accent,true);ring(x,.12,z,r,.035,gold,true);}
@@ -480,7 +483,13 @@ if (renderer) {
         const upAxis=model.parser?.json?.extras?.STAAR_Guardian_Coordinates?.upAxis;
         if(upAxis==='Z')guardian.rotation.x=-Math.PI/2;
         else if(upAxis && upAxis!=='Y'){disposeModel(guardian);unavailable();return;}
-        const bounds=new T.Box3().setFromObject(guardian);
+        const bounds=new T.Box3();
+        if(wingedQa){
+          // The donor's hidden body and the hidden original helmet must not
+          // affect the live character's contact point or camera framing.
+          guardian.updateMatrixWorld(true);
+          guardian.traverseVisible(node=>{if(node.isMesh)bounds.expandByObject(node,true);});
+        }else bounds.setFromObject(guardian);
         const dimensions=bounds.getSize(new T.Vector3());
         if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000){disposeModel(guardian);unavailable();return;}
         const scale=Math.min((internal && immersiveHub ? 3.15 : 3.65)/dimensions.y,4.5/Math.max(dimensions.x,dimensions.z,.1));
@@ -489,7 +498,20 @@ if (renderer) {
         const centre=bounds.getCenter(new T.Vector3());
         guardian.position.set(-centre.x*scale,.6-bounds.min.y*scale,1.5-centre.z*scale);
         // Immersive hub: stand on the centre of the portal ring, feet on the stage top.
-        if (immersiveHub) guardian.position.set(-centre.x*scale,HUB_STAGE_TOP-bounds.min.y*scale,-centre.z*scale);
+        if (immersiveHub) {
+          let anchor=centre;
+          if(wingedQa){
+            const feet=['L','R'].map(side=>guardian.getObjectByName('B230_QA_Joint_Foot_'+side));
+            // Positions are still in unscaled rig space: getWorldPosition after
+            // the common scale/offset has been applied would count it twice.
+            if(feet.every(foot=>foot?.isBone)){
+              guardian.position.set(0,0,0);guardian.scale.setScalar(1);
+              anchor=feet[0].getWorldPosition(new T.Vector3()).lerp(feet[1].getWorldPosition(new T.Vector3()),.5);
+              guardian.scale.setScalar(scale);
+            }
+          }
+          guardian.position.set(-anchor.x*scale,HUB_STAGE_TOP-bounds.min.y*scale,-anchor.z*scale);
+        }
         if (guardianPresentation) {
           const flight = new T.Group();
           scene.add(flight);
@@ -780,12 +802,13 @@ if (renderer) {
     x.lineWidth = 2; x.beginPath(); x.arc(256, 256, 214, 0, Math.PI * 2); x.stroke();
     const goldInk = x.createLinearGradient(0, 170, 0, 350);
     goldInk.addColorStop(0, '#fff1c8'); goldInk.addColorStop(.5, '#e2b665'); goldInk.addColorStop(1, '#9c7232');
-    x.fillStyle = goldInk; x.shadowColor = 'rgba(255,214,140,.8)'; x.shadowBlur = 24;
-    x.beginPath(); x.moveTo(146, 318); x.lineTo(132, 214); x.lineTo(196, 262); x.lineTo(256, 176);
-    x.lineTo(316, 262); x.lineTo(380, 214); x.lineTo(366, 318); x.closePath(); x.fill();
-    x.fillRect(146, 328, 220, 22);
-    x.shadowBlur = 0; x.fillStyle = '#ffffff';
-    for (const [cx, cy, r] of [[132, 205, 10], [256, 165, 12], [380, 205, 10]]) { x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill(); }
+    x.strokeStyle = goldInk; x.lineWidth = 8; x.lineJoin = 'round'; x.shadowColor = 'rgba(255,214,140,.85)'; x.shadowBlur = 22;
+    x.beginPath(); x.moveTo(138, 315); x.lineTo(99, 218); x.lineTo(165, 248);
+    x.lineTo(186, 202); x.lineTo(222, 237); x.lineTo(256, 170);
+    x.lineTo(290, 237); x.lineTo(326, 202); x.lineTo(347, 248);
+    x.lineTo(413, 218); x.lineTo(374, 315); x.closePath(); x.stroke();
+    x.beginPath(); x.moveTo(138, 315); x.lineTo(256, 277); x.lineTo(374, 315);
+    x.moveTo(144, 332); x.lineTo(368, 332); x.stroke();
     return hubTexture(c);
   }
   let hubGlowMap = null;
@@ -992,9 +1015,14 @@ if (renderer) {
         vec3 col=mix(vec3(.034,.038,.052),vec3(.012,.013,.019),smoothstep(0.,13.,r));
         col+=(vnoise(p*1.6)-.5)*.014+(vnoise(p*7.)-.5)*.006;
         col+=vec3(.38,.62,.9)*exp(-r*r*.16)*.2;
-        vec3 gold=vec3(.86,.67,.37);
-        col+=gold*(ringLine(r-2.75,.02)+ringLine(r-4.35,.014)+ringLine(r-6.05,.014))*.5;
+        vec3 gold=vec3(.86,.67,.37), chrome=vec3(.56,.65,.78);
+        float a=atan(p.y,p.x);
+        float glint=pow(max(0.,cos(a*4.+uTime*.31)),12.);
+        col+=chrome*(ringLine(r-2.61,.03)+ringLine(r-3.94,.016)+ringLine(r-6.02,.016))*(.48+.86*glint);
+        col+=gold*(ringLine(r-2.75,.026)+ringLine(r-4.35,.014)+ringLine(r-6.15,.012))*(.64+.32*glint);
         col+=gold*ringLine(r-(uRing+1.85),.03)*.55;
+        // Specular-looking reflected light, not a static image laid on the floor.
+        col+=chrome*exp(-abs(p.x)*2.4)*exp(-abs(p.y)*.26)*(.08+.035*sin(p.y*25.));
         for(int i=0;i<10;i++){vec2 pp=uPortal[i].xy;float w=uPortal[i].z;
           float dp=length(p-pp);col+=uPortalCol[i]*exp(-dp*dp*.3)*(.06+.5*w);}
         col*=1.-smoothstep(13.2,13.6,r)*.5;
@@ -1046,24 +1074,33 @@ if (renderer) {
   }
 
   function hubStageBuild() {
-    // Dark metallic geometric pedestal: three faceted octagonal gunmetal tiers, a
-    // glowing gold base and top rim, a crown inlay, light beam and rising motes.
-    // `mount` turns to face the camera and carries the Guardian.
+    // Match the locked landing reference: round mirror-chrome bands, a
+    // low black stage, champagne trim, and the luminous crown on its floor.
+    // The mount keeps the character at HUB_STAGE_TOP without affecting input.
     const stage = new T.Group(); scene.add(stage);
     const mount = new T.Group(); stage.add(mount);
-    const gunmetal = new T.MeshPhysicalMaterial({color: '#202631', metalness: .92, roughness: .24, envMapIntensity: 1.25,
-      clearcoat: 1, clearcoatRoughness: .08, emissive: '#070b14', flatShading: true});
-    const seamGold = new T.MeshBasicMaterial({color: '#f4d18e', toneMapped: false});
-    const octagon = new T.Group(); octagon.rotation.y = Math.PI / 8; stage.add(octagon); // a flat facet faces the viewer
-    for (const [top, bottom, height, y] of [[1.95, 2.14, .22, .11], [1.66, 1.82, .2, .32], [1.36, 1.48, .18, .51]]) {
-      const tier = new T.Mesh(new T.CylinderGeometry(top, bottom, height, 8), gunmetal); tier.position.y = y; octagon.add(tier);
-      const edge = new T.Mesh(new T.TorusGeometry(top, .012, 6, 8), hubGold);
-      edge.rotation.x = Math.PI / 2; edge.position.y = y + height / 2 + .002; octagon.add(edge);
-    }
-    const topRim = new T.Mesh(new T.TorusGeometry(1.36, .014, 6, 8), seamGold); // glowing rim of the top tier
-    topRim.rotation.x = Math.PI / 2; topRim.position.y = HUB_STAGE_TOP; octagon.add(topRim);
-    const baseGlow = new T.Mesh(new T.TorusGeometry(2.14, .03, 6, 8), seamGold);
-    baseGlow.rotation.x = Math.PI / 2; baseGlow.position.y = .005; octagon.add(baseGlow);
+    const enamel = new T.MeshPhysicalMaterial({color:'#0d111a',metalness:.86,roughness:.19,
+      envMapIntensity:1.3,clearcoat:1,clearcoatRoughness:.06});
+    const seamGold = new T.MeshBasicMaterial({color:'#ffe1a5',toneMapped:false});
+    const seamWhite = new T.MeshBasicMaterial({color:'#e4efff',toneMapped:false});
+    const cylinderBand=(radius,height,y,material)=>{
+      const ring=new T.Mesh(new T.CylinderGeometry(radius,radius,height,104),material);
+      ring.position.y=y;stage.add(ring);
+    };
+    const ringStrip=(radius,y,thickness,material)=>{
+      const ring=new T.Mesh(new T.TorusGeometry(radius,thickness,8,112),material);
+      ring.rotation.x=Math.PI/2;ring.position.y=y;stage.add(ring);
+    };
+    cylinderBand(2.22,.10,.05,hubChrome);
+    cylinderBand(2.12,.44,.32,enamel);
+    cylinderBand(2.15,.08,.23,hubChrome);
+    cylinderBand(2.16,.08,.51,hubChrome);
+    cylinderBand(2.15,.05,HUB_STAGE_TOP-.025,enamel);
+    ringStrip(2.24,.065,.022,seamWhite);
+    ringStrip(2.16,HUB_STAGE_TOP,.019,hubGoldTrim);
+    ringStrip(2.05,HUB_STAGE_TOP+.008,.013,seamGold);
+    ringStrip(1.77,HUB_STAGE_TOP+.007,.011,hubChrome);
+    ringStrip(1.47,HUB_STAGE_TOP+.008,.014,seamWhite);
     const crown = new T.Mesh(new T.CircleGeometry(1.22, 72), new T.MeshBasicMaterial({map: hubCrownTexture(), toneMapped: false}));
     crown.rotation.x = -Math.PI / 2; crown.position.y = HUB_STAGE_TOP + .003; mount.add(crown);
     const beamMat = hubShader(`uniform vec3 uColor;uniform float uPower;varying vec2 vUv;varying vec3 vN;varying vec3 vV;
@@ -1438,8 +1475,7 @@ if (renderer) {
       if (target === 'stage') { st.pulse = 1; draw(); return; }
       if (target === null) return;
       ui.interacted();
-      const aligned = Math.abs(hubWrap(st.yaw - yawFor(target, st.yaw))) < HUB_STEP * .22;
-      if (target === st.focus && aligned) enter(target); else focus(target);
+      enter(target);
     }
 
     // Touch: one finger turns the ring (with inertia and snap), two fingers pinch the
@@ -1730,7 +1766,7 @@ if (renderer) {
   ({hub,home,work,creativity:()=>dreams(),wellbeing:health,relationships:()=>singles?singlesLounge():love(),events:village,style:closet,staarverse,staarsonic:studio,diggitstaar})[world]();
   const previewWorldObjects=scene.children.filter(object=>!previewBaseline.has(object));
   function importApprovedWorld() {
-    if(world==='hub')return;
+    if(world==='hub'||readOnly)return;
     const variant=world==='relationships' ? (singles?'singles':'realm') :
       ({home:'residence',work:'command',creativity:'dream',wellbeing:'health',events:'village',style:'closet',staarverse:'universe',staarsonic:'studio',diggitstaar:'workstation'})[world];
     const qaWorld=worldQaEnabled&&window.STAAR_PRIVATE_WORLDS_QA?.[world+'-'+variant];

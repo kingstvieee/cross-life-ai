@@ -12,6 +12,32 @@ export function validatedOrigin(value) {
      FORBIDDEN_ORIGINS.has(url.origin)||!url.hostname) throw new Error('production_origin_not_isolated');
   return url.origin;
 }
+const BROKER_ORIGIN='https://staarwaardd-hub.ca.auth0.com';
+const BROKER_REDIRECTS=new Set([302,303,307]);
+async function verifyBrokerStart(base,provider,probe,request){
+  const flow=await probe('/api/auth/start/'+encodeURIComponent(provider));
+  if(flow.status!==302)throw new Error('production_oauth_start_failed:'+provider);
+  let authorize;
+  try{authorize=new URL(flow.headers.get('location'));}catch{}
+  if(!authorize||authorize.origin!==BROKER_ORIGIN||authorize.pathname!=='/authorize'||
+     authorize.username||authorize.password||authorize.hash||
+     authorize.searchParams.getAll('redirect_uri').length!==1||
+     authorize.searchParams.get('redirect_uri')!==base+'/api/auth/callback'||
+     authorize.searchParams.get('response_type')!=='code'||
+     !authorize.searchParams.get('state')||authorize.searchParams.get('code_challenge_method')!=='S256')
+    throw new Error('production_oauth_callback_contract_failed:'+provider);
+  // Unauthenticated first hop only. Do not drive a sign-in, follow links, read
+  // accounts, or print the live authorization URL/state in CI.
+  const broker=await request(authorize.href,{redirect:'manual',signal:AbortSignal.timeout(35_000)});
+  let next;
+  try{const location=broker.headers.get('location');if(location)next=new URL(location,BROKER_ORIGIN);}catch{}
+  const hostedLogin=next?.origin===BROKER_ORIGIN&&/^\/u\/login(?:\/|$)/.test(next.pathname);
+  const googleLogin=provider==='google'&&next?.origin==='https://accounts.google.com'&&
+    (/^\/(?:o\/oauth2\/|signin\/oauth\/)/.test(next.pathname)||
+      next.pathname==='/v3/signin/accountchooser');
+  if(!BROKER_REDIRECTS.has(broker.status)||(!hostedLogin&&!googleLogin)||next.username||next.password)
+    throw new Error('production_oauth_broker_rejected_start:'+provider);
+}
 export async function verifyLiveProductionBackend(origin,{request=globalThis.fetch}={}) {
   const base=validatedOrigin(origin);
   if(typeof request!=='function') throw new Error('fetch_unavailable');
@@ -37,6 +63,11 @@ export async function verifyLiveProductionBackend(origin,{request=globalThis.fet
   const p=await providers.json();
   if(providers.status!==200||!p.nativeEnabled||!p.providers?.some(x=>x.id==='google'&&x.enabled))
     throw new Error('production_google_auth_not_configured');
+  const checkedProviders=[];
+  for(const provider of ['google','email']){
+    if(!p.providers.some(item=>item.id===provider&&item.enabled))continue;
+    await verifyBrokerStart(base,provider,probe,request);checkedProviders.push(provider);
+  }
   const anonymous=await probe('/api/auth/me');
   if(anonymous.status!==401)throw new Error('production_anonymous_auth_boundary_failed');
   const spoofedOrigin=await probe('/api/auth/providers',{method:'OPTIONS',headers:{
@@ -45,7 +76,7 @@ export async function verifyLiveProductionBackend(origin,{request=globalThis.fet
   if(spoofedOrigin.status!==400||spoofedOrigin.headers?.get?.('access-control-allow-origin'))
     throw new Error('production_cors_origin_not_rejected');
   return {
-    base,readiness:'pass',database:'connected',googleProviderConfigured:true,
+    base,readiness:'pass',database:'connected',googleProviderConfigured:true,brokerStartAccepted:checkedProviders,
     anonymousBoundary:'401',crossOriginBoundary:'400',
     realOwnerGoogleReadbackCertified:false,archiveAndDeviceCertified:false,
   };

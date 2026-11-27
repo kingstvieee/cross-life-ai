@@ -159,12 +159,12 @@ workflows:
           set -eu
           cd frontend
           node scripts/verify-live-production-backend.mjs
-      - name: Install dependencies and verify ten-portal home
+      - name: Install dependencies and verify Hub recovery
         script: |
           cd frontend
           corepack enable
           yarn install --frozen-lockfile
-          node --test tests/ten-portal-home-contract.test.mjs
+          node --test tests/ten-portal-home-contract.test.mjs tests/hub-121-portal-entry.test.mjs tests/guardian-voice-recovery.test.mjs tests/production-backend-live-signing-gate.test.mjs
       - name: Native iOS prebuild
         script: |
           cd frontend

@@ -51,9 +51,9 @@ test('locked Home is the guest entry on every platform and private routes stay g
   read('../app/landing.tsx'), read('../components/staarwardd/world-hub.tsx')
  ]);
  assert.ok(source.indexOf('if (user && !user.is_demo)') < source.indexOf('<WorldHub onSignIn='));
- assert.match(source, /<WorldHub onSignIn=\{\(\) => setShowSignIn\(true\)\} \/>/);
+ assert.match(source, /<WorldHub onSignIn=\{openSignIn\} \/>/);
  assert.match(source, /<Modal visible=\{showSignIn\}/);
- assert.match(source, /<SignInScreen onBackToHub=\{\(\) => setShowSignIn\(false\)\}/);
+ assert.match(source, /<SignInScreen onBackToHub=\{closeSignIn\}/);
  assert.doesNotMatch(source, /GuestPreview|EXPO_PUBLIC_STAAR_HUB_INTERNAL_ENTRY/);
  assert.match(guest, /export \{ default \} from "\.\/landing"/);
  assert.match(landing, /<Redirect href="\/" \/>/);

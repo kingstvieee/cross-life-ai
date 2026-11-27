@@ -38,7 +38,9 @@ test('explicit stop and mute cannot keep audio-active visual state', () => {
   const stop = provider.slice(provider.indexOf('const stopSpeech ='), provider.indexOf('const stopAll ='));
   const quiet = provider.slice(provider.indexOf('const setSpeechQuiet ='), provider.indexOf('// Each world'));
   assert.match(stop, /setVoicePlaybackActive\(false\)/);
-  assert.match(quiet, /setVoicePlaybackActive\(false\)/);
+  assert.match(quiet, /applyEffectiveQuiet\(guardianQuietOnDevice\(quiet, accountQuietRef.current\)\)/);
+  const effectiveQuiet = provider.slice(provider.indexOf('function applyEffectiveQuiet('), provider.indexOf('const setAccountSpeechQuiet ='));
+  assert.match(effectiveQuiet, /setVoicePlaybackActive\(false\)/);
 });
 
 test('paused or buffering server audio suspends speaking animation until playback resumes', () => {
