@@ -1,5 +1,36 @@
 export type HomeCredentials = { origin: string; token: string };
-export type HomeEntity = { entity_id: string; state: string; name: string; unit?: string };
+export type LightColour = { brightness?: number; rgb?: [number, number, number] };
+type LightReadback = LightColour & { canDim: boolean; canSetColour: boolean };
+export type HomeEntity = { entity_id: string; state: string; name: string; unit?: string; light?: LightReadback };
+const rgbModes = ['hs', 'xy', 'rgb', 'rgbw', 'rgbww'];
+function isRgb(value: unknown): value is [number, number, number] {
+  return Array.isArray(value) && value.length === 3 &&
+    [value[0], value[1], value[2]].every(v => Number.isInteger(v) && v >= 0 && v <= 255);
+}
+function lightReadback(attributes: unknown): LightReadback | undefined {
+  if (!attributes || typeof attributes !== 'object') return undefined;
+  const { brightness, rgb_color, supported_color_modes } = attributes as Record<string, unknown>;
+  const pct = typeof brightness === 'number' && Number.isInteger(brightness) && brightness >= 0 && brightness <= 255
+    ? Math.round(brightness * 100 / 255) : undefined;
+  const modes = Array.isArray(supported_color_modes) ? supported_color_modes : [];
+  return {
+    canDim: pct !== undefined || modes.some(mode => rgbModes.includes(mode) || ['brightness', 'color_temp', 'white'].includes(mode)),
+    canSetColour: isRgb(rgb_color) || modes.some(mode => rgbModes.includes(mode)),
+    ...(pct === undefined ? {} : { brightness: pct }),
+    ...(isRgb(rgb_color) ? { rgb: rgb_color } : {}),
+  };
+}
+
+export function lightCommandConfirmed(list: HomeEntity[], target: string, expected: boolean | LightColour): boolean {
+  const item = list.find(entity => entity.entity_id === target);
+  if (!item) return false;
+  if (typeof expected === 'boolean') return item.state === (expected ? 'on' : 'off');
+  if (expected.brightness === undefined && expected.rgb === undefined) return false;
+  if (expected.brightness === 0 && expected.rgb === undefined) return item.state === 'off';
+  return item.state === 'on' &&
+    (expected.brightness === undefined || item.light?.brightness === expected.brightness) &&
+    (expected.rgb === undefined || expected.rgb.every((v, i) => v === item.light?.rgb?.[i]));
+}
 export function homeOrigin(value: string): string {
   const url = new URL(value.trim());
   if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || !['', '/'].includes(url.pathname)) {
@@ -19,7 +50,8 @@ export async function readHome(credentials: HomeCredentials, signal?: AbortSigna
     && /^(light|switch|sensor|binary_sensor|climate|cover|lock|media_player)\.[a-z0-9_]+$/.test(item.entity_id))
     .map((item: any) => ({ entity_id: item.entity_id, state: item.state,
       name: typeof item.attributes?.friendly_name === 'string' ? item.attributes.friendly_name : item.entity_id,
-      unit: typeof item.attributes?.unit_of_measurement === 'string' ? item.attributes.unit_of_measurement : undefined }));
+      unit: typeof item.attributes?.unit_of_measurement === 'string' ? item.attributes.unit_of_measurement : undefined,
+      ...(item.entity_id.startsWith('light.') ? { light: lightReadback(item.attributes) } : {}) }));
 }
 // Only explicit light actions are supported. Locks, security, switches and
 // climate remain read-only; they cannot be controlled through arbitrary text.
@@ -37,7 +69,6 @@ export async function setHomeLight(credentials: HomeCredentials, entity: string,
 
 // Guardian colour control is deliberately restricted to light entities.
 // The integration never issues commands to locks or security systems.
-export type LightColour = { brightness?: number; rgb?: [number, number, number] };
 export function validateLightColour(input: LightColour): Record<string, unknown> {
   const body: Record<string, unknown> = {};
   if (input.brightness !== undefined) {
@@ -45,9 +76,10 @@ export function validateLightColour(input: LightColour): Record<string, unknown>
     body.brightness_pct = input.brightness;
   }
   if (input.rgb !== undefined) {
-    if (!Array.isArray(input.rgb) || input.rgb.length !== 3 || input.rgb.some(v => !Number.isInteger(v) || v < 0 || v > 255)) throw new Error('RGB values must be integers from 0 to 255.');
+    if (!isRgb(input.rgb)) throw new Error('RGB values must be integers from 0 to 255.');
     body.rgb_color = input.rgb;
   }
+  if (input.brightness === 0 && input.rgb !== undefined) throw new Error('Set a positive brightness to apply an RGB colour.');
   if (!Object.keys(body).length) throw new Error('Provide brightness or RGB colour.');
   return body;
 }
