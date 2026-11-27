@@ -17,6 +17,7 @@ import { VoiceInput } from "@/components/staarwardd/voice-input";
 import { CreativityStudio } from "@/components/staarwardd/creativity-studio";
 import { WorldActionScene } from "@/components/staarwardd/world-action-scene";
 import { HomeSafetySheet } from "@/components/staarwardd/home-safety-sheet";
+import { GuardianCapabilitiesPanel } from "@/components/staarwardd/guardian-capabilities-panel";
 import { GuardianInteractionCard } from "@/components/staarwardd/guardian-interaction-card";
 import { GuardianActivitySheet } from "@/components/staarwardd/guardian-activity-sheet";
 import { useStaarAudio } from "@/lib/staarwardd/audio-provider";
@@ -124,6 +125,7 @@ export function PortalScreen({ portalId }: { portalId: PortalId }) {
             </View>
             <View style={[styles.worldHeader, { borderColor: `${portal.color}66` }]}><Text style={[styles.eyebrow, { color: portal.accent }]}>{experience.world.toUpperCase()}</Text><Text style={styles.portalName}>{portal.name}</Text>{portalId === "home" && <Text style={styles.dayPart}>{homeDayPart() === "day" ? "DAYLIGHT ENVIRONMENT" : "NIGHT ENVIRONMENT"}</Text>}</View>
             <WorldActionScene portalId={portalId} />
+            <GuardianCapabilitiesPanel portal={portalId === "wellbeing" ? "health" : portalId === "events" ? "community" : portalId} />
             {portalId === "style" && <Pressable accessibilityRole="button" accessibilityLabel="Open AI Style Swap fitting room" onPress={() => router.push("/style-swap" as any)} style={({ pressed }) => [styles.styleSwapEntry, pressed && styles.pressed]}><View><Text style={styles.styleSwapKicker}>AI FITTING ROOM</Text><Text style={styles.styleSwapTitle}>Masked Style Swap</Text><Text style={styles.styleSwapDetail}>Upload a photo, paint only the garment or accessory region, and generate a controlled style edit while preserving the rest of the image.</Text></View><Text style={styles.styleSwapArrow}>↗</Text></Pressable>}
             {portalId === "home" && <Pressable accessibilityRole="button" onPress={() => setSafetyOpen(true)} style={({ pressed }) => [styles.safetyEntry, pressed && styles.pressed]}><Text style={styles.safetyKicker}>HOME SAFETY GUARDIAN</Text><Text style={styles.safetyTitle}>Review connected-home readiness and local safety preferences.</Text><Text style={styles.safetyDetail}>No live sensor data is claimed until Google Home or Alexa access is authorized.</Text></Pressable>}
             {portalId === "creativity" ? <><CreativityStudio value={command} onChange={setCommand} onSubmit={submitCommand} onVoice={() => setVoiceOpen(true)} />{guardianInteraction && <GuardianInteractionCard interaction={guardianInteraction} onSecondary={() => setGuardianInteraction(null)} />}</> : <><View style={[styles.nowCard, { borderColor: `${portal.color}55` }]}><View style={[styles.nowGlyph, { borderColor: `${portal.color}88` }]}><Text style={[styles.nowGlyphText, { color: portal.accent }]}>{portal.glyph}</Text></View><View style={styles.nowCopy}><Text style={styles.nowLabel}>WHAT MATTERS NOW</Text><Text style={styles.nowTitle}>{portal.focus}</Text></View></View>
