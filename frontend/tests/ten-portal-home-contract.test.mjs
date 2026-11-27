@@ -32,7 +32,8 @@ test('signed TestFlight workflow stages exact B252 Guardian only for internal re
  assert.match(yaml, /staar-home-reconciliation-preflight/);
  assert.match(yaml, /Internal review scope \(physical certification deferred\)/);
  assert.match(yaml, /triggering:\s*\n\s*events: \[\]/);
- assert.match(yaml, /submit_to_testflight: true/);
+ assert.match(yaml, /submit_to_testflight: false/);
+ assert.doesNotMatch(yaml, /submit_to_testflight: true/);
  assert.match(yaml, /testFlightInternalTestingOnly": true/);
  assert.match(yaml, /STAAR_NEXT_IOS_BUILD/);
  assert.doesNotMatch(yaml, /STAAR_IPHONE_ONLY_QA: '1'/);

@@ -33,7 +33,8 @@ test('production remains fail-closed against unapproved private Guardian QA',asy
   assert.match(builder,/const privateQaBuild = process\.env\.STAAR_PRIVATE_DEVICE_QA_BUILD === '1'/);
   assert.match(builder,/if \(!privateQaBuild && \(privateGuardianQa \|\| privateWorlds \|\| internalHomeReview\) && !internalTestFlightGuardian\)/);
   assert.match(workflow,/triggering:\s*\n\s*events: \[\]/);
-  assert.match(workflow,/submit_to_testflight: true/);
+  assert.match(workflow,/submit_to_testflight: false/);
+  assert.doesNotMatch(workflow, /submit_to_testflight: true/);
   assert.match(workflow,/testFlightInternalTestingOnly": true/);
   assert.doesNotMatch(workflow,/STAAR_PRIVATE_DEVICE_QA_BUILD:\s*['"]?1/);
 });
