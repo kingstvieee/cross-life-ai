@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 
 test('guest portal selection opens a local read-only world, leaving sign-in explicit', () => {
@@ -29,12 +30,33 @@ test('public guest renderer neither sends tool events nor receives Guardian/worl
 });
 
 test('a genuine tap on any visible ring card requests entry immediately', () => {
-  const renderer=read('../scene-src/worlds.js');
-  const tap = renderer.slice(renderer.indexOf('function tap(x, y)'), renderer.indexOf('// Touch: one finger'));
-  assert.match(tap, /const target = pick\(x, y\)/);
-  assert.match(tap, /if \(target === null\) return;/);
-  assert.match(tap, /enter\(target\);/);
-  assert.doesNotMatch(tap, /if \(target === st\.focus|else focus\(target\)/);
+  const renderer = read('../scene-src/worlds.js');
+  const start = renderer.indexOf('function tap(x, y)');
+  const end = renderer.indexOf('// Touch: one finger', start);
+  assert.ok(start >= 0 && end > start, 'tap handler is present');
+
+  function tapTarget(target, { intro = false, ignite = 1 } = {}) {
+    const calls = [];
+    const st = { intro, pulse: 0 };
+    const hubPortals = Array.from({ length: worldIds.length }, () => ({ ignite }));
+    runInNewContext(renderer.slice(start, end) + '\n tap(12, 34);', {
+      st, hubPortals,
+      pick: (x, y) => { assert.deepEqual([x, y], [12, 34]); return target; },
+      skipIntro: () => { st.intro = false; hubPortals.forEach(portal => { portal.ignite = 1; }); },
+      draw: () => {},
+      ui: { interacted: () => calls.push('interacted') },
+      enter: index => calls.push(index),
+    }, { timeout: 1000 });
+    return { calls, pulse: st.pulse };
+  }
+
+  for (const [index] of worldIds.entries()) {
+    assert.deepEqual(tapTarget(index).calls, ['interacted', index]);
+    assert.deepEqual(tapTarget(index, { intro: true, ignite: 0.5 }).calls, ['interacted', index]);
+    assert.deepEqual(tapTarget(index, { intro: true, ignite: 0 }).calls, []);
+  }
+  assert.deepEqual(tapTarget(null, { intro: true }), { calls: [], pulse: 0 });
+  assert.deepEqual(tapTarget('stage', { intro: true }), { calls: [], pulse: 1 });
 });
 
 import { portalDestination, sceneAction } from '../src/scene-events.ts';
