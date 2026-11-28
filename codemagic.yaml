@@ -80,6 +80,7 @@ workflows:
       groups:
         - staar-private-110
         - staar-winged-review
+        - staar-studio-transfer-805
       node: 22
       xcode: 26.6
       ios_signing:
