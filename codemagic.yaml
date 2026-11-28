@@ -151,7 +151,15 @@ workflows:
             export STAAR_DIGGITSTAAR_MASTER_PATH="$HOME/.staar-internal-handoff/studio.jpeg"
             export STAAR_DIGGITSTAAR_WAIT_SECONDS=180
           fi
-          node scripts/wait-for-diggitstaar-internal-artwork.mjs
+          if [ -n "${STAAR_DIGGITSTAAR_SIGNED_URL:-}" ]; then
+            private_dir=$(mktemp -d)
+            trap 'rm -f "$private_dir/studio.jpeg"; rmdir "$private_dir"' EXIT
+            export STAAR_DIGGITSTAAR_MASTER_PATH="$private_dir/studio.jpeg"
+            node scripts/fetch-private-studio-for-testflight.mjs "$STAAR_DIGGITSTAAR_MASTER_PATH"
+            unset STAAR_DIGGITSTAAR_SIGNED_URL
+          else
+            node scripts/wait-for-diggitstaar-internal-artwork.mjs
+          fi
           node scripts/stage-diggitstaar-internal-artwork.mjs "$STAAR_DIGGITSTAAR_MASTER_PATH"
       - name: Resolve next internal TestFlight build number
         script: |
