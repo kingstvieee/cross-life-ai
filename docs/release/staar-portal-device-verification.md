@@ -27,9 +27,20 @@
   physical change from a mismatch. Do not test entry unlocking unless specifically scoped
   to the owner's device and separately confirmed. Verify supported TTLock read-only status,
   Google Home inventory and TV state through authorized device accounts.
-- Reconcile 805 historical candidates to a signed-off 804-item roster. Record the reason for
-  any supersession and the originating identifiers. Require traceable source, live/device
-  receipt where relevant, ownership and outcome for each roster item.
+- Preserve all 805 historical candidate IDs as 805 one-to-one components. Record the
+  owner-approved scope and require traceable source, ownership and applicable same-build
+  runtime receipts for every row. Do not merge away an ID or use a replacement roster.
+- SH-751 through SH-757 each represent two separately tested requirements, not two new
+  roster entries. Declare both `<ID>-PRODUCT` and `<ID>-STAGING-CLOSEOUT` in the row's
+  `verification_criteria` as objects with `id` and `verification_lanes`. The row's lanes must
+  equal the union of its criteria's lanes. Each receipt under these rows must name the
+  row's `component_id` and its exact `criterion_id`; provide one unambiguous, passing runtime
+  receipt per criterion and lane. Do not reuse the same evidence reference for both meanings.
+  Qualify every receipt against the exact candidate build and source commit. Product
+  evidence must reflect the required signed device, provider or application/API behavior;
+  staging closeout evidence requires backend runtime proof for the candidate, not a
+  synthetic fixture. The validator enforces the required minimum lanes. Approvals and
+  receipt authenticity must still be reviewed separately.
 - For Community Discovery: a new local-only route uses the official Ticketmaster Discovery API:
   https://developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/
   Deploy only on authorization and configure TICKETMASTER_DISCOVERY_API_KEY server-side.

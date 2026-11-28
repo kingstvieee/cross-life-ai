@@ -12,10 +12,35 @@ export type Mission = {
   expires_at?: string | null;
   not_before?: string;
   preview_digest?: string;
+  preview_readiness?: 'available' | 'disabled' | 'deadline_passed';
   preview_acknowledged_at?: string;
   available_actions?: MissionAction[];
   evidence?: { passed?: boolean; verified_at?: string; result_digest?: string };
 };
+
+/** Owner-scoped response fields determine what the detail screen can say.
+ * The server's action list, not the readiness label, grants queue access. */
+export function missionDetailPresentation(mission: Mission) {
+  const derived = mission.derived_from;
+  const origin = typeof derived?.mission_id === 'string' && derived.mission_id.trim() &&
+    (derived.operation === 'copy' || derived.operation === 'revise')
+    ? { id: derived.mission_id,
+        label: derived.operation === 'copy' ? 'Copied from an earlier mission' : 'Revised from an earlier proposal' }
+    : null;
+  let preview: string | null = null;
+  if (mission.status === 'proposed') {
+    if (mission.preview_readiness === 'disabled') preview = 'Preview execution is disabled in this environment.';
+    else if (mission.preview_readiness === 'deadline_passed') preview = 'The proposal deadline has passed. Revise the proposal before scheduling.';
+    else if (mission.available_actions?.includes('queue-preview')) preview = 'Ready to schedule a zero-cost preview.';
+    else preview = 'Preview scheduling is not available for this proposal.';
+  }
+  const passed = mission.evidence?.passed;
+  const recordedAt = mission.evidence?.verified_at;
+  const verifiedAt = typeof passed === 'boolean' && typeof recordedAt === 'string' &&
+    Number.isFinite(Date.parse(recordedAt)) ? recordedAt : undefined;
+  return { origin, preview, verifiedAt,
+    verification: passed === true ? 'Verification passed' : passed === false ? 'Verification failed' : 'Not yet verified' };
+}
 
 export type MissionDateWindow = { from: string; before: string };
 export type MissionDerivation = { id: string; operation: 'revise' | 'copy' };

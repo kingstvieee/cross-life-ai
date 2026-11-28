@@ -29,3 +29,11 @@ test('development environment is explicitly labeled preview, never approved mast
   assert.match(source,/3D DEVELOPMENT PREVIEW/);
   assert.match(source,/Locked artwork, facial animation and final immersive set dressing are not yet approved/);
 });
+
+test('SH-331 return control reuses the existing Hub stack entry, with deep-link fallback', () => {
+  const source = readFileSync(new URL('../app/environment.tsx', import.meta.url), 'utf8');
+  assert.match(source, /returnToHub = \(\) => router\.dismissTo\('\/hub'\)/);
+  assert.match(source, /button\('All worlds', returnToHub\)/);
+  assert.match(source, /onPress=\{returnToHub\}/);
+  assert.doesNotMatch(source, /router\.replace\('\/hub'\)/);
+});

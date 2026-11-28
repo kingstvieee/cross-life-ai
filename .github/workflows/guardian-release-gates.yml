@@ -7,12 +7,16 @@ on:
       - 'backend/**'
       - 'frontend/**'
       - 'hosting/**'
+      - 'scripts/check-staar-*.py'
+      - 'scripts/test-staar-*.py'
       - '.github/workflows/guardian-release-gates.yml'
   pull_request:
     paths:
       - 'backend/**'
       - 'frontend/**'
       - 'hosting/**'
+      - 'scripts/check-staar-*.py'
+      - 'scripts/test-staar-*.py'
       - '.github/workflows/guardian-release-gates.yml'
 permissions:
   contents: read
@@ -29,6 +33,7 @@ jobs:
       - run: python -m pip install pytest pytest-xdist fastapi==0.110.1 httpx==0.28.1 python-multipart==0.0.32 cryptography==50.0.0
       - run: python -m compileall -q backend
       - run: python frontend/scripts/test-diggitstaar-ipa-asset.py
+      - run: python scripts/test-staar-component-receipts.py && python scripts/test-staar-internal-candidate.py
       - run: PYTHONPATH=backend python -m unittest discover -s backend/petcare/tests -v
       - run: python -m unittest discover -s frontend/tests -p 'test_guardian_capture192.py' -v
       - run: python -m pytest -q backend/test_provider_connections.py backend/test_community_discovery.py

@@ -14,6 +14,9 @@ export default function Environment() {
   const world: WorldId | 'hub' = typeof raw === 'string' && Object.prototype.hasOwnProperty.call(WORLD_BY_ID, raw) ? raw as WorldId : 'hub';
   const variant = world === 'relationships' && rawVariant === 'singles' ? 'singles' : 'realm';
   const router = useRouter();
+  // Return to an existing Hub rather than replacing the portal with a second Hub.
+  // Expo Router replaces the current route when /hub is absent (e.g. a deep link).
+  const returnToHub = () => router.dismissTo('/hub');
   const { user } = useAuth();
   const action = useCallback((value: string) => {
     if (value.startsWith('world:')) { router.replace({ pathname: '/environment', params: { world: value.slice(6) } } as never); return; }
@@ -39,7 +42,7 @@ export default function Environment() {
     return <SafeAreaView style={{ flex: 1, backgroundColor: '#080B10' }}>
       <ScrollView contentContainerStyle={{ padding: 18, gap: 14 }}>
         <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}>
-          {button('All worlds', () => router.replace('/hub'))}
+          {button('All worlds', returnToHub)}
           {world === 'relationships' && button(variant === 'singles' ? 'Relationship Realm' : 'Singles Lounge',
             () => router.replace({ pathname: '/environment', params: { world, variant: variant === 'singles' ? 'realm' : 'singles' } } as never))}
         </View>
@@ -68,7 +71,7 @@ export default function Environment() {
   if (!debugScene) return <Redirect href="/hub" />;
   return <SafeAreaView style={{ flex: 1, backgroundColor: '#030713' }}>
     <View style={{ paddingHorizontal: 18, paddingVertical: 10, flexDirection: 'row', gap: 24 }}>
-      <Pressable accessibilityRole="button" onPress={() => router.replace('/hub')} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: '#E5EBF5' }}>All worlds</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={returnToHub} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: '#E5EBF5' }}>All worlds</Text></Pressable>
       {world === 'relationships' && <Pressable accessibilityRole="button" accessibilityLabel={variant === 'singles' ? 'Open Relationship Realm' : 'Open Singles Lounge'} onPress={() => router.replace({ pathname: '/environment', params: { world, variant: variant === 'singles' ? 'realm' : 'singles' } } as never)} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: '#E3B6FF' }}>{variant === 'singles' ? 'Relationship Realm' : 'Singles Lounge'}</Text></Pressable>}
       {world === 'wellbeing' && <Pressable accessibilityRole="button" onPress={() => router.push('/petcare' as never)} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: '#E8D8AE' }}>Pet care</Text></Pressable>}
       {world !== 'hub' && <Pressable accessibilityRole="button" accessibilityLabel="Open this world's tools and connections" onPress={() => router.push({ pathname: '/connections', params: { world } } as never)} style={{ minHeight: 44, justifyContent: 'center', flexDirection: 'row', alignItems: 'center' }}><Text style={{ color: '#E8D8AE', fontWeight: '700' }}>World tools</Text></Pressable>}
