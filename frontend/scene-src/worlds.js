@@ -33,6 +33,16 @@ const offlineGltfLoader = () => new GLTFLoader().register(parser => {
   return {name: 'STAAR_offline_image_decoder'};
 });
 
+// Arc-length sampling keeps the Guardian moving evenly between waypoints.
+// Ease on the distance, not the spline parameter, so the flare and touchdown
+// slow to a stop even when the control points are unevenly spaced.
+const guardianArrivalSpline = (presentation) => {
+  const points = presentation
+    ? [[4.8,4.9,-10], [2.45,4.12,-7.1], [-.98,2.3,-4.05], [-.68,.32,-1.04], [0,0,0]]
+    : [[5.2,6.2,-11.5], [2.66,5.05,-8.35], [-1.45,2.9,-4.85], [-.78,.38,-1.16], [0,0,0]];
+  return new T.CatmullRomCurve3(points.map(([x,y,z])=>new T.Vector3(x,y,z)),false,'centripetal');
+};
+const guardianFlightDistance = progress => progress * progress * (3 - 2 * progress);
 const ids = worldIds;
 const names = worldNames;
 const requested = window.STAAR_WORLD || new URLSearchParams(location.search).get('world') || 'hub';
@@ -123,6 +133,8 @@ if (renderer) {
   let disposed = false;
   let hubRig = null, hubStage = null, hubLoopReady = false, hubBloom = null;
   let guardianArrivalPending = false;
+  let presentationFlightActive = false;
+  let frame=0, visible=!document.hidden, firstFrameReady=false, lastFrameAt=null, activeSeconds=0;
   let hubGuardianFlight = null; // immersive hub: {flight, guardian, active} once the Guardian model is mounted
   let importedControls = [];
   let walkController = null;
@@ -516,20 +528,14 @@ if (renderer) {
           const flight = new T.Group();
           scene.add(flight);
           flight.add(guardian);
-          
-          
-          if (reduced) guardianArrivalPending = true;
-          else {
-            const arrivalPath = new T.CubicBezierCurve3(
-              new T.Vector3(4.8, 4.9, -10),
-              new T.Vector3(-1.4, 3.3, -7),
-              new T.Vector3(-.85, -.35, -1.6),
-              new T.Vector3(0, 0, 0),
-            );
-            const flightDuration = 2100;
+          if (reduced) {
+            wingPose?.(true,1);
+            guardianArrivalPending = true;
+          } else {
+            presentationFlightActive = true;
+            const arrivalPath = guardianArrivalSpline(true);
+            const flightDuration = 2.1, settleDuration = .6;
             let startFlight;
-            let arrived = false;
-            let hoverStart;
             // Build the pose in Guardian's facing frame, independent of bone roll.
             flight.updateMatrixWorld(true);
             const flightJoints = [
@@ -548,35 +554,38 @@ if (renderer) {
                 spreadAxis: new T.Vector3(0, 0, 1).applyQuaternion(inverseRest) }];
             });
             const flightPose = new T.Quaternion();
-            flight.position.copy(arrivalPath.v0);
-            animated.push((time) => {
+            arrivalPath.getPointAt(0,flight.position);
+            animated.push(time => {
               startFlight ??= time;
-              const progress = Math.min((time - startFlight) * 1000 / flightDuration, 1);
-              const eased = progress * progress * (3 - 2 * progress);
-              arrivalPath.getPoint(eased, flight.position);
-              const bank = Math.sin(Math.PI * progress) * (1 - progress);
-              flight.rotation.set(.16 * bank, -.32 * bank, .38 * bank);
-              if (!arrived) {
-                // Blend the live skeleton back into its standing pose as Guardian settles.
-                const poseWeight = 1 - T.MathUtils.smoothstep(progress, .66, 1);
+              const elapsed = time - startFlight;
+              const progress = Math.min(elapsed / flightDuration,1);
+              if (presentationFlightActive && progress < 1) {
+                wingPose?.(false,progress);
+                arrivalPath.getPointAt(guardianFlightDistance(progress),flight.position);
+                const bank = Math.sin(Math.PI * progress) * (1 - progress);
+                flight.rotation.set(.16 * bank,-.32 * bank,.38 * bank);
+                const poseWeight = 1 - T.MathUtils.smoothstep(progress,.66,1);
                 const steering = Math.sin(progress * Math.PI * 2);
-                for (const { joint, pitch, spread, steer, rest, pitchAxis, spreadAxis } of flightJoints) {
-                  joint.quaternion.copy(rest);
-                  joint.quaternion.multiply(flightPose.setFromAxisAngle(pitchAxis, pitch * poseWeight));
-                  joint.quaternion.multiply(flightPose.setFromAxisAngle(
-                    spreadAxis, (spread + steer * steering) * poseWeight,
-                  ));
+                for (const {joint,pitch,spread,steer,rest,pitchAxis,spreadAxis} of flightJoints) {
+                  joint.quaternion.copy(rest)
+                    .multiply(flightPose.setFromAxisAngle(pitchAxis,pitch * poseWeight))
+                    .multiply(flightPose.setFromAxisAngle(spreadAxis,(spread + steer * steering) * poseWeight));
                 }
+                return;
               }
-              
-              if (progress < 1) return;
-              if (!arrived) {
-                arrived = true;
-                hoverStart = time;
+              const timeSinceLanding = elapsed - flightDuration;
+              if (presentationFlightActive) {
+                const settle = Math.min(timeSinceLanding / settleDuration,1);
+                flight.position.set(0,0,0);
+                flight.rotation.set(0,0,0);
+                wingPose?.(true,settle);
+                for (const {joint,rest} of flightJoints) joint.quaternion.copy(rest);
+                if (settle < 1) return;
+                presentationFlightActive = false;
                 guardianArrivalPending = true;
               }
-              const hoverTime = time - hoverStart;
-              const hoverBlend = Math.min(hoverTime, 1);
+              const hoverTime = Math.max(0,timeSinceLanding - settleDuration);
+              const hoverBlend = Math.min(hoverTime,1);
               flight.position.y = hoverBlend * .045 * Math.sin(hoverTime * 2.2);
               flight.rotation.y = hoverBlend * .035 * Math.sin(hoverTime * 1.1);
             });
@@ -589,7 +598,14 @@ if (renderer) {
         } else {
           scene.add(guardian);
         }
-        modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
+        const bodyMotion = createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced});
+        const flightOwnsPose = () => presentationFlightActive || hubGuardianFlight?.active === true;
+        modelMotions.push({
+          update(delta,visible) {
+            if (!flightOwnsPose() && guardianLocomotion?.snapshot().phase === 'idle') bodyMotion.update(delta,visible);
+          },
+          dispose: () => bodyMotion.dispose(),
+        });
         // The internal branch is source-hash pinned but NEVER an Apple
         // release approval. The ordinary production branch still accepts
         // only the independent release-receipt-checked Guardian asset.
@@ -604,7 +620,7 @@ if (renderer) {
         if (hubGuardianFlight) {
           // Breathing and weight shift whenever no clip or flight pose owns the body.
           const idle=createGuardianIdle(guardian,hubGuardianFlight.flight,{reducedMotion:reduced,
-            busy:()=>hubGuardianFlight.active||guardianLocomotion?.snapshot().phase!=='idle'});
+            busy:()=>flightOwnsPose()||bodyMotion.actionCount>0||guardianLocomotion?.snapshot().phase!=='idle'});
           modelMotions.push(idle);
           hubGuardianArrival();
         }
@@ -1135,7 +1151,8 @@ if (renderer) {
     };
     const land = () => {
       hubGuardianFlight.active = false;
-      flight.position.set(0, 0, 0); flight.rotation.set(0, 0, 0); occupy();
+      flight.position.set(0, 0, 0); flight.rotation.set(0, 0, 0);
+      wingPose?.(true,1); occupy();
       guardianArrivalPending = true;
       if (hubLoopReady) requestDraw();
     };
@@ -1159,9 +1176,8 @@ if (renderer) {
       ['Calf_L', -.23, 0, 0], ['Calf_R', -.31, 0, 0],
     ].flatMap(([name, pitch, spread, steer]) => rig(name, {pitch, spread, steer}));
     const knees = [['Thigh_L', .22], ['Thigh_R', .22], ['Calf_L', -.36], ['Calf_R', -.36]].flatMap(([name, bend]) => rig(name, {bend}));
-    const path = new T.CubicBezierCurve3(new T.Vector3(5.2, 6.2, -11.5), new T.Vector3(-1.8, 4.2, -7.2),
-      new T.Vector3(-.9, .25, -1.7), new T.Vector3(0, 0, 0));
-    let begin = null, touchdown = null;
+    const path = guardianArrivalSpline(false);
+    let begin = null;
     animated.push(time => {
       if (!hubGuardianFlight.active || disposed) return;
       begin ??= Math.max(time, HUB_GUARDIAN_FLIGHT.start);
@@ -1170,8 +1186,7 @@ if (renderer) {
       const progress = Math.min((time - begin) / HUB_GUARDIAN_FLIGHT.seconds, 1);
       if (progress < 1) {
         wingPose?.(false,progress);
-        const eased = progress * progress * (3 - 2 * progress);
-        path.getPoint(eased, flight.position);
+        path.getPointAt(guardianFlightDistance(progress),flight.position);
         const bank = Math.sin(Math.PI * progress) * (1 - progress);
         flight.rotation.set(.16 * bank, -.32 * bank, .38 * bank);
         const poseWeight = 1 - T.MathUtils.smoothstep(progress, .66, 1), steering = Math.sin(progress * Math.PI * 2);
@@ -1183,11 +1198,10 @@ if (renderer) {
         return;
       }
       // Touchdown: the knees give and straighten again while the body dips and rises.
-      touchdown ??= time;
       flight.position.set(0, 0, 0); flight.rotation.set(0, 0, 0);
       for (const {joint, rest} of flightJoints) joint.quaternion.copy(rest);
-      const u = Math.min((time - touchdown) / HUB_GUARDIAN_FLIGHT.settle, 1);
-      wingPose?.(true,u);
+      const u = Math.min((time - begin - HUB_GUARDIAN_FLIGHT.seconds) / HUB_GUARDIAN_FLIGHT.settle, 1);
+      if (u < 1) wingPose?.(true,u);
       const give = Math.sin(Math.PI * u) * (1 - .35 * u);
       flight.position.y = -.055 * give;
       for (const {joint, rest, bend, pitchAxis} of knees) joint.quaternion.copy(rest).multiply(q.setFromAxisAngle(pitchAxis, bend * give));
@@ -1416,7 +1430,7 @@ if (renderer) {
         clearTimeout(swapTimer);
         if (reduced || !title.textContent) apply(); else { caption.classList.add('swap'); swapTimer = setTimeout(apply, 150); }
       },
-      announce(i) { if (status) status.textContent = names[i] + ', ' + (i + 1) + ' of ' + ids.length + '. Swipe to turn the ring; tap the centred portal to enter.'; },
+      announce(i) { if (status) status.textContent = names[i] + ', ' + (i + 1) + ' of ' + ids.length + '. Swipe to turn the ring; tap a portal to enter.'; },
       interacted() { hint.textContent = 'TAP PORTAL TO ENTER'; },
     };
   }
@@ -1424,7 +1438,7 @@ if (renderer) {
   function createHubRig(ui, floorRef, rings) {
     const N = ids.length;
     const st = {yaw: 0, vel: 0, target: 0, focus: 0, dist: HUB_CAM.dist, distTarget: HUB_CAM.dist, look: 0, lookTarget: 0,
-      push: 1, pulse: 0, intro: !reduced, introT: 0, fast: false, dragging: false, live: -1, lastEnter: -1e9, power: reduced ? 1 : 0};
+      push: 1, pulse: 0, intro: !reduced, introT: 0, dragging: false, live: -1, lastEnter: -1e9, power: reduced ? 1 : 0};
     const indexFor = yaw => ((Math.round(-yaw / HUB_STEP) % N) + N) % N;
     const yawFor = (i, from) => { const base = -i * HUB_STEP; return base + Math.PI * 2 * Math.round((from - base) / (Math.PI * 2)); };
     const ray = new T.Raycaster(), ndc = new T.Vector2(), probe = new T.Vector3();
@@ -1434,16 +1448,16 @@ if (renderer) {
     function focus(i, velocity = 0) {
       i = ((i % N) + N) % N; st.focus = i; st.target = yawFor(i, st.yaw);
       if (reduced) { st.yaw = st.target; st.vel = 0; } else st.vel = velocity;
-      ui.announce(i); report('focus', {action: 'world:' + ids[i]}); draw();
+      ui.set(i); ui.announce(i); report('focus', {action: 'world:' + ids[i]}); draw();
     }
     function enter(i) {
       const now = performance.now(); if (now - st.lastEnter < 900) return; st.lastEnter = now;
       const portal = hubPortals[i]; portal.flash = 1; if (!reduced) st.push = 0;
       report('select', {action: 'world:' + portal.id}); draw();
     }
-    const skipIntro = () => { if (st.intro) st.fast = true; };
+    const skipIntro = () => { if (st.intro) { st.introT = HUB_INTRO_SECONDS; update(0); } };
     function step(direction) { skipIntro(); ui.interacted(); focus(st.focus + direction); }
-    function enterFocused() { if (st.intro) { skipIntro(); return; } enter(st.focus); }
+    function enterFocused() { enter(st.focus); }
     function trackPortal(i) {
       // Approved model only: glance toward the portal's on-screen bearing, projected
       // onto the camera plane so the neck never twists toward the portal behind him.
@@ -1455,6 +1469,7 @@ if (renderer) {
     function pick(clientX, clientY) {
       const r = canvas.getBoundingClientRect(); if (!r.width || !r.height) return null;
       ndc.set((clientX - r.left) / r.width * 2 - 1, -(clientY - r.top) / r.height * 2 + 1);
+      scene.updateMatrixWorld(true);
       camera.updateMatrixWorld(); ray.setFromCamera(ndc, camera);
       const hit = ray.intersectObjects(pickables, false)[0];
       if (hit) return hit.object === hubStage.proxy ? 'stage' : hit.object.userData.index;
@@ -1470,10 +1485,11 @@ if (renderer) {
       return best;
     }
     function tap(x, y) {
-      if (st.intro) return;
       const target = pick(x, y);
+      const intendedPortal = typeof target === 'number' && (!st.intro || hubPortals[target].ignite >= .25);
+      skipIntro(); draw();
       if (target === 'stage') { st.pulse = 1; draw(); return; }
-      if (target === null) return;
+      if (!intendedPortal) return;
       ui.interacted();
       enter(target);
     }
@@ -1488,7 +1504,6 @@ if (renderer) {
       if (disposed || (e.pointerType === 'mouse' && e.button !== 0)) return;
       try { canvas.setPointerCapture(e.pointerId); } catch { /* capture is best effort in WKWebView */ }
       pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
-      skipIntro();
       const now = e.timeStamp || performance.now();
       if (pointers.size === 1) { gesture = {x0: e.clientX, y0: e.clientY, t0: now, x: e.clientX, y: e.clientY, t: now, moved: false, multi: false, vel: 0}; st.vel = 0; }
       else if (gesture) { gesture.multi = true; gesture.spread0 = spread(); gesture.dist0 = st.distTarget; st.dragging = false; }
@@ -1497,7 +1512,10 @@ if (renderer) {
     canvas.addEventListener('pointermove', e => {
       const point = pointers.get(e.pointerId); if (!point || !gesture) return;
       point.x = e.clientX; point.y = e.clientY;
-      if (st.intro) return;
+      if (st.intro) {
+        if (pointers.size < 2 && Math.hypot(e.clientX - gesture.x0,e.clientY - gesture.y0) <= slop()) return;
+        skipIntro();
+      }
       const now = e.timeStamp || performance.now();
       if (pointers.size >= 2) {
         const d = spread();
@@ -1542,7 +1560,7 @@ if (renderer) {
         // Establishing shot: start high outside the ring, sweep round and descend
         // inside it while the floor ring lights, the portals ignite one by one and
         // the Guardian stage powers up.
-        st.introT += dt * (st.fast ? 4 : 1);
+        st.introT += dt;
         const p = Math.min(1, st.introT / HUB_INTRO_SECONDS);
         const e1 = hubEase(Math.min(1, p * 1.15)), e2 = hubEase(hubClamp((p - .16) / .84, 0, 1));
         yaw = 1.3 * (1 - hubEaseOut(p));
@@ -1575,7 +1593,10 @@ if (renderer) {
         yaw = st.yaw; dist = st.dist - (reduced ? 0 : Math.sin(Math.PI * st.push) * .9);
         height = HUB_CAM.height + st.look * .22; lookY = HUB_CAM.lookY + st.look;
         const live = indexFor(yaw);
-        if (live !== st.live) { st.live = live; ui.set(live); }
+        if (live !== st.live) {
+          if (st.live < 0 || st.dragging) ui.set(st.dragging ? live : st.focus);
+          st.live = live;
+        }
         // The Guardian's head follows the portal you drag, or the one sliding into focus.
         trackPortal(st.dragging ? live : st.focus);
       }
@@ -1840,18 +1861,19 @@ if (renderer) {
   }
   importApprovedWorld();
   controls.update();controls.saveState();
-  let frame=0,visible=true,firstFrameReady=false,lastFrameAt=null;const start=performance.now();
   hubLoopReady=true;
-  function requestDraw(){if(!frame&&visible)frame=requestAnimationFrame(draw);}
+  function requestDraw(){if(!frame&&visible&&!disposed)frame=requestAnimationFrame(draw);}
   function draw(now){
-    frame=0;if(!visible)return;
+    frame=0;if(!visible||disposed)return;
     try {
-      const t=(now-start)/1000;
-      const delta=lastFrameAt===null?0:(now-lastFrameAt)/1000;lastFrameAt=now;
+      // A suspended WKWebView must resume its animation, not teleport to the
+      // end. Use the same capped foreground clock for the hub and Guardian.
+      const delta=lastFrameAt===null?0:T.MathUtils.clamp((now-lastFrameAt)/1000,0,.1);
+      lastFrameAt=now;activeSeconds+=delta;
       modelMotions.forEach(motion=>motion.update(delta,visible));
       worldPhysicsQa?.frame(now);
       walkController?.tick(Math.max(0,Math.min(delta,.075)));
-      animated.forEach(fn=>fn(t));
+      animated.forEach(fn=>fn(activeSeconds));
       if(hubRig){hubRig.update(delta);hubAlignBackdrop();if(!reduced)hubAdaptiveResolution(delta);}else controls.update();
       const renderStart=guardianDeviceQa ? performance.now() : 0;
       if(hubBloom)hubBloom.render(delta);else renderer.render(scene,camera);
@@ -1880,7 +1902,7 @@ if (renderer) {
     }
   }
   controls.addEventListener('change',requestDraw);requestDraw();
-  document.addEventListener('visibilitychange',()=>{visible=!document.hidden;if(!visible)guardianFaceMotion?.mute();lastFrameAt=null;if(!visible)cancelAnimationFrame(frame);frame=0;if(visible)requestDraw();});
+  document.addEventListener('visibilitychange',()=>{visible=!document.hidden&&!disposed;if(!visible)guardianFaceMotion?.mute();lastFrameAt=null;if(!visible)cancelAnimationFrame(frame);frame=0;if(visible)requestDraw();});
   // WKWebView does not always fire window 'resize' when React Native changes the
   // web view's frame, so also watch the canvas box itself.
   addEventListener('resize',()=>applyViewport());
@@ -1916,7 +1938,7 @@ if (renderer) {
   document.querySelector('#reset').addEventListener('click',()=>{if(hubRig)hubRig.reset();else controls.reset();requestDraw();});
   document.querySelector('#title').textContent=world==='hub'?'STAARWAARDD · PORTAL HUB':(singles?'STAAR Love · Singles':names[ids.indexOf(world)]);
   document.querySelector('#status').textContent=immersiveHub
-    ?'Ten portals surround the Guardian. Swipe to turn the ring; tap the centred portal to enter.'
+    ?'Ten portals surround the Guardian. Swipe to turn the ring; tap a portal to enter.'
     :'Drag to explore · pinch or scroll to move closer · tap a labelled control';
   for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
   canvas.addEventListener('webglcontextlost',e=>{worldPhysicsQa?.contextLost();e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
