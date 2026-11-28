@@ -130,3 +130,51 @@ test('date range and derived proposal requests preserve mission ownership routin
     expected_start: '2099-01-01T00:00:00Z', run_at: '2099-01-02T00:00:00.000Z',
   });
 });
+
+test('SH-307 labels the derivation and exposes only the source mission ID to the UI', async () => {
+  const { missionDetailPresentation } = await import('../src/guardian-missions.ts');
+  const mission = { status: 'proposed' };
+  assert.equal(missionDetailPresentation(mission).origin, null);
+  assert.deepEqual(missionDetailPresentation({ ...mission,
+    derived_from: { mission_id: 'source', operation: 'copy' },
+  }).origin, { id: 'source', label: 'Copied from an earlier mission' });
+  assert.deepEqual(missionDetailPresentation({ ...mission,
+    derived_from: { mission_id: 'source', operation: 'revise' },
+  }).origin, { id: 'source', label: 'Revised from an earlier proposal' });
+  assert.equal(missionDetailPresentation({ ...mission,
+    derived_from: { mission_id: '', operation: 'copy' },
+  }).origin, null);
+});
+
+test('SH-312 distinguishes disabled preview from expired and unknown, without granting actions', async () => {
+  const { missionDetailPresentation } = await import('../src/guardian-missions.ts');
+  const mission = { status: 'proposed', available_actions: ['revise'] };
+  const display = options => missionDetailPresentation({ ...mission, ...options }).preview;
+  assert.equal(display({ preview_readiness: 'disabled' }), 'Preview execution is disabled in this environment.');
+  assert.equal(display({ preview_readiness: 'deadline_passed' }), 'The proposal deadline has passed. Revise the proposal before scheduling.');
+  assert.equal(display({}), 'Preview scheduling is not available for this proposal.');
+  assert.equal(display({ available_actions: ['queue-preview'] }), 'Ready to schedule a zero-cost preview.');
+  assert.equal(display({ preview_readiness: 'available' }), 'Preview scheduling is not available for this proposal.');
+  assert.equal(display({ status: 'queued', preview_readiness: 'available' }), null);
+});
+
+test('SH-321 verifies that missing, failed and passed evidence never look alike', async () => {
+  const { missionDetailPresentation } = await import('../src/guardian-missions.ts');
+  const display = evidence => missionDetailPresentation({ status: 'completed', evidence });
+  assert.equal(display(undefined).verification, 'Not yet verified');
+  assert.equal(display({ result_digest: 'digest-without-verdict' }).verification, 'Not yet verified');
+  assert.equal(display({ passed: 'true' }).verification, 'Not yet verified');
+  assert.equal(display({ passed: false }).verification, 'Verification failed');
+  assert.equal(display({ passed: true }).verification, 'Verification passed');
+  assert.equal(display({ passed: false, verified_at: 'not a date' }).verifiedAt, undefined);
+  assert.equal(display({ passed: true, verified_at: '2026-11-28T00:00:00Z' }).verifiedAt, '2026-11-28T00:00:00Z');
+});
+
+test('mission detail screen displays and routes the three new presentation fields', () => {
+  const source = readFileSync(new URL('../app/guardian-missions.tsx', import.meta.url), 'utf8');
+  assert.match(source, /missionDetailPresentation\(selected\)/);
+  assert.match(source, /selectedOrigin\.label/);
+  assert.match(source, /openMission\(selectedOrigin\.id\)/);
+  assert.match(source, /detailPresentation\?\.preview/);
+  assert.match(source, /detailPresentation\?\.verification/);
+});

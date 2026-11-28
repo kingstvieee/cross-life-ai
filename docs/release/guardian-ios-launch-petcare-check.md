@@ -16,4 +16,4 @@
 - Pet Care: signed-in load and account separation; foreground/background and lost network; a confirmed emergency record and an unconfirmed response. Verify no text/alert, feeder actuation or playback was triggered. Use a test account and no live feeder.
 - Record the Codemagic build URL, source SHA, Apple build number, embedded Watch identity, signed archive evidence, TestFlight processing state and physical iPhone acceptance. No source test or Linux export certifies any of those.
 
-The 32-component register contains separate avatar, voice, device, digital-twin and assurance requirements. Passing launch and pet checks does not close unrelated physical integrations or resolve the top-level 804-item count.
+The 32-component register contains separate avatar, voice, device, digital-twin and assurance requirements. Passing launch and pet checks does not close unrelated physical integrations or certify the 805-component roster.

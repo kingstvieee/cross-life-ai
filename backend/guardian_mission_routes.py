@@ -73,7 +73,12 @@ def present_mission(mission, *, preview_enabled):
     if mission.get("status") == "proposed":
         mission["available_actions"].append("withdraw")
         mission["available_actions"].append("revise")
-        if preview_enabled and (mission.get("expires_at") is None or mission["expires_at"] > now_utc()):
+        if not preview_enabled:
+            mission["preview_readiness"] = "disabled"
+        elif mission.get("expires_at") is not None and mission["expires_at"] <= now_utc():
+            mission["preview_readiness"] = "deadline_passed"
+        else:
+            mission["preview_readiness"] = "available"
             mission["available_actions"].append("queue-preview")
             mission["preview_digest"] = preview_digest(mission)
     if mission.get("status") in TERMINAL:

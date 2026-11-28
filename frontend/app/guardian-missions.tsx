@@ -5,7 +5,7 @@ import { ActivityIndicator, AppState, Pressable, ScrollView, StyleSheet, Text, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/auth';
 import {
-  followsMissionStatus, guardianMissionClient, mergeMissionPages, optionalMissionTime, updateMissionInPage,
+  followsMissionStatus, guardianMissionClient, mergeMissionPages, missionDetailPresentation, optionalMissionTime, updateMissionInPage,
   type Mission, type MissionAction, type MissionDerivation,
 } from '@/src/guardian-missions';
 
@@ -211,6 +211,9 @@ function AccountMissions() {
     });
   }
 
+  const detailPresentation = selected ? missionDetailPresentation(selected) : null;
+  const selectedOrigin = detailPresentation?.origin;
+
   return <SafeAreaView style={styles.screen}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Button label="Back to Guardian controls" onPress={() => router.back()} />
@@ -246,14 +249,20 @@ function AccountMissions() {
         <Text style={styles.text}>{selected.success_criteria}</Text>
         <Text style={styles.muted}>Status: {titleCase(selected.status)}</Text>
         {selected.updated_at && <Text style={styles.muted}>Updated: {localTime(selected.updated_at)}</Text>}
-        {selected.derived_from && <Button label="Open original mission" disabled={busy}
-          onPress={() => openMission(selected.derived_from!.mission_id)} />}
+        {selectedOrigin && <View style={styles.field}>
+          <Text style={styles.muted}>{selectedOrigin.label}</Text>
+          <Button label="Open original mission" disabled={busy}
+            onPress={() => openMission(selectedOrigin.id)} />
+        </View>}
+        {detailPresentation?.preview && <Text accessibilityLiveRegion="polite" style={styles.muted}>
+          {detailPresentation.preview}
+        </Text>}
         {selected.not_before && <Text style={styles.muted}>Scheduled: {localTime(selected.not_before)}</Text>}
         {selected.expires_at && <Text style={styles.muted}>Deadline: {localTime(selected.expires_at)}</Text>}
-        {typeof selected.evidence?.passed === 'boolean' && <Text style={styles.text}>
-          {selected.evidence.passed ? 'Verification passed' : 'Verification failed'}
-          {selected.evidence.verified_at ? ` · ${localTime(selected.evidence.verified_at)}` : ''}
-        </Text>}
+        <Text accessibilityLiveRegion="polite" style={styles.text}>
+          {detailPresentation?.verification}
+          {detailPresentation?.verifiedAt ? ` · ${localTime(detailPresentation.verifiedAt)}` : ''}
+        </Text>
         {selected.evidence?.result_digest && <Text selectable style={styles.muted}>{selected.evidence.result_digest}</Text>}
         {selected.preview_acknowledged_at && <Text style={styles.muted}>
           Acknowledged: {localTime(selected.preview_acknowledged_at)}

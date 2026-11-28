@@ -408,3 +408,50 @@ def test_derivation_creates_inert_proposal_and_preserves_source(api, operation, 
     assert saved["status"] == "proposed"
     assert "approved" not in saved and "handler" not in saved and saved["evidence"] is None
     assert source["status"] == state and source["objective"] == "Original"
+
+
+@pytest.mark.parametrize(("enabled", "deadline", "expected"), [
+    (False, None, "disabled"),
+    (True, datetime(2000, 1, 1, tzinfo=timezone.utc), "deadline_passed"),
+    (True, None, "available"),
+])
+def test_sh312_readable_proposal_reports_preview_readiness_without_granting_queue(enabled, deadline, expected):
+    missions = Missions()
+    missions.docs.append({"owner_id": "alice", "mission_id": "p1", "status": "proposed",
+                          "objective": "Fixture objective", "success_criteria": "Fixture condition",
+                          "budget_cad": 0, "expires_at": deadline})
+    class Database:
+        guardian_missions = missions
+    async def owner():
+        return {"user_id": "alice"}
+    app = FastAPI()
+    app.include_router(build_guardian_mission_router(
+        db=Database(), require_account_user=owner, preview_enabled=enabled), prefix="/api")
+    with TestClient(app) as client:
+        r = client.get("/api/guardian/missions/p1")
+    assert r.status_code == 200
+    proposal = r.json()
+    assert proposal["objective"] == "Fixture objective" and proposal["status"] == "proposed"
+    assert proposal["preview_readiness"] == expected
+    assert ("queue-preview" in proposal["available_actions"]) == (expected == "available")
+    assert ("preview_digest" in proposal) == (expected == "available")
+    assert "revise" in proposal["available_actions"]
+
+
+@pytest.mark.parametrize("operation", ["copy", "revise"])
+def test_sh307_derivation_detail_and_source_lookup_stay_owner_scoped(api, operation):
+    app, missions, account = api
+    missions.docs.append({"owner_id": "alice", "mission_id": "derived", "status": "proposed",
+                          "derived_from": {"mission_id": "a1", "operation": operation}})
+    active = "alice"
+    async def owner():
+        return {"user_id": active}
+    app.dependency_overrides[account] = owner
+    with TestClient(app) as client:
+        base = "/api/guardian/missions"
+        origin = client.get(f"{base}/derived").json()["derived_from"]
+        assert origin == {"mission_id": "a1", "operation": operation}
+        assert client.get(f"{base}/{origin['mission_id']}").status_code == 200
+        active = "bob"
+        assert client.get(f"{base}/derived").status_code == 404
+        assert client.get(f"{base}/{origin['mission_id']}").status_code == 404

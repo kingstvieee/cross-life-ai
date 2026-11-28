@@ -47,7 +47,7 @@ def check(candidate_ids, component_ledger, inventory, acceptance):
             or component_ledger.get("build") != build):
         blockers.append("component receipts are not tied to this exact candidate")
     if not component_result["ready_for_receipt_review"]:
-        blockers.append("804-component evidence is incomplete")
+        blockers.append(f"{components.EXPECTED_COMPONENTS}-component evidence is incomplete")
 
     def same_candidate(record):
         return (isinstance(record, dict) and record.get("app_id") == APP_ID
