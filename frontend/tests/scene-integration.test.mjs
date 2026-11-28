@@ -55,8 +55,7 @@ test('proactive Guardian checks authenticated server consent and never runs in i
   assert.match(hub, /serverConsentReady/);
   assert.match(hub, /serverPrivate \|\| serverSpeechQuiet/);
   assert.match(hub, /AppState\.addEventListener\('change'/);
-  assert.match(hub, /Date\.now\(\) - awaySince < 20 \* 60 \* 1000/);
-  assert.match(hub, /if \(!isProactiveWelcomeTime\(new Date\(\)\)\) return/);
+  assert.match(hub, /if \(shouldRearmArrival\(new Date\(\), awaySince, foregroundArrivalPreference\.current\)\) greeted\.current = false/);
   assert.match(hub, /accountStorageKey\('staarwardd\.guardian\.proactive-greeting\.v2'/);
   assert.doesNotMatch(hub, /AsyncStorage\.getItem\('staarwardd\.guardian\.proactive-greeting\.v1'/);
 });

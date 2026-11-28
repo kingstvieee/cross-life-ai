@@ -49,7 +49,7 @@ export async function playServerSpeech(fetchLine: (signal: AbortSignal) => Promi
       }).catch(()=>{if(current===generation)bound=null;});
     } catch { bound = null; }
     if (current !== generation) return;
-    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: false, shouldPlayInBackground: false });
     if (current !== generation) return;
     const active = createAudioPlayer({ uri: backendUrl(clip.url) }, { updateInterval: 100 });
     player = active; active.volume = options.volume ?? 0.8;

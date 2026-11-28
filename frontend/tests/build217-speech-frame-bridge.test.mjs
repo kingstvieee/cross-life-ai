@@ -71,3 +71,15 @@ test('Build 217 web and native hosts forward only account-audible scene packets'
  assert.equal(sent.source,'staar-native-guardian-audio-v1');
  assert.equal(sent.audioSha256,A);
 });
+
+test('internal Home and normal Home accept only the exact mounted face rig, not an embedded alternate',()=>{
+ const source=readFileSync(new URL('../scene-src/worlds.js',import.meta.url),'utf8');
+ assert.match(source,/session,modelSha256:mountedGuardianFaceSha256/);
+ assert.match(source,/if\(guardianFaceMotion\.readyForPlayback\)\{\s*mountedGuardianFaceSha256=asset\.rigModelSha256/);
+ assert.match(source,/disposed=true;mountedGuardianFaceSha256=null/);
+ const {motion,influences}=fixture();
+ const other='c'.repeat(64);
+ assert.equal(applyGuardianSpeechFrame(motion,good,{session:SESSION,modelSha256:other}),false);
+ assert.equal(applyGuardianSpeechFrame(motion,{...good,modelSha256:other},{session:SESSION,modelSha256:other}),true);
+ assert.equal(influences[FACE_TARGETS.indexOf('PP')],.9);
+});

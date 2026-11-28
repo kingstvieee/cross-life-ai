@@ -8,9 +8,9 @@ import {fileURLToPath} from 'node:url';
 const frontend=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=(file)=>readFileSync(path.join(frontend,file),'utf8');
 const destinations=['home','work','creativity','wellbeing','relationships','events','style','staarverse','staarsonic','diggitstaar'];
-const pages=['index','hub','intro','landing','guest','onboarding','chat','checkins','connections','device-checks','environment','guardian-missions','guardian-notices','guardian-tools','guardian-view','scorecard','settings','style-swap','work','world/[id]','portal/[id]'];
+const pages=['index','hub','intro','landing','guest','onboarding','chat','checkins','connections','device-checks','environment','guardian-missions','guardian-notices','guardian-tools','guardian-view','scorecard','settings','style-swap','work','work-focus','world/[id]','portal/[id]'];
 
-test('all 21 named app routes exist, resolve to a component, and share the authenticated layout',()=>{
+test('all named app routes exist, resolve to a component, and share the authenticated layout',()=>{
  for(const name of pages){
   const file='app/'+name+'.tsx';
   assert.ok(existsSync(path.join(frontend,file)),'Missing '+file);
@@ -28,11 +28,13 @@ test('ten distinct portal IDs match world directory and immersive 3D scene navig
  const scene=read('scene-src/worlds.js');
  const build=read('scene-src/build.mjs');
  const hub=read('components/staarwardd/world-hub.tsx');
+ const art=read('components/staarwardd/locked-portal-artwork.ts');
+ assert.match(hub, /import \{ lockedPortalArtwork \}/);
  const legacy=read('app/portal/[id].tsx');
  const environment=read('app/environment.tsx');
  for(const id of destinations){
   assert.match(portal,new RegExp('\\b'+id+'\\b'),id+' artwork absent');
-  assert.match(hub,new RegExp('\\b'+id+': require'),id+' locked Home artwork absent');
+  assert.match(art,new RegExp('\\b'+id+': require'),id+' locked Home artwork absent');
   assert.match(scene,new RegExp(id),id+' offline scene absent');
   assert.ok(directory.includes('PREVIEW_WORLDS'));
   assert.ok(build.includes("'"+id+"'"),id+' runtime allowlist absent');
@@ -46,7 +48,7 @@ test('ten distinct portal IDs match world directory and immersive 3D scene navig
 
 test('DIGGITSTAAR artwork is separate from STAAR Work; ten-world label is accurate',()=>{
  const a=read('lib/staarwardd/portal-data.ts');
- const b=read('components/staarwardd/world-hub.tsx');
+ const b=read('components/staarwardd/locked-portal-artwork.ts');
  const signIn=read('components/staarwardd/access-boundary.tsx');
  assert.match(a,/diggitstaar\.png/);
  assert.match(b,/diggitstaar\.png/);

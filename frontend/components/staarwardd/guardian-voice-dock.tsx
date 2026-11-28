@@ -15,15 +15,16 @@ export function GuardianVoiceDock() {
   const conversationRoute = worldId ? { pathname: '/chat' as const, params: { portal: worldId } } : '/chat';
   const microphoneRoute = { pathname: '/chat' as const, params: { ...(worldId ? { portal: worldId } : {}), voiceIntent: 'microphone' } };
   if (!user || pathname === '/chat' || pathname.startsWith('/auth')) return null;
-  const audible = audio.master && audio.voice && !audio.speechQuiet;
+  const audible = audio.audioHydrated && audio.master && audio.voice && !audio.speechQuiet && audio.volume > 0;
   const speaking = audio.speechPhase === 'speaking';
   const waiting = audio.speechPhase === 'waiting';
-  const status = !audible ? 'SILENT' : speaking ? 'SPEAKING' : waiting ? 'PREPARING VOICE' : 'VOICE READY';
+  const status = audio.accountSpeechQuiet ? 'ACCOUNT QUIET' : !audible ? 'SILENT' : speaking ? 'SPEAKING' : waiting ? 'PREPARING VOICE' : 'VOICE READY';
   const name = user.companion === 'kaia' ? 'Kaia' : user.companion === 'atlas' ? 'Atlas' : 'Guardian';
   return <View pointerEvents="box-none" style={s.layer}>
     <View style={s.dock}>
       <View style={s.identity}><View style={[s.dot, !audible && s.off]} /><Text style={s.name}>{name}</Text><Text style={s.status}>{status}</Text></View>
-      <Pressable accessibilityRole="button" accessibilityLabel={audible ? 'Mute Guardian everywhere' : 'Enable Guardian voice everywhere'} onPress={() => {
+      <Pressable accessibilityRole="button" accessibilityLabel={audio.accountSpeechQuiet ? 'Open account speech controls' : audible ? 'Mute Guardian everywhere' : 'Enable Guardian voice everywhere'} disabled={!audio.audioHydrated} onPress={() => {
+        if (audio.accountSpeechQuiet) { router.push('/guardian-tools'); return; }
         if (audible) audio.setSpeechQuiet(true);
         else { audio.update({ master: true, voice: true }); audio.setSpeechQuiet(false); }
       }} style={s.action}><Ionicons name={audible ? 'volume-high-outline' : 'volume-mute-outline'} size={21} color="#E9EDF2" /></Pressable>

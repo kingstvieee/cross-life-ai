@@ -56,3 +56,40 @@ def test_overview_and_receipt_do_not_claim_provider_execution():
     assert response.json() == {'state':'played', 'evidence':'client-playback-report'}
     inbox = client.get(root + '/notifications', headers=headers).json()
     assert 'deliveryTokenHash' not in inbox['events'][0]
+
+
+def test_relationship_notes_surface_is_private_and_respects_revoked_portal_access():
+    db = FakeDB()
+    relationships_open = True
+
+    async def authenticate(header):
+        if header not in ('Bearer owner', 'Bearer other'):
+            raise HTTPException(401, 'invalid_session')
+        owner = header == 'Bearer owner'
+        return {
+            'user_id': 'owner' if owner else 'other',
+            'portals_enabled': ['relationships', 'work'],
+            'portal_privacy': {'relationships': {'access': relationships_open if owner else True}},
+        }
+
+    app = FastAPI()
+    install_guardian_core(app, db=db, get_current_user=authenticate)
+    client = TestClient(app)
+    root = '/api/guardian/life-map/records'
+    owner = {'Authorization': 'Bearer owner'}
+    other = {'Authorization': 'Bearer other'}
+    note = {
+        'fact_id': 'test-plans', 'portal': 'relationships', 'text': 'Dinner on Friday',
+        'source_id': 'Personal note', 'source_span': 'Dinner on Friday',
+    }
+
+    assert client.put(root, headers=owner, json=note).status_code == 200
+    read = client.get(root + '?portal=relationships', headers=owner)
+    assert read.status_code == 200
+    assert read.headers['cache-control'] == 'private, no-store'
+    assert [item['text'] for item in read.json()['records']] == ['Dinner on Friday']
+    assert client.get(root + '?portal=work', headers=owner).json() == {'records': []}
+    assert client.get(root + '?portal=relationships', headers=other).json() == {'records': []}
+    relationships_open = False
+    assert client.get(root + '?portal=relationships', headers=owner).status_code == 403
+    assert client.put(root, headers=owner, json={**note, 'expected_revision': 1}).status_code == 403

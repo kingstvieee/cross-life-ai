@@ -7,6 +7,7 @@ import { useAuth } from '@/src/auth';
 import { playServerSpeech, stopServerSpeech } from '@/src/server-speech';
 import {fetchGuardianAlignmentForClip} from '@/src/guardian-alignment-client';
 import type {GuardianAudioFrame} from '@/src/guardian-audio-frame';
+import {canStartGuardianVoice, GUEST_GUARDIAN_WELCOME, guardianQuietOnDevice} from '@/src/guardian-voice-policy';
 
 import type { AmbientKey } from "@/lib/staarwardd/experience";
 import { initialGuardianSpeechState, transitionGuardianSpeech, type GuardianSpeechEvent } from "./guardian-speech-lifecycle";
@@ -23,6 +24,10 @@ type AudioSettings = {
 
 type AudioContextValue = AudioSettings & {
   speechQuiet: boolean;
+  accountSpeechQuiet: boolean;
+  audioHydrated: boolean;
+  setAccountSpeechQuiet: (quiet: boolean) => void;
+  speakGuestWelcome: () => Promise<boolean>;
   voiceNotice: string;
   speechPhase: "idle" | "speaking" | "waiting" | "muted";
   voicePlaybackActive: boolean;
@@ -109,6 +114,8 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   useEffect(() => { stopServerSpeech(); return stopServerSpeech; }, [companion]);
   const [settings, setSettings] = useState<AudioSettings>(DEFAULT_SETTINGS);
   const [speechQuiet, setSpeechQuietState] = useState(false);
+  const [accountSpeechQuiet, setAccountSpeechQuietState] = useState(false);
+  const [audioHydrated, setAudioHydrated] = useState(false);
   const [activeAmbient, setActiveAmbient] = useState<AmbientKey | null>(null);
   // One cached player per sound. expo-audio's web replace()/remove() strips the element
   // src and calls load(), which fires spurious "no supported source" MediaErrors — so we
@@ -126,16 +133,41 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     setGuardianAudioFrame(null);
     stopServerSpeech();
     void Speech.stop();
+    accountQuietRef.current = false;
+    setAccountSpeechQuietState(false);
+    applyEffectiveQuiet(localQuietRef.current);
   }, [user?.user_id]);
   const guardianSpeech = useRef({ ...initialGuardianSpeechState });
   const dispatchGuardianSpeech = (event: GuardianSpeechEvent) => {
     guardianSpeech.current = transitionGuardianSpeech(guardianSpeech.current, event).state;
     setSpeechPhase(guardianSpeech.current.phase);
   };
-  const speechQuietRef = useRef(false);
+  const speechQuietRef = useRef(false); // Effective, for all transport callbacks.
+  const localQuietRef = useRef(false);
+  const accountQuietRef = useRef(false);
+  const audioHydratedRef = useRef(false);
   const settingsRef = useRef(settings);
 
-  useEffect(() => { settingsRef.current = settings; }, [settings]);
+  function applyEffectiveQuiet(quiet: boolean) {
+    if (speechQuietRef.current === quiet) return;
+    speechQuietRef.current = quiet;
+    setSpeechQuietState(quiet);
+    dispatchGuardianSpeech({ type: quiet ? 'MUTE' : 'UNMUTE' });
+    if (quiet) {
+      setGuardianAudioFrame(null);
+      speechRequest.current += 1;
+      setVoicePlaybackActive(false);
+      stopServerSpeech();
+      void Speech.stop();
+    }
+  }
+
+  const setAccountSpeechQuiet = useCallback((quiet: boolean) => {
+    if (!user || user.is_demo) return;
+    accountQuietRef.current = quiet;
+    setAccountSpeechQuietState(quiet);
+    applyEffectiveQuiet(guardianQuietOnDevice(localQuietRef.current, quiet));
+  }, [user?.user_id, user?.is_demo]);
 
   const clearFade = () => {
     if (fadeTimer.current) { clearInterval(fadeTimer.current); fadeTimer.current = null; }
@@ -165,14 +197,25 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
       window.addEventListener("unhandledrejection", handler);
       off = () => window.removeEventListener("unhandledrejection", handler);
     }
-    AsyncStorage.getItem(QUIET_KEY).then((saved) => {
-      if (saved === 'true') { speechQuietRef.current = true; setSpeechQuietState(true); dispatchGuardianSpeech({ type: 'MUTE' }); }
-    }).catch(() => undefined);
-    AsyncStorage.getItem(STORAGE_KEY).then((saved) => {
-      if (!saved) return;
-      try { setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) }); } catch { /* preserve safe defaults */ }
-    }).catch(() => undefined);
+    let alive = true;
+    void Promise.all([
+      AsyncStorage.getItem(QUIET_KEY).catch(() => null),
+      AsyncStorage.getItem(STORAGE_KEY).catch(() => null),
+    ]).then(([savedQuiet, savedSettings]) => {
+      if (!alive) return;
+      if (savedSettings) {
+        try {
+          settingsRef.current = { ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings) };
+          setSettings(settingsRef.current);
+        } catch { /* preserve safe defaults */ }
+      }
+      localQuietRef.current = savedQuiet === 'true';
+      applyEffectiveQuiet(guardianQuietOnDevice(localQuietRef.current, accountQuietRef.current));
+      audioHydratedRef.current = true;
+      setAudioHydrated(true);
+    });
     return () => {
+      alive = false;
       off?.();
       Object.values(ambientPlayers.current).forEach((p) => { try { p?.remove(); } catch { /* noop */ } });
       Object.values(cuePlayers.current).forEach((p) => { try { p?.remove(); } catch { /* noop */ } });
@@ -182,22 +225,23 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   }, []);
 
   const update = useCallback((patch: Partial<AudioSettings>) => {
-    setSettings((current) => {
-      const next = { ...current, ...patch };
-      void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      if (!next.voice || !next.master) {
-        speechRequest.current += 1;
-        setVoicePlaybackActive(false);
-        dispatchGuardianSpeech({ type: 'REVOKE' });
-        stopServerSpeech();
-        void Speech.stop();
-      }
-      if (!next.master || (!next.music && !next.ambience)) {
-        pauseAllAmbient();
-        setActiveAmbient(null);
-      }
-      return next;
-    });
+    if (!audioHydratedRef.current) return;
+    const next = { ...settingsRef.current, ...patch };
+    settingsRef.current = next;
+    setSettings(next);
+    void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    if (!next.voice || !next.master || next.volume <= 0) {
+      speechRequest.current += 1;
+      setVoicePlaybackActive(false);
+      setGuardianAudioFrame(null);
+      dispatchGuardianSpeech({ type: 'REVOKE' });
+      stopServerSpeech();
+      void Speech.stop();
+    }
+    if (!next.master || (!next.music && !next.ambience)) {
+      pauseAllAmbient();
+      setActiveAmbient(null);
+    }
   }, []);
 
   const stopSpeech = useCallback(() => {
@@ -226,14 +270,10 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
   }, [stopSpeech]);
 
   const setSpeechQuiet = useCallback((quiet: boolean) => {
-    speechQuietRef.current = quiet;
-    setSpeechQuietState(quiet);
+    if (!audioHydratedRef.current) return;
+    localQuietRef.current = quiet;
     void AsyncStorage.setItem(QUIET_KEY, quiet ? 'true' : 'false');
-    setGuardianAudioFrame(null);
-    speechRequest.current += 1;
-    setVoicePlaybackActive(false);
-    dispatchGuardianSpeech({ type: quiet ? 'MUTE' : 'UNMUTE' });
-    if (quiet) { stopServerSpeech(); void Speech.stop(); }
+    applyEffectiveQuiet(guardianQuietOnDevice(quiet, accountQuietRef.current));
   }, []);
 
   // Each world's soundscape fades in softly on entry (non-toggling variant).
@@ -319,11 +359,58 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
     } catch { /* controlled cinematic audio remains optional and may fail gracefully */ }
   }, [settings.ambience, settings.master, settings.music, settings.volume]);
 
+  const canSpeakNow = () => canStartGuardianVoice({
+    ...settingsRef.current,
+    foreground: AppState.currentState === 'active',
+    audioHydrated: audioHydratedRef.current,
+    quiet: speechQuietRef.current,
+  });
+
+  const playDeviceSpeech = useCallback(async (text: string, rate: number, requestId: number, taskId: string, utteranceId: string) => {
+    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: false, shouldPlayInBackground: false }).catch(() => {});
+    const voices = await Speech.getAvailableVoicesAsync().catch(() => []);
+    if (requestId !== speechRequest.current || !canSpeakNow()) return false;
+    const installed = voices.find(voice => voice.language === 'en-GB');
+    return new Promise<boolean>(resolve => {
+      let settled = false;
+      const finish = (played: boolean) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (requestId === speechRequest.current) {
+          setVoicePlaybackActive(false);
+          dispatchGuardianSpeech({ type: 'TASK_COMPLETED', taskId });
+          dispatchGuardianSpeech({ type: 'UTTERANCE_ENDED', utteranceId });
+        }
+        resolve(played && requestId === speechRequest.current);
+      };
+      const timer = setTimeout(() => { if (requestId === speechRequest.current) void Speech.stop(); finish(false); }, 120000);
+      const failed = () => {
+        if (requestId === speechRequest.current) setVoiceNotice('Device speech did not play. Check Silent Mode and media volume.');
+        finish(false);
+      };
+      try {
+        Speech.speak(text.slice(0,2000), {language:'en-GB',voice:installed?.identifier,rate,volume:settingsRef.current.volume,onStart:()=>{if(requestId===speechRequest.current && !speechQuietRef.current)setVoicePlaybackActive(true);},onDone:()=>finish(true),onStopped:()=>finish(false),onError:failed});
+      } catch { failed(); }
+    });
+  }, []);
+
+  const speakGuestWelcome = useCallback(async () => {
+    if ((user && !user.is_demo) || !canSpeakNow()) return false;
+    stopSpeech();
+    const requestId = speechRequest.current;
+    const taskId = `guest-welcome-${requestId}`;
+    const utteranceId = `guest-voice-${requestId}`;
+    dispatchGuardianSpeech({ type: 'START', taskId, utteranceId });
+    setVoiceNotice('Guest welcome uses this device’s voice.');
+    return playDeviceSpeech(GUEST_GUARDIAN_WELCOME, 0.95, requestId, taskId, utteranceId);
+  }, [playDeviceSpeech, stopSpeech, user?.user_id, user?.is_demo]);
+
   const speak = useCallback(async (text: string, rate = 0.95, speaker?: 'guardian') => {
+    if (!user || user.is_demo || !canSpeakNow() || !text.trim()) return false;
     const requestId = ++speechRequest.current;
     setVoicePlaybackActive(false);
     setGuardianAudioFrame(null);
-    if (!settingsRef.current.master || !settingsRef.current.voice || speechQuietRef.current || !text.trim()) return false;
     const taskId = `guardian-task-${requestId}`;
     const utteranceId = `guardian-utterance-${requestId}`;
     // New speech replaces any prior utterance, but navigation never cancels it.
@@ -379,35 +466,19 @@ export function StaarAudioProvider({ children }: PropsWithChildren) {
       if (requestId !== speechRequest.current || speechQuietRef.current) return false;
       setVoicePlaybackActive(false);
       setVoiceNotice('Using installed device speech. Server voice is unavailable.');
-      const voices = await Speech.getAvailableVoicesAsync().catch(() => []);
-      if (requestId !== speechRequest.current || speechQuietRef.current) return false;
-      const installed = voices.find(voice => voice.language === 'en-GB');
-      return new Promise<boolean>(resolve => {
-        let settled = false;
-        const finish = (played: boolean) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          if (requestId === speechRequest.current) {
-            setVoicePlaybackActive(false);
-            dispatchGuardianSpeech({ type: 'TASK_COMPLETED', taskId });
-            dispatchGuardianSpeech({ type: 'UTTERANCE_ENDED', utteranceId });
-          }
-          resolve(played && requestId === speechRequest.current);
-        };
-        const timer = setTimeout(() => { if (requestId === speechRequest.current) void Speech.stop(); finish(false); }, 120000);
-        Speech.speak(text.slice(0,2000), {language:'en-GB',voice:installed?.identifier,rate,volume:settingsRef.current.volume,onStart:()=>{if(requestId===speechRequest.current && !speechQuietRef.current)setVoicePlaybackActive(true);},onDone:()=>finish(true),onStopped:()=>finish(false),onError:()=>{if (requestId === speechRequest.current) setVoiceNotice('Speech could not play. The message remains in your inbox.');finish(false);}});
-      });
+      return playDeviceSpeech(text, rate, requestId, taskId, utteranceId);
     }
-  }, [api]);
+  }, [api, playDeviceSpeech, user?.user_id, user?.is_demo]);
 
   const value = useMemo(() => ({
-    ...settings, speechQuiet, speechPhase, voicePlaybackActive, voiceNotice,
+    ...settings, speechQuiet, accountSpeechQuiet, audioHydrated, setAccountSpeechQuiet, speakGuestWelcome,
+    speechPhase, voicePlaybackActive, voiceNotice,
     guardianAudioFrame,setGuardianRigHash,
     activeAmbient, update, setSpeechQuiet, toggleAmbient, playAmbient,
     stopAmbient, playCue, speak, stopSpeech, stopAll,
   }), [activeAmbient, guardianAudioFrame, setGuardianRigHash, playAmbient, playCue,
-       settings, setSpeechQuiet, speak, speechQuiet, speechPhase, voicePlaybackActive,
+       settings, setSpeechQuiet, speak, speakGuestWelcome, speechQuiet, accountSpeechQuiet, audioHydrated,
+       setAccountSpeechQuiet, speechPhase, voicePlaybackActive,
        voiceNotice, stopSpeech, stopAll, stopAmbient, toggleAmbient, update]);
   return <AudioContext.Provider value={value}>{children}</AudioContext.Provider>;
 }

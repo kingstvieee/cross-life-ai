@@ -5,7 +5,9 @@ import {validatedOrigin, verifyLiveProductionBackend} from '../scripts/verify-li
 const base='https://staarwardd-guardian-production.onrender.com';
 const res=(status,data,headers={})=>({status,json:async()=>data,headers:{get:key=>headers[key]}});
 const respond=async (url,options={})=>{
- const p=new URL(url).pathname;
+ const u=new URL(url),p=u.pathname;
+ if(u.origin==='https://staarwaardd-hub.ca.auth0.com'&&p==='/authorize')return res(302,{}, {location:'/u/login?state=redacted'});
+ if(p==='/api/auth/start/google')return res(302,{},{location:'https://staarwaardd-hub.ca.auth0.com/authorize?response_type=code&state=test&code_challenge_method=S256&redirect_uri='+encodeURIComponent(base+'/api/auth/callback')});
  if(p==='/api/health/live')return res(200,{status:'alive'});
  if(p==='/api/health/ready')return res(200,{status:'ready',database:'connected'});
  if(p==='/api/auth/providers'&&options.method==='OPTIONS')return res(400,{detail:'Disallowed CORS origin'});
@@ -28,6 +30,7 @@ test('live production gate verifies DB/Google/CORS/auth without claiming device 
  const r=await verifyLiveProductionBackend(base,{request:respond});
  assert.equal(r.database,'connected');
  assert.equal(r.googleProviderConfigured,true);
+ assert.deepEqual(r.brokerStartAccepted,['google']);
  assert.equal(r.realOwnerGoogleReadbackCertified,false);
  assert.equal(r.archiveAndDeviceCertified,false);
 });
@@ -50,4 +53,10 @@ test('cold-start timeout retries liveness without bypassing readiness or securit
   return respond(u,o);
  }});
  assert.equal(attempts,2);assert.equal(r.database,'connected');
+});
+
+test('configured provider still fails signing when the broker refuses the callback',async()=>{
+ await assert.rejects(verifyLiveProductionBackend(base,{request:(u,o)=>u.includes('.auth0.com/authorize')?res(403,{}):respond(u,o)}),/production_oauth_broker_rejected_start:google/);
+ await assert.rejects(verifyLiveProductionBackend(base,{request:(u,o)=>u.includes('.auth0.com/authorize')?res(302,{}, {location:'/error'}):respond(u,o)}),/production_oauth_broker_rejected_start:google/);
+ await assert.rejects(verifyLiveProductionBackend(base,{request:(u,o)=>u.endsWith('/api/auth/start/google')?res(302,{},{location:'https://staarwaardd-hub.ca.auth0.com/authorize?redirect_uri=https://attacker.invalid/'}):respond(u,o)}),/production_oauth_callback_contract_failed:google/);
 });

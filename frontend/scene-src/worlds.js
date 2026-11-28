@@ -14,6 +14,7 @@ import {createGroundSupportIndex} from './player-ground-support.js';
 import {createApprovedGuardianFaceMotion} from './guardian-face-motion.js';
 import {applyGuardianSpeechFrame} from './guardian-speech-bridge.js';
 import {createGuardianDevicePerformanceProbe} from './guardian-device-performance.js';
+import {createPrivateWingPose,mountPrivateSpeakingFace} from './guardian-winged-fit.js';
 import {createGuardianNeckPoseProbe} from './guardian-neck-pose-probe.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -32,6 +33,16 @@ const offlineGltfLoader = () => new GLTFLoader().register(parser => {
   return {name: 'STAAR_offline_image_decoder'};
 });
 
+// Arc-length sampling keeps the Guardian moving evenly between waypoints.
+// Ease on the distance, not the spline parameter, so the flare and touchdown
+// slow to a stop even when the control points are unevenly spaced.
+const guardianArrivalSpline = (presentation) => {
+  const points = presentation
+    ? [[4.8,4.9,-10], [2.45,4.12,-7.1], [-.98,2.3,-4.05], [-.68,.32,-1.04], [0,0,0]]
+    : [[5.2,6.2,-11.5], [2.66,5.05,-8.35], [-1.45,2.9,-4.85], [-.78,.38,-1.16], [0,0,0]];
+  return new T.CatmullRomCurve3(points.map(([x,y,z])=>new T.Vector3(x,y,z)),false,'centripetal');
+};
+const guardianFlightDistance = progress => progress * progress * (3 - 2 * progress);
 const ids = worldIds;
 const names = worldNames;
 const requested = window.STAAR_WORLD || new URLSearchParams(location.search).get('world') || 'hub';
@@ -48,9 +59,11 @@ if (guardianPresentation) {
 // VoiceOver but is visually hidden while WebGL is healthy.
 const immersiveHub = world === 'hub' && !guardianPresentation;
 const reduced =window.STAAR_REDUCE_GUARDIAN_MOTION === true || matchMedia('(prefers-reduced-motion: reduce)').matches;
+const readOnly = window.STAAR_SCENE_READ_ONLY === true;
 const canvas = document.querySelector('canvas');
 const session = window.STAAR_SCENE_SESSION || '';
 const report = (type, data = {}) => {
+  if (readOnly && type !== 'ready' && type !== 'unavailable') return;
   const event = { source: 'staar-scene-v1', world, session, type, ...data };
   if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(event));
   else parent.postMessage(event, '*');
@@ -63,7 +76,7 @@ const addNavigationFallback = () => {
   if (!actions) return;
   actions.replaceChildren();
   document.querySelector('footer').style.display='';
-  for (const [label, action] of fallbackActions(world)) {
+  for (const [label, action] of readOnly ? [] : fallbackActions(world)) {
     const button = document.createElement('button');
     button.textContent = label;
     button.addEventListener('click', () => report('select', { action }));
@@ -73,7 +86,7 @@ const addNavigationFallback = () => {
 let renderer;
 try { renderer = new T.WebGLRenderer({ canvas, alpha: guardianPresentation, antialias: true, powerPreference: 'low-power' }); }
 catch {
-  document.querySelector('#status').textContent = '3D rendering is unavailable on this device. Navigation remains available below.';
+  document.querySelector('#status').textContent = readOnly ? 'The guest 3D preview is unavailable on this device.' : '3D rendering is unavailable on this device. Navigation remains available below.';
   document.querySelector('#reset').hidden = true;
   addNavigationFallback();
   report('unavailable');
@@ -120,10 +133,13 @@ if (renderer) {
   let disposed = false;
   let hubRig = null, hubStage = null, hubLoopReady = false, hubBloom = null;
   let guardianArrivalPending = false;
+  let presentationFlightActive = false;
+  let frame=0, visible=!document.hidden, firstFrameReady=false, lastFrameAt=null, activeSeconds=0;
   let hubGuardianFlight = null; // immersive hub: {flight, guardian, active} once the Guardian model is mounted
   let importedControls = [];
   let walkController = null;
   let guardianFaceMotion = null;
+  let mountedGuardianFaceSha256 = null;
   let guardianLocomotion = null;
   let guardianHeadTracking = null;
   let guardianNeckPoseQa = null;
@@ -158,11 +174,7 @@ if (renderer) {
     }
     if(!packet||packet.source!=='staar-native-guardian-audio-v1')return;
     const accepted=applyGuardianSpeechFrame(guardianFaceMotion,packet,{
-      session,modelSha256:window.STAAR_GUARDIAN_QA===true &&
-        window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.internalQaOnly===true &&
-        window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.productionApproved===false
-          ? window.STAAR_PRIVATE_GUARDIAN_QA_MODEL.rigModelSha256
-          : window.STAAR_APPROVED_GUARDIAN_MODEL?.rigModelSha256,
+      session,modelSha256:mountedGuardianFaceSha256,
     });
     guardianDeviceQa?.packet(packet,accepted);
     if(accepted)requestDraw();
@@ -359,7 +371,8 @@ if (renderer) {
   function panel(label,action,x,y,z,accent=blue,width=3) {
     const g=new T.Group();g.position.set(x,y,z);scene.add(g);
     box(0,0,0,width,.8,.16,black,g);box(0,-.42,.02,width,.035,.2,accent,g);text(label,0,.02,.1,width*.92,g);
-    g.userData={label,action};clickable.push(g);return g;
+    if (!readOnly) { g.userData={label,action};clickable.push(g); }
+    return g;
   }
   function floor(r=13,mat=black) {cylinder(0,-.25,0,r,.45,mat);for(let n=3;n<r;n+=3)ring(0,.01,0,n,.014,gold,true);ring(0,.02,0,r-.1,.045,chrome,true);}
   function plinth(x=0,z=0,r=2.7,accent=blue) {cylinder(x,.2,z,r,.4);cylinder(x,.45,z,r*.93,.15,black);ring(x,.55,z,r*.9,.035,accent,true);ring(x,.12,z,r,.035,gold,true);}
@@ -407,7 +420,12 @@ if (renderer) {
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.productionApproved===false &&
       window.STAAR_PRIVATE_GUARDIAN_QA_MODEL?.physicalIphoneCertified===false
         ? window.STAAR_PRIVATE_GUARDIAN_QA_MODEL : null;
-    const asset=internal??window.STAAR_APPROVED_GUARDIAN_MODEL;
+    const fit=window.STAAR_LOCAL_WINGED_GUARDIAN_QA;
+    const wingedQa=world==='hub' && fit?.schema==='staar-winged-fit-v1' && fit.internalQaOnly===true &&
+      fit.productionApproved===false && fit.physicalIphoneCertified===false &&
+      (fit.localOnly===true ? window.STAAR_GUARDIAN_QA===true : fit.localOnly===false && Boolean(internal) && internalHomeReview)
+      ? fit : null;
+    const asset=wingedQa??internal??window.STAAR_APPROVED_GUARDIAN_MODEL;
     const unavailable = () => {
       if (disposed) return;
       if (guardianPresentation) report('guardian-unavailable');
@@ -419,19 +437,29 @@ if (renderer) {
       // Never substitute a different person's image or a stand-in figure.
       unavailable(); return;
     }
-    try {
-      const decoded=atob(asset.glbBase64);
+    const parseLocalGlb=base64=>{
+      const decoded=atob(base64);
       const bytes=new Uint8Array(decoded.length);
       for(let i=0;i<decoded.length;i++)bytes[i]=decoded.charCodeAt(i);
-      offlineGltfLoader().parse(bytes.buffer,'',model=>{
+      return offlineGltfLoader().parseAsync(bytes.buffer,'');
+    };
+    let guardian, donor;
+    parseLocalGlb(asset.glbBase64).then(async model=>{
         if(!model?.scene){unavailable();return;}
-        if(disposed){disposeModel(model.scene);return;}
-        const guardian=model.scene;
+        guardian=model.scene;
+        if(disposed){disposeModel(guardian);return;}
+        let faceRoot=guardian, wingPose;
+        if(wingedQa){
+          donor=(await parseLocalGlb(wingedQa.faceGlbBase64??internal?.glbBase64)).scene;
+          if(disposed){disposeModel(guardian);disposeModel(donor);return;}
+          wingPose=createPrivateWingPose(guardian,model.animations);
+          faceRoot=mountPrivateSpeakingFace(guardian,donor);
+        }
         // Build242 repair acceptance: full-body neck must truly carry the protected
         // head skin. Do not show a frozen head, disable two-sided face rendering,
         // or retain zero-scale legacy silver/chrome armour in the live scene.
-        const integrity=inspectGuardianRigIntegrity(guardian,{detachHiddenLegacy:true});
-        if(!integrity.valid){disposeModel(guardian);unavailable();return;}
+        const integrity=wingedQa?null:inspectGuardianRigIntegrity(guardian,{detachHiddenLegacy:true});
+        if(integrity && !integrity.valid){disposeModel(guardian);unavailable();return;}
         // V4 private visual study only: retain the exact source GLB and its hash.
         // Correct the misleading pale titanium material values without touching the face,
         // skeleton, textures, animation clips or production-approved rendering path.
@@ -467,7 +495,13 @@ if (renderer) {
         const upAxis=model.parser?.json?.extras?.STAAR_Guardian_Coordinates?.upAxis;
         if(upAxis==='Z')guardian.rotation.x=-Math.PI/2;
         else if(upAxis && upAxis!=='Y'){disposeModel(guardian);unavailable();return;}
-        const bounds=new T.Box3().setFromObject(guardian);
+        const bounds=new T.Box3();
+        if(wingedQa){
+          // The donor's hidden body and the hidden original helmet must not
+          // affect the live character's contact point or camera framing.
+          guardian.updateMatrixWorld(true);
+          guardian.traverseVisible(node=>{if(node.isMesh)bounds.expandByObject(node,true);});
+        }else bounds.setFromObject(guardian);
         const dimensions=bounds.getSize(new T.Vector3());
         if(!Number.isFinite(dimensions.y)||dimensions.y<=.01||dimensions.y>10000){disposeModel(guardian);unavailable();return;}
         const scale=Math.min((internal && immersiveHub ? 3.15 : 3.65)/dimensions.y,4.5/Math.max(dimensions.x,dimensions.z,.1));
@@ -476,25 +510,32 @@ if (renderer) {
         const centre=bounds.getCenter(new T.Vector3());
         guardian.position.set(-centre.x*scale,.6-bounds.min.y*scale,1.5-centre.z*scale);
         // Immersive hub: stand on the centre of the portal ring, feet on the stage top.
-        if (immersiveHub) guardian.position.set(-centre.x*scale,HUB_STAGE_TOP-bounds.min.y*scale,-centre.z*scale);
+        if (immersiveHub) {
+          let anchor=centre;
+          if(wingedQa){
+            const feet=['L','R'].map(side=>guardian.getObjectByName('B230_QA_Joint_Foot_'+side));
+            // Positions are still in unscaled rig space: getWorldPosition after
+            // the common scale/offset has been applied would count it twice.
+            if(feet.every(foot=>foot?.isBone)){
+              guardian.position.set(0,0,0);guardian.scale.setScalar(1);
+              anchor=feet[0].getWorldPosition(new T.Vector3()).lerp(feet[1].getWorldPosition(new T.Vector3()),.5);
+              guardian.scale.setScalar(scale);
+            }
+          }
+          guardian.position.set(-anchor.x*scale,HUB_STAGE_TOP-bounds.min.y*scale,-anchor.z*scale);
+        }
         if (guardianPresentation) {
           const flight = new T.Group();
           scene.add(flight);
           flight.add(guardian);
-          
-          
-          if (reduced) guardianArrivalPending = true;
-          else {
-            const arrivalPath = new T.CubicBezierCurve3(
-              new T.Vector3(4.8, 4.9, -10),
-              new T.Vector3(-1.4, 3.3, -7),
-              new T.Vector3(-.85, -.35, -1.6),
-              new T.Vector3(0, 0, 0),
-            );
-            const flightDuration = 2100;
+          if (reduced) {
+            wingPose?.(true,1);
+            guardianArrivalPending = true;
+          } else {
+            presentationFlightActive = true;
+            const arrivalPath = guardianArrivalSpline(true);
+            const flightDuration = 2.1, settleDuration = .6;
             let startFlight;
-            let arrived = false;
-            let hoverStart;
             // Build the pose in Guardian's facing frame, independent of bone roll.
             flight.updateMatrixWorld(true);
             const flightJoints = [
@@ -513,35 +554,38 @@ if (renderer) {
                 spreadAxis: new T.Vector3(0, 0, 1).applyQuaternion(inverseRest) }];
             });
             const flightPose = new T.Quaternion();
-            flight.position.copy(arrivalPath.v0);
-            animated.push((time) => {
+            arrivalPath.getPointAt(0,flight.position);
+            animated.push(time => {
               startFlight ??= time;
-              const progress = Math.min((time - startFlight) * 1000 / flightDuration, 1);
-              const eased = progress * progress * (3 - 2 * progress);
-              arrivalPath.getPoint(eased, flight.position);
-              const bank = Math.sin(Math.PI * progress) * (1 - progress);
-              flight.rotation.set(.16 * bank, -.32 * bank, .38 * bank);
-              if (!arrived) {
-                // Blend the live skeleton back into its standing pose as Guardian settles.
-                const poseWeight = 1 - T.MathUtils.smoothstep(progress, .66, 1);
+              const elapsed = time - startFlight;
+              const progress = Math.min(elapsed / flightDuration,1);
+              if (presentationFlightActive && progress < 1) {
+                wingPose?.(false,progress);
+                arrivalPath.getPointAt(guardianFlightDistance(progress),flight.position);
+                const bank = Math.sin(Math.PI * progress) * (1 - progress);
+                flight.rotation.set(.16 * bank,-.32 * bank,.38 * bank);
+                const poseWeight = 1 - T.MathUtils.smoothstep(progress,.66,1);
                 const steering = Math.sin(progress * Math.PI * 2);
-                for (const { joint, pitch, spread, steer, rest, pitchAxis, spreadAxis } of flightJoints) {
-                  joint.quaternion.copy(rest);
-                  joint.quaternion.multiply(flightPose.setFromAxisAngle(pitchAxis, pitch * poseWeight));
-                  joint.quaternion.multiply(flightPose.setFromAxisAngle(
-                    spreadAxis, (spread + steer * steering) * poseWeight,
-                  ));
+                for (const {joint,pitch,spread,steer,rest,pitchAxis,spreadAxis} of flightJoints) {
+                  joint.quaternion.copy(rest)
+                    .multiply(flightPose.setFromAxisAngle(pitchAxis,pitch * poseWeight))
+                    .multiply(flightPose.setFromAxisAngle(spreadAxis,(spread + steer * steering) * poseWeight));
                 }
+                return;
               }
-              
-              if (progress < 1) return;
-              if (!arrived) {
-                arrived = true;
-                hoverStart = time;
+              const timeSinceLanding = elapsed - flightDuration;
+              if (presentationFlightActive) {
+                const settle = Math.min(timeSinceLanding / settleDuration,1);
+                flight.position.set(0,0,0);
+                flight.rotation.set(0,0,0);
+                wingPose?.(true,settle);
+                for (const {joint,rest} of flightJoints) joint.quaternion.copy(rest);
+                if (settle < 1) return;
+                presentationFlightActive = false;
                 guardianArrivalPending = true;
               }
-              const hoverTime = time - hoverStart;
-              const hoverBlend = Math.min(hoverTime, 1);
+              const hoverTime = Math.max(0,timeSinceLanding - settleDuration);
+              const hoverBlend = Math.min(hoverTime,1);
               flight.position.y = hoverBlend * .045 * Math.sin(hoverTime * 2.2);
               flight.rotation.y = hoverBlend * .035 * Math.sin(hoverTime * 1.1);
             });
@@ -550,11 +594,18 @@ if (renderer) {
           // In the hub the stage mount turns with the camera, so the Guardian keeps
           // facing the viewer. He flies in and lands on the pedestal (hubGuardianArrival).
           const flight = new T.Group(); hubStage.mount.add(flight); flight.add(guardian);
-          hubGuardianFlight = {flight, guardian, active: !reduced};
+          hubGuardianFlight = {flight, guardian, active: !reduced, wingPose};
         } else {
           scene.add(guardian);
         }
-        modelMotions.push(createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced}));
+        const bodyMotion = createModelMotion(guardian,model.animations,{guardian:true,reducedMotion:reduced});
+        const flightOwnsPose = () => presentationFlightActive || hubGuardianFlight?.active === true;
+        modelMotions.push({
+          update(delta,visible) {
+            if (!flightOwnsPose() && guardianLocomotion?.snapshot().phase === 'idle') bodyMotion.update(delta,visible);
+          },
+          dispose: () => bodyMotion.dispose(),
+        });
         // The internal branch is source-hash pinned but NEVER an Apple
         // release approval. The ordinary production branch still accepts
         // only the independent release-receipt-checked Guardian asset.
@@ -569,11 +620,11 @@ if (renderer) {
         if (hubGuardianFlight) {
           // Breathing and weight shift whenever no clip or flight pose owns the body.
           const idle=createGuardianIdle(guardian,hubGuardianFlight.flight,{reducedMotion:reduced,
-            busy:()=>hubGuardianFlight.active||guardianLocomotion?.snapshot().phase!=='idle'});
+            busy:()=>flightOwnsPose()||bodyMotion.actionCount>0||guardianLocomotion?.snapshot().phase!=='idle'});
           modelMotions.push(idle);
           hubGuardianArrival();
         }
-        guardianFaceMotion=createApprovedGuardianFaceMotion(guardian,{
+        guardianFaceMotion=createApprovedGuardianFaceMotion(faceRoot,{
           rigSha256:asset.rigModelSha256,expectedRigSha256:asset.rigModelSha256});
         // Only the exact build-time receipt-checked Guardian GLB can signal
         // readiness. 2D stills and the known rejected 3D models never do.
@@ -583,17 +634,21 @@ if (renderer) {
           document.querySelector('#status').textContent='REVIEW ONLY · NOT A RELEASED 3D GUARDIAN';
         }
         if(guardianFaceMotion.readyForPlayback){
+          mountedGuardianFaceSha256=asset.rigModelSha256;
           guardianDeviceQa?.modelReady(asset.rigModelSha256);
           // Bind geometry diagnostics only inside the internal iPhone QA run.
           // A private review-only GLB still cannot pass the asset importer.
-          if(guardianDeviceQa)guardianNeckPoseQa=createGuardianNeckPoseProbe(guardian,
+          if(guardianDeviceQa && !wingedQa)guardianNeckPoseQa=createGuardianNeckPoseProbe(guardian,
             {approvedAsset:true});
           report('guardian-face-ready',{modelSha256:asset.rigModelSha256});
         }
         if (guardianPresentation && !guardianFaceMotion.readyForPlayback) report('guardian-unavailable');
         requestDraw();
-      },unavailable);
-    } catch { unavailable(); }
+      }).catch(()=>{
+        if(guardian){guardian.removeFromParent();disposeModel(guardian);}
+        if(donor && !donor.parent)disposeModel(donor);
+        unavailable();
+      });
   }
   function hub() {
     if (guardianPresentation) {
@@ -763,12 +818,13 @@ if (renderer) {
     x.lineWidth = 2; x.beginPath(); x.arc(256, 256, 214, 0, Math.PI * 2); x.stroke();
     const goldInk = x.createLinearGradient(0, 170, 0, 350);
     goldInk.addColorStop(0, '#fff1c8'); goldInk.addColorStop(.5, '#e2b665'); goldInk.addColorStop(1, '#9c7232');
-    x.fillStyle = goldInk; x.shadowColor = 'rgba(255,214,140,.8)'; x.shadowBlur = 24;
-    x.beginPath(); x.moveTo(146, 318); x.lineTo(132, 214); x.lineTo(196, 262); x.lineTo(256, 176);
-    x.lineTo(316, 262); x.lineTo(380, 214); x.lineTo(366, 318); x.closePath(); x.fill();
-    x.fillRect(146, 328, 220, 22);
-    x.shadowBlur = 0; x.fillStyle = '#ffffff';
-    for (const [cx, cy, r] of [[132, 205, 10], [256, 165, 12], [380, 205, 10]]) { x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill(); }
+    x.strokeStyle = goldInk; x.lineWidth = 8; x.lineJoin = 'round'; x.shadowColor = 'rgba(255,214,140,.85)'; x.shadowBlur = 22;
+    x.beginPath(); x.moveTo(138, 315); x.lineTo(99, 218); x.lineTo(165, 248);
+    x.lineTo(186, 202); x.lineTo(222, 237); x.lineTo(256, 170);
+    x.lineTo(290, 237); x.lineTo(326, 202); x.lineTo(347, 248);
+    x.lineTo(413, 218); x.lineTo(374, 315); x.closePath(); x.stroke();
+    x.beginPath(); x.moveTo(138, 315); x.lineTo(256, 277); x.lineTo(374, 315);
+    x.moveTo(144, 332); x.lineTo(368, 332); x.stroke();
     return hubTexture(c);
   }
   let hubGlowMap = null;
@@ -975,9 +1031,14 @@ if (renderer) {
         vec3 col=mix(vec3(.034,.038,.052),vec3(.012,.013,.019),smoothstep(0.,13.,r));
         col+=(vnoise(p*1.6)-.5)*.014+(vnoise(p*7.)-.5)*.006;
         col+=vec3(.38,.62,.9)*exp(-r*r*.16)*.2;
-        vec3 gold=vec3(.86,.67,.37);
-        col+=gold*(ringLine(r-2.75,.02)+ringLine(r-4.35,.014)+ringLine(r-6.05,.014))*.5;
+        vec3 gold=vec3(.86,.67,.37), chrome=vec3(.56,.65,.78);
+        float a=atan(p.y,p.x);
+        float glint=pow(max(0.,cos(a*4.+uTime*.31)),12.);
+        col+=chrome*(ringLine(r-2.61,.03)+ringLine(r-3.94,.016)+ringLine(r-6.02,.016))*(.48+.86*glint);
+        col+=gold*(ringLine(r-2.75,.026)+ringLine(r-4.35,.014)+ringLine(r-6.15,.012))*(.64+.32*glint);
         col+=gold*ringLine(r-(uRing+1.85),.03)*.55;
+        // Specular-looking reflected light, not a static image laid on the floor.
+        col+=chrome*exp(-abs(p.x)*2.4)*exp(-abs(p.y)*.26)*(.08+.035*sin(p.y*25.));
         for(int i=0;i<10;i++){vec2 pp=uPortal[i].xy;float w=uPortal[i].z;
           float dp=length(p-pp);col+=uPortalCol[i]*exp(-dp*dp*.3)*(.06+.5*w);}
         col*=1.-smoothstep(13.2,13.6,r)*.5;
@@ -1029,24 +1090,33 @@ if (renderer) {
   }
 
   function hubStageBuild() {
-    // Dark metallic geometric pedestal: three faceted octagonal gunmetal tiers, a
-    // glowing gold base and top rim, a crown inlay, light beam and rising motes.
-    // `mount` turns to face the camera and carries the Guardian.
+    // Match the locked landing reference: round mirror-chrome bands, a
+    // low black stage, champagne trim, and the luminous crown on its floor.
+    // The mount keeps the character at HUB_STAGE_TOP without affecting input.
     const stage = new T.Group(); scene.add(stage);
     const mount = new T.Group(); stage.add(mount);
-    const gunmetal = new T.MeshPhysicalMaterial({color: '#202631', metalness: .92, roughness: .24, envMapIntensity: 1.25,
-      clearcoat: 1, clearcoatRoughness: .08, emissive: '#070b14', flatShading: true});
-    const seamGold = new T.MeshBasicMaterial({color: '#f4d18e', toneMapped: false});
-    const octagon = new T.Group(); octagon.rotation.y = Math.PI / 8; stage.add(octagon); // a flat facet faces the viewer
-    for (const [top, bottom, height, y] of [[1.95, 2.14, .22, .11], [1.66, 1.82, .2, .32], [1.36, 1.48, .18, .51]]) {
-      const tier = new T.Mesh(new T.CylinderGeometry(top, bottom, height, 8), gunmetal); tier.position.y = y; octagon.add(tier);
-      const edge = new T.Mesh(new T.TorusGeometry(top, .012, 6, 8), hubGold);
-      edge.rotation.x = Math.PI / 2; edge.position.y = y + height / 2 + .002; octagon.add(edge);
-    }
-    const topRim = new T.Mesh(new T.TorusGeometry(1.36, .014, 6, 8), seamGold); // glowing rim of the top tier
-    topRim.rotation.x = Math.PI / 2; topRim.position.y = HUB_STAGE_TOP; octagon.add(topRim);
-    const baseGlow = new T.Mesh(new T.TorusGeometry(2.14, .03, 6, 8), seamGold);
-    baseGlow.rotation.x = Math.PI / 2; baseGlow.position.y = .005; octagon.add(baseGlow);
+    const enamel = new T.MeshPhysicalMaterial({color:'#0d111a',metalness:.86,roughness:.19,
+      envMapIntensity:1.3,clearcoat:1,clearcoatRoughness:.06});
+    const seamGold = new T.MeshBasicMaterial({color:'#ffe1a5',toneMapped:false});
+    const seamWhite = new T.MeshBasicMaterial({color:'#e4efff',toneMapped:false});
+    const cylinderBand=(radius,height,y,material)=>{
+      const ring=new T.Mesh(new T.CylinderGeometry(radius,radius,height,104),material);
+      ring.position.y=y;stage.add(ring);
+    };
+    const ringStrip=(radius,y,thickness,material)=>{
+      const ring=new T.Mesh(new T.TorusGeometry(radius,thickness,8,112),material);
+      ring.rotation.x=Math.PI/2;ring.position.y=y;stage.add(ring);
+    };
+    cylinderBand(2.22,.10,.05,hubChrome);
+    cylinderBand(2.12,.44,.32,enamel);
+    cylinderBand(2.15,.08,.23,hubChrome);
+    cylinderBand(2.16,.08,.51,hubChrome);
+    cylinderBand(2.15,.05,HUB_STAGE_TOP-.025,enamel);
+    ringStrip(2.24,.065,.022,seamWhite);
+    ringStrip(2.16,HUB_STAGE_TOP,.019,hubGoldTrim);
+    ringStrip(2.05,HUB_STAGE_TOP+.008,.013,seamGold);
+    ringStrip(1.77,HUB_STAGE_TOP+.007,.011,hubChrome);
+    ringStrip(1.47,HUB_STAGE_TOP+.008,.014,seamWhite);
     const crown = new T.Mesh(new T.CircleGeometry(1.22, 72), new T.MeshBasicMaterial({map: hubCrownTexture(), toneMapped: false}));
     crown.rotation.x = -Math.PI / 2; crown.position.y = HUB_STAGE_TOP + .003; mount.add(crown);
     const beamMat = hubShader(`uniform vec3 uColor;uniform float uPower;varying vec2 vUv;varying vec3 vN;varying vec3 vV;
@@ -1070,7 +1140,7 @@ if (renderer) {
   // Motion he simply stands there from the start.
   const HUB_GUARDIAN_FLIGHT = {start: 2.0, seconds: 2.3, settle: .6};
   function hubGuardianArrival() {
-    const {flight, guardian} = hubGuardianFlight;
+    const {flight, guardian, wingPose} = hubGuardianFlight;
     const occupy = () => {
       // The stage light would sit inside his chest: make it a frontal key light (the
       // mount turns with the camera, so it stays frontal) and let the beam step back
@@ -1081,7 +1151,8 @@ if (renderer) {
     };
     const land = () => {
       hubGuardianFlight.active = false;
-      flight.position.set(0, 0, 0); flight.rotation.set(0, 0, 0); occupy();
+      flight.position.set(0, 0, 0); flight.rotation.set(0, 0, 0);
+      wingPose?.(true,1); occupy();
       guardianArrivalPending = true;
       if (hubLoopReady) requestDraw();
     };
@@ -1105,9 +1176,8 @@ if (renderer) {
       ['Calf_L', -.23, 0, 0], ['Calf_R', -.31, 0, 0],
     ].flatMap(([name, pitch, spread, steer]) => rig(name, {pitch, spread, steer}));
     const knees = [['Thigh_L', .22], ['Thigh_R', .22], ['Calf_L', -.36], ['Calf_R', -.36]].flatMap(([name, bend]) => rig(name, {bend}));
-    const path = new T.CubicBezierCurve3(new T.Vector3(5.2, 6.2, -11.5), new T.Vector3(-1.8, 4.2, -7.2),
-      new T.Vector3(-.9, .25, -1.7), new T.Vector3(0, 0, 0));
-    let begin = null, touchdown = null;
+    const path = guardianArrivalSpline(false);
+    let begin = null;
     animated.push(time => {
       if (!hubGuardianFlight.active || disposed) return;
       begin ??= Math.max(time, HUB_GUARDIAN_FLIGHT.start);
@@ -1115,8 +1185,8 @@ if (renderer) {
       if (!flight.visible) occupy();
       const progress = Math.min((time - begin) / HUB_GUARDIAN_FLIGHT.seconds, 1);
       if (progress < 1) {
-        const eased = progress * progress * (3 - 2 * progress);
-        path.getPoint(eased, flight.position);
+        wingPose?.(false,progress);
+        path.getPointAt(guardianFlightDistance(progress),flight.position);
         const bank = Math.sin(Math.PI * progress) * (1 - progress);
         flight.rotation.set(.16 * bank, -.32 * bank, .38 * bank);
         const poseWeight = 1 - T.MathUtils.smoothstep(progress, .66, 1), steering = Math.sin(progress * Math.PI * 2);
@@ -1128,10 +1198,10 @@ if (renderer) {
         return;
       }
       // Touchdown: the knees give and straighten again while the body dips and rises.
-      touchdown ??= time;
       flight.position.set(0, 0, 0); flight.rotation.set(0, 0, 0);
       for (const {joint, rest} of flightJoints) joint.quaternion.copy(rest);
-      const u = Math.min((time - touchdown) / HUB_GUARDIAN_FLIGHT.settle, 1);
+      const u = Math.min((time - begin - HUB_GUARDIAN_FLIGHT.seconds) / HUB_GUARDIAN_FLIGHT.settle, 1);
+      if (u < 1) wingPose?.(true,u);
       const give = Math.sin(Math.PI * u) * (1 - .35 * u);
       flight.position.y = -.055 * give;
       for (const {joint, rest, bend, pitchAxis} of knees) joint.quaternion.copy(rest).multiply(q.setFromAxisAngle(pitchAxis, bend * give));
@@ -1360,7 +1430,7 @@ if (renderer) {
         clearTimeout(swapTimer);
         if (reduced || !title.textContent) apply(); else { caption.classList.add('swap'); swapTimer = setTimeout(apply, 150); }
       },
-      announce(i) { if (status) status.textContent = names[i] + ', ' + (i + 1) + ' of ' + ids.length + '. Swipe to turn the ring; tap the centred portal to enter.'; },
+      announce(i) { if (status) status.textContent = names[i] + ', ' + (i + 1) + ' of ' + ids.length + '. Swipe to turn the ring; tap a portal to enter.'; },
       interacted() { hint.textContent = 'TAP PORTAL TO ENTER'; },
     };
   }
@@ -1368,7 +1438,7 @@ if (renderer) {
   function createHubRig(ui, floorRef, rings) {
     const N = ids.length;
     const st = {yaw: 0, vel: 0, target: 0, focus: 0, dist: HUB_CAM.dist, distTarget: HUB_CAM.dist, look: 0, lookTarget: 0,
-      push: 1, pulse: 0, intro: !reduced, introT: 0, fast: false, dragging: false, live: -1, lastEnter: -1e9, power: reduced ? 1 : 0};
+      push: 1, pulse: 0, intro: !reduced, introT: 0, dragging: false, live: -1, lastEnter: -1e9, power: reduced ? 1 : 0};
     const indexFor = yaw => ((Math.round(-yaw / HUB_STEP) % N) + N) % N;
     const yawFor = (i, from) => { const base = -i * HUB_STEP; return base + Math.PI * 2 * Math.round((from - base) / (Math.PI * 2)); };
     const ray = new T.Raycaster(), ndc = new T.Vector2(), probe = new T.Vector3();
@@ -1378,16 +1448,16 @@ if (renderer) {
     function focus(i, velocity = 0) {
       i = ((i % N) + N) % N; st.focus = i; st.target = yawFor(i, st.yaw);
       if (reduced) { st.yaw = st.target; st.vel = 0; } else st.vel = velocity;
-      ui.announce(i); report('focus', {action: 'world:' + ids[i]}); draw();
+      ui.set(i); ui.announce(i); report('focus', {action: 'world:' + ids[i]}); draw();
     }
     function enter(i) {
       const now = performance.now(); if (now - st.lastEnter < 900) return; st.lastEnter = now;
       const portal = hubPortals[i]; portal.flash = 1; if (!reduced) st.push = 0;
       report('select', {action: 'world:' + portal.id}); draw();
     }
-    const skipIntro = () => { if (st.intro) st.fast = true; };
+    const skipIntro = () => { if (st.intro) { st.introT = HUB_INTRO_SECONDS; update(0); } };
     function step(direction) { skipIntro(); ui.interacted(); focus(st.focus + direction); }
-    function enterFocused() { if (st.intro) { skipIntro(); return; } enter(st.focus); }
+    function enterFocused() { enter(st.focus); }
     function trackPortal(i) {
       // Approved model only: glance toward the portal's on-screen bearing, projected
       // onto the camera plane so the neck never twists toward the portal behind him.
@@ -1399,6 +1469,7 @@ if (renderer) {
     function pick(clientX, clientY) {
       const r = canvas.getBoundingClientRect(); if (!r.width || !r.height) return null;
       ndc.set((clientX - r.left) / r.width * 2 - 1, -(clientY - r.top) / r.height * 2 + 1);
+      scene.updateMatrixWorld(true);
       camera.updateMatrixWorld(); ray.setFromCamera(ndc, camera);
       const hit = ray.intersectObjects(pickables, false)[0];
       if (hit) return hit.object === hubStage.proxy ? 'stage' : hit.object.userData.index;
@@ -1414,13 +1485,13 @@ if (renderer) {
       return best;
     }
     function tap(x, y) {
-      if (st.intro) return;
       const target = pick(x, y);
+      const intendedPortal = typeof target === 'number' && (!st.intro || hubPortals[target].ignite >= .25);
+      skipIntro(); draw();
       if (target === 'stage') { st.pulse = 1; draw(); return; }
-      if (target === null) return;
+      if (!intendedPortal) return;
       ui.interacted();
-      const aligned = Math.abs(hubWrap(st.yaw - yawFor(target, st.yaw))) < HUB_STEP * .22;
-      if (target === st.focus && aligned) enter(target); else focus(target);
+      enter(target);
     }
 
     // Touch: one finger turns the ring (with inertia and snap), two fingers pinch the
@@ -1433,7 +1504,6 @@ if (renderer) {
       if (disposed || (e.pointerType === 'mouse' && e.button !== 0)) return;
       try { canvas.setPointerCapture(e.pointerId); } catch { /* capture is best effort in WKWebView */ }
       pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
-      skipIntro();
       const now = e.timeStamp || performance.now();
       if (pointers.size === 1) { gesture = {x0: e.clientX, y0: e.clientY, t0: now, x: e.clientX, y: e.clientY, t: now, moved: false, multi: false, vel: 0}; st.vel = 0; }
       else if (gesture) { gesture.multi = true; gesture.spread0 = spread(); gesture.dist0 = st.distTarget; st.dragging = false; }
@@ -1442,7 +1512,10 @@ if (renderer) {
     canvas.addEventListener('pointermove', e => {
       const point = pointers.get(e.pointerId); if (!point || !gesture) return;
       point.x = e.clientX; point.y = e.clientY;
-      if (st.intro) return;
+      if (st.intro) {
+        if (pointers.size < 2 && Math.hypot(e.clientX - gesture.x0,e.clientY - gesture.y0) <= slop()) return;
+        skipIntro();
+      }
       const now = e.timeStamp || performance.now();
       if (pointers.size >= 2) {
         const d = spread();
@@ -1487,7 +1560,7 @@ if (renderer) {
         // Establishing shot: start high outside the ring, sweep round and descend
         // inside it while the floor ring lights, the portals ignite one by one and
         // the Guardian stage powers up.
-        st.introT += dt * (st.fast ? 4 : 1);
+        st.introT += dt;
         const p = Math.min(1, st.introT / HUB_INTRO_SECONDS);
         const e1 = hubEase(Math.min(1, p * 1.15)), e2 = hubEase(hubClamp((p - .16) / .84, 0, 1));
         yaw = 1.3 * (1 - hubEaseOut(p));
@@ -1520,7 +1593,10 @@ if (renderer) {
         yaw = st.yaw; dist = st.dist - (reduced ? 0 : Math.sin(Math.PI * st.push) * .9);
         height = HUB_CAM.height + st.look * .22; lookY = HUB_CAM.lookY + st.look;
         const live = indexFor(yaw);
-        if (live !== st.live) { st.live = live; ui.set(live); }
+        if (live !== st.live) {
+          if (st.live < 0 || st.dragging) ui.set(st.dragging ? live : st.focus);
+          st.live = live;
+        }
         // The Guardian's head follows the portal you drag, or the one sliding into focus.
         trackPortal(st.dragging ? live : st.focus);
       }
@@ -1711,7 +1787,7 @@ if (renderer) {
   ({hub,home,work,creativity:()=>dreams(),wellbeing:health,relationships:()=>singles?singlesLounge():love(),events:village,style:closet,staarverse,staarsonic:studio,diggitstaar})[world]();
   const previewWorldObjects=scene.children.filter(object=>!previewBaseline.has(object));
   function importApprovedWorld() {
-    if(world==='hub')return;
+    if(world==='hub'||readOnly)return;
     const variant=world==='relationships' ? (singles?'singles':'realm') :
       ({home:'residence',work:'command',creativity:'dream',wellbeing:'health',events:'village',style:'closet',staarverse:'universe',staarsonic:'studio',diggitstaar:'workstation'})[world];
     const qaWorld=worldQaEnabled&&window.STAAR_PRIVATE_WORLDS_QA?.[world+'-'+variant];
@@ -1785,18 +1861,19 @@ if (renderer) {
   }
   importApprovedWorld();
   controls.update();controls.saveState();
-  let frame=0,visible=true,firstFrameReady=false,lastFrameAt=null;const start=performance.now();
   hubLoopReady=true;
-  function requestDraw(){if(!frame&&visible)frame=requestAnimationFrame(draw);}
+  function requestDraw(){if(!frame&&visible&&!disposed)frame=requestAnimationFrame(draw);}
   function draw(now){
-    frame=0;if(!visible)return;
+    frame=0;if(!visible||disposed)return;
     try {
-      const t=(now-start)/1000;
-      const delta=lastFrameAt===null?0:(now-lastFrameAt)/1000;lastFrameAt=now;
+      // A suspended WKWebView must resume its animation, not teleport to the
+      // end. Use the same capped foreground clock for the hub and Guardian.
+      const delta=lastFrameAt===null?0:T.MathUtils.clamp((now-lastFrameAt)/1000,0,.1);
+      lastFrameAt=now;activeSeconds+=delta;
       modelMotions.forEach(motion=>motion.update(delta,visible));
       worldPhysicsQa?.frame(now);
       walkController?.tick(Math.max(0,Math.min(delta,.075)));
-      animated.forEach(fn=>fn(t));
+      animated.forEach(fn=>fn(activeSeconds));
       if(hubRig){hubRig.update(delta);hubAlignBackdrop();if(!reduced)hubAdaptiveResolution(delta);}else controls.update();
       const renderStart=guardianDeviceQa ? performance.now() : 0;
       if(hubBloom)hubBloom.render(delta);else renderer.render(scene,camera);
@@ -1825,7 +1902,7 @@ if (renderer) {
     }
   }
   controls.addEventListener('change',requestDraw);requestDraw();
-  document.addEventListener('visibilitychange',()=>{visible=!document.hidden;if(!visible)guardianFaceMotion?.mute();lastFrameAt=null;if(!visible)cancelAnimationFrame(frame);frame=0;if(visible)requestDraw();});
+  document.addEventListener('visibilitychange',()=>{visible=!document.hidden&&!disposed;if(!visible)guardianFaceMotion?.mute();lastFrameAt=null;if(!visible)cancelAnimationFrame(frame);frame=0;if(visible)requestDraw();});
   // WKWebView does not always fire window 'resize' when React Native changes the
   // web view's frame, so also watch the canvas box itself.
   addEventListener('resize',()=>applyViewport());
@@ -1861,10 +1938,10 @@ if (renderer) {
   document.querySelector('#reset').addEventListener('click',()=>{if(hubRig)hubRig.reset();else controls.reset();requestDraw();});
   document.querySelector('#title').textContent=world==='hub'?'STAARWAARDD · PORTAL HUB':(singles?'STAAR Love · Singles':names[ids.indexOf(world)]);
   document.querySelector('#status').textContent=immersiveHub
-    ?'Ten portals surround the Guardian. Swipe to turn the ring; tap the centred portal to enter.'
+    ?'Ten portals surround the Guardian. Swipe to turn the ring; tap a portal to enter.'
     :'Drag to explore · pinch or scroll to move closer · tap a labelled control';
   for(const g of clickable){const b=document.createElement('button');b.textContent=g.userData.label;b.addEventListener('click',()=>report('select',{action:g.userData.action}));document.querySelector('#actions').append(b);}
   canvas.addEventListener('webglcontextlost',e=>{worldPhysicsQa?.contextLost();e.preventDefault();visible=false;cancelAnimationFrame(frame);frame=0;document.querySelector('#reset').hidden=true;document.querySelector('#status').textContent='3D rendering stopped. Use the accessible world controls below to continue.';addNavigationFallback();report('unavailable');});
-  addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();guardianNeckPoseQa?.dispose();controls.dispose();hubDropBloom();disposeModel(scene);env.dispose();renderer.dispose();});
+  addEventListener('pagehide',()=>{window.removeEventListener('message',onHostFaceFrame);disposed=true;mountedGuardianFaceSha256=null;visible=false;cancelAnimationFrame(frame);modelMotions.forEach(motion=>motion.dispose());walkController?.dispose();guardianFaceMotion?.dispose();guardianNeckPoseQa?.dispose();controls.dispose();hubDropBloom();disposeModel(scene);env.dispose();renderer.dispose();});
 }
 

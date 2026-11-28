@@ -35,7 +35,8 @@ test('new Watch App Store profile matches main App Store certificate and both ar
 
 test('new Codemagic release workflow remains manual, publishes internal-only, and blocks unsafe backend',()=>{
  assert.match(codemagic,/events: \[\]/);
- assert.match(codemagic,/submit_to_testflight: true/);
+ assert.match(codemagic,/submit_to_testflight: false/);
+ assert.doesNotMatch(codemagic, /submit_to_testflight: true/);
  assert.match(codemagic,/testFlightInternalTestingOnly": true/);
  assert.match(codemagic,/STAAR_PRODUCTION_BACKEND_URL/);
  assert.match(codemagic,/verify-live-production-backend\.mjs/);
